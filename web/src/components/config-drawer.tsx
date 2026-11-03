@@ -1,5 +1,6 @@
 import { type SVGProps } from 'react'
 import { Root as Radio, Item } from '@radix-ui/react-radio-group'
+import { zh } from '@/locales/zh-CN'
 import { CircleCheck, RotateCcw, Settings } from 'lucide-react'
 import { IconDir } from '@/assets/custom/icon-dir'
 import { IconLayoutCompact } from '@/assets/custom/icon-layout-compact'
@@ -54,7 +55,7 @@ export function ConfigDrawer() {
       </SheetTrigger>
       <SheetContent className='flex flex-col'>
         <SheetHeader className='pb-0 text-start'>
-          <SheetTitle>界面设置</SheetTitle>
+          <SheetTitle>{zh.config.title}</SheetTitle>
           <SheetDescription>
             Adjust the appearance and layout to suit your preferences.
           </SheetDescription>
@@ -177,7 +178,7 @@ function ThemeConfig() {
   return (
     <div>
       <SectionTitle
-        title='主题'
+        title={zh.config.theme}
         showReset={theme !== defaultTheme}
         onReset={() => setTheme(defaultTheme)}
         resetAriaLabel='Reset theme preference to default'
@@ -192,17 +193,17 @@ function ThemeConfig() {
         {[
           {
             value: 'system',
-            label: '跟随系统',
+            label: zh.theme.system,
             icon: IconThemeSystem,
           },
           {
             value: 'light',
-            label: '浅色',
+            label: zh.theme.light,
             icon: IconThemeLight,
           },
           {
             value: 'dark',
-            label: '深色',
+            label: zh.theme.dark,
             icon: IconThemeDark,
           },
         ].map((item) => (
@@ -221,7 +222,7 @@ function SidebarConfig() {
   return (
     <div className='max-md:hidden'>
       <SectionTitle
-        title='侧边栏'
+        title={zh.config.sidebar}
         showReset={defaultVariant !== variant}
         onReset={() => setVariant(defaultVariant)}
         resetAriaLabel='Reset sidebar style to default'
@@ -236,17 +237,17 @@ function SidebarConfig() {
         {[
           {
             value: 'inset',
-            label: '内嵌',
+            label: zh.config.sidebarInset,
             icon: IconSidebarInset,
           },
           {
             value: 'floating',
-            label: '浮动',
+            label: zh.config.sidebarFloating,
             icon: IconSidebarFloating,
           },
           {
             value: 'sidebar',
-            label: '侧边栏',
+            label: zh.config.sidebar,
             icon: IconSidebarSidebar,
           },
         ].map((item) => (
@@ -269,7 +270,7 @@ function LayoutConfig() {
   return (
     <div className='max-md:hidden'>
       <SectionTitle
-        title='布局'
+        title={zh.config.layout}
         showReset={radioState !== 'default'}
         onReset={() => {
           setOpen(true)
@@ -294,17 +295,17 @@ function LayoutConfig() {
         {[
           {
             value: 'default',
-            label: '默认',
+            label: zh.config.layoutDefault,
             icon: IconLayoutDefault,
           },
           {
             value: 'icon',
-            label: '紧凑',
+            label: zh.config.layoutCompact,
             icon: IconLayoutCompact,
           },
           {
             value: 'offcanvas',
-            label: '全宽',
+            label: zh.config.layoutFull,
             icon: IconLayoutFull,
           },
         ].map((item) => (
@@ -323,7 +324,7 @@ function DirConfig() {
   return (
     <div>
       <SectionTitle
-        title='文字方向'
+        title={zh.config.direction}
         showReset={defaultDir !== dir}
         onReset={() => setDir(defaultDir)}
         resetAriaLabel='Reset text direction to default'
@@ -338,14 +339,14 @@ function DirConfig() {
         {[
           {
             value: 'ltr',
-            label: '从左到右',
+            label: zh.config.ltr,
             icon: (props: SVGProps<SVGSVGElement>) => (
               <IconDir dir='ltr' {...props} />
             ),
           },
           {
             value: 'rtl',
-            label: '从右到左',
+            label: zh.config.rtl,
             icon: (props: SVGProps<SVGSVGElement>) => (
               <IconDir dir='rtl' {...props} />
             ),

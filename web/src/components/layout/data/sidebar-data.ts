@@ -1,3 +1,4 @@
+import { zh } from '@/locales/zh-CN'
 import {
   Building2,
   LayoutDashboard,
@@ -11,26 +12,26 @@ import { type SidebarData } from '../types'
 export const sidebarData: SidebarData = {
   navGroups: [
     {
-      title: '通用',
-      items: [{ title: '工作台', url: '/', icon: LayoutDashboard }],
+      title: zh.nav.general,
+      items: [{ title: zh.nav.dashboard, url: '/', icon: LayoutDashboard }],
     },
     {
-      title: '组织',
+      title: zh.nav.org,
       items: [
         {
-          title: '成员',
+          title: zh.nav.members,
           url: '/members',
           icon: Users,
           perm: 'org.member.read',
         },
         {
-          title: '部门',
+          title: zh.nav.departments,
           url: '/departments',
           icon: Building2,
           perm: 'org.dept.read',
         },
         {
-          title: '角色与权限',
+          title: zh.nav.roles,
           url: '/roles',
           icon: ShieldCheck,
           perm: 'org.role.read',
@@ -38,10 +39,10 @@ export const sidebarData: SidebarData = {
       ],
     },
     {
-      title: '安全',
+      title: zh.nav.security,
       items: [
         {
-          title: '审计日志',
+          title: zh.nav.audit,
           url: '/audit',
           icon: ScrollText,
           perm: 'audit.read',

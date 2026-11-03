@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
+import { zh } from '@/locales/zh-CN'
 import { KeyRound, Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
@@ -21,8 +22,8 @@ import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/password-input'
 
 const formSchema = z.object({
-  email: z.email({ error: '请输入有效的邮箱' }),
-  password: z.string().min(1, '请输入密码'),
+  email: z.email({ error: zh.signIn.invalidEmail }),
+  password: z.string().min(1, zh.signIn.passwordRequired),
 })
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLFormElement> {
@@ -45,7 +46,7 @@ export function UserAuthForm({
       .then(setSso)
       .catch(() => setSso({ enabled: false }))
     if (new URLSearchParams(window.location.search).get('error') === 'sso') {
-      toast.error('单点登录失败：账号未开通或已停用，请联系管理员')
+      toast.error(zh.signIn.ssoFailed)
     }
   }, [])
 
@@ -59,7 +60,7 @@ export function UserAuthForm({
     try {
       const me = await authApi.login(data.email, data.password)
       auth.setUser(me)
-      toast.success(`欢迎回来，${me.display_name || me.email}`)
+      toast.success(zh.signIn.welcomeBack(me.display_name || me.email))
       // 只允许站内相对路径跳转，避免开放重定向
       const target =
         redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//')
@@ -67,7 +68,7 @@ export function UserAuthForm({
           : '/'
       navigate({ to: target, replace: true })
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : '登录失败，请稍后重试')
+      toast.error(e instanceof ApiError ? e.message : zh.signIn.failed)
     } finally {
       setIsLoading(false)
     }
@@ -85,7 +86,7 @@ export function UserAuthForm({
           name='email'
           render={({ field }) => (
             <FormItem>
-              <FormLabel>邮箱</FormLabel>
+              <FormLabel>{zh.signIn.email}</FormLabel>
               <FormControl>
                 <Input
                   placeholder='name@example.com'
@@ -102,7 +103,7 @@ export function UserAuthForm({
           name='password'
           render={({ field }) => (
             <FormItem>
-              <FormLabel>密码</FormLabel>
+              <FormLabel>{zh.signIn.password}</FormLabel>
               <FormControl>
                 <PasswordInput
                   placeholder='********'
@@ -116,7 +117,7 @@ export function UserAuthForm({
         />
         <Button className='mt-2' disabled={isLoading}>
           {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
-          登录
+          {zh.signIn.submit}
         </Button>
         {sso.enabled && (
           <Button
@@ -127,7 +128,7 @@ export function UserAuthForm({
             }}
           >
             <KeyRound />
-            使用{sso.display_name || '企业单点登录'}
+            {zh.signIn.ssoButton(sso.display_name || zh.signIn.ssoDefaultName)}
           </Button>
         )}
       </form>

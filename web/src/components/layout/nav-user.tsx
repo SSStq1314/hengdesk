@@ -1,3 +1,4 @@
+import { zh } from '@/locales/zh-CN'
 import { ChevronsUpDown, LogOut } from 'lucide-react'
 import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -78,7 +79,7 @@ export function NavUser({ user }: NavUserProps) {
                 onClick={() => setOpen(true)}
               >
                 <LogOut />
-                退出登录
+                {zh.common.signOut}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { zh } from '@/locales/zh-CN'
 import { roleApi } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -27,21 +28,25 @@ export function RolesPage() {
         </div>
       </Header>
       <Main>
-        <h1 className='mb-4 text-2xl font-bold tracking-tight'>角色与权限</h1>
+        <h1 className='mb-4 text-2xl font-bold tracking-tight'>
+          {zh.roles.title}
+        </h1>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>权限点</TableHead>
+              <TableHead>{zh.roles.colPerms}</TableHead>
               {roles.map((r) => (
                 <TableHead key={r.key} className='text-center'>
                   {r.name}
                   {r.privileged && (
                     <Badge variant='outline' className='ms-1'>
-                      特权
+                      {zh.roles.privileged}
                     </Badge>
                   )}
                   {r.dept_scoped && (
-                    <div className='text-xs text-muted-foreground'>按部门</div>
+                    <div className='text-xs text-muted-foreground'>
+                      {zh.roles.byDepartment}
+                    </div>
                   )}
                 </TableHead>
               ))}

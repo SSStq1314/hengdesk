@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { zh } from '@/locales/zh-CN'
 import { ArrowRight, ChevronRight, Laptop, Moon, Sun } from 'lucide-react'
 import { useSearch } from '@/context/search-provider'
 import { useTheme } from '@/context/theme-provider'
@@ -30,10 +31,10 @@ export function CommandMenu() {
 
   return (
     <CommandDialog modal open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder='输入命令或搜索…' />
+      <CommandInput placeholder={zh.commandMenu.placeholder} />
       <CommandList>
         <ScrollArea type='hover' className='h-72 pe-1'>
-          <CommandEmpty>无结果</CommandEmpty>
+          <CommandEmpty>{zh.commandMenu.empty}</CommandEmpty>
           {sidebarData.navGroups.map((group) => (
             <CommandGroup key={group.title} heading={group.title}>
               {group.items.map((navItem, i) => {
@@ -73,15 +74,15 @@ export function CommandMenu() {
           <CommandSeparator />
           <CommandGroup heading='Theme'>
             <CommandItem onSelect={() => runCommand(() => setTheme('light'))}>
-              <Sun /> <span>浅色</span>
+              <Sun /> <span>{zh.theme.light}</span>
             </CommandItem>
             <CommandItem onSelect={() => runCommand(() => setTheme('dark'))}>
               <Moon className='scale-90' />
-              <span>深色</span>
+              <span>{zh.theme.dark}</span>
             </CommandItem>
             <CommandItem onSelect={() => runCommand(() => setTheme('system'))}>
               <Laptop />
-              <span>跟随系统</span>
+              <span>{zh.theme.system}</span>
             </CommandItem>
           </CommandGroup>
         </ScrollArea>

@@ -199,6 +199,9 @@ jobs:
         with: {node-version: 22, cache: pnpm, cache-dependency-path: web/pnpm-lock.yaml}
       - if: hashFiles('web/package.json') != ''
         run: pnpm install --frozen-lockfile && pnpm lint && pnpm exec tsc -b && pnpm build
+      - name: 前端文案集中检查
+        working-directory: .
+        run: ./scripts/check-web-locales.sh
       - if: hashFiles('web/package.json') == ''
         run: echo "web/ 尚未引入，跳过"
         working-directory: .

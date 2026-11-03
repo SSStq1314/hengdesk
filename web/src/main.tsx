@@ -6,6 +6,7 @@ import {
   QueryClientProvider,
 } from '@tanstack/react-query'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
+import { zh } from '@/locales/zh-CN'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { ApiError } from '@/lib/api'
@@ -43,12 +44,12 @@ const queryClient = new QueryClient({
     onError: (error) => {
       if (error instanceof ApiError) {
         if (error.status === 401) {
-          toast.error('会话已过期，请重新登录')
+          toast.error(zh.common.sessionExpired)
           useAuthStore.getState().auth.reset()
           const redirect = `${router.history.location.href}`
           router.navigate({ to: '/sign-in', search: { redirect } })
         }
-        if (error.status >= 500) toast.error('服务器错误')
+        if (error.status >= 500) toast.error(zh.common.serverError)
       }
     },
   }),

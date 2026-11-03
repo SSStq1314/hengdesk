@@ -1,3 +1,4 @@
+import { zh } from '@/locales/zh-CN'
 import { useAuthStore } from '@/stores/auth-store'
 import {
   Card,
@@ -24,18 +25,18 @@ export function Dashboard() {
         </div>
       </Header>
       <Main>
-        <h1 className='mb-4 text-2xl font-bold tracking-tight'>工作台</h1>
+        <h1 className='mb-4 text-2xl font-bold tracking-tight'>
+          {zh.dashboard.title}
+        </h1>
         <Card>
           <CardHeader>
             <CardTitle>
-              欢迎使用衡台，{user?.display_name || user?.email}
+              {zh.dashboard.welcome(user?.display_name || user?.email || '')}
             </CardTitle>
-            <CardDescription>
-              衡台 · 企业 AI 办公平台（M0 空白后台）
-            </CardDescription>
+            <CardDescription>{zh.dashboard.subtitle}</CardDescription>
           </CardHeader>
           <CardContent className='text-sm text-muted-foreground'>
-            对话、知识库、智能体、审批与审计等模块将在后续里程碑陆续开放。
+            {zh.dashboard.upcoming}
           </CardContent>
         </Card>
       </Main>

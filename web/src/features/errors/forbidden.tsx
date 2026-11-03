@@ -1,4 +1,5 @@
 import { useNavigate, useRouter } from '@tanstack/react-router'
+import { zh } from '@/locales/zh-CN'
 import { Button } from '@/components/ui/button'
 
 export function ForbiddenError() {
@@ -8,15 +9,17 @@ export function ForbiddenError() {
     <div className='h-svh'>
       <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
         <h1 className='text-[7rem] leading-tight font-bold'>403</h1>
-        <span className='font-medium'>无权访问</span>
+        <span className='font-medium'>{zh.errors.forbiddenTitle}</span>
         <p className='text-center text-muted-foreground'>
-          你没有访问该资源的权限
+          {zh.errors.forbiddenDesc}
         </p>
         <div className='mt-6 flex gap-4'>
           <Button variant='outline' onClick={() => history.go(-1)}>
-            返回上一页
+            {zh.common.goBack}
           </Button>
-          <Button onClick={() => navigate({ to: '/' })}>返回首页</Button>
+          <Button onClick={() => navigate({ to: '/' })}>
+            {zh.common.goHome}
+          </Button>
         </div>
       </div>
     </div>
