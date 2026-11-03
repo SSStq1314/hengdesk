@@ -115,7 +115,7 @@ func TestDeepSeekContractNonStream(t *testing.T) {
 			cs := all[name]
 			srv, got := replay(t, cs, 0)
 			model, _ := cs.RequestBody["model"].(string)
-			res, err := (&gateway.Client{}).Chat(context.Background(),
+			res, err := testClient().Chat(context.Background(),
 				&gateway.ChatRequest{Messages: []gateway.Message{user("用一句话介绍你自己。")}},
 				dsUp(srv), gateway.ModelConfig{UpstreamModel: model, Thinking: thinkingOf(cs.RequestBody)})
 			if err != nil {
@@ -145,7 +145,7 @@ func TestDeepSeekContractStream(t *testing.T) {
 			model, _ := cs.RequestBody["model"].(string)
 			var content, reasoning strings.Builder
 			finish := ""
-			res, err := (&gateway.Client{}).Stream(context.Background(),
+			res, err := testClient().Stream(context.Background(),
 				&gateway.ChatRequest{Messages: []gateway.Message{user("用一句话介绍你自己。")}, Stream: true},
 				dsUp(srv), gateway.ModelConfig{UpstreamModel: model, Thinking: thinkingOf(cs.RequestBody)},
 				func(d gateway.Delta) error {
@@ -187,7 +187,7 @@ func TestDeepSeekContractErrors(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			srv, _ := replay(t, all[tc.name], 0)
-			_, err := (&gateway.Client{}).Chat(context.Background(),
+			_, err := testClient().Chat(context.Background(),
 				&gateway.ChatRequest{Messages: []gateway.Message{user("hi")}}, dsUp(srv),
 				gateway.ModelConfig{UpstreamModel: "deepseek-flash", Thinking: "off"})
 			if err == nil || err.Code != tc.code || err.Status != tc.status {
@@ -212,9 +212,9 @@ func TestDeepSeekContractTimeout(t *testing.T) {
 			cfg := gateway.ModelConfig{UpstreamModel: "deepseek-flash", Thinking: "off"}
 			var err *gateway.Error
 			if cs.Chunks == nil {
-				_, err = (&gateway.Client{}).Chat(context.Background(), req, u, cfg)
+				_, err = testClient().Chat(context.Background(), req, u, cfg)
 			} else {
-				_, err = (&gateway.Client{}).Stream(context.Background(), req, u, cfg, func(gateway.Delta) error { return nil })
+				_, err = testClient().Stream(context.Background(), req, u, cfg, func(gateway.Delta) error { return nil })
 			}
 			if err == nil || err.Code != gateway.CodeUpstreamTimeout {
 				t.Fatalf("timeout: %v", err)

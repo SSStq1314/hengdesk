@@ -93,7 +93,7 @@ func (h *chatHandlers) complete(c echo.Context) error {
 	if req.Stream {
 		res, ge = h.stream(c, &req, tgt)
 	} else {
-		res, ge = h.gw.Client.Chat(ctx, &req, tgt.Upstream, tgt.Config)
+		res, ge = h.gw.Client.Chat(egressCtx(ctx, c, "model.chat"), &req, tgt.Upstream, tgt.Config)
 	}
 	h.finish(c, tgt, base, start, res, ge)
 	h.recordUsage(c, p, tgt, req.Stream, start, res, ge)
@@ -182,7 +182,7 @@ func (h *chatHandlers) stream(c echo.Context, req *gateway.ChatRequest, tgt *gat
 		w.Flush()
 		return nil
 	}
-	res, ge := h.gw.Client.Stream(c.Request().Context(), req, tgt.Upstream, tgt.Config, func(d gateway.Delta) error {
+	res, ge := h.gw.Client.Stream(egressCtx(c.Request().Context(), c, "model.chat"), req, tgt.Upstream, tgt.Config, func(d gateway.Delta) error {
 		start()
 		return send("delta", d)
 	})

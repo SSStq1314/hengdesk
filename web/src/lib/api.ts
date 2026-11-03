@@ -326,6 +326,7 @@ export type Provider = {
   has_api_key: boolean
   enabled: boolean
   timeout_seconds: number
+  egress?: EgressHint
 }
 export type ProviderInput = Partial<{
   name: string
@@ -520,4 +521,73 @@ export const notificationApi = {
   list: () =>
     api<{ unread: number; items: AppNotification[] }>('/notifications'),
   markRead: () => api<void>('/notifications/read', { method: 'POST' }),
+}
+
+// ---- 出站控制（M1 第二块 PR4，AC-09）----
+export type EgressHint = { allowed: boolean; reason?: string; message?: string }
+export type EgressKind = 'host' | 'wildcard' | 'ip' | 'cidr'
+export type EgressRule = {
+  id: number
+  kind: EgressKind
+  value: string
+  ports: string
+  note: string
+  source: string
+  private: boolean
+  created_at: string
+  updated_at: string
+}
+export type EgressRuleInput = Pick<
+  EgressRule,
+  'kind' | 'value' | 'ports' | 'note'
+>
+export type EgressLog = {
+  id: number
+  ts: string
+  actor_email: string
+  module: string
+  method: string
+  scheme: string
+  host: string
+  port: number
+  path: string
+  ip: string
+  decision: 'allow' | 'deny'
+  reason: string
+  reason_text?: string
+  status: number
+  duration_ms: number
+  bytes_out: number
+  bytes_in: number
+  error: string
+}
+export type EgressLogFilter = {
+  decision?: string
+  host?: string
+  module?: string
+  reason?: string
+  from?: string
+  to?: string
+  before_id?: number
+}
+export const egressApi = {
+  rules: () => api<{ items: EgressRule[] }>('/admin/egress/rules'),
+  create: (r: EgressRuleInput) =>
+    api<EgressRule>('/admin/egress/rules', json('POST', r)),
+  update: (id: number, r: EgressRuleInput) =>
+    api<EgressRule>(`/admin/egress/rules/${id}`, json('PATCH', r)),
+  remove: (id: number) =>
+    api<void>(`/admin/egress/rules/${id}`, { method: 'DELETE' }),
+  check: (url: string) =>
+    api<EgressHint>('/admin/egress/check', json('POST', { url })),
+  logs: (f: EgressLogFilter) => {
+    const q = new URLSearchParams()
+    for (const [k, v] of Object.entries(f))
+      if (v !== undefined && v !== '') q.set(k, String(v))
+    return api<{
+      items: EgressLog[]
+      has_more: boolean
+      next_before_id?: number
+    }>(`/admin/egress/logs?${q}`)
+  },
 }

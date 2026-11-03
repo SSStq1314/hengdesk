@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"strconv"
 
+	"github.com/SSStq1314/hengdesk/server/internal/egress"
+
 	"github.com/SSStq1314/hengdesk/server/internal/budget"
 
 	"github.com/labstack/echo/v4"
@@ -29,6 +31,9 @@ type Deps struct {
 	Gateway *gateway.Service
 	// Budget 预算服务；为 nil 时用 Auth.Sessions.R（Valkey）构造。
 	Budget *budget.Service
+	// Egress 统一出站客户端（FR-27）；为 nil 时按 DB 白名单构造。所有对外 HTTP 必须经过它。
+	Egress       *egress.Client
+	EgressPolicy *egress.DBPolicy
 }
 
 // Mount 挂载路由。所有 /admin 接口都经统一授权层：未登录 401，无权限或越权 404。
@@ -84,15 +89,25 @@ func Mount(e *echo.Echo, d Deps) {
 	admin.PATCH("/departments/:id", dh.rename, authz.Require(rbac.DeptManage))
 	admin.DELETE("/departments/:id", dh.remove, authz.Require(rbac.DeptManage))
 
+	if d.Egress == nil || d.EgressPolicy == nil {
+		d.Egress, d.EgressPolicy = egress.New(d.DB, d.Audit, d.Log)
+	}
 	gw := d.Gateway
 	if gw == nil {
-		gw = &gateway.Service{DB: d.DB, Client: &gateway.Client{}}
+		gw = &gateway.Service{DB: d.DB, Client: &gateway.Client{HTTP: d.Egress.HTTP()}}
 	}
 	bs := d.Budget
 	if bs == nil {
 		bs = &budget.Service{DB: d.DB, R: d.Auth.Sessions.R, Log: d.Log}
 	}
-	mdh := &modelHandlers{db: d.DB, gw: gw, bs: bs}
+	mdh := &modelHandlers{db: d.DB, gw: gw, bs: bs, eg: d.Egress}
+	eh := &egressHandlers{db: d.DB, client: d.Egress, policy: d.EgressPolicy}
+	admin.GET("/egress/rules", eh.listRules, authz.Require(rbac.EgressManage))
+	admin.POST("/egress/rules", eh.createRule, authz.Require(rbac.EgressManage))
+	admin.PATCH("/egress/rules/:id", eh.updateRule, authz.Require(rbac.EgressManage))
+	admin.DELETE("/egress/rules/:id", eh.deleteRule, authz.Require(rbac.EgressManage))
+	admin.POST("/egress/check", eh.check, authz.Require(rbac.EgressManage))
+	admin.GET("/egress/logs", eh.logs, authz.Require(rbac.EgressLogRead))
 	admin.GET("/model-providers", mdh.listProviders, authz.Require(rbac.ModelManage))
 	admin.POST("/model-providers", mdh.createProvider, authz.Require(rbac.ModelManage))
 	admin.PATCH("/model-providers/:id", mdh.updateProvider, authz.Require(rbac.ModelManage))

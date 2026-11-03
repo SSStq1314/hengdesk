@@ -5,9 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/SSStq1314/hengdesk/server/internal/egress"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
 
 	"github.com/SSStq1314/hengdesk/server/internal/api"
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
@@ -40,10 +45,14 @@ func newGW(t *testing.T, failAudit bool, opts ...func(*api.Deps)) *gwEnv {
 	t.Cleanup(m.Close)
 	keys, _ := gateway.LoadKeyring("", strings.Repeat("11", 32))
 	e := newEnv(t, func(d *api.Deps) {
-		d.Gateway = &gateway.Service{DB: d.DB, Keys: keys, Client: &gateway.Client{}}
 		if failAudit {
 			d.Audit = failModelCall{d.Audit}
 		}
+		// 网关端到端同样经过出站控制：真实 DB 白名单，只放行 mock 上游所在的 127.0.0.1。
+		d.Egress, d.EgressPolicy = egress.New(d.DB, d.Audit, slog.Default())
+		d.EgressPolicy.TTL = time.Nanosecond
+		d.DB.EgressRule.Create().SetKind(egressrule.KindIP).SetValue("127.0.0.1").SetPrivate(true).SetNote("test").ExecX(context.Background())
+		d.Gateway = &gateway.Service{DB: d.DB, Keys: keys, Client: &gateway.Client{HTTP: d.Egress.HTTP()}}
 		for _, o := range opts {
 			o(d)
 		}

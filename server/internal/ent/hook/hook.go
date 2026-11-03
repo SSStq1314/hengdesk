@@ -69,6 +69,30 @@ func (f DeptClosureFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeptClosureMutation", m)
 }
 
+// The EgressLogFunc type is an adapter to allow the use of ordinary
+// function as EgressLog mutator.
+type EgressLogFunc func(context.Context, *ent.EgressLogMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EgressLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EgressLogMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EgressLogMutation", m)
+}
+
+// The EgressRuleFunc type is an adapter to allow the use of ordinary
+// function as EgressRule mutator.
+type EgressRuleFunc func(context.Context, *ent.EgressRuleMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EgressRuleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EgressRuleMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EgressRuleMutation", m)
+}
+
 // The MembershipFunc type is an adapter to allow the use of ordinary
 // function as Membership mutator.
 type MembershipFunc func(context.Context, *ent.MembershipMutation) (ent.Value, error)

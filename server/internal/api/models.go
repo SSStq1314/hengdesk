@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SSStq1314/hengdesk/server/internal/egress"
+
 	"github.com/SSStq1314/hengdesk/server/internal/budget"
 
 	"github.com/labstack/echo/v4"
@@ -29,6 +31,7 @@ type modelHandlers struct {
 	db *ent.Client
 	gw *gateway.Service
 	bs *budget.Service
+	eg *egress.Client
 }
 
 type providerView struct {
@@ -42,6 +45,8 @@ type providerView struct {
 	TimeoutSeconds int       `json:"timeout_seconds"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+	// Egress 新建 / 修改时返回：该上游当前是否在出站白名单内（只提示，不会自动添加）。
+	Egress map[string]any `json:"egress,omitempty"`
 }
 
 func toProviderView(p *ent.ModelProvider) providerView {
@@ -199,7 +204,9 @@ func (h *modelHandlers) createProvider(c echo.Context) error {
 		"name": p.Name, "base_url": p.BaseURL, "dialect": string(p.Dialect), "api_key_set": len(p.APIKeyEnc) > 0}); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusCreated, toProviderView(p))
+	v := toProviderView(p)
+	v.Egress = providerEgressHint(c.Request().Context(), h.eg, p.BaseURL)
+	return c.JSON(http.StatusCreated, v)
 }
 
 func (h *modelHandlers) updateProvider(c echo.Context) error {
@@ -269,7 +276,9 @@ func (h *modelHandlers) updateProvider(c echo.Context) error {
 		"name": p.Name, "base_url": p.BaseURL, "enabled": p.Enabled, "api_key": keyChange}); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, toProviderView(p))
+	v := toProviderView(p)
+	v.Egress = providerEgressHint(c.Request().Context(), h.eg, p.BaseURL)
+	return c.JSON(http.StatusOK, v)
 }
 
 func (h *modelHandlers) deleteProvider(c echo.Context) error {

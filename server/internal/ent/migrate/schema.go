@@ -184,6 +184,76 @@ var (
 			},
 		},
 	}
+	// EgressLogsColumns holds the columns for the "egress_logs" table.
+	EgressLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "ts", Type: field.TypeTime},
+		{Name: "user_id", Type: field.TypeInt, Nullable: true},
+		{Name: "actor_email", Type: field.TypeString, Default: ""},
+		{Name: "module", Type: field.TypeString, Default: ""},
+		{Name: "method", Type: field.TypeString, Default: ""},
+		{Name: "scheme", Type: field.TypeString, Default: ""},
+		{Name: "host", Type: field.TypeString, Default: ""},
+		{Name: "port", Type: field.TypeInt, Default: 0},
+		{Name: "path", Type: field.TypeString, Size: 512, Default: ""},
+		{Name: "ip", Type: field.TypeString, Default: ""},
+		{Name: "decision", Type: field.TypeEnum, Enums: []string{"allow", "deny"}},
+		{Name: "reason", Type: field.TypeString, Default: ""},
+		{Name: "status", Type: field.TypeInt, Default: 0},
+		{Name: "duration_ms", Type: field.TypeInt64, Default: 0},
+		{Name: "bytes_out", Type: field.TypeInt64, Default: 0},
+		{Name: "bytes_in", Type: field.TypeInt64, Default: 0},
+		{Name: "error", Type: field.TypeString, Default: ""},
+	}
+	// EgressLogsTable holds the schema information for the "egress_logs" table.
+	EgressLogsTable = &schema.Table{
+		Name:       "egress_logs",
+		Columns:    EgressLogsColumns,
+		PrimaryKey: []*schema.Column{EgressLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "egresslog_ts",
+				Unique:  false,
+				Columns: []*schema.Column{EgressLogsColumns[1]},
+			},
+			{
+				Name:    "egresslog_decision_ts",
+				Unique:  false,
+				Columns: []*schema.Column{EgressLogsColumns[11], EgressLogsColumns[1]},
+			},
+			{
+				Name:    "egresslog_host_ts",
+				Unique:  false,
+				Columns: []*schema.Column{EgressLogsColumns[7], EgressLogsColumns[1]},
+			},
+		},
+	}
+	// EgressRulesColumns holds the columns for the "egress_rules" table.
+	EgressRulesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"host", "wildcard", "ip", "cidr"}},
+		{Name: "value", Type: field.TypeString, Size: 255},
+		{Name: "ports", Type: field.TypeString, Size: 100, Default: ""},
+		{Name: "note", Type: field.TypeString, Size: 200, Default: ""},
+		{Name: "source", Type: field.TypeEnum, Enums: []string{"manual", "upgrade", "oidc"}, Default: "manual"},
+		{Name: "private", Type: field.TypeBool, Default: false},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+	}
+	// EgressRulesTable holds the schema information for the "egress_rules" table.
+	EgressRulesTable = &schema.Table{
+		Name:       "egress_rules",
+		Columns:    EgressRulesColumns,
+		PrimaryKey: []*schema.Column{EgressRulesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "egressrule_kind_value_ports",
+				Unique:  true,
+				Columns: []*schema.Column{EgressRulesColumns[3], EgressRulesColumns[4], EgressRulesColumns[5]},
+			},
+		},
+	}
 	// MembershipsColumns holds the columns for the "memberships" table.
 	MembershipsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -477,6 +547,8 @@ var (
 		BudgetsTable,
 		DepartmentsTable,
 		DeptClosureTable,
+		EgressLogsTable,
+		EgressRulesTable,
 		MembershipsTable,
 		ModelsTable,
 		ModelProvidersTable,
