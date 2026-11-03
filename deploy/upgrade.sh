@@ -6,6 +6,12 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 [ -f .env ] || { echo "缺少 .env，请先运行 install.sh" >&2; exit 1; }
+# 兼容旧 .env（D-34 第 2 点之前生成）：HTTPS 模式保持原行为，继续占用 80 并跳转。
+if grep -q 'docker-compose.tls.yml' .env && ! grep -q '^HENGDESK_HTTP_REDIRECT=' .env; then
+  sed -i 's/docker-compose.tls.yml/docker-compose.tls.yml:docker-compose.tls-redirect.yml/' .env
+  printf 'HENGDESK_HTTP_REDIRECT=true\nHENGDESK_REDIRECT_PORT=80\n' >> .env
+  echo "==> 已为旧 .env 补上 HTTP 跳转配置（保持 80 跳转 443）"
+fi
 if [ "${1:-}" = "--build" ]; then docker compose build migrate; fi
 echo "==> 停止 server / worker（停写，保证备份一致）"
 docker compose stop server worker
