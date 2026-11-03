@@ -1,0 +1,136 @@
+{
+  "at": "2026-11-03T11:02:58+08:00",
+  "base": "http://127.0.0.1:11434/v1",
+  "cases": [
+    {
+      "name": "chat",
+      "ok": true,
+      "http_status": 200,
+      "observations": {
+        "content": "杭州是一座充满江南水乡韵味的美丽城市。",
+        "finish_reason": "stop",
+        "usage": {
+          "completion_tokens": 12,
+          "prompt_tokens": 34,
+          "prompt_tokens_details": {
+            "cached_tokens": 33
+          },
+          "total_tokens": 46
+        }
+      },
+      "elapsed_ms": 1914,
+      "raw_first_chunk": "{\"id\":\"chatcmpl-976\",\"object\":\"chat.completion\",\"created\":1793674974,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"杭州是一座充满江南水乡韵味的美丽城市。\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":34,\"prompt_tokens_details\":{\"cached_tokens\":33},\"completion_tokens\":12,\"total_tokens\":46}}\n"
+    },
+    {
+      "name": "chat_stream_no_stream_options",
+      "ok": true,
+      "http_status": 200,
+      "observations": {
+        "chunks": 12,
+        "content": "杭州是一座充满江南水乡韵味的美丽城市。",
+        "content_type": "text/event-stream",
+        "finish_reason": "stop",
+        "saw_DONE": true,
+        "usage": null,
+        "usage_on_chunk_with_choices": false
+      },
+      "elapsed_ms": 801,
+      "ttft_ms": 202,
+      "raw_first_chunk": "{\"id\":\"chatcmpl-673\",\"object\":\"chat.completion.chunk\",\"created\":1793674974,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"杭州\"},\"finish_reason\":null}]}",
+      "raw_last_chunks": "{\"id\":\"chatcmpl-673\",\"object\":\"chat.completion.chunk\",\"created\":1793674974,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"城市\"},\"finish_reason\":null}]}\n{\"id\":\"chatcmpl-673\",\"object\":\"chat.completion.chunk\",\"created\":1793674974,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"。\"},\"finish_reason\":null}]}\n{\"id\":\"chatcmpl-673\",\"object\":\"chat.completion.chunk\",\"created\":1793674974,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}"
+    },
+    {
+      "name": "chat_stream_include_usage",
+      "ok": true,
+      "http_status": 200,
+      "observations": {
+        "chunks": 13,
+        "content": "杭州是一座充满江南水乡韵味的美丽城市。",
+        "content_type": "text/event-stream",
+        "finish_reason": "stop",
+        "saw_DONE": true,
+        "usage": {
+          "completion_tokens": 12,
+          "prompt_tokens": 34,
+          "prompt_tokens_details": {
+            "cached_tokens": 33
+          },
+          "total_tokens": 46
+        },
+        "usage_on_chunk_with_choices": false
+      },
+      "elapsed_ms": 779,
+      "ttft_ms": 70,
+      "raw_first_chunk": "{\"id\":\"chatcmpl-949\",\"object\":\"chat.completion.chunk\",\"created\":1793674975,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"杭州\"},\"finish_reason\":null}]}",
+      "raw_last_chunks": "{\"id\":\"chatcmpl-949\",\"object\":\"chat.completion.chunk\",\"created\":1793674975,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"。\"},\"finish_reason\":null}]}\n{\"id\":\"chatcmpl-949\",\"object\":\"chat.completion.chunk\",\"created\":1793674975,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n{\"id\":\"chatcmpl-949\",\"object\":\"chat.completion.chunk\",\"created\":1793674975,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[],\"usage\":{\"prompt_tokens\":34,\"prompt_tokens_details\":{\"cached_tokens\":33},\"completion_tokens\":12,\"total_tokens\":46},\"timings\":{\"prompt_n\":34,\"prompt_ms\":48,\"prompt_per_token_ms\":1.411764705882353,\"prompt_per_second\":708.3333333333334,\"predicted_n\":12,\"predicted_ms\":707,\"predicted_per_token_ms\":58.916666666666664,\"predicted_per_second\":16.973125884016973}}"
+    },
+    {
+      "name": "tools",
+      "ok": true,
+      "http_status": 200,
+      "observations": {
+        "content": "好的，我来查询工单 T-1 的状态。",
+        "finish_reason": "stop",
+        "usage": {
+          "completion_tokens": 14,
+          "prompt_tokens": 169,
+          "prompt_tokens_details": {
+            "cached_tokens": 93
+          },
+          "total_tokens": 183
+        }
+      },
+      "elapsed_ms": 1128,
+      "raw_first_chunk": "{\"id\":\"chatcmpl-279\",\"object\":\"chat.completion\",\"created\":1793674977,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"好的，我来查询工单 T-1 的状态。\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":169,\"prompt_tokens_details\":{\"cached_tokens\":93},\"completion_tokens\":14,\"total_tokens\":183}}\n"
+    },
+    {
+      "name": "tools_choice_required",
+      "ok": true,
+      "http_status": 200,
+      "observations": {
+        "content": "好的，我将查询工单 T-1 的状态。",
+        "finish_reason": "stop",
+        "usage": {
+          "completion_tokens": 14,
+          "prompt_tokens": 169,
+          "prompt_tokens_details": {
+            "cached_tokens": 168
+          },
+          "total_tokens": 183
+        }
+      },
+      "elapsed_ms": 832,
+      "raw_first_chunk": "{\"id\":\"chatcmpl-407\",\"object\":\"chat.completion\",\"created\":1793674977,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"好的，我将查询工单 T-1 的状态。\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":169,\"prompt_tokens_details\":{\"cached_tokens\":168},\"completion_tokens\":14,\"total_tokens\":183}}\n"
+    },
+    {
+      "name": "tools_stream_include_usage",
+      "ok": true,
+      "http_status": 200,
+      "observations": {
+        "arguments_concat": "",
+        "arguments_valid_json": false,
+        "chunks": 15,
+        "content": "好的，我将查询工单 T-1 的状态。",
+        "content_type": "text/event-stream",
+        "finish_reason": "stop",
+        "saw_DONE": true,
+        "tool_call_delta_chunks": 0,
+        "tool_call_ids": 0,
+        "usage": {
+          "completion_tokens": 14,
+          "prompt_tokens": 169,
+          "prompt_tokens_details": {
+            "cached_tokens": 168
+          },
+          "total_tokens": 183
+        },
+        "usage_on_chunk_with_choices": false
+      },
+      "elapsed_ms": 432,
+      "ttft_ms": 37,
+      "raw_first_chunk": "{\"id\":\"chatcmpl-852\",\"object\":\"chat.completion.chunk\",\"created\":1793674977,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"好的\"},\"finish_reason\":null}]}",
+      "raw_last_chunks": "{\"id\":\"chatcmpl-852\",\"object\":\"chat.completion.chunk\",\"created\":1793674977,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"。\"},\"finish_reason\":null}]}\n{\"id\":\"chatcmpl-852\",\"object\":\"chat.completion.chunk\",\"created\":1793674977,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n{\"id\":\"chatcmpl-852\",\"object\":\"chat.completion.chunk\",\"created\":1793674977,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[],\"usage\":{\"prompt_tokens\":169,\"prompt_tokens_details\":{\"cached_tokens\":168},\"completion_tokens\":14,\"total_tokens\":183},\"timings\":{\"prompt_n\":169,\"prompt_ms\":29,\"prompt_per_token_ms\":0.17159763313609466,\"prompt_per_second\":5827.586206896552,\"predicted_n\":14,\"predicted_ms\":397,\"predicted_per_token_ms\":28.357142857142858,\"predicted_per_second\":35.26448362720403}}"
+    }
+  ],
+  "model": "qwen2.5:1.5b"
+}

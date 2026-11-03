@@ -1,0 +1,160 @@
+{
+  "at": "2026-11-03T11:03:01+08:00",
+  "base": "http://127.0.0.1:11434/v1",
+  "cases": [
+    {
+      "name": "chat",
+      "ok": true,
+      "http_status": 200,
+      "observations": {
+        "content": "杭州是一座充满江南水乡韵味的美丽城市。",
+        "finish_reason": "stop",
+        "usage": {
+          "completion_tokens": 12,
+          "prompt_tokens": 34,
+          "prompt_tokens_details": {
+            "cached_tokens": 33
+          },
+          "total_tokens": 46
+        }
+      },
+      "elapsed_ms": 367,
+      "raw_first_chunk": "{\"id\":\"chatcmpl-932\",\"object\":\"chat.completion\",\"created\":1793674978,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"杭州是一座充满江南水乡韵味的美丽城市。\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":34,\"prompt_tokens_details\":{\"cached_tokens\":33},\"completion_tokens\":12,\"total_tokens\":46}}\n"
+    },
+    {
+      "name": "chat_stream_no_stream_options",
+      "ok": true,
+      "http_status": 200,
+      "observations": {
+        "chunks": 12,
+        "content": "杭州是一座充满江南水乡韵味的美丽城市。",
+        "content_type": "text/event-stream",
+        "finish_reason": "stop",
+        "saw_DONE": true,
+        "usage": null,
+        "usage_on_chunk_with_choices": false
+      },
+      "elapsed_ms": 352,
+      "ttft_ms": 39,
+      "raw_first_chunk": "{\"id\":\"chatcmpl-736\",\"object\":\"chat.completion.chunk\",\"created\":1793674978,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"杭州\"},\"finish_reason\":null}]}",
+      "raw_last_chunks": "{\"id\":\"chatcmpl-736\",\"object\":\"chat.completion.chunk\",\"created\":1793674978,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"城市\"},\"finish_reason\":null}]}\n{\"id\":\"chatcmpl-736\",\"object\":\"chat.completion.chunk\",\"created\":1793674978,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"。\"},\"finish_reason\":null}]}\n{\"id\":\"chatcmpl-736\",\"object\":\"chat.completion.chunk\",\"created\":1793674978,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}"
+    },
+    {
+      "name": "chat_stream_include_usage",
+      "ok": true,
+      "http_status": 200,
+      "observations": {
+        "chunks": 13,
+        "content": "杭州是一座充满江南水乡韵味的美丽城市。",
+        "content_type": "text/event-stream",
+        "finish_reason": "stop",
+        "saw_DONE": true,
+        "usage": {
+          "completion_tokens": 12,
+          "prompt_tokens": 34,
+          "prompt_tokens_details": {
+            "cached_tokens": 33
+          },
+          "total_tokens": 46
+        },
+        "usage_on_chunk_with_choices": false
+      },
+      "elapsed_ms": 329,
+      "ttft_ms": 34,
+      "raw_first_chunk": "{\"id\":\"chatcmpl-237\",\"object\":\"chat.completion.chunk\",\"created\":1793674979,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"杭州\"},\"finish_reason\":null}]}",
+      "raw_last_chunks": "{\"id\":\"chatcmpl-237\",\"object\":\"chat.completion.chunk\",\"created\":1793674979,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"。\"},\"finish_reason\":null}]}\n{\"id\":\"chatcmpl-237\",\"object\":\"chat.completion.chunk\",\"created\":1793674979,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n{\"id\":\"chatcmpl-237\",\"object\":\"chat.completion.chunk\",\"created\":1793674979,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[],\"usage\":{\"prompt_tokens\":34,\"prompt_tokens_details\":{\"cached_tokens\":33},\"completion_tokens\":12,\"total_tokens\":46},\"timings\":{\"prompt_n\":34,\"prompt_ms\":30,\"prompt_per_token_ms\":0.8823529411764706,\"prompt_per_second\":1133.3333333333333,\"predicted_n\":12,\"predicted_ms\":293,\"predicted_per_token_ms\":24.416666666666668,\"predicted_per_second\":40.955631399317404}}"
+    },
+    {
+      "name": "tools",
+      "ok": true,
+      "http_status": 200,
+      "observations": {
+        "arguments_is_json_string": true,
+        "content": "",
+        "finish_reason": "tool_calls",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"id\":\"T-1\"}",
+              "name": "query_ticket"
+            },
+            "id": "call_g7a3e148",
+            "index": 0,
+            "type": "function"
+          }
+        ],
+        "usage": {
+          "completion_tokens": 22,
+          "prompt_tokens": 169,
+          "prompt_tokens_details": {
+            "cached_tokens": 154
+          },
+          "total_tokens": 191
+        }
+      },
+      "elapsed_ms": 677,
+      "raw_first_chunk": "{\"id\":\"chatcmpl-819\",\"object\":\"chat.completion\",\"created\":1793674980,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_g7a3e148\",\"index\":0,\"type\":\"function\",\"function\":{\"name\":\"query_ticket\",\"arguments\":\"{\\\"id\\\":\\\"T-1\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":169,\"prompt_tokens_details\":{\"cached_tokens\":154},\"completion_tokens\":22,\"total_tokens\":191}}\n"
+    },
+    {
+      "name": "tools_choice_required",
+      "ok": true,
+      "http_status": 200,
+      "observations": {
+        "arguments_is_json_string": true,
+        "content": "",
+        "finish_reason": "tool_calls",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"id\":\"T-1\"}",
+              "name": "query_ticket"
+            },
+            "id": "call_oznstjqs",
+            "index": 0,
+            "type": "function"
+          }
+        ],
+        "usage": {
+          "completion_tokens": 22,
+          "prompt_tokens": 169,
+          "prompt_tokens_details": {
+            "cached_tokens": 168
+          },
+          "total_tokens": 191
+        }
+      },
+      "elapsed_ms": 644,
+      "raw_first_chunk": "{\"id\":\"chatcmpl-677\",\"object\":\"chat.completion\",\"created\":1793674980,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_oznstjqs\",\"index\":0,\"type\":\"function\",\"function\":{\"name\":\"query_ticket\",\"arguments\":\"{\\\"id\\\":\\\"T-1\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":169,\"prompt_tokens_details\":{\"cached_tokens\":168},\"completion_tokens\":22,\"total_tokens\":191}}\n"
+    },
+    {
+      "name": "tools_stream_include_usage",
+      "ok": true,
+      "http_status": 200,
+      "observations": {
+        "arguments_concat": "{\"id\":\"T-1\"}",
+        "arguments_valid_json": true,
+        "chunks": 3,
+        "content": "",
+        "content_type": "text/event-stream",
+        "finish_reason": "tool_calls",
+        "saw_DONE": true,
+        "tool_call_delta_chunks": 1,
+        "tool_call_ids": 1,
+        "usage": {
+          "completion_tokens": 22,
+          "prompt_tokens": 169,
+          "prompt_tokens_details": {
+            "cached_tokens": 168
+          },
+          "total_tokens": 191
+        },
+        "usage_on_chunk_with_choices": false
+      },
+      "elapsed_ms": 648,
+      "ttft_ms": 572,
+      "raw_first_chunk": "{\"id\":\"chatcmpl-106\",\"object\":\"chat.completion.chunk\",\"created\":1793674981,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_iqiyep5v\",\"index\":0,\"type\":\"function\",\"function\":{\"name\":\"query_ticket\",\"arguments\":\"{\\\"id\\\":\\\"T-1\\\"}\"}}]},\"finish_reason\":null}]}",
+      "raw_last_chunks": "{\"id\":\"chatcmpl-106\",\"object\":\"chat.completion.chunk\",\"created\":1793674981,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_iqiyep5v\",\"index\":0,\"type\":\"function\",\"function\":{\"name\":\"query_ticket\",\"arguments\":\"{\\\"id\\\":\\\"T-1\\\"}\"}}]},\"finish_reason\":null}]}\n{\"id\":\"chatcmpl-106\",\"object\":\"chat.completion.chunk\",\"created\":1793674981,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n{\"id\":\"chatcmpl-106\",\"object\":\"chat.completion.chunk\",\"created\":1793674981,\"model\":\"qwen2.5:1.5b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[],\"usage\":{\"prompt_tokens\":169,\"prompt_tokens_details\":{\"cached_tokens\":168},\"completion_tokens\":22,\"total_tokens\":191},\"timings\":{\"prompt_n\":169,\"prompt_ms\":29,\"prompt_per_token_ms\":0.17159763313609466,\"prompt_per_second\":5827.586206896552,\"predicted_n\":22,\"predicted_ms\":613,\"predicted_per_token_ms\":27.863636363636363,\"predicted_per_second\":35.88907014681892}}"
+    }
+  ],
+  "model": "qwen2.5:1.5b"
+}

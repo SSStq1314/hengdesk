@@ -1,0 +1,4 @@
+model-compat/model-compat
+pgvector-acl/sqlx
+pgvector-acl/pgbench-acl
+*.pdf

@@ -1,0 +1,59 @@
+2026/11/03 10:59:10 SET maintenance_work_mem='2GB'                                                             6ms
+2026/11/03 10:59:10 SET max_parallel_maintenance_workers=6                                                     0s
+2026/11/03 10:59:41 CREATE INDEX IF NOT EXISTS chunks_hnsw ON chunks USING hnsw (emb vector_cosine_ops) WITH ( 31.441s
+2026/11/03 10:59:41 CREATE TABLE chunks_kb(id bigint, doc_id int, kb_id int, acl int[], emb vector(768)) PARTI 2ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_0 PARTITION OF chunks_kb FOR VALUES IN (0)                          2ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_1 PARTITION OF chunks_kb FOR VALUES IN (1)                          1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_2 PARTITION OF chunks_kb FOR VALUES IN (2)                          1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_3 PARTITION OF chunks_kb FOR VALUES IN (3)                          1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_4 PARTITION OF chunks_kb FOR VALUES IN (4)                          1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_5 PARTITION OF chunks_kb FOR VALUES IN (5)                          1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_6 PARTITION OF chunks_kb FOR VALUES IN (6)                          1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_7 PARTITION OF chunks_kb FOR VALUES IN (7)                          1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_8 PARTITION OF chunks_kb FOR VALUES IN (8)                          1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_9 PARTITION OF chunks_kb FOR VALUES IN (9)                          1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_10 PARTITION OF chunks_kb FOR VALUES IN (10)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_11 PARTITION OF chunks_kb FOR VALUES IN (11)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_12 PARTITION OF chunks_kb FOR VALUES IN (12)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_13 PARTITION OF chunks_kb FOR VALUES IN (13)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_14 PARTITION OF chunks_kb FOR VALUES IN (14)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_15 PARTITION OF chunks_kb FOR VALUES IN (15)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_16 PARTITION OF chunks_kb FOR VALUES IN (16)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_17 PARTITION OF chunks_kb FOR VALUES IN (17)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_18 PARTITION OF chunks_kb FOR VALUES IN (18)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_19 PARTITION OF chunks_kb FOR VALUES IN (19)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_20 PARTITION OF chunks_kb FOR VALUES IN (20)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_21 PARTITION OF chunks_kb FOR VALUES IN (21)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_22 PARTITION OF chunks_kb FOR VALUES IN (22)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_23 PARTITION OF chunks_kb FOR VALUES IN (23)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_24 PARTITION OF chunks_kb FOR VALUES IN (24)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_25 PARTITION OF chunks_kb FOR VALUES IN (25)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_26 PARTITION OF chunks_kb FOR VALUES IN (26)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_27 PARTITION OF chunks_kb FOR VALUES IN (27)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_28 PARTITION OF chunks_kb FOR VALUES IN (28)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_29 PARTITION OF chunks_kb FOR VALUES IN (29)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_30 PARTITION OF chunks_kb FOR VALUES IN (30)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_31 PARTITION OF chunks_kb FOR VALUES IN (31)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_32 PARTITION OF chunks_kb FOR VALUES IN (32)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_33 PARTITION OF chunks_kb FOR VALUES IN (33)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_34 PARTITION OF chunks_kb FOR VALUES IN (34)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_35 PARTITION OF chunks_kb FOR VALUES IN (35)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_36 PARTITION OF chunks_kb FOR VALUES IN (36)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_37 PARTITION OF chunks_kb FOR VALUES IN (37)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_38 PARTITION OF chunks_kb FOR VALUES IN (38)                        0s
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_39 PARTITION OF chunks_kb FOR VALUES IN (39)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_40 PARTITION OF chunks_kb FOR VALUES IN (40)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_41 PARTITION OF chunks_kb FOR VALUES IN (41)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_42 PARTITION OF chunks_kb FOR VALUES IN (42)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_43 PARTITION OF chunks_kb FOR VALUES IN (43)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_44 PARTITION OF chunks_kb FOR VALUES IN (44)                        4ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_45 PARTITION OF chunks_kb FOR VALUES IN (45)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_46 PARTITION OF chunks_kb FOR VALUES IN (46)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_47 PARTITION OF chunks_kb FOR VALUES IN (47)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_48 PARTITION OF chunks_kb FOR VALUES IN (48)                        1ms
+2026/11/03 10:59:41 CREATE TABLE chunks_kb_49 PARTITION OF chunks_kb FOR VALUES IN (49)                        1ms
+2026/11/03 10:59:48 INSERT INTO chunks_kb SELECT * FROM chunks                                                 6.492s
+2026/11/03 11:02:17 CREATE INDEX ON chunks_kb USING hnsw (emb vector_cosine_ops) WITH (m=16, ef_construction=6 2m29.01s
+2026/11/03 11:02:17 CREATE INDEX ON chunks_kb USING gin(acl)                                                   178ms
+2026/11/03 11:02:18 ANALYZE                                                                                    995ms
+FIN

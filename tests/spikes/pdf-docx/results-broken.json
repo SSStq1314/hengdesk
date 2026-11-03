@@ -1,0 +1,58 @@
+[
+ {
+  "File": "zh_trunc.docx",
+  "Parser": "docx-stdlib",
+  "OK": false,
+  "Err": "zip: not a valid zip file",
+  "CharRecall": 0,
+  "CharPrecision": 0,
+  "ColumnsInOrder": false,
+  "TableRowsKept": "",
+  "StructuredTable": false,
+  "Millis": 0.002,
+  "Pages": 0,
+  "Sample": ""
+ },
+ {
+  "File": "zh_trunc.pdf",
+  "Parser": "pdf-ledongthuc-plain",
+  "OK": false,
+  "Err": "not a PDF file: missing %%EOF",
+  "CharRecall": 0,
+  "CharPrecision": 0,
+  "ColumnsInOrder": false,
+  "TableRowsKept": "",
+  "StructuredTable": false,
+  "Millis": 0.0026,
+  "Pages": 0,
+  "Sample": ""
+ },
+ {
+  "File": "zh_trunc.pdf",
+  "Parser": "pdf-ledongthuc-rows",
+  "OK": false,
+  "Err": "not a PDF file: missing %%EOF",
+  "CharRecall": 0,
+  "CharPrecision": 0,
+  "ColumnsInOrder": false,
+  "TableRowsKept": "",
+  "StructuredTable": false,
+  "Millis": 0.0002,
+  "Pages": 0,
+  "Sample": ""
+ },
+ {
+  "File": "zh_trunc.pdf",
+  "Parser": "pdf-pdfium-wasm",
+  "OK": false,
+  "Err": "3: incorrect format",
+  "CharRecall": 0,
+  "CharPrecision": 0,
+  "ColumnsInOrder": false,
+  "TableRowsKept": "",
+  "StructuredTable": false,
+  "Millis": 0.3238,
+  "Pages": 0,
+  "Sample": ""
+ }
+]

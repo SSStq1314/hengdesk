@@ -1,0 +1,6 @@
+file               parser                 ok    recall  prec    cols   table  struct        ms  ms/page
+(wordRecall 见 results.json)
+zh_trunc.docx      docx-stdlib            false 0.000   0.000   false         false       0.00     0.00 zip: not a valid zip file
+zh_trunc.pdf       pdf-ledongthuc-plain   false 0.000   0.000   false         false       0.00     0.00 not a PDF file: missing %%EOF
+zh_trunc.pdf       pdf-ledongthuc-rows    false 0.000   0.000   false         false       0.00     0.00 not a PDF file: missing %%EOF
+zh_trunc.pdf       pdf-pdfium-wasm        false 0.000   0.000   false         false       0.32     0.00 3: incorrect format
