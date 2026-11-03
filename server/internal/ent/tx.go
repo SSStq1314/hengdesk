@@ -22,6 +22,10 @@ type Tx struct {
 	Department *DepartmentClient
 	// DeptClosure is the client for interacting with the DeptClosure builders.
 	DeptClosure *DeptClosureClient
+	// EgressLog is the client for interacting with the EgressLog builders.
+	EgressLog *EgressLogClient
+	// EgressRule is the client for interacting with the EgressRule builders.
+	EgressRule *EgressRuleClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
 	// Model is the client for interacting with the Model builders.
@@ -178,6 +182,8 @@ func (tx *Tx) init() {
 	tx.Budget = NewBudgetClient(tx.config)
 	tx.Department = NewDepartmentClient(tx.config)
 	tx.DeptClosure = NewDeptClosureClient(tx.config)
+	tx.EgressLog = NewEgressLogClient(tx.config)
+	tx.EgressRule = NewEgressRuleClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
 	tx.Model = NewModelClient(tx.config)
 	tx.ModelProvider = NewModelProviderClient(tx.config)

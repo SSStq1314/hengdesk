@@ -18,6 +18,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/SSStq1314/hengdesk/server/internal/egress"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
@@ -80,7 +82,7 @@ type oidcState struct {
 
 func (o *OIDC) ctx(ctx context.Context) context.Context {
 	if o.Cfg.HTTPClient != nil {
-		return oidc.ClientContext(ctx, o.Cfg.HTTPClient)
+		return oidc.ClientContext(egress.WithCaller(ctx, egress.Caller{Module: "oidc"}), o.Cfg.HTTPClient)
 	}
 	return ctx
 }

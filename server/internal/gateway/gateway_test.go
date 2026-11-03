@@ -117,7 +117,7 @@ func TestBuildBodyDeepSeek(t *testing.T) {
 func TestChatNonStreamAndMultiTurnTools(t *testing.T) {
 	m := mockupstream.New(testKey)
 	defer m.Close()
-	c := &gateway.Client{}
+	c := testClient()
 	cfg := gateway.ModelConfig{UpstreamModel: "deepseek-flash", Thinking: "on", ToolChoicePolicy: "downgrade"}
 	req := &gateway.ChatRequest{Messages: []gateway.Message{user("查一下工单 T-1")}, Tools: tools, ToolChoice: json.RawMessage(`"required"`)}
 	res, err := c.Chat(context.Background(), req, up(m, testKey), cfg)
@@ -157,7 +157,7 @@ func TestChatNonStreamAndMultiTurnTools(t *testing.T) {
 func TestStreamAggregatesToolCallsAndUsage(t *testing.T) {
 	m := mockupstream.New(testKey)
 	defer m.Close()
-	c := &gateway.Client{}
+	c := testClient()
 	req := &gateway.ChatRequest{Messages: []gateway.Message{user("查工单")}, Tools: tools}
 	var reasoning, args strings.Builder
 	finish := ""
@@ -202,7 +202,7 @@ func TestStreamAggregatesToolCallsAndUsage(t *testing.T) {
 func TestUpstreamErrors(t *testing.T) {
 	m := mockupstream.New(testKey)
 	defer m.Close()
-	c := &gateway.Client{}
+	c := testClient()
 	cfg := gateway.ModelConfig{UpstreamModel: "deepseek-flash", Thinking: "off"}
 	req := &gateway.ChatRequest{Messages: []gateway.Message{user("hi")}}
 	wrong := "sk-wrong-key-zzzz9876"

@@ -21,6 +21,12 @@ type Department func(*sql.Selector)
 // DeptClosure is the predicate function for deptclosure builders.
 type DeptClosure func(*sql.Selector)
 
+// EgressLog is the predicate function for egresslog builders.
+type EgressLog func(*sql.Selector)
+
+// EgressRule is the predicate function for egressrule builders.
+type EgressRule func(*sql.Selector)
+
 // Membership is the predicate function for membership builders.
 type Membership func(*sql.Selector)
 

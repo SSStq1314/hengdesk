@@ -20,6 +20,7 @@ const (
 	CodeUpstreamUnavailable = "upstream_unavailable"
 	CodeUpstreamProtocol    = "upstream_protocol_error"
 	CodeKeyUnavailable      = "upstream_key_unavailable"
+	CodeEgressDenied        = "egress_denied"
 )
 
 // Error 网关错误。Message 已脱敏，可直接回给调用方和写日志。

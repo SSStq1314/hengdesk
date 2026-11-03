@@ -10,6 +10,8 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
@@ -179,6 +181,119 @@ func init() {
 	deptclosureDescDepth := deptclosureFields[3].Descriptor()
 	// deptclosure.DepthValidator is a validator for the "depth" field. It is called by the builders before save.
 	deptclosure.DepthValidator = deptclosureDescDepth.Validators[0].(func(int) error)
+	egresslogFields := schema.EgressLog{}.Fields()
+	_ = egresslogFields
+	// egresslogDescTs is the schema descriptor for ts field.
+	egresslogDescTs := egresslogFields[0].Descriptor()
+	// egresslog.DefaultTs holds the default value on creation for the ts field.
+	egresslog.DefaultTs = egresslogDescTs.Default.(func() time.Time)
+	// egresslogDescActorEmail is the schema descriptor for actor_email field.
+	egresslogDescActorEmail := egresslogFields[2].Descriptor()
+	// egresslog.DefaultActorEmail holds the default value on creation for the actor_email field.
+	egresslog.DefaultActorEmail = egresslogDescActorEmail.Default.(string)
+	// egresslogDescModule is the schema descriptor for module field.
+	egresslogDescModule := egresslogFields[3].Descriptor()
+	// egresslog.DefaultModule holds the default value on creation for the module field.
+	egresslog.DefaultModule = egresslogDescModule.Default.(string)
+	// egresslogDescMethod is the schema descriptor for method field.
+	egresslogDescMethod := egresslogFields[4].Descriptor()
+	// egresslog.DefaultMethod holds the default value on creation for the method field.
+	egresslog.DefaultMethod = egresslogDescMethod.Default.(string)
+	// egresslogDescScheme is the schema descriptor for scheme field.
+	egresslogDescScheme := egresslogFields[5].Descriptor()
+	// egresslog.DefaultScheme holds the default value on creation for the scheme field.
+	egresslog.DefaultScheme = egresslogDescScheme.Default.(string)
+	// egresslogDescHost is the schema descriptor for host field.
+	egresslogDescHost := egresslogFields[6].Descriptor()
+	// egresslog.DefaultHost holds the default value on creation for the host field.
+	egresslog.DefaultHost = egresslogDescHost.Default.(string)
+	// egresslogDescPort is the schema descriptor for port field.
+	egresslogDescPort := egresslogFields[7].Descriptor()
+	// egresslog.DefaultPort holds the default value on creation for the port field.
+	egresslog.DefaultPort = egresslogDescPort.Default.(int)
+	// egresslogDescPath is the schema descriptor for path field.
+	egresslogDescPath := egresslogFields[8].Descriptor()
+	// egresslog.DefaultPath holds the default value on creation for the path field.
+	egresslog.DefaultPath = egresslogDescPath.Default.(string)
+	// egresslog.PathValidator is a validator for the "path" field. It is called by the builders before save.
+	egresslog.PathValidator = egresslogDescPath.Validators[0].(func(string) error)
+	// egresslogDescIP is the schema descriptor for ip field.
+	egresslogDescIP := egresslogFields[9].Descriptor()
+	// egresslog.DefaultIP holds the default value on creation for the ip field.
+	egresslog.DefaultIP = egresslogDescIP.Default.(string)
+	// egresslogDescReason is the schema descriptor for reason field.
+	egresslogDescReason := egresslogFields[11].Descriptor()
+	// egresslog.DefaultReason holds the default value on creation for the reason field.
+	egresslog.DefaultReason = egresslogDescReason.Default.(string)
+	// egresslogDescStatus is the schema descriptor for status field.
+	egresslogDescStatus := egresslogFields[12].Descriptor()
+	// egresslog.DefaultStatus holds the default value on creation for the status field.
+	egresslog.DefaultStatus = egresslogDescStatus.Default.(int)
+	// egresslogDescDurationMs is the schema descriptor for duration_ms field.
+	egresslogDescDurationMs := egresslogFields[13].Descriptor()
+	// egresslog.DefaultDurationMs holds the default value on creation for the duration_ms field.
+	egresslog.DefaultDurationMs = egresslogDescDurationMs.Default.(int64)
+	// egresslogDescBytesOut is the schema descriptor for bytes_out field.
+	egresslogDescBytesOut := egresslogFields[14].Descriptor()
+	// egresslog.DefaultBytesOut holds the default value on creation for the bytes_out field.
+	egresslog.DefaultBytesOut = egresslogDescBytesOut.Default.(int64)
+	// egresslogDescBytesIn is the schema descriptor for bytes_in field.
+	egresslogDescBytesIn := egresslogFields[15].Descriptor()
+	// egresslog.DefaultBytesIn holds the default value on creation for the bytes_in field.
+	egresslog.DefaultBytesIn = egresslogDescBytesIn.Default.(int64)
+	// egresslogDescError is the schema descriptor for error field.
+	egresslogDescError := egresslogFields[16].Descriptor()
+	// egresslog.DefaultError holds the default value on creation for the error field.
+	egresslog.DefaultError = egresslogDescError.Default.(string)
+	egressruleMixin := schema.EgressRule{}.Mixin()
+	egressruleMixinFields0 := egressruleMixin[0].Fields()
+	_ = egressruleMixinFields0
+	egressruleFields := schema.EgressRule{}.Fields()
+	_ = egressruleFields
+	// egressruleDescCreatedAt is the schema descriptor for created_at field.
+	egressruleDescCreatedAt := egressruleMixinFields0[0].Descriptor()
+	// egressrule.DefaultCreatedAt holds the default value on creation for the created_at field.
+	egressrule.DefaultCreatedAt = egressruleDescCreatedAt.Default.(func() time.Time)
+	// egressruleDescUpdatedAt is the schema descriptor for updated_at field.
+	egressruleDescUpdatedAt := egressruleMixinFields0[1].Descriptor()
+	// egressrule.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	egressrule.DefaultUpdatedAt = egressruleDescUpdatedAt.Default.(func() time.Time)
+	// egressrule.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	egressrule.UpdateDefaultUpdatedAt = egressruleDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// egressruleDescValue is the schema descriptor for value field.
+	egressruleDescValue := egressruleFields[1].Descriptor()
+	// egressrule.ValueValidator is a validator for the "value" field. It is called by the builders before save.
+	egressrule.ValueValidator = func() func(string) error {
+		validators := egressruleDescValue.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(value string) error {
+			for _, fn := range fns {
+				if err := fn(value); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// egressruleDescPorts is the schema descriptor for ports field.
+	egressruleDescPorts := egressruleFields[2].Descriptor()
+	// egressrule.DefaultPorts holds the default value on creation for the ports field.
+	egressrule.DefaultPorts = egressruleDescPorts.Default.(string)
+	// egressrule.PortsValidator is a validator for the "ports" field. It is called by the builders before save.
+	egressrule.PortsValidator = egressruleDescPorts.Validators[0].(func(string) error)
+	// egressruleDescNote is the schema descriptor for note field.
+	egressruleDescNote := egressruleFields[3].Descriptor()
+	// egressrule.DefaultNote holds the default value on creation for the note field.
+	egressrule.DefaultNote = egressruleDescNote.Default.(string)
+	// egressrule.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	egressrule.NoteValidator = egressruleDescNote.Validators[0].(func(string) error)
+	// egressruleDescPrivate is the schema descriptor for private field.
+	egressruleDescPrivate := egressruleFields[5].Descriptor()
+	// egressrule.DefaultPrivate holds the default value on creation for the private field.
+	egressrule.DefaultPrivate = egressruleDescPrivate.Default.(bool)
 	membershipMixin := schema.Membership{}.Mixin()
 	membershipMixinFields0 := membershipMixin[0].Fields()
 	_ = membershipMixinFields0

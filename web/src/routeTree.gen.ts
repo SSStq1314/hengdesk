@@ -14,6 +14,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedRolesRouteImport } from './routes/_authenticated/roles'
 import { Route as AuthenticatedModelsRouteImport } from './routes/_authenticated/models'
 import { Route as AuthenticatedMembersRouteImport } from './routes/_authenticated/members'
+import { Route as AuthenticatedEgressRouteImport } from './routes/_authenticated/egress'
 import { Route as AuthenticatedDepartmentsRouteImport } from './routes/_authenticated/departments'
 import { Route as AuthenticatedBudgetsRouteImport } from './routes/_authenticated/budgets'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
@@ -47,6 +48,11 @@ const AuthenticatedModelsRoute = AuthenticatedModelsRouteImport.update({
 const AuthenticatedMembersRoute = AuthenticatedMembersRouteImport.update({
   id: '/members',
   path: '/members',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEgressRoute = AuthenticatedEgressRouteImport.update({
+  id: '/egress',
+  path: '/egress',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDepartmentsRoute =
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AuthenticatedAuditRoute
   '/budgets': typeof AuthenticatedBudgetsRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
+  '/egress': typeof AuthenticatedEgressRoute
   '/members': typeof AuthenticatedMembersRoute
   '/models': typeof AuthenticatedModelsRoute
   '/roles': typeof AuthenticatedRolesRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByTo {
   '/audit': typeof AuthenticatedAuditRoute
   '/budgets': typeof AuthenticatedBudgetsRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
+  '/egress': typeof AuthenticatedEgressRoute
   '/members': typeof AuthenticatedMembersRoute
   '/models': typeof AuthenticatedModelsRoute
   '/roles': typeof AuthenticatedRolesRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
   '/_authenticated/budgets': typeof AuthenticatedBudgetsRoute
   '/_authenticated/departments': typeof AuthenticatedDepartmentsRoute
+  '/_authenticated/egress': typeof AuthenticatedEgressRoute
   '/_authenticated/members': typeof AuthenticatedMembersRoute
   '/_authenticated/models': typeof AuthenticatedModelsRoute
   '/_authenticated/roles': typeof AuthenticatedRolesRoute
@@ -165,6 +174,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/budgets'
     | '/departments'
+    | '/egress'
     | '/members'
     | '/models'
     | '/roles'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/budgets'
     | '/departments'
+    | '/egress'
     | '/members'
     | '/models'
     | '/roles'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/_authenticated/audit'
     | '/_authenticated/budgets'
     | '/_authenticated/departments'
+    | '/_authenticated/egress'
     | '/_authenticated/members'
     | '/_authenticated/models'
     | '/_authenticated/roles'
@@ -249,6 +261,13 @@ declare module '@tanstack/react-router' {
       path: '/members'
       fullPath: '/members'
       preLoaderRoute: typeof AuthenticatedMembersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/egress': {
+      id: '/_authenticated/egress'
+      path: '/egress'
+      fullPath: '/egress'
+      preLoaderRoute: typeof AuthenticatedEgressRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/departments': {
@@ -328,6 +347,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedBudgetsRoute: typeof AuthenticatedBudgetsRoute
   AuthenticatedDepartmentsRoute: typeof AuthenticatedDepartmentsRoute
+  AuthenticatedEgressRoute: typeof AuthenticatedEgressRoute
   AuthenticatedMembersRoute: typeof AuthenticatedMembersRoute
   AuthenticatedModelsRoute: typeof AuthenticatedModelsRoute
   AuthenticatedRolesRoute: typeof AuthenticatedRolesRoute
@@ -339,6 +359,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedBudgetsRoute: AuthenticatedBudgetsRoute,
   AuthenticatedDepartmentsRoute: AuthenticatedDepartmentsRoute,
+  AuthenticatedEgressRoute: AuthenticatedEgressRoute,
   AuthenticatedMembersRoute: AuthenticatedMembersRoute,
   AuthenticatedModelsRoute: AuthenticatedModelsRoute,
   AuthenticatedRolesRoute: AuthenticatedRolesRoute,

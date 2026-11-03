@@ -218,7 +218,7 @@ func (h *modelHandlers) testProvider(c echo.Context) error {
 	start := time.Now()
 	up, ge := h.gw.Upstream(p)
 	if ge == nil {
-		res.Models, ge = h.gw.Client.ListModels(ctx, *up)
+		res.Models, ge = h.gw.Client.ListModels(egressCtx(ctx, c, "model.provider.test"), *up)
 	}
 	res.LatencyMS = time.Since(start).Milliseconds()
 	res.OK, res.Error = ge == nil, ge
@@ -254,7 +254,7 @@ func (h *modelHandlers) testModel(c echo.Context) error {
 		cfg := tgt.Config
 		// 测试连接只验证连通性：思考模式下 8 个 token 不够输出，统一关掉思考。
 		cfg.Thinking = "off"
-		out, ge = h.gw.Client.Chat(ctx, req, tgt.Upstream, cfg)
+		out, ge = h.gw.Client.Chat(egressCtx(ctx, c, "model.test"), req, tgt.Upstream, cfg)
 	}
 	res.LatencyMS = time.Since(start).Milliseconds()
 	res.OK, res.Error = ge == nil, ge

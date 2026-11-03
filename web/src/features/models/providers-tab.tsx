@@ -46,9 +46,13 @@ export function ProvidersTab() {
         ? modelApi.updateProvider(e.id, v)
         : modelApi.createProvider(v)
     },
-    onSuccess: () => {
+    onSuccess: (p) => {
       setEdit(null)
       refresh()
+      if (p?.egress && !p.egress.allowed)
+        toast.warning(zh.egress.providerHint(p.egress.message ?? ''), {
+          duration: 10000,
+        })
     },
     onError: onErr,
   })

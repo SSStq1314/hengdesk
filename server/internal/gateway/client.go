@@ -14,6 +14,8 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
+
+	"github.com/SSStq1314/hengdesk/server/internal/egress"
 )
 
 // Upstream 一次调用使用的上游配置（密钥已解密，只在内存中）。
@@ -124,11 +126,23 @@ func BuildBody(req *ChatRequest, up Upstream, m ModelConfig) (map[string]any, []
 	return body, warnings, nil
 }
 
-func (c *Client) httpClient() *http.Client {
-	if c.HTTP != nil {
-		return c.HTTP
+// do 发送上游请求。HTTP 必须是出站控制客户端（egress.Client.HTTP()），不回退到 http.DefaultClient。
+func (c *Client) do(ctx context.Context, r *http.Request, key string) (*http.Response, *Error) {
+	if c.HTTP == nil {
+		return nil, newErr(http.StatusInternalServerError, CodeUpstreamUnavailable, "出站客户端未配置")
 	}
-	return http.DefaultClient
+	resp, err := c.HTTP.Do(r)
+	if err != nil {
+		var de *egress.DeniedError
+		if errors.As(err, &de) {
+			return nil, newErr(http.StatusForbidden, CodeEgressDenied, "%s", de.Message())
+		}
+		if ctx.Err() != nil || isTimeout(err) {
+			return nil, newErr(http.StatusGatewayTimeout, CodeUpstreamTimeout, "上游响应超时")
+		}
+		return nil, newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "无法连接上游：%s", Redact(err.Error(), key))
+	}
+	return resp, nil
 }
 
 func (c *Client) post(ctx context.Context, up Upstream, body map[string]any) (*http.Response, *Error) {
@@ -145,12 +159,9 @@ func (c *Client) post(ctx context.Context, up Upstream, body map[string]any) (*h
 	if up.APIKey != "" {
 		r.Header.Set("Authorization", "Bearer "+up.APIKey)
 	}
-	resp, err := c.httpClient().Do(r)
-	if err != nil {
-		if ctx.Err() != nil || isTimeout(err) {
-			return nil, newErr(http.StatusGatewayTimeout, CodeUpstreamTimeout, "上游响应超时")
-		}
-		return nil, newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "无法连接上游：%s", Redact(err.Error(), up.APIKey))
+	resp, gerr := c.do(ctx, r, up.APIKey)
+	if gerr != nil {
+		return nil, gerr
 	}
 	if resp.StatusCode/100 != 2 {
 		defer func() { _ = resp.Body.Close() }()
@@ -442,12 +453,9 @@ func (c *Client) ListModels(ctx context.Context, up Upstream) ([]string, *Error)
 	if up.APIKey != "" {
 		r.Header.Set("Authorization", "Bearer "+up.APIKey)
 	}
-	resp, err := c.httpClient().Do(r)
-	if err != nil {
-		if ctx.Err() != nil || isTimeout(err) {
-			return nil, newErr(http.StatusGatewayTimeout, CodeUpstreamTimeout, "上游响应超时")
-		}
-		return nil, newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "无法连接上游：%s", Redact(err.Error(), up.APIKey))
+	resp, gerr := c.do(ctx, r, up.APIKey)
+	if gerr != nil {
+		return nil, gerr
 	}
 	defer func() { _ = resp.Body.Close() }()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))

@@ -20,6 +20,8 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
@@ -47,6 +49,10 @@ type Client struct {
 	Department *DepartmentClient
 	// DeptClosure is the client for interacting with the DeptClosure builders.
 	DeptClosure *DeptClosureClient
+	// EgressLog is the client for interacting with the EgressLog builders.
+	EgressLog *EgressLogClient
+	// EgressRule is the client for interacting with the EgressRule builders.
+	EgressRule *EgressRuleClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
 	// Model is the client for interacting with the Model builders.
@@ -83,6 +89,8 @@ func (c *Client) init() {
 	c.Budget = NewBudgetClient(c.config)
 	c.Department = NewDepartmentClient(c.config)
 	c.DeptClosure = NewDeptClosureClient(c.config)
+	c.EgressLog = NewEgressLogClient(c.config)
+	c.EgressRule = NewEgressRuleClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
 	c.Model = NewModelClient(c.config)
 	c.ModelProvider = NewModelProviderClient(c.config)
@@ -190,6 +198,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Budget:        NewBudgetClient(cfg),
 		Department:    NewDepartmentClient(cfg),
 		DeptClosure:   NewDeptClosureClient(cfg),
+		EgressLog:     NewEgressLogClient(cfg),
+		EgressRule:    NewEgressRuleClient(cfg),
 		Membership:    NewMembershipClient(cfg),
 		Model:         NewModelClient(cfg),
 		ModelProvider: NewModelProviderClient(cfg),
@@ -224,6 +234,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Budget:        NewBudgetClient(cfg),
 		Department:    NewDepartmentClient(cfg),
 		DeptClosure:   NewDeptClosureClient(cfg),
+		EgressLog:     NewEgressLogClient(cfg),
+		EgressRule:    NewEgressRuleClient(cfg),
 		Membership:    NewMembershipClient(cfg),
 		Model:         NewModelClient(cfg),
 		ModelProvider: NewModelProviderClient(cfg),
@@ -263,9 +275,9 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.ACL, c.AuditLog, c.Budget, c.Department, c.DeptClosure, c.Membership, c.Model,
-		c.ModelProvider, c.Notification, c.Organization, c.Role, c.SystemSetting,
-		c.Tool, c.UsageRecord, c.User,
+		c.ACL, c.AuditLog, c.Budget, c.Department, c.DeptClosure, c.EgressLog,
+		c.EgressRule, c.Membership, c.Model, c.ModelProvider, c.Notification,
+		c.Organization, c.Role, c.SystemSetting, c.Tool, c.UsageRecord, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -275,9 +287,9 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.ACL, c.AuditLog, c.Budget, c.Department, c.DeptClosure, c.Membership, c.Model,
-		c.ModelProvider, c.Notification, c.Organization, c.Role, c.SystemSetting,
-		c.Tool, c.UsageRecord, c.User,
+		c.ACL, c.AuditLog, c.Budget, c.Department, c.DeptClosure, c.EgressLog,
+		c.EgressRule, c.Membership, c.Model, c.ModelProvider, c.Notification,
+		c.Organization, c.Role, c.SystemSetting, c.Tool, c.UsageRecord, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -296,6 +308,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Department.mutate(ctx, m)
 	case *DeptClosureMutation:
 		return c.DeptClosure.mutate(ctx, m)
+	case *EgressLogMutation:
+		return c.EgressLog.mutate(ctx, m)
+	case *EgressRuleMutation:
+		return c.EgressRule.mutate(ctx, m)
 	case *MembershipMutation:
 		return c.Membership.mutate(ctx, m)
 	case *ModelMutation:
@@ -1048,6 +1064,272 @@ func (c *DeptClosureClient) mutate(ctx context.Context, m *DeptClosureMutation) 
 		return (&DeptClosureDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown DeptClosure mutation op: %q", m.Op())
+	}
+}
+
+// EgressLogClient is a client for the EgressLog schema.
+type EgressLogClient struct {
+	config
+}
+
+// NewEgressLogClient returns a client for the EgressLog from the given config.
+func NewEgressLogClient(c config) *EgressLogClient {
+	return &EgressLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `egresslog.Hooks(f(g(h())))`.
+func (c *EgressLogClient) Use(hooks ...Hook) {
+	c.hooks.EgressLog = append(c.hooks.EgressLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `egresslog.Intercept(f(g(h())))`.
+func (c *EgressLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EgressLog = append(c.inters.EgressLog, interceptors...)
+}
+
+// Create returns a builder for creating a EgressLog entity.
+func (c *EgressLogClient) Create() *EgressLogCreate {
+	mutation := newEgressLogMutation(c.config, OpCreate)
+	return &EgressLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EgressLog entities.
+func (c *EgressLogClient) CreateBulk(builders ...*EgressLogCreate) *EgressLogCreateBulk {
+	return &EgressLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EgressLogClient) MapCreateBulk(slice any, setFunc func(*EgressLogCreate, int)) *EgressLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EgressLogCreateBulk{err: fmt.Errorf("calling to EgressLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EgressLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EgressLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EgressLog.
+func (c *EgressLogClient) Update() *EgressLogUpdate {
+	mutation := newEgressLogMutation(c.config, OpUpdate)
+	return &EgressLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EgressLogClient) UpdateOne(_m *EgressLog) *EgressLogUpdateOne {
+	mutation := newEgressLogMutation(c.config, OpUpdateOne, withEgressLog(_m))
+	return &EgressLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EgressLogClient) UpdateOneID(id int) *EgressLogUpdateOne {
+	mutation := newEgressLogMutation(c.config, OpUpdateOne, withEgressLogID(id))
+	return &EgressLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EgressLog.
+func (c *EgressLogClient) Delete() *EgressLogDelete {
+	mutation := newEgressLogMutation(c.config, OpDelete)
+	return &EgressLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EgressLogClient) DeleteOne(_m *EgressLog) *EgressLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EgressLogClient) DeleteOneID(id int) *EgressLogDeleteOne {
+	builder := c.Delete().Where(egresslog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EgressLogDeleteOne{builder}
+}
+
+// Query returns a query builder for EgressLog.
+func (c *EgressLogClient) Query() *EgressLogQuery {
+	return &EgressLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEgressLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EgressLog entity by its id.
+func (c *EgressLogClient) Get(ctx context.Context, id int) (*EgressLog, error) {
+	return c.Query().Where(egresslog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EgressLogClient) GetX(ctx context.Context, id int) *EgressLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EgressLogClient) Hooks() []Hook {
+	return c.hooks.EgressLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *EgressLogClient) Interceptors() []Interceptor {
+	return c.inters.EgressLog
+}
+
+func (c *EgressLogClient) mutate(ctx context.Context, m *EgressLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EgressLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EgressLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EgressLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EgressLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EgressLog mutation op: %q", m.Op())
+	}
+}
+
+// EgressRuleClient is a client for the EgressRule schema.
+type EgressRuleClient struct {
+	config
+}
+
+// NewEgressRuleClient returns a client for the EgressRule from the given config.
+func NewEgressRuleClient(c config) *EgressRuleClient {
+	return &EgressRuleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `egressrule.Hooks(f(g(h())))`.
+func (c *EgressRuleClient) Use(hooks ...Hook) {
+	c.hooks.EgressRule = append(c.hooks.EgressRule, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `egressrule.Intercept(f(g(h())))`.
+func (c *EgressRuleClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EgressRule = append(c.inters.EgressRule, interceptors...)
+}
+
+// Create returns a builder for creating a EgressRule entity.
+func (c *EgressRuleClient) Create() *EgressRuleCreate {
+	mutation := newEgressRuleMutation(c.config, OpCreate)
+	return &EgressRuleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EgressRule entities.
+func (c *EgressRuleClient) CreateBulk(builders ...*EgressRuleCreate) *EgressRuleCreateBulk {
+	return &EgressRuleCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EgressRuleClient) MapCreateBulk(slice any, setFunc func(*EgressRuleCreate, int)) *EgressRuleCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EgressRuleCreateBulk{err: fmt.Errorf("calling to EgressRuleClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EgressRuleCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EgressRuleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EgressRule.
+func (c *EgressRuleClient) Update() *EgressRuleUpdate {
+	mutation := newEgressRuleMutation(c.config, OpUpdate)
+	return &EgressRuleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EgressRuleClient) UpdateOne(_m *EgressRule) *EgressRuleUpdateOne {
+	mutation := newEgressRuleMutation(c.config, OpUpdateOne, withEgressRule(_m))
+	return &EgressRuleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EgressRuleClient) UpdateOneID(id int) *EgressRuleUpdateOne {
+	mutation := newEgressRuleMutation(c.config, OpUpdateOne, withEgressRuleID(id))
+	return &EgressRuleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EgressRule.
+func (c *EgressRuleClient) Delete() *EgressRuleDelete {
+	mutation := newEgressRuleMutation(c.config, OpDelete)
+	return &EgressRuleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EgressRuleClient) DeleteOne(_m *EgressRule) *EgressRuleDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EgressRuleClient) DeleteOneID(id int) *EgressRuleDeleteOne {
+	builder := c.Delete().Where(egressrule.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EgressRuleDeleteOne{builder}
+}
+
+// Query returns a query builder for EgressRule.
+func (c *EgressRuleClient) Query() *EgressRuleQuery {
+	return &EgressRuleQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEgressRule},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EgressRule entity by its id.
+func (c *EgressRuleClient) Get(ctx context.Context, id int) (*EgressRule, error) {
+	return c.Query().Where(egressrule.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EgressRuleClient) GetX(ctx context.Context, id int) *EgressRule {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EgressRuleClient) Hooks() []Hook {
+	return c.hooks.EgressRule
+}
+
+// Interceptors returns the client interceptors.
+func (c *EgressRuleClient) Interceptors() []Interceptor {
+	return c.inters.EgressRule
+}
+
+func (c *EgressRuleClient) mutate(ctx context.Context, m *EgressRuleMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EgressRuleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EgressRuleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EgressRuleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EgressRuleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EgressRule mutation op: %q", m.Op())
 	}
 }
 
@@ -2544,13 +2826,13 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		ACL, AuditLog, Budget, Department, DeptClosure, Membership, Model,
-		ModelProvider, Notification, Organization, Role, SystemSetting, Tool,
-		UsageRecord, User []ent.Hook
+		ACL, AuditLog, Budget, Department, DeptClosure, EgressLog, EgressRule,
+		Membership, Model, ModelProvider, Notification, Organization, Role,
+		SystemSetting, Tool, UsageRecord, User []ent.Hook
 	}
 	inters struct {
-		ACL, AuditLog, Budget, Department, DeptClosure, Membership, Model,
-		ModelProvider, Notification, Organization, Role, SystemSetting, Tool,
-		UsageRecord, User []ent.Interceptor
+		ACL, AuditLog, Budget, Department, DeptClosure, EgressLog, EgressRule,
+		Membership, Model, ModelProvider, Notification, Organization, Role,
+		SystemSetting, Tool, UsageRecord, User []ent.Interceptor
 	}
 )

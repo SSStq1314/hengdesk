@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/SSStq1314/hengdesk/server/internal/egress"
+
 	"github.com/hibiken/asynq"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
@@ -64,12 +66,19 @@ func serverCmd() *cobra.Command {
 		w := audit.EntWriter{C: client}
 		rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 		defer func() { _ = rdb.Close() }()
+		// FR-27：统一出站客户端。升级迁移（仅一次）把已有上游主机写入白名单并审计。
+		eg, egPolicy := egress.New(client, w, lg)
+		if n, err := egress.Seed(context.Background(), client, w, nil, cfg.OIDCIssuer); err != nil {
+			return fmt.Errorf("egress upgrade seed: %w", err)
+		} else if n > 0 {
+			lg.Warn("egress allowlist seeded from existing upstreams; review it in 出站控制", "rules", n)
+		}
 		var oidcSvc *auth.OIDC
 		if cfg.OIDCIssuer != "" {
 			oidcSvc = &auth.OIDC{R: rdb, Cfg: auth.OIDCConfig{Issuer: cfg.OIDCIssuer, ClientID: cfg.OIDCClientID,
 				ClientSecret: cfg.OIDCClientSecret, RedirectURL: cfg.OIDCRedirectURL, Scopes: cfg.OIDCScopes,
 				LinkBy: cfg.OIDCLinkBy, AutoCreate: cfg.OIDCAutoCreate, OrgSlug: "default", DisplayName: cfg.OIDCDisplayName,
-				EmailDomains: cfg.OIDCEmailDomains, DeptClaim: cfg.OIDCDeptClaim, DeptMatch: cfg.OIDCDeptMatch, DeptDefault: cfg.OIDCDeptDefault}}
+				EmailDomains: cfg.OIDCEmailDomains, DeptClaim: cfg.OIDCDeptClaim, DeptMatch: cfg.OIDCDeptMatch, DeptDefault: cfg.OIDCDeptDefault, HTTPClient: eg.HTTP()}}
 			lg.Info("oidc enabled", "issuer", cfg.OIDCIssuer, "link_by", cfg.OIDCLinkBy, "auto_create", cfg.OIDCAutoCreate,
 				"auto_create_effective", cfg.OIDCAutoCreate && len(cfg.OIDCEmailDomains) > 0, "dept_claim", cfg.OIDCDeptClaim, "enforce", cfg.OIDCEnforce)
 		}
@@ -86,9 +95,8 @@ func serverCmd() *cobra.Command {
 		} else {
 			lg.Info("model gateway master key loaded", "file", cfg.MasterKeyFile, "fingerprint", keys.Fingerprint())
 		}
-		gw := &gateway.Service{DB: client, Keys: keys, Client: &gateway.Client{HTTP: &http.Client{
-			Transport: &http.Transport{Proxy: http.ProxyFromEnvironment, ResponseHeaderTimeout: 0, MaxIdleConnsPerHost: 16}}}}
-		api.Mount(e, api.Deps{Gateway: gw, DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc, EnforceSSO: cfg.OIDCEnforce, BreakGlass: cfg.OIDCBreakGlass,
+		gw := &gateway.Service{DB: client, Keys: keys, Client: &gateway.Client{HTTP: eg.HTTP()}}
+		api.Mount(e, api.Deps{Gateway: gw, Egress: eg, EgressPolicy: egPolicy, DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc, EnforceSSO: cfg.OIDCEnforce, BreakGlass: cfg.OIDCBreakGlass,
 			DB: client, Audit: w, Secure: cfg.CookieSecure,
 			Sessions:  &session.Store{R: rdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle},
 			Lockout:   &session.Lockout{R: rdb, MaxFailures: cfg.LockoutMax, Duration: cfg.LockoutFor},
