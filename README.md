@@ -6,7 +6,7 @@
 
 | 目录 | 说明 |
 |---|---|
-| `server/` | Go 1.25 后端，单二进制 `hengdesk`，子命令 `server` / `worker` / `migrate`（Echo v4 + ent + asynq） |
+| `server/` | Go 1.26（工具链锁定 go1.26.10，见 D-29）后端，单二进制 `hengdesk`，子命令 `server` / `worker` / `migrate`（Echo v4 + ent + asynq） |
 | `web/` | 前端，基于 [satnaing/shadcn-admin](https://github.com/satnaing/shadcn-admin)（MIT）裁剪 |
 | `deploy/` | Docker Compose 部署、安装脚本 |
 | `tests/` | 集成 / 冒烟测试 |
