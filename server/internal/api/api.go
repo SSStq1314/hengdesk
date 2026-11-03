@@ -47,9 +47,10 @@ func Mount(e *echo.Echo, d Deps) {
 	d.Auth.Register(g)
 	admin := g.Group("/admin")
 
-	ah := &auditHandlers{db: d.DB}
+	ah := &auditHandlers{db: d.DB, retentionDays: d.System.AuditRetentionDays, now: d.System.Now}
 	admin.GET("/audit-logs", ah.list, authz.Require(rbac.AuditRead), audit.Sensitive("audit.view"))
 	admin.GET("/audit-logs/verify", ah.verify, authz.Require(rbac.AuditRead), audit.Sensitive("audit.verify"))
+	admin.GET("/audit-logs/retention", ah.retention, authz.Require(rbac.AuditRead))
 	alh := &alertHandlers{db: d.DB, r: d.Auth.Sessions.R}
 	admin.GET("/alerts", alh.list, authz.Require(rbac.AuditRead))
 	admin.POST("/alerts/read", alh.markRead, authz.Require(rbac.AuditRead))

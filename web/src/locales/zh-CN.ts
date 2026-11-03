@@ -208,6 +208,10 @@ export const zh = {
     title: (n: number) => `有 ${n} 条未读的高风险事件`,
     breakGlassLogin: (email: string, ts: string, ip: string) =>
       `紧急管理员 ${email} 于 ${ts} 用本地密码登录（来源 ${ip}）。`,
+    auditRetentionDue: (due: string, daysLeft: number) =>
+      daysLeft >= 0
+        ? `最早的审计记录将于 ${due} 超过保留期（剩余 ${daysLeft} 天），请审计员在服务器上执行「hengdesk audit archive」归档。`
+        : `已有审计记录超过保留期（${due} 到期），请审计员尽快执行「hengdesk audit archive」归档；系统不会自动删除。`,
     other: (kind: string, email: string, ts: string) =>
       `${ts} ${email}：${kind}`,
     more: (n: number) =>

@@ -11,6 +11,12 @@ function describe(a: HighRiskAlert) {
   if (a.detail?.kind === 'break_glass_login') {
     return zh.alerts.breakGlassLogin(a.actor_email, ts, a.ip)
   }
+  if (a.detail?.kind === 'audit_retention_due') {
+    const due = a.detail.due_at
+      ? new Date(a.detail.due_at).toLocaleDateString('zh-CN')
+      : ''
+    return zh.alerts.auditRetentionDue(due, a.detail.days_left ?? 0)
+  }
   return zh.alerts.other(a.detail?.kind ?? '', a.actor_email, ts)
 }
 

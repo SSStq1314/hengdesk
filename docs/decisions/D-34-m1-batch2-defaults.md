@@ -15,4 +15,7 @@
   - 强制 SSO：`HENGDESK_OIDC_ENFORCE=true` 时须配置 1～2 个 `HENGDESK_OIDC_BREAKGLASS_EMAILS`，超过 2 个启动失败。紧急账号每次密码登录写 `alert.high_risk`（severity=high）审计；审计员后台显示未读提醒（`GET /api/v1/admin/alerts`）。邮件 / IM 通知通过 `auth.Notifier` 接口扩展，暂未接入。
 - 第 2 点（HTTP 端口）：PR #22 落实，见 [docs/ops/tls.md](../ops/tls.md)。
 - 第 3 点（自签证书）：PR #23 落实，见 [docs/ops/tls.md](../ops/tls.md#自签证书d-34-第-3-点)。
-- 第 4 点（审计保留期）另行安排。
+- 第 4 点（审计保留期）：PR #24 落实，见 [docs/ops/audit-retention.md](../ops/audit-retention.md)。
+  - `HENGDESK_AUDIT_RETENTION_DAYS` 默认 365，低于 180 启动失败；worker 每 12 小时检查，到期前 30 天写 `audit_retention_due` 站内提醒。
+  - `hengdesk audit archive --auditor <审计员> --yes`：校验链 → 上传归档包并读回比对 → 写归档断点 → 事务内删除；任何一步失败都不删数据。迁移 `20261104000000_m1_audit_archive.sql` 让触发器只放行检查点范围内的 DELETE。
+  - 「带签名的归档包」：包内 SHA256SUMS 必有；配置 Ed25519 私钥时另附 `manifest.sig`。离线校验 `hengdesk audit verify-archive`。

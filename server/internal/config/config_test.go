@@ -81,3 +81,20 @@ func TestOIDCD34Config(t *testing.T) {
 		t.Fatal("bad dept match must fail")
 	}
 }
+
+func TestAuditRetentionConfig(t *testing.T) {
+	c, err := Load()
+	if err != nil || c.AuditRetentionDays != 365 {
+		t.Fatalf("default retention: %v %v", c, err)
+	}
+	t.Setenv("HENGDESK_AUDIT_RETENTION_DAYS", "180")
+	if c, err := Load(); err != nil || c.AuditRetentionDays != 180 {
+		t.Fatalf("180 must be accepted: %v", err)
+	}
+	for _, bad := range []string{"179", "30", "0", "-1", "abc"} {
+		t.Setenv("HENGDESK_AUDIT_RETENTION_DAYS", bad)
+		if _, err := Load(); err == nil {
+			t.Fatalf("%s must be rejected", bad)
+		}
+	}
+}

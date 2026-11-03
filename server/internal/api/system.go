@@ -29,6 +29,8 @@ type SystemConfig struct {
 	TrustedProxies []*net.IPNet
 	// TLSCertFile 部署证书路径，用于自签 / 到期提示（D-34 第 3 点）。
 	TLSCertFile string
+	// AuditRetentionDays 审计在线保留期（FR-40）。
+	AuditRetentionDays int
 	// Now 测试用时钟，nil 时取 time.Now。
 	Now func() time.Time
 }

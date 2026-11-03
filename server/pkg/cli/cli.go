@@ -21,6 +21,7 @@ import (
 
 	"github.com/SSStq1314/hengdesk/server/internal/api"
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
+	"github.com/SSStq1314/hengdesk/server/internal/auditarchive"
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
 	"github.com/SSStq1314/hengdesk/server/internal/backup"
 	"github.com/SSStq1314/hengdesk/server/internal/config"
@@ -35,7 +36,7 @@ import (
 // Main 执行命令行。
 func Main() {
 	root := &cobra.Command{Use: "hengdesk", Short: "衡台 HengDesk 企业 AI 办公平台", SilenceUsage: true}
-	root.AddCommand(serverCmd(), workerCmd(), migrateCmd())
+	root.AddCommand(serverCmd(), workerCmd(), migrateCmd(), auditCmd())
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}
@@ -78,7 +79,8 @@ func serverCmd() *cobra.Command {
 			IPLimit:   &session.RateLimiter{R: rdb, Limit: cfg.LoginIPLimit, Window: cfg.LoginIPWindow},
 			Passwords: auth.PasswordPolicy{MinLen: cfg.PasswordMinLen},
 		}, System: api.SystemConfig{BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, DiskLowPercent: cfg.DiskLowPercent,
-			PublicHTTPS: cfg.PublicHTTPS, TrustedProxies: cfg.TrustedProxies, TLSCertFile: cfg.TLSCertFile}})
+			PublicHTTPS: cfg.PublicHTTPS, TrustedProxies: cfg.TrustedProxies, TLSCertFile: cfg.TLSCertFile,
+			AuditRetentionDays: cfg.AuditRetentionDays}})
 		ctx, stop := signalCtx()
 		defer stop()
 		go func() {
@@ -102,14 +104,37 @@ func workerCmd() *cobra.Command {
 			return err
 		}
 		lg := hlog.New(cfg.LogLevel)
+		client, _, err := store.Open(cfg.DatabaseURL)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = client.Close() }()
 		srv := asynq.NewServer(queue.RedisOpt(cfg.RedisAddr), asynq.Config{Concurrency: 10, Logger: nil})
 		ctx, stop := signalCtx()
 		defer stop()
-		if err := srv.Start(queue.Mux(lg)); err != nil {
+		mux := queue.Mux(lg)
+		// FR-40：审计保留期到期提醒（只提醒，不归档、不删除）。
+		mux.HandleFunc(auditarchive.TaskRemind, func(ctx context.Context, _ *asynq.Task) error {
+			sent, st, err := auditarchive.Remind(ctx, client, audit.EntWriter{C: client}, cfg.AuditRetentionDays, time.Now())
+			if err != nil {
+				return err
+			}
+			lg.Info("audit retention check", "due_soon", st.DueSoon, "days_left", st.DaysLeft, "reminded", sent)
+			return nil
+		})
+		if err := srv.Start(mux); err != nil {
 			return err
 		}
-		lg.Info("worker started", "redis", cfg.RedisAddr)
+		sch := asynq.NewScheduler(queue.RedisOpt(cfg.RedisAddr), nil)
+		if _, err := sch.Register("@every 12h", asynq.NewTask(auditarchive.TaskRemind, nil), asynq.Unique(time.Hour)); err != nil {
+			return err
+		}
+		if err := sch.Start(); err != nil {
+			return err
+		}
+		lg.Info("worker started", "redis", cfg.RedisAddr, "audit_retention_days", cfg.AuditRetentionDays)
 		<-ctx.Done()
+		sch.Shutdown()
 		srv.Shutdown()
 		return nil
 	}}
