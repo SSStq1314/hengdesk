@@ -138,7 +138,7 @@ func SeedAuditor(ctx context.Context, c *ent.Client, o SeedOptions) (bool, error
 	if err := (audit.EntWriter{C: c}).Write(ctx, audit.Entry{OrgID: org.ID, ActorEmail: "system:install",
 		Action: "role.assign", ResourceType: "user", ResourceID: email, Outcome: "success",
 		Detail: map[string]any{"role": rbac.SecurityAuditor, "via": "install"}}); err != nil {
-		return false, fmt.Errorf("%w: %v", audit.ErrAuditUnavailable, err)
+		return false, fmt.Errorf("%w: %w", audit.ErrAuditUnavailable, err)
 	}
 	u, err := c.User.Create().SetEmail(email).SetDisplayName("安全审计员").
 		SetPasswordHash(string(hash)).SetOrg(org).Save(ctx)
