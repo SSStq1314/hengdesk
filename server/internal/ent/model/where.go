@@ -95,6 +95,31 @@ func Enabled(v bool) predicate.Model {
 	return predicate.Model(sql.FieldEQ(FieldEnabled, v))
 }
 
+// IsDefault applies equality check predicate on the "is_default" field. It's identical to IsDefaultEQ.
+func IsDefault(v bool) predicate.Model {
+	return predicate.Model(sql.FieldEQ(FieldIsDefault, v))
+}
+
+// PriceInputMicros applies equality check predicate on the "price_input_micros" field. It's identical to PriceInputMicrosEQ.
+func PriceInputMicros(v int64) predicate.Model {
+	return predicate.Model(sql.FieldEQ(FieldPriceInputMicros, v))
+}
+
+// PriceCachedMicros applies equality check predicate on the "price_cached_micros" field. It's identical to PriceCachedMicrosEQ.
+func PriceCachedMicros(v int64) predicate.Model {
+	return predicate.Model(sql.FieldEQ(FieldPriceCachedMicros, v))
+}
+
+// PriceOutputMicros applies equality check predicate on the "price_output_micros" field. It's identical to PriceOutputMicrosEQ.
+func PriceOutputMicros(v int64) predicate.Model {
+	return predicate.Model(sql.FieldEQ(FieldPriceOutputMicros, v))
+}
+
+// Currency applies equality check predicate on the "currency" field. It's identical to CurrencyEQ.
+func Currency(v string) predicate.Model {
+	return predicate.Model(sql.FieldEQ(FieldCurrency, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Model {
 	return predicate.Model(sql.FieldEQ(FieldCreatedAt, v))
@@ -453,6 +478,201 @@ func EnabledEQ(v bool) predicate.Model {
 // EnabledNEQ applies the NEQ predicate on the "enabled" field.
 func EnabledNEQ(v bool) predicate.Model {
 	return predicate.Model(sql.FieldNEQ(FieldEnabled, v))
+}
+
+// IsDefaultEQ applies the EQ predicate on the "is_default" field.
+func IsDefaultEQ(v bool) predicate.Model {
+	return predicate.Model(sql.FieldEQ(FieldIsDefault, v))
+}
+
+// IsDefaultNEQ applies the NEQ predicate on the "is_default" field.
+func IsDefaultNEQ(v bool) predicate.Model {
+	return predicate.Model(sql.FieldNEQ(FieldIsDefault, v))
+}
+
+// PriceInputMicrosEQ applies the EQ predicate on the "price_input_micros" field.
+func PriceInputMicrosEQ(v int64) predicate.Model {
+	return predicate.Model(sql.FieldEQ(FieldPriceInputMicros, v))
+}
+
+// PriceInputMicrosNEQ applies the NEQ predicate on the "price_input_micros" field.
+func PriceInputMicrosNEQ(v int64) predicate.Model {
+	return predicate.Model(sql.FieldNEQ(FieldPriceInputMicros, v))
+}
+
+// PriceInputMicrosIn applies the In predicate on the "price_input_micros" field.
+func PriceInputMicrosIn(vs ...int64) predicate.Model {
+	return predicate.Model(sql.FieldIn(FieldPriceInputMicros, vs...))
+}
+
+// PriceInputMicrosNotIn applies the NotIn predicate on the "price_input_micros" field.
+func PriceInputMicrosNotIn(vs ...int64) predicate.Model {
+	return predicate.Model(sql.FieldNotIn(FieldPriceInputMicros, vs...))
+}
+
+// PriceInputMicrosGT applies the GT predicate on the "price_input_micros" field.
+func PriceInputMicrosGT(v int64) predicate.Model {
+	return predicate.Model(sql.FieldGT(FieldPriceInputMicros, v))
+}
+
+// PriceInputMicrosGTE applies the GTE predicate on the "price_input_micros" field.
+func PriceInputMicrosGTE(v int64) predicate.Model {
+	return predicate.Model(sql.FieldGTE(FieldPriceInputMicros, v))
+}
+
+// PriceInputMicrosLT applies the LT predicate on the "price_input_micros" field.
+func PriceInputMicrosLT(v int64) predicate.Model {
+	return predicate.Model(sql.FieldLT(FieldPriceInputMicros, v))
+}
+
+// PriceInputMicrosLTE applies the LTE predicate on the "price_input_micros" field.
+func PriceInputMicrosLTE(v int64) predicate.Model {
+	return predicate.Model(sql.FieldLTE(FieldPriceInputMicros, v))
+}
+
+// PriceCachedMicrosEQ applies the EQ predicate on the "price_cached_micros" field.
+func PriceCachedMicrosEQ(v int64) predicate.Model {
+	return predicate.Model(sql.FieldEQ(FieldPriceCachedMicros, v))
+}
+
+// PriceCachedMicrosNEQ applies the NEQ predicate on the "price_cached_micros" field.
+func PriceCachedMicrosNEQ(v int64) predicate.Model {
+	return predicate.Model(sql.FieldNEQ(FieldPriceCachedMicros, v))
+}
+
+// PriceCachedMicrosIn applies the In predicate on the "price_cached_micros" field.
+func PriceCachedMicrosIn(vs ...int64) predicate.Model {
+	return predicate.Model(sql.FieldIn(FieldPriceCachedMicros, vs...))
+}
+
+// PriceCachedMicrosNotIn applies the NotIn predicate on the "price_cached_micros" field.
+func PriceCachedMicrosNotIn(vs ...int64) predicate.Model {
+	return predicate.Model(sql.FieldNotIn(FieldPriceCachedMicros, vs...))
+}
+
+// PriceCachedMicrosGT applies the GT predicate on the "price_cached_micros" field.
+func PriceCachedMicrosGT(v int64) predicate.Model {
+	return predicate.Model(sql.FieldGT(FieldPriceCachedMicros, v))
+}
+
+// PriceCachedMicrosGTE applies the GTE predicate on the "price_cached_micros" field.
+func PriceCachedMicrosGTE(v int64) predicate.Model {
+	return predicate.Model(sql.FieldGTE(FieldPriceCachedMicros, v))
+}
+
+// PriceCachedMicrosLT applies the LT predicate on the "price_cached_micros" field.
+func PriceCachedMicrosLT(v int64) predicate.Model {
+	return predicate.Model(sql.FieldLT(FieldPriceCachedMicros, v))
+}
+
+// PriceCachedMicrosLTE applies the LTE predicate on the "price_cached_micros" field.
+func PriceCachedMicrosLTE(v int64) predicate.Model {
+	return predicate.Model(sql.FieldLTE(FieldPriceCachedMicros, v))
+}
+
+// PriceOutputMicrosEQ applies the EQ predicate on the "price_output_micros" field.
+func PriceOutputMicrosEQ(v int64) predicate.Model {
+	return predicate.Model(sql.FieldEQ(FieldPriceOutputMicros, v))
+}
+
+// PriceOutputMicrosNEQ applies the NEQ predicate on the "price_output_micros" field.
+func PriceOutputMicrosNEQ(v int64) predicate.Model {
+	return predicate.Model(sql.FieldNEQ(FieldPriceOutputMicros, v))
+}
+
+// PriceOutputMicrosIn applies the In predicate on the "price_output_micros" field.
+func PriceOutputMicrosIn(vs ...int64) predicate.Model {
+	return predicate.Model(sql.FieldIn(FieldPriceOutputMicros, vs...))
+}
+
+// PriceOutputMicrosNotIn applies the NotIn predicate on the "price_output_micros" field.
+func PriceOutputMicrosNotIn(vs ...int64) predicate.Model {
+	return predicate.Model(sql.FieldNotIn(FieldPriceOutputMicros, vs...))
+}
+
+// PriceOutputMicrosGT applies the GT predicate on the "price_output_micros" field.
+func PriceOutputMicrosGT(v int64) predicate.Model {
+	return predicate.Model(sql.FieldGT(FieldPriceOutputMicros, v))
+}
+
+// PriceOutputMicrosGTE applies the GTE predicate on the "price_output_micros" field.
+func PriceOutputMicrosGTE(v int64) predicate.Model {
+	return predicate.Model(sql.FieldGTE(FieldPriceOutputMicros, v))
+}
+
+// PriceOutputMicrosLT applies the LT predicate on the "price_output_micros" field.
+func PriceOutputMicrosLT(v int64) predicate.Model {
+	return predicate.Model(sql.FieldLT(FieldPriceOutputMicros, v))
+}
+
+// PriceOutputMicrosLTE applies the LTE predicate on the "price_output_micros" field.
+func PriceOutputMicrosLTE(v int64) predicate.Model {
+	return predicate.Model(sql.FieldLTE(FieldPriceOutputMicros, v))
+}
+
+// CurrencyEQ applies the EQ predicate on the "currency" field.
+func CurrencyEQ(v string) predicate.Model {
+	return predicate.Model(sql.FieldEQ(FieldCurrency, v))
+}
+
+// CurrencyNEQ applies the NEQ predicate on the "currency" field.
+func CurrencyNEQ(v string) predicate.Model {
+	return predicate.Model(sql.FieldNEQ(FieldCurrency, v))
+}
+
+// CurrencyIn applies the In predicate on the "currency" field.
+func CurrencyIn(vs ...string) predicate.Model {
+	return predicate.Model(sql.FieldIn(FieldCurrency, vs...))
+}
+
+// CurrencyNotIn applies the NotIn predicate on the "currency" field.
+func CurrencyNotIn(vs ...string) predicate.Model {
+	return predicate.Model(sql.FieldNotIn(FieldCurrency, vs...))
+}
+
+// CurrencyGT applies the GT predicate on the "currency" field.
+func CurrencyGT(v string) predicate.Model {
+	return predicate.Model(sql.FieldGT(FieldCurrency, v))
+}
+
+// CurrencyGTE applies the GTE predicate on the "currency" field.
+func CurrencyGTE(v string) predicate.Model {
+	return predicate.Model(sql.FieldGTE(FieldCurrency, v))
+}
+
+// CurrencyLT applies the LT predicate on the "currency" field.
+func CurrencyLT(v string) predicate.Model {
+	return predicate.Model(sql.FieldLT(FieldCurrency, v))
+}
+
+// CurrencyLTE applies the LTE predicate on the "currency" field.
+func CurrencyLTE(v string) predicate.Model {
+	return predicate.Model(sql.FieldLTE(FieldCurrency, v))
+}
+
+// CurrencyContains applies the Contains predicate on the "currency" field.
+func CurrencyContains(v string) predicate.Model {
+	return predicate.Model(sql.FieldContains(FieldCurrency, v))
+}
+
+// CurrencyHasPrefix applies the HasPrefix predicate on the "currency" field.
+func CurrencyHasPrefix(v string) predicate.Model {
+	return predicate.Model(sql.FieldHasPrefix(FieldCurrency, v))
+}
+
+// CurrencyHasSuffix applies the HasSuffix predicate on the "currency" field.
+func CurrencyHasSuffix(v string) predicate.Model {
+	return predicate.Model(sql.FieldHasSuffix(FieldCurrency, v))
+}
+
+// CurrencyEqualFold applies the EqualFold predicate on the "currency" field.
+func CurrencyEqualFold(v string) predicate.Model {
+	return predicate.Model(sql.FieldEqualFold(FieldCurrency, v))
+}
+
+// CurrencyContainsFold applies the ContainsFold predicate on the "currency" field.
+func CurrencyContainsFold(v string) predicate.Model {
+	return predicate.Model(sql.FieldContainsFold(FieldCurrency, v))
 }
 
 // HasProvider applies the HasEdge predicate on the "provider" edge.

@@ -1,11 +1,13 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -15,6 +17,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/authz"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
+	"github.com/SSStq1314/hengdesk/server/internal/usage"
 )
 
 const maxChatBody = 8 << 20
@@ -53,9 +56,6 @@ func (h *chatHandlers) complete(c echo.Context) error {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return bad("请求格式错误或超过 8 MiB")
 	}
-	if req.Model == "" {
-		return bad("model 必填")
-	}
 	ctx := r.Context()
 	tgt, gerr := h.gw.Resolve(ctx, req.Model)
 	if gerr != nil {
@@ -65,7 +65,7 @@ func (h *chatHandlers) complete(c echo.Context) error {
 		return gwError(c, gerr)
 	}
 	if !p.Perms.Has(rbac.ModelManage) {
-		ok, err := h.az.Check(ctx, p, rbac.ResModel, tgt.Model.Name, rbac.BitUse)
+		ok, err := h.az.Check(ctx, p, rbac.ResModel, strconv.Itoa(tgt.Model.ID), rbac.BitUse)
 		if err != nil {
 			return err
 		}
@@ -90,6 +90,7 @@ func (h *chatHandlers) complete(c echo.Context) error {
 		res, ge = h.gw.Client.Chat(ctx, &req, tgt.Upstream, tgt.Config)
 	}
 	h.finish(c, tgt, base, start, res, ge)
+	h.recordUsage(c, p, tgt, req.Stream, start, res, ge)
 	if req.Stream {
 		return nil
 	}
@@ -124,6 +125,26 @@ func (h *chatHandlers) finish(c echo.Context, tgt *gateway.Target, base map[stri
 	if err := audit.Record(c, audit.Entry{Action: "model.call", Phase: "result", Outcome: outcome, ResourceType: "model",
 		ResourceID: tgt.Model.Name, Detail: d}); err != nil {
 		h.log.Error("model call audit result write failed", "model", tgt.Model.Name)
+	}
+}
+
+// recordUsage 写 usage_records（计量与 PR3 预算的数据源）。调用已发生，写失败只记日志；
+// 用 WithoutCancel 保证调用方断开后仍能记账。上游返回前就失败的调用记 0 token。
+func (h *chatHandlers) recordUsage(c echo.Context, p *auth.Principal, tgt *gateway.Target, stream bool, start time.Time, res *gateway.ChatResponse, ge *gateway.Error) {
+	ctx := context.WithoutCancel(c.Request().Context())
+	rec := usage.Record{OrgID: p.OrgID, UserID: p.ID, DeptID: usage.PrimaryDept(ctx, h.gw.DB, p.ID), Model: tgt.Model,
+		ProviderID: tgt.Model.ProviderID, RequestID: c.Response().Header().Get(echo.HeaderXRequestID),
+		Purpose: "chat", Stream: stream, Latency: time.Since(start)}
+	if ge != nil {
+		rec.ErrorCode = ge.Code
+		if ge.Usage != nil {
+			rec.Usage = *ge.Usage
+		}
+	} else if res != nil {
+		rec.Usage = res.Usage
+	}
+	if _, err := usage.Write(ctx, h.gw.DB, rec); err != nil {
+		h.log.Error("usage record write failed", "model", tgt.Model.Name, "err", err)
 	}
 }
 

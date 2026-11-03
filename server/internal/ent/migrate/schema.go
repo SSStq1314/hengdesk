@@ -209,6 +209,11 @@ var (
 		{Name: "context_window", Type: field.TypeInt, Default: 0},
 		{Name: "max_output_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "is_default", Type: field.TypeBool, Default: false},
+		{Name: "price_input_micros", Type: field.TypeInt64, Default: 0},
+		{Name: "price_cached_micros", Type: field.TypeInt64, Default: 0},
+		{Name: "price_output_micros", Type: field.TypeInt64, Default: 0},
+		{Name: "currency", Type: field.TypeString, Size: 8, Default: "CNY"},
 		{Name: "provider_id", Type: field.TypeInt},
 	}
 	// ModelsTable holds the schema information for the "models" table.
@@ -219,7 +224,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "models_model_providers_models",
-				Columns:    []*schema.Column{ModelsColumns[10]},
+				Columns:    []*schema.Column{ModelsColumns[15]},
 				RefColumns: []*schema.Column{ModelProvidersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -274,6 +279,20 @@ var (
 		Columns:    RolesColumns,
 		PrimaryKey: []*schema.Column{RolesColumns[0]},
 	}
+	// SystemSettingsColumns holds the columns for the "system_settings" table.
+	SystemSettingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "key", Type: field.TypeString, Unique: true},
+		{Name: "value", Type: field.TypeJSON},
+		{Name: "updated_by", Type: field.TypeInt, Nullable: true},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// SystemSettingsTable holds the schema information for the "system_settings" table.
+	SystemSettingsTable = &schema.Table{
+		Name:       "system_settings",
+		Columns:    SystemSettingsColumns,
+		PrimaryKey: []*schema.Column{SystemSettingsColumns[0]},
+	}
 	// ToolsColumns holds the columns for the "tools" table.
 	ToolsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -290,6 +309,59 @@ var (
 		Name:       "tools",
 		Columns:    ToolsColumns,
 		PrimaryKey: []*schema.Column{ToolsColumns[0]},
+	}
+	// UsageRecordsColumns holds the columns for the "usage_records" table.
+	UsageRecordsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "department_id", Type: field.TypeInt, Nullable: true},
+		{Name: "model_id", Type: field.TypeInt},
+		{Name: "model_name", Type: field.TypeString},
+		{Name: "provider_id", Type: field.TypeInt},
+		{Name: "request_id", Type: field.TypeString, Default: ""},
+		{Name: "purpose", Type: field.TypeEnum, Enums: []string{"chat", "test"}, Default: "chat"},
+		{Name: "stream", Type: field.TypeBool, Default: false},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"ok", "error"}, Default: "ok"},
+		{Name: "error_code", Type: field.TypeString, Default: ""},
+		{Name: "prompt_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "cached_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "completion_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "reasoning_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "total_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "cost_micros", Type: field.TypeInt64, Default: 0},
+		{Name: "currency", Type: field.TypeString, Default: "CNY"},
+		{Name: "estimated", Type: field.TypeBool, Default: false},
+		{Name: "latency_ms", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// UsageRecordsTable holds the schema information for the "usage_records" table.
+	UsageRecordsTable = &schema.Table{
+		Name:       "usage_records",
+		Columns:    UsageRecordsColumns,
+		PrimaryKey: []*schema.Column{UsageRecordsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "usagerecord_org_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageRecordsColumns[1], UsageRecordsColumns[21]},
+			},
+			{
+				Name:    "usagerecord_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageRecordsColumns[2], UsageRecordsColumns[21]},
+			},
+			{
+				Name:    "usagerecord_department_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageRecordsColumns[3], UsageRecordsColumns[21]},
+			},
+			{
+				Name:    "usagerecord_model_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageRecordsColumns[4], UsageRecordsColumns[21]},
+			},
+		},
 	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
@@ -349,7 +421,9 @@ var (
 		ModelProvidersTable,
 		OrganizationsTable,
 		RolesTable,
+		SystemSettingsTable,
 		ToolsTable,
+		UsageRecordsTable,
 		UsersTable,
 	}
 )

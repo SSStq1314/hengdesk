@@ -161,6 +161,97 @@ func (_u *ModelUpdate) SetNillableEnabled(v *bool) *ModelUpdate {
 	return _u
 }
 
+// SetIsDefault sets the "is_default" field.
+func (_u *ModelUpdate) SetIsDefault(v bool) *ModelUpdate {
+	_u.mutation.SetIsDefault(v)
+	return _u
+}
+
+// SetNillableIsDefault sets the "is_default" field if the given value is not nil.
+func (_u *ModelUpdate) SetNillableIsDefault(v *bool) *ModelUpdate {
+	if v != nil {
+		_u.SetIsDefault(*v)
+	}
+	return _u
+}
+
+// SetPriceInputMicros sets the "price_input_micros" field.
+func (_u *ModelUpdate) SetPriceInputMicros(v int64) *ModelUpdate {
+	_u.mutation.ResetPriceInputMicros()
+	_u.mutation.SetPriceInputMicros(v)
+	return _u
+}
+
+// SetNillablePriceInputMicros sets the "price_input_micros" field if the given value is not nil.
+func (_u *ModelUpdate) SetNillablePriceInputMicros(v *int64) *ModelUpdate {
+	if v != nil {
+		_u.SetPriceInputMicros(*v)
+	}
+	return _u
+}
+
+// AddPriceInputMicros adds value to the "price_input_micros" field.
+func (_u *ModelUpdate) AddPriceInputMicros(v int64) *ModelUpdate {
+	_u.mutation.AddPriceInputMicros(v)
+	return _u
+}
+
+// SetPriceCachedMicros sets the "price_cached_micros" field.
+func (_u *ModelUpdate) SetPriceCachedMicros(v int64) *ModelUpdate {
+	_u.mutation.ResetPriceCachedMicros()
+	_u.mutation.SetPriceCachedMicros(v)
+	return _u
+}
+
+// SetNillablePriceCachedMicros sets the "price_cached_micros" field if the given value is not nil.
+func (_u *ModelUpdate) SetNillablePriceCachedMicros(v *int64) *ModelUpdate {
+	if v != nil {
+		_u.SetPriceCachedMicros(*v)
+	}
+	return _u
+}
+
+// AddPriceCachedMicros adds value to the "price_cached_micros" field.
+func (_u *ModelUpdate) AddPriceCachedMicros(v int64) *ModelUpdate {
+	_u.mutation.AddPriceCachedMicros(v)
+	return _u
+}
+
+// SetPriceOutputMicros sets the "price_output_micros" field.
+func (_u *ModelUpdate) SetPriceOutputMicros(v int64) *ModelUpdate {
+	_u.mutation.ResetPriceOutputMicros()
+	_u.mutation.SetPriceOutputMicros(v)
+	return _u
+}
+
+// SetNillablePriceOutputMicros sets the "price_output_micros" field if the given value is not nil.
+func (_u *ModelUpdate) SetNillablePriceOutputMicros(v *int64) *ModelUpdate {
+	if v != nil {
+		_u.SetPriceOutputMicros(*v)
+	}
+	return _u
+}
+
+// AddPriceOutputMicros adds value to the "price_output_micros" field.
+func (_u *ModelUpdate) AddPriceOutputMicros(v int64) *ModelUpdate {
+	_u.mutation.AddPriceOutputMicros(v)
+	return _u
+}
+
+// SetCurrency sets the "currency" field.
+func (_u *ModelUpdate) SetCurrency(v string) *ModelUpdate {
+	_u.mutation.SetCurrency(v)
+	return _u
+}
+
+// SetNillableCurrency sets the "currency" field if the given value is not nil.
+func (_u *ModelUpdate) SetNillableCurrency(v *string) *ModelUpdate {
+	if v != nil {
+		_u.SetCurrency(*v)
+	}
+	return _u
+}
+
 // SetProvider sets the "provider" edge to the ModelProvider entity.
 func (_u *ModelUpdate) SetProvider(v *ModelProvider) *ModelUpdate {
 	return _u.SetProviderID(v.ID)
@@ -235,6 +326,26 @@ func (_u *ModelUpdate) check() error {
 			return &ValidationError{Name: "tool_choice_policy", err: fmt.Errorf(`ent: validator failed for field "Model.tool_choice_policy": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PriceInputMicros(); ok {
+		if err := model.PriceInputMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "price_input_micros", err: fmt.Errorf(`ent: validator failed for field "Model.price_input_micros": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PriceCachedMicros(); ok {
+		if err := model.PriceCachedMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "price_cached_micros", err: fmt.Errorf(`ent: validator failed for field "Model.price_cached_micros": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PriceOutputMicros(); ok {
+		if err := model.PriceOutputMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "price_output_micros", err: fmt.Errorf(`ent: validator failed for field "Model.price_output_micros": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Currency(); ok {
+		if err := model.CurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "Model.currency": %w`, err)}
+		}
+	}
 	if _u.mutation.ProviderCleared() && len(_u.mutation.ProviderIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Model.provider"`)
 	}
@@ -282,6 +393,30 @@ func (_u *ModelUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(model.FieldEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.IsDefault(); ok {
+		_spec.SetField(model.FieldIsDefault, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.PriceInputMicros(); ok {
+		_spec.SetField(model.FieldPriceInputMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPriceInputMicros(); ok {
+		_spec.AddField(model.FieldPriceInputMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PriceCachedMicros(); ok {
+		_spec.SetField(model.FieldPriceCachedMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPriceCachedMicros(); ok {
+		_spec.AddField(model.FieldPriceCachedMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PriceOutputMicros(); ok {
+		_spec.SetField(model.FieldPriceOutputMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPriceOutputMicros(); ok {
+		_spec.AddField(model.FieldPriceOutputMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.Currency(); ok {
+		_spec.SetField(model.FieldCurrency, field.TypeString, value)
 	}
 	if _u.mutation.ProviderCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -464,6 +599,97 @@ func (_u *ModelUpdateOne) SetNillableEnabled(v *bool) *ModelUpdateOne {
 	return _u
 }
 
+// SetIsDefault sets the "is_default" field.
+func (_u *ModelUpdateOne) SetIsDefault(v bool) *ModelUpdateOne {
+	_u.mutation.SetIsDefault(v)
+	return _u
+}
+
+// SetNillableIsDefault sets the "is_default" field if the given value is not nil.
+func (_u *ModelUpdateOne) SetNillableIsDefault(v *bool) *ModelUpdateOne {
+	if v != nil {
+		_u.SetIsDefault(*v)
+	}
+	return _u
+}
+
+// SetPriceInputMicros sets the "price_input_micros" field.
+func (_u *ModelUpdateOne) SetPriceInputMicros(v int64) *ModelUpdateOne {
+	_u.mutation.ResetPriceInputMicros()
+	_u.mutation.SetPriceInputMicros(v)
+	return _u
+}
+
+// SetNillablePriceInputMicros sets the "price_input_micros" field if the given value is not nil.
+func (_u *ModelUpdateOne) SetNillablePriceInputMicros(v *int64) *ModelUpdateOne {
+	if v != nil {
+		_u.SetPriceInputMicros(*v)
+	}
+	return _u
+}
+
+// AddPriceInputMicros adds value to the "price_input_micros" field.
+func (_u *ModelUpdateOne) AddPriceInputMicros(v int64) *ModelUpdateOne {
+	_u.mutation.AddPriceInputMicros(v)
+	return _u
+}
+
+// SetPriceCachedMicros sets the "price_cached_micros" field.
+func (_u *ModelUpdateOne) SetPriceCachedMicros(v int64) *ModelUpdateOne {
+	_u.mutation.ResetPriceCachedMicros()
+	_u.mutation.SetPriceCachedMicros(v)
+	return _u
+}
+
+// SetNillablePriceCachedMicros sets the "price_cached_micros" field if the given value is not nil.
+func (_u *ModelUpdateOne) SetNillablePriceCachedMicros(v *int64) *ModelUpdateOne {
+	if v != nil {
+		_u.SetPriceCachedMicros(*v)
+	}
+	return _u
+}
+
+// AddPriceCachedMicros adds value to the "price_cached_micros" field.
+func (_u *ModelUpdateOne) AddPriceCachedMicros(v int64) *ModelUpdateOne {
+	_u.mutation.AddPriceCachedMicros(v)
+	return _u
+}
+
+// SetPriceOutputMicros sets the "price_output_micros" field.
+func (_u *ModelUpdateOne) SetPriceOutputMicros(v int64) *ModelUpdateOne {
+	_u.mutation.ResetPriceOutputMicros()
+	_u.mutation.SetPriceOutputMicros(v)
+	return _u
+}
+
+// SetNillablePriceOutputMicros sets the "price_output_micros" field if the given value is not nil.
+func (_u *ModelUpdateOne) SetNillablePriceOutputMicros(v *int64) *ModelUpdateOne {
+	if v != nil {
+		_u.SetPriceOutputMicros(*v)
+	}
+	return _u
+}
+
+// AddPriceOutputMicros adds value to the "price_output_micros" field.
+func (_u *ModelUpdateOne) AddPriceOutputMicros(v int64) *ModelUpdateOne {
+	_u.mutation.AddPriceOutputMicros(v)
+	return _u
+}
+
+// SetCurrency sets the "currency" field.
+func (_u *ModelUpdateOne) SetCurrency(v string) *ModelUpdateOne {
+	_u.mutation.SetCurrency(v)
+	return _u
+}
+
+// SetNillableCurrency sets the "currency" field if the given value is not nil.
+func (_u *ModelUpdateOne) SetNillableCurrency(v *string) *ModelUpdateOne {
+	if v != nil {
+		_u.SetCurrency(*v)
+	}
+	return _u
+}
+
 // SetProvider sets the "provider" edge to the ModelProvider entity.
 func (_u *ModelUpdateOne) SetProvider(v *ModelProvider) *ModelUpdateOne {
 	return _u.SetProviderID(v.ID)
@@ -551,6 +777,26 @@ func (_u *ModelUpdateOne) check() error {
 			return &ValidationError{Name: "tool_choice_policy", err: fmt.Errorf(`ent: validator failed for field "Model.tool_choice_policy": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PriceInputMicros(); ok {
+		if err := model.PriceInputMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "price_input_micros", err: fmt.Errorf(`ent: validator failed for field "Model.price_input_micros": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PriceCachedMicros(); ok {
+		if err := model.PriceCachedMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "price_cached_micros", err: fmt.Errorf(`ent: validator failed for field "Model.price_cached_micros": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PriceOutputMicros(); ok {
+		if err := model.PriceOutputMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "price_output_micros", err: fmt.Errorf(`ent: validator failed for field "Model.price_output_micros": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Currency(); ok {
+		if err := model.CurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "Model.currency": %w`, err)}
+		}
+	}
 	if _u.mutation.ProviderCleared() && len(_u.mutation.ProviderIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Model.provider"`)
 	}
@@ -615,6 +861,30 @@ func (_u *ModelUpdateOne) sqlSave(ctx context.Context) (_node *Model, err error)
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(model.FieldEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.IsDefault(); ok {
+		_spec.SetField(model.FieldIsDefault, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.PriceInputMicros(); ok {
+		_spec.SetField(model.FieldPriceInputMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPriceInputMicros(); ok {
+		_spec.AddField(model.FieldPriceInputMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PriceCachedMicros(); ok {
+		_spec.SetField(model.FieldPriceCachedMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPriceCachedMicros(); ok {
+		_spec.AddField(model.FieldPriceCachedMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PriceOutputMicros(); ok {
+		_spec.SetField(model.FieldPriceOutputMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPriceOutputMicros(); ok {
+		_spec.AddField(model.FieldPriceOutputMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.Currency(); ok {
+		_spec.SetField(model.FieldCurrency, field.TypeString, value)
 	}
 	if _u.mutation.ProviderCleared() {
 		edge := &sqlgraph.EdgeSpec{

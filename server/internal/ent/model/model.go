@@ -35,6 +35,16 @@ const (
 	FieldMaxOutputTokens = "max_output_tokens"
 	// FieldEnabled holds the string denoting the enabled field in the database.
 	FieldEnabled = "enabled"
+	// FieldIsDefault holds the string denoting the is_default field in the database.
+	FieldIsDefault = "is_default"
+	// FieldPriceInputMicros holds the string denoting the price_input_micros field in the database.
+	FieldPriceInputMicros = "price_input_micros"
+	// FieldPriceCachedMicros holds the string denoting the price_cached_micros field in the database.
+	FieldPriceCachedMicros = "price_cached_micros"
+	// FieldPriceOutputMicros holds the string denoting the price_output_micros field in the database.
+	FieldPriceOutputMicros = "price_output_micros"
+	// FieldCurrency holds the string denoting the currency field in the database.
+	FieldCurrency = "currency"
 	// EdgeProvider holds the string denoting the provider edge name in mutations.
 	EdgeProvider = "provider"
 	// Table holds the table name of the model in the database.
@@ -61,6 +71,11 @@ var Columns = []string{
 	FieldContextWindow,
 	FieldMaxOutputTokens,
 	FieldEnabled,
+	FieldIsDefault,
+	FieldPriceInputMicros,
+	FieldPriceCachedMicros,
+	FieldPriceOutputMicros,
+	FieldCurrency,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -90,6 +105,24 @@ var (
 	DefaultMaxOutputTokens int
 	// DefaultEnabled holds the default value on creation for the "enabled" field.
 	DefaultEnabled bool
+	// DefaultIsDefault holds the default value on creation for the "is_default" field.
+	DefaultIsDefault bool
+	// DefaultPriceInputMicros holds the default value on creation for the "price_input_micros" field.
+	DefaultPriceInputMicros int64
+	// PriceInputMicrosValidator is a validator for the "price_input_micros" field. It is called by the builders before save.
+	PriceInputMicrosValidator func(int64) error
+	// DefaultPriceCachedMicros holds the default value on creation for the "price_cached_micros" field.
+	DefaultPriceCachedMicros int64
+	// PriceCachedMicrosValidator is a validator for the "price_cached_micros" field. It is called by the builders before save.
+	PriceCachedMicrosValidator func(int64) error
+	// DefaultPriceOutputMicros holds the default value on creation for the "price_output_micros" field.
+	DefaultPriceOutputMicros int64
+	// PriceOutputMicrosValidator is a validator for the "price_output_micros" field. It is called by the builders before save.
+	PriceOutputMicrosValidator func(int64) error
+	// DefaultCurrency holds the default value on creation for the "currency" field.
+	DefaultCurrency string
+	// CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	CurrencyValidator func(string) error
 )
 
 // Thinking defines the type for the "thinking" enum field.
@@ -201,6 +234,31 @@ func ByMaxOutputTokens(opts ...sql.OrderTermOption) OrderOption {
 // ByEnabled orders the results by the enabled field.
 func ByEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEnabled, opts...).ToFunc()
+}
+
+// ByIsDefault orders the results by the is_default field.
+func ByIsDefault(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsDefault, opts...).ToFunc()
+}
+
+// ByPriceInputMicros orders the results by the price_input_micros field.
+func ByPriceInputMicros(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPriceInputMicros, opts...).ToFunc()
+}
+
+// ByPriceCachedMicros orders the results by the price_cached_micros field.
+func ByPriceCachedMicros(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPriceCachedMicros, opts...).ToFunc()
+}
+
+// ByPriceOutputMicros orders the results by the price_output_micros field.
+func ByPriceOutputMicros(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPriceOutputMicros, opts...).ToFunc()
+}
+
+// ByCurrency orders the results by the currency field.
+func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCurrency, opts...).ToFunc()
 }
 
 // ByProviderField orders the results by provider field.

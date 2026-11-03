@@ -15,7 +15,9 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/organization"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/systemsetting"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/tool"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/usagerecord"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
 )
 
@@ -176,6 +178,34 @@ func init() {
 	modelDescEnabled := modelFields[7].Descriptor()
 	// model.DefaultEnabled holds the default value on creation for the enabled field.
 	model.DefaultEnabled = modelDescEnabled.Default.(bool)
+	// modelDescIsDefault is the schema descriptor for is_default field.
+	modelDescIsDefault := modelFields[8].Descriptor()
+	// model.DefaultIsDefault holds the default value on creation for the is_default field.
+	model.DefaultIsDefault = modelDescIsDefault.Default.(bool)
+	// modelDescPriceInputMicros is the schema descriptor for price_input_micros field.
+	modelDescPriceInputMicros := modelFields[9].Descriptor()
+	// model.DefaultPriceInputMicros holds the default value on creation for the price_input_micros field.
+	model.DefaultPriceInputMicros = modelDescPriceInputMicros.Default.(int64)
+	// model.PriceInputMicrosValidator is a validator for the "price_input_micros" field. It is called by the builders before save.
+	model.PriceInputMicrosValidator = modelDescPriceInputMicros.Validators[0].(func(int64) error)
+	// modelDescPriceCachedMicros is the schema descriptor for price_cached_micros field.
+	modelDescPriceCachedMicros := modelFields[10].Descriptor()
+	// model.DefaultPriceCachedMicros holds the default value on creation for the price_cached_micros field.
+	model.DefaultPriceCachedMicros = modelDescPriceCachedMicros.Default.(int64)
+	// model.PriceCachedMicrosValidator is a validator for the "price_cached_micros" field. It is called by the builders before save.
+	model.PriceCachedMicrosValidator = modelDescPriceCachedMicros.Validators[0].(func(int64) error)
+	// modelDescPriceOutputMicros is the schema descriptor for price_output_micros field.
+	modelDescPriceOutputMicros := modelFields[11].Descriptor()
+	// model.DefaultPriceOutputMicros holds the default value on creation for the price_output_micros field.
+	model.DefaultPriceOutputMicros = modelDescPriceOutputMicros.Default.(int64)
+	// model.PriceOutputMicrosValidator is a validator for the "price_output_micros" field. It is called by the builders before save.
+	model.PriceOutputMicrosValidator = modelDescPriceOutputMicros.Validators[0].(func(int64) error)
+	// modelDescCurrency is the schema descriptor for currency field.
+	modelDescCurrency := modelFields[12].Descriptor()
+	// model.DefaultCurrency holds the default value on creation for the currency field.
+	model.DefaultCurrency = modelDescCurrency.Default.(string)
+	// model.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	model.CurrencyValidator = modelDescCurrency.Validators[0].(func(string) error)
 	modelproviderMixin := schema.ModelProvider{}.Mixin()
 	modelproviderMixinFields0 := modelproviderMixin[0].Fields()
 	_ = modelproviderMixinFields0
@@ -277,6 +307,18 @@ func init() {
 	roleDescBuiltin := roleFields[3].Descriptor()
 	// role.DefaultBuiltin holds the default value on creation for the builtin field.
 	role.DefaultBuiltin = roleDescBuiltin.Default.(bool)
+	systemsettingFields := schema.SystemSetting{}.Fields()
+	_ = systemsettingFields
+	// systemsettingDescKey is the schema descriptor for key field.
+	systemsettingDescKey := systemsettingFields[0].Descriptor()
+	// systemsetting.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	systemsetting.KeyValidator = systemsettingDescKey.Validators[0].(func(string) error)
+	// systemsettingDescUpdatedAt is the schema descriptor for updated_at field.
+	systemsettingDescUpdatedAt := systemsettingFields[3].Descriptor()
+	// systemsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	systemsetting.DefaultUpdatedAt = systemsettingDescUpdatedAt.Default.(func() time.Time)
+	// systemsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	systemsetting.UpdateDefaultUpdatedAt = systemsettingDescUpdatedAt.UpdateDefault.(func() time.Time)
 	toolMixin := schema.Tool{}.Mixin()
 	toolMixinFields0 := toolMixin[0].Fields()
 	_ = toolMixinFields0
@@ -308,6 +350,60 @@ func init() {
 	toolDescEnabled := toolFields[3].Descriptor()
 	// tool.DefaultEnabled holds the default value on creation for the enabled field.
 	tool.DefaultEnabled = toolDescEnabled.Default.(bool)
+	usagerecordFields := schema.UsageRecord{}.Fields()
+	_ = usagerecordFields
+	// usagerecordDescRequestID is the schema descriptor for request_id field.
+	usagerecordDescRequestID := usagerecordFields[6].Descriptor()
+	// usagerecord.DefaultRequestID holds the default value on creation for the request_id field.
+	usagerecord.DefaultRequestID = usagerecordDescRequestID.Default.(string)
+	// usagerecordDescStream is the schema descriptor for stream field.
+	usagerecordDescStream := usagerecordFields[8].Descriptor()
+	// usagerecord.DefaultStream holds the default value on creation for the stream field.
+	usagerecord.DefaultStream = usagerecordDescStream.Default.(bool)
+	// usagerecordDescErrorCode is the schema descriptor for error_code field.
+	usagerecordDescErrorCode := usagerecordFields[10].Descriptor()
+	// usagerecord.DefaultErrorCode holds the default value on creation for the error_code field.
+	usagerecord.DefaultErrorCode = usagerecordDescErrorCode.Default.(string)
+	// usagerecordDescPromptTokens is the schema descriptor for prompt_tokens field.
+	usagerecordDescPromptTokens := usagerecordFields[11].Descriptor()
+	// usagerecord.DefaultPromptTokens holds the default value on creation for the prompt_tokens field.
+	usagerecord.DefaultPromptTokens = usagerecordDescPromptTokens.Default.(int)
+	// usagerecordDescCachedTokens is the schema descriptor for cached_tokens field.
+	usagerecordDescCachedTokens := usagerecordFields[12].Descriptor()
+	// usagerecord.DefaultCachedTokens holds the default value on creation for the cached_tokens field.
+	usagerecord.DefaultCachedTokens = usagerecordDescCachedTokens.Default.(int)
+	// usagerecordDescCompletionTokens is the schema descriptor for completion_tokens field.
+	usagerecordDescCompletionTokens := usagerecordFields[13].Descriptor()
+	// usagerecord.DefaultCompletionTokens holds the default value on creation for the completion_tokens field.
+	usagerecord.DefaultCompletionTokens = usagerecordDescCompletionTokens.Default.(int)
+	// usagerecordDescReasoningTokens is the schema descriptor for reasoning_tokens field.
+	usagerecordDescReasoningTokens := usagerecordFields[14].Descriptor()
+	// usagerecord.DefaultReasoningTokens holds the default value on creation for the reasoning_tokens field.
+	usagerecord.DefaultReasoningTokens = usagerecordDescReasoningTokens.Default.(int)
+	// usagerecordDescTotalTokens is the schema descriptor for total_tokens field.
+	usagerecordDescTotalTokens := usagerecordFields[15].Descriptor()
+	// usagerecord.DefaultTotalTokens holds the default value on creation for the total_tokens field.
+	usagerecord.DefaultTotalTokens = usagerecordDescTotalTokens.Default.(int)
+	// usagerecordDescCostMicros is the schema descriptor for cost_micros field.
+	usagerecordDescCostMicros := usagerecordFields[16].Descriptor()
+	// usagerecord.DefaultCostMicros holds the default value on creation for the cost_micros field.
+	usagerecord.DefaultCostMicros = usagerecordDescCostMicros.Default.(int64)
+	// usagerecordDescCurrency is the schema descriptor for currency field.
+	usagerecordDescCurrency := usagerecordFields[17].Descriptor()
+	// usagerecord.DefaultCurrency holds the default value on creation for the currency field.
+	usagerecord.DefaultCurrency = usagerecordDescCurrency.Default.(string)
+	// usagerecordDescEstimated is the schema descriptor for estimated field.
+	usagerecordDescEstimated := usagerecordFields[18].Descriptor()
+	// usagerecord.DefaultEstimated holds the default value on creation for the estimated field.
+	usagerecord.DefaultEstimated = usagerecordDescEstimated.Default.(bool)
+	// usagerecordDescLatencyMs is the schema descriptor for latency_ms field.
+	usagerecordDescLatencyMs := usagerecordFields[19].Descriptor()
+	// usagerecord.DefaultLatencyMs holds the default value on creation for the latency_ms field.
+	usagerecord.DefaultLatencyMs = usagerecordDescLatencyMs.Default.(int)
+	// usagerecordDescCreatedAt is the schema descriptor for created_at field.
+	usagerecordDescCreatedAt := usagerecordFields[20].Descriptor()
+	// usagerecord.DefaultCreatedAt holds the default value on creation for the created_at field.
+	usagerecord.DefaultCreatedAt = usagerecordDescCreatedAt.Default.(func() time.Time)
 	userMixin := schema.User{}.Mixin()
 	userMixinFields0 := userMixin[0].Fields()
 	_ = userMixinFields0

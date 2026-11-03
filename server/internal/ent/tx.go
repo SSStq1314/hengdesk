@@ -30,8 +30,12 @@ type Tx struct {
 	Organization *OrganizationClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
+	// SystemSetting is the client for interacting with the SystemSetting builders.
+	SystemSetting *SystemSettingClient
 	// Tool is the client for interacting with the Tool builders.
 	Tool *ToolClient
+	// UsageRecord is the client for interacting with the UsageRecord builders.
+	UsageRecord *UsageRecordClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 
@@ -174,7 +178,9 @@ func (tx *Tx) init() {
 	tx.ModelProvider = NewModelProviderClient(tx.config)
 	tx.Organization = NewOrganizationClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
+	tx.SystemSetting = NewSystemSettingClient(tx.config)
 	tx.Tool = NewToolClient(tx.config)
+	tx.UsageRecord = NewUsageRecordClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }
 

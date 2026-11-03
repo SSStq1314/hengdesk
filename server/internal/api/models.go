@@ -13,9 +13,12 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/authz"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
+	"github.com/SSStq1314/hengdesk/server/internal/rbac"
+	"github.com/SSStq1314/hengdesk/server/internal/usage"
 )
 
 // 模型网关管理（FR-09/10 的一部分）：供应商与模型 CRUD。
@@ -54,12 +57,14 @@ type modelView struct {
 	ContextWindow    int    `json:"context_window"`
 	MaxOutputTokens  int    `json:"max_output_tokens"`
 	Enabled          bool   `json:"enabled"`
+	IsDefault        bool   `json:"is_default"`
+	usage.Price
 }
 
 func toModelView(m *ent.Model) modelView {
 	return modelView{ID: m.ID, Name: m.Name, ProviderID: m.ProviderID, UpstreamModel: m.UpstreamModel,
 		Thinking: string(m.Thinking), ToolChoicePolicy: string(m.ToolChoicePolicy), ContextWindow: m.ContextWindow,
-		MaxOutputTokens: m.MaxOutputTokens, Enabled: m.Enabled}
+		MaxOutputTokens: m.MaxOutputTokens, Enabled: m.Enabled, IsDefault: m.IsDefault, Price: usage.PriceOf(m)}
 }
 
 func bad(msg string) error { return echo.NewHTTPError(http.StatusBadRequest, msg) }
@@ -307,9 +312,23 @@ type modelInput struct {
 	ContextWindow    *int    `json:"context_window"`
 	MaxOutputTokens  *int    `json:"max_output_tokens"`
 	Enabled          *bool   `json:"enabled"`
+	PriceInput       *int64  `json:"price_input_micros"`
+	PriceCached      *int64  `json:"price_cached_micros"`
+	PriceOutput      *int64  `json:"price_output_micros"`
+	Currency         *string `json:"currency"`
 }
 
+const maxPriceMicros = 1_000_000_000_000 // 每百万 token 100 万元，防止误填溢出
+
 func (in *modelInput) validate() error {
+	for _, v := range []*int64{in.PriceInput, in.PriceCached, in.PriceOutput} {
+		if v != nil && (*v < 0 || *v > maxPriceMicros) {
+			return bad("价格不能为负且不能超过 1e12 微元 / 百万 token")
+		}
+	}
+	if in.Currency != nil && (len(*in.Currency) < 1 || len(*in.Currency) > 8) {
+		return bad("currency 长度 1~8")
+	}
 	if in.Name != nil {
 		if err := validName(*in.Name); err != nil {
 			return err
@@ -360,6 +379,18 @@ func (h *modelHandlers) createModel(c echo.Context) error {
 	}
 	if in.Enabled != nil {
 		q.SetEnabled(*in.Enabled)
+	}
+	if in.PriceInput != nil {
+		q.SetPriceInputMicros(*in.PriceInput)
+	}
+	if in.PriceCached != nil {
+		q.SetPriceCachedMicros(*in.PriceCached)
+	}
+	if in.PriceOutput != nil {
+		q.SetPriceOutputMicros(*in.PriceOutput)
+	}
+	if in.Currency != nil {
+		q.SetCurrency(*in.Currency)
 	}
 	m, err := q.Save(ctx)
 	if err != nil {
@@ -417,12 +448,24 @@ func (h *modelHandlers) updateModel(c echo.Context) error {
 	if in.Enabled != nil {
 		u.SetEnabled(*in.Enabled)
 	}
+	if in.PriceInput != nil {
+		u.SetPriceInputMicros(*in.PriceInput)
+	}
+	if in.PriceCached != nil {
+		u.SetPriceCachedMicros(*in.PriceCached)
+	}
+	if in.PriceOutput != nil {
+		u.SetPriceOutputMicros(*in.PriceOutput)
+	}
+	if in.Currency != nil {
+		u.SetCurrency(*in.Currency)
+	}
 	m, err = u.Save(ctx)
 	if err != nil {
 		return notFoundOr(err)
 	}
 	if err := h.record(c, "model.update", "model", m.ID, map[string]any{"name": m.Name, "enabled": m.Enabled,
-		"upstream_model": m.UpstreamModel, "thinking": string(m.Thinking)}); err != nil {
+		"upstream_model": m.UpstreamModel, "thinking": string(m.Thinking), "price": usage.PriceOf(m)}); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, toModelView(m))
@@ -438,8 +481,21 @@ func (h *modelHandlers) deleteModel(c echo.Context) error {
 	if err != nil {
 		return notFoundOr(err)
 	}
-	if err := h.db.Model.DeleteOne(m).Exec(ctx); err != nil {
+	tx, err := h.db.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	if err := tx.Model.DeleteOne(m).Exec(ctx); err != nil {
+		_ = tx.Rollback()
 		return notFoundOr(err)
+	}
+	// 连同该模型的 ACL 一起删，避免新模型复用 ID 时继承旧授权。
+	if _, err := tx.ACL.Delete().Where(acl.ResourceType(rbac.ResModel), acl.ResourceID(strconv.Itoa(id))).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
 	}
 	if err := h.record(c, "model.delete", "model", id, map[string]any{"name": m.Name}); err != nil {
 		return err

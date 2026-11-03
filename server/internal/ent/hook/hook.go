@@ -117,6 +117,18 @@ func (f RoleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoleMutation", m)
 }
 
+// The SystemSettingFunc type is an adapter to allow the use of ordinary
+// function as SystemSetting mutator.
+type SystemSettingFunc func(context.Context, *ent.SystemSettingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SystemSettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SystemSettingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SystemSettingMutation", m)
+}
+
 // The ToolFunc type is an adapter to allow the use of ordinary
 // function as Tool mutator.
 type ToolFunc func(context.Context, *ent.ToolMutation) (ent.Value, error)
@@ -127,6 +139,18 @@ func (f ToolFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ToolMutation", m)
+}
+
+// The UsageRecordFunc type is an adapter to allow the use of ordinary
+// function as UsageRecord mutator.
+type UsageRecordFunc func(context.Context, *ent.UsageRecordMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UsageRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UsageRecordMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UsageRecordMutation", m)
 }
 
 // The UserFunc type is an adapter to allow the use of ordinary

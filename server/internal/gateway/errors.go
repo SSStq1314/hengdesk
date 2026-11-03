@@ -29,6 +29,8 @@ type Error struct {
 	Message        string `json:"message"`
 	UpstreamStatus int    `json:"upstream_status,omitempty"`
 	UpstreamType   string `json:"upstream_type,omitempty"`
+	// Usage 流式调用中途失败时已产生的用量（不回给调用方，只用于计量）。
+	Usage *Usage `json:"-"`
 }
 
 func (e *Error) Error() string { return e.Code + ": " + e.Message }

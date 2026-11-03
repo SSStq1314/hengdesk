@@ -38,6 +38,16 @@ type Model struct {
 	MaxOutputTokens int `json:"max_output_tokens,omitempty"`
 	// Enabled holds the value of the "enabled" field.
 	Enabled bool `json:"enabled,omitempty"`
+	// IsDefault holds the value of the "is_default" field.
+	IsDefault bool `json:"is_default,omitempty"`
+	// 未命中缓存的输入，每百万 token
+	PriceInputMicros int64 `json:"price_input_micros,omitempty"`
+	// 命中缓存的输入，每百万 token
+	PriceCachedMicros int64 `json:"price_cached_micros,omitempty"`
+	// 输出（含思考 token），每百万 token
+	PriceOutputMicros int64 `json:"price_output_micros,omitempty"`
+	// Currency holds the value of the "currency" field.
+	Currency string `json:"currency,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ModelQuery when eager-loading is set.
 	Edges        ModelEdges `json:"edges"`
@@ -69,11 +79,11 @@ func (*Model) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case model.FieldEnabled:
+		case model.FieldEnabled, model.FieldIsDefault:
 			values[i] = new(sql.NullBool)
-		case model.FieldID, model.FieldProviderID, model.FieldContextWindow, model.FieldMaxOutputTokens:
+		case model.FieldID, model.FieldProviderID, model.FieldContextWindow, model.FieldMaxOutputTokens, model.FieldPriceInputMicros, model.FieldPriceCachedMicros, model.FieldPriceOutputMicros:
 			values[i] = new(sql.NullInt64)
-		case model.FieldName, model.FieldUpstreamModel, model.FieldThinking, model.FieldToolChoicePolicy:
+		case model.FieldName, model.FieldUpstreamModel, model.FieldThinking, model.FieldToolChoicePolicy, model.FieldCurrency:
 			values[i] = new(sql.NullString)
 		case model.FieldCreatedAt, model.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -158,6 +168,36 @@ func (_m *Model) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Enabled = value.Bool
 			}
+		case model.FieldIsDefault:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_default", values[i])
+			} else if value.Valid {
+				_m.IsDefault = value.Bool
+			}
+		case model.FieldPriceInputMicros:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field price_input_micros", values[i])
+			} else if value.Valid {
+				_m.PriceInputMicros = value.Int64
+			}
+		case model.FieldPriceCachedMicros:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field price_cached_micros", values[i])
+			} else if value.Valid {
+				_m.PriceCachedMicros = value.Int64
+			}
+		case model.FieldPriceOutputMicros:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field price_output_micros", values[i])
+			} else if value.Valid {
+				_m.PriceOutputMicros = value.Int64
+			}
+		case model.FieldCurrency:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field currency", values[i])
+			} else if value.Valid {
+				_m.Currency = value.String
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -228,6 +268,21 @@ func (_m *Model) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Enabled))
+	builder.WriteString(", ")
+	builder.WriteString("is_default=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsDefault))
+	builder.WriteString(", ")
+	builder.WriteString("price_input_micros=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PriceInputMicros))
+	builder.WriteString(", ")
+	builder.WriteString("price_cached_micros=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PriceCachedMicros))
+	builder.WriteString(", ")
+	builder.WriteString("price_output_micros=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PriceOutputMicros))
+	builder.WriteString(", ")
+	builder.WriteString("currency=")
+	builder.WriteString(_m.Currency)
 	builder.WriteByte(')')
 	return builder.String()
 }
