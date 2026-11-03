@@ -36,6 +36,8 @@ type Config struct {
 	// PublicHTTPS 对外访问已是 HTTPS（默认跟随 CookieSecure）。
 	PublicHTTPS bool
 	BackupDir   string
+	// TLSCertFile nginx 使用的证书（只读挂载给 server，用于到期 / 自签提示）；不存在则视为未部署证书。
+	TLSCertFile string
 	// PasswordMinLen 本地密码最小长度（默认 8，范围 8~72）。
 	PasswordMinLen int
 	// LoginIPLimit / LoginIPWindow 按 IP 的登录尝试滑动窗口限速（0 表示关闭）。
@@ -181,6 +183,7 @@ func Load() (*Config, error) {
 		CookieSecure:     secure,
 		PublicHTTPS:      publicHTTPS,
 		BackupDir:        get("BACKUP_DIR", "/backups"),
+		TLSCertFile:      get("TLS_CERT_FILE", "/etc/hengdesk/tls/tls.crt"),
 		PasswordMinLen:   minLen,
 		LoginIPLimit:     ipLimit,
 		LoginIPWindow:    ipWin,

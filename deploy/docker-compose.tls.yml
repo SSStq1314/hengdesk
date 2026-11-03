@@ -7,3 +7,7 @@ services:
       HENGDESK_HTTP_REDIRECT: ${HENGDESK_HTTP_REDIRECT:-true}
       HENGDESK_HTTPS_PORT: ${HENGDESK_HTTPS_PORT:-443}
     volumes: ["./tls:/etc/hengdesk/tls:ro"]
+  # server 只读挂载证书文件（不含私钥），用于后台自签 / 到期提示（GET /api/v1/admin/system/tls）。
+  # 只挂单个文件：tls 目录权限 700，非 root 的 server 进程进不去；私钥也不暴露给 server。
+  server:
+    volumes: ["./tls/tls.crt:/etc/hengdesk/tls/tls.crt:ro"]

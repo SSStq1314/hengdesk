@@ -14,4 +14,5 @@
   - 超级管理员 / 安全审计员按邮箱登录时拒绝（审计 reason=`privileged_link_refused`）；管理员用 `PUT /api/v1/admin/users/:id/oidc-identity` 手动绑定，记 `auth.oidc.bind` / `auth.oidc.unbind` 审计。
   - 强制 SSO：`HENGDESK_OIDC_ENFORCE=true` 时须配置 1～2 个 `HENGDESK_OIDC_BREAKGLASS_EMAILS`，超过 2 个启动失败。紧急账号每次密码登录写 `alert.high_risk`（severity=high）审计；审计员后台显示未读提醒（`GET /api/v1/admin/alerts`）。邮件 / IM 通知通过 `auth.Notifier` 接口扩展，暂未接入。
 - 第 2 点（HTTP 端口）：PR #22 落实，见 [docs/ops/tls.md](../ops/tls.md)。
-- 第 3～4 点（自签证书、审计保留期）另行安排。
+- 第 3 点（自签证书）：PR #23 落实，见 [docs/ops/tls.md](../ops/tls.md#自签证书d-34-第-3-点)。
+- 第 4 点（审计保留期）另行安排。

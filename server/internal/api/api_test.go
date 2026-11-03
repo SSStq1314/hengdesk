@@ -39,7 +39,7 @@ func newServer(t *testing.T) (http.Handler, func()) {
 	return e.h, func() {}
 }
 
-func newEnv(t *testing.T) *env {
+func newEnv(t *testing.T, opts ...func(*api.Deps)) *env {
 	c := storetest.NewTestClient(t)
 	ctx := context.Background()
 	if _, err := store.Seed(ctx, c, store.SeedOptions{OrgName: "o", OrgSlug: "o", AdminEmail: "admin@x.local", AdminPassword: "password123"}); err != nil {
@@ -54,13 +54,17 @@ func newEnv(t *testing.T) *env {
 	e.IPExtractor = httpserver.IPExtractor([]*net.IPNet{{IP: net.IPv4(192, 0, 2, 0), Mask: net.CIDRMask(24, 32)}})
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	api.Mount(e, api.Deps{DB: c, Audit: w, Log: slog.Default(),
+	d := api.Deps{DB: c, Audit: w, Log: slog.Default(),
 		Auth: &auth.Service{DB: c, Audit: w, BcryptCost: bcrypt.MinCost,
 			Sessions:  &session.Store{R: rdb, TTL: time.Hour},
 			Lockout:   &session.Lockout{R: rdb, MaxFailures: 5, Duration: 15 * time.Minute},
 			IPLimit:   &session.RateLimiter{R: rdb, Limit: testIPLimit, Window: 10 * time.Minute},
 			Passwords: auth.PasswordPolicy{MinLen: 8}},
-		System: api.SystemConfig{BackupDir: t.TempDir(), BackupKeep: 5, DiskLowPercent: 10}})
+		System: api.SystemConfig{BackupDir: t.TempDir(), BackupKeep: 5, DiskLowPercent: 10}}
+	for _, o := range opts {
+		o(&d)
+	}
+	api.Mount(e, d)
 	return &env{h: e, mr: mr, c: c}
 }
 
