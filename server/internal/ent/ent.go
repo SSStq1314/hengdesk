@@ -17,6 +17,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budgetalertstate"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/conversationfile"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
@@ -97,6 +98,7 @@ func checkColumn(t, c string) error {
 			budget.Table:           budget.ValidColumn,
 			budgetalertstate.Table: budgetalertstate.ValidColumn,
 			conversation.Table:     conversation.ValidColumn,
+			conversationfile.Table: conversationfile.ValidColumn,
 			department.Table:       department.ValidColumn,
 			deptclosure.Table:      deptclosure.ValidColumn,
 			egresslog.Table:        egresslog.ValidColumn,

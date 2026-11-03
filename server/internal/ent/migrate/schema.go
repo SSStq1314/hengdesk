@@ -168,6 +168,37 @@ var (
 			},
 		},
 	}
+	// ConversationFilesColumns holds the columns for the "conversation_files" table.
+	ConversationFilesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "conversation_id", Type: field.TypeInt},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "name", Type: field.TypeString, Size: 255},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "sha256", Type: field.TypeString},
+		{Name: "object_key", Type: field.TypeString},
+		{Name: "text", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "chars", Type: field.TypeInt, Default: 0},
+		{Name: "truncated", Type: field.TypeBool, Default: false},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+	}
+	// ConversationFilesTable holds the schema information for the "conversation_files" table.
+	ConversationFilesTable = &schema.Table{
+		Name:       "conversation_files",
+		Columns:    ConversationFilesColumns,
+		PrimaryKey: []*schema.Column{ConversationFilesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "conversationfile_conversation_id_id",
+				Unique:  false,
+				Columns: []*schema.Column{ConversationFilesColumns[4], ConversationFilesColumns[0]},
+			},
+		},
+	}
 	// DepartmentsColumns holds the columns for the "departments" table.
 	DepartmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -639,6 +670,7 @@ var (
 		BudgetsTable,
 		BudgetAlertStatesTable,
 		ConversationsTable,
+		ConversationFilesTable,
 		DepartmentsTable,
 		DeptClosureTable,
 		EgressLogsTable,

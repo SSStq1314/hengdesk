@@ -15,8 +15,10 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
 	"github.com/SSStq1314/hengdesk/server/internal/authz"
+	"github.com/SSStq1314/hengdesk/server/internal/docparse"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/conversationfile"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
@@ -32,8 +34,11 @@ const (
 )
 
 type convHandlers struct {
-	db *ent.Client
-	ch *chatHandlers
+	db     *ent.Client
+	ch     *chatHandlers
+	fs     FileStore
+	lim    FileLimits
+	parser *docparse.Extractor
 }
 
 type convView struct {
@@ -56,6 +61,8 @@ type msgView struct {
 	PromptTokens     int       `json:"prompt_tokens"`
 	CompletionTokens int       `json:"completion_tokens"`
 	CreatedAt        time.Time `json:"created_at"`
+	// ContextTruncated 仅出现在 done 事件：本轮会话文件内容因过长被截断（UI 提示用户）。
+	ContextTruncated bool `json:"context_truncated,omitempty"`
 }
 
 func toConv(c *ent.Conversation) convView {
@@ -164,7 +171,15 @@ func (h *convHandlers) get(c echo.Context) error {
 	for i, m := range ms {
 		out[i] = toMsg(m)
 	}
-	return c.JSON(http.StatusOK, map[string]any{"conversation": toConv(cv), "messages": out})
+	fs, err := h.files(c.Request().Context(), cv.ID)
+	if err != nil {
+		return err
+	}
+	fv := make([]fileView, len(fs))
+	for i, f := range fs {
+		fv[i] = toFile(f)
+	}
+	return c.JSON(http.StatusOK, map[string]any{"conversation": toConv(cv), "messages": out, "files": fv})
 }
 
 func (h *convHandlers) update(c echo.Context) error {
@@ -198,7 +213,7 @@ func (h *convHandlers) update(c echo.Context) error {
 	return c.JSON(http.StatusOK, toConv(cv))
 }
 
-// remove 软删除：用户侧不可见（之后访问 404），消息保留供审计链路还原；物理清理随保留期策略（待产品确认）。
+// remove 软删除：用户侧不可见（之后访问 404），消息保留供审计链路还原；会话文件一并软删除。物理清理随保留期策略（待产品确认）。
 func (h *convHandlers) remove(c echo.Context) error {
 	p, err := principal(c)
 	if err != nil {
@@ -208,7 +223,14 @@ func (h *convHandlers) remove(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := cv.Update().SetDeletedAt(time.Now()).Exec(c.Request().Context()); err != nil {
+	ctx, now := c.Request().Context(), time.Now()
+	if err := withTx(ctx, h.db, func(tx *ent.Tx) error {
+		if err := tx.Conversation.UpdateOneID(cv.ID).SetDeletedAt(now).Exec(ctx); err != nil {
+			return err
+		}
+		return tx.ConversationFile.Update().Where(conversationfile.ConversationID(cv.ID), conversationfile.DeletedAtIsNil()).
+			SetDeletedAt(now).Exec(ctx)
+	}); err != nil {
 		return err
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -262,6 +284,10 @@ func (h *convHandlers) send(c echo.Context) error {
 		return err // fail-closed
 	}
 
+	files, err := h.files(ctx, cv.ID)
+	if err != nil {
+		return err
+	}
 	hist, err := h.db.Message.Query().Where(message.ConversationID(cv.ID), message.ContentNEQ("")).
 		Order(ent.Desc(message.FieldID)).Limit(historyLimit - 1).All(ctx)
 	if err != nil {
@@ -289,7 +315,11 @@ func (h *convHandlers) send(c echo.Context) error {
 		return err
 	}
 
-	msgs := make([]gateway.Message, 0, len(hist)+1)
+	msgs := make([]gateway.Message, 0, len(hist)+2)
+	fctx, ctxCut := fileContext(files, h.lim.TotalChars)
+	if fctx != "" {
+		msgs = append(msgs, textMessage("system", fctx))
+	}
 	for i := len(hist) - 1; i >= 0; i-- {
 		msgs = append(msgs, textMessage(string(hist[i].Role), hist[i].Content))
 	}
@@ -301,7 +331,7 @@ func (h *convHandlers) send(c echo.Context) error {
 		done: func(res *gateway.ChatResponse, used, primary *gateway.Target) any {
 			v := msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: "done", ModelName: used.Model.Name,
 				FallbackFrom: fallbackFrom(used, primary), PromptTokens: res.Usage.PromptTokens,
-				CompletionTokens: res.Usage.CompletionTokens, CreatedAt: asst.CreatedAt}
+				CompletionTokens: res.Usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut}
 			return v
 		}}
 	res, ge, started, used, rerr := h.ch.run(c, p, &req, tgt, hk)
@@ -339,7 +369,8 @@ func (h *convHandlers) send(c echo.Context) error {
 	}
 	if err := audit.Record(c, audit.Entry{Action: "chat.message.send", Phase: "result", Outcome: outcome, ResourceType: "conversation",
 		ResourceID: strconv.Itoa(cv.ID), Detail: map[string]any{"message_id": asst.ID, "model": used.Model.Name,
-			"fallback_from": fallbackFrom(used, tgt), "chars": utf8.RuneCountInString(buf.String())}}); err != nil {
+			"fallback_from": fallbackFrom(used, tgt), "chars": utf8.RuneCountInString(buf.String()),
+			"files": len(files), "context_truncated": ctxCut}}); err != nil {
 		h.ch.log.Error("chat result audit write failed", "conversation", cv.ID)
 	}
 	if rerr != nil {

@@ -22,6 +22,8 @@ type Tx struct {
 	BudgetAlertState *BudgetAlertStateClient
 	// Conversation is the client for interacting with the Conversation builders.
 	Conversation *ConversationClient
+	// ConversationFile is the client for interacting with the ConversationFile builders.
+	ConversationFile *ConversationFileClient
 	// Department is the client for interacting with the Department builders.
 	Department *DepartmentClient
 	// DeptClosure is the client for interacting with the DeptClosure builders.
@@ -188,6 +190,7 @@ func (tx *Tx) init() {
 	tx.Budget = NewBudgetClient(tx.config)
 	tx.BudgetAlertState = NewBudgetAlertStateClient(tx.config)
 	tx.Conversation = NewConversationClient(tx.config)
+	tx.ConversationFile = NewConversationFileClient(tx.config)
 	tx.Department = NewDepartmentClient(tx.config)
 	tx.DeptClosure = NewDeptClosureClient(tx.config)
 	tx.EgressLog = NewEgressLogClient(tx.config)

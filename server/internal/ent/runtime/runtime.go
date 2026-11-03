@@ -10,6 +10,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budgetalertstate"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/conversationfile"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
@@ -194,6 +195,37 @@ func init() {
 	conversation.DefaultTitle = conversationDescTitle.Default.(string)
 	// conversation.TitleValidator is a validator for the "title" field. It is called by the builders before save.
 	conversation.TitleValidator = conversationDescTitle.Validators[0].(func(string) error)
+	conversationfileMixin := schema.ConversationFile{}.Mixin()
+	conversationfileMixinFields0 := conversationfileMixin[0].Fields()
+	_ = conversationfileMixinFields0
+	conversationfileFields := schema.ConversationFile{}.Fields()
+	_ = conversationfileFields
+	// conversationfileDescCreatedAt is the schema descriptor for created_at field.
+	conversationfileDescCreatedAt := conversationfileMixinFields0[0].Descriptor()
+	// conversationfile.DefaultCreatedAt holds the default value on creation for the created_at field.
+	conversationfile.DefaultCreatedAt = conversationfileDescCreatedAt.Default.(func() time.Time)
+	// conversationfileDescUpdatedAt is the schema descriptor for updated_at field.
+	conversationfileDescUpdatedAt := conversationfileMixinFields0[1].Descriptor()
+	// conversationfile.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	conversationfile.DefaultUpdatedAt = conversationfileDescUpdatedAt.Default.(func() time.Time)
+	// conversationfile.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	conversationfile.UpdateDefaultUpdatedAt = conversationfileDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// conversationfileDescName is the schema descriptor for name field.
+	conversationfileDescName := conversationfileFields[3].Descriptor()
+	// conversationfile.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	conversationfile.NameValidator = conversationfileDescName.Validators[0].(func(string) error)
+	// conversationfileDescText is the schema descriptor for text field.
+	conversationfileDescText := conversationfileFields[8].Descriptor()
+	// conversationfile.DefaultText holds the default value on creation for the text field.
+	conversationfile.DefaultText = conversationfileDescText.Default.(string)
+	// conversationfileDescChars is the schema descriptor for chars field.
+	conversationfileDescChars := conversationfileFields[9].Descriptor()
+	// conversationfile.DefaultChars holds the default value on creation for the chars field.
+	conversationfile.DefaultChars = conversationfileDescChars.Default.(int)
+	// conversationfileDescTruncated is the schema descriptor for truncated field.
+	conversationfileDescTruncated := conversationfileFields[10].Descriptor()
+	// conversationfile.DefaultTruncated holds the default value on creation for the truncated field.
+	conversationfile.DefaultTruncated = conversationfileDescTruncated.Default.(bool)
 	departmentMixin := schema.Department{}.Mixin()
 	departmentMixinFields0 := departmentMixin[0].Fields()
 	_ = departmentMixinFields0

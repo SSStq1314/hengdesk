@@ -46,6 +46,8 @@ type Config struct {
 	// LoginIPLimit / LoginIPWindow 按 IP 的登录尝试滑动窗口限速（0 表示关闭）。
 	LoginIPLimit  int
 	LoginIPWindow time.Duration
+	// ChatFileMaxMB 会话内上传文件的单文件大小上限（MB，默认 20，范围 1~90；nginx 请求体上限为 100m）。
+	ChatFileMaxMB int
 	// TrustedProxies 允许读取 X-Forwarded-For 的上游代理网段；为空时只用 TCP 对端地址。
 	TrustedProxies []*net.IPNet
 	// BackupKeep 保留最近 N 份备份；DiskLowPercent 备份盘剩余空间低于该百分比时告警。
@@ -161,6 +163,10 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	chatFileMB, err := intEnv("CHAT_FILE_MAX_MB", "20", 1, 90)
+	if err != nil {
+		return nil, err
+	}
 	ipLimit, err := intEnv("LOGIN_IP_LIMIT", "30", 0, 1000000)
 	if err != nil {
 		return nil, err
@@ -224,6 +230,7 @@ func Load() (*Config, error) {
 		TLSCertFile:             get("TLS_CERT_FILE", "/etc/hengdesk/tls/tls.crt"),
 		PasswordMinLen:          minLen,
 		LoginIPLimit:            ipLimit,
+		ChatFileMaxMB:           chatFileMB,
 		LoginIPWindow:           ipWin,
 		TrustedProxies:          proxies,
 		BackupKeep:              keep,
