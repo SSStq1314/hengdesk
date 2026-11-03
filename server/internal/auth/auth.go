@@ -13,6 +13,7 @@ import (
 	"math"
 	"mime"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -70,6 +71,11 @@ type Service struct {
 	GuardDisable func(c echo.Context, u *ent.User) error
 	// OIDC 单点登录；nil 表示未启用。
 	OIDC *OIDC
+	// EnforceSSO 强制 SSO（D-34）：开启后仅 BreakGlass 列出的紧急管理员可用密码登录，每次登录记高风险审计并通知审计员。
+	EnforceSSO bool
+	BreakGlass []string
+	// Notifiers 高风险事件的外部通知扩展点（邮件 / IM 等）；站内通知基于审计记录，始终生效。
+	Notifiers []Notifier
 }
 
 // Principal 当前登录用户。
@@ -152,10 +158,14 @@ func (s *Service) login(c echo.Context) error {
 	} else {
 		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(req.Password))
 	}
-	if left > 0 || !ok {
+	breakGlass := s.EnforceSSO && slices.Contains(s.BreakGlass, email)
+	ssoOnly := ok && s.EnforceSSO && !breakGlass
+	if left > 0 || !ok || ssoOnly {
 		reason, locked := "bad_credentials", false
 		if left > 0 {
 			reason = "locked"
+		} else if ssoOnly { // 密码正确但强制 SSO：对外同样 401，不计入锁定
+			reason = "sso_enforced"
 		} else if locked, err = s.Lockout.Fail(ctx, email); err != nil {
 			return ErrUnavailable
 		}
@@ -166,8 +176,16 @@ func (s *Service) login(c echo.Context) error {
 		return ErrBadCredentials
 	}
 	e.Outcome, e.ActorID, e.OrgID = "success", u.ID, u.OrgID
+	if breakGlass {
+		e.Detail = map[string]any{"method": "password", "break_glass": true, "severity": SeverityHigh}
+	}
 	if aerr := s.Audit.Write(ctx, e); aerr != nil {
 		return audit.ErrRejected
+	}
+	if breakGlass {
+		if err := s.RaiseAlert(c, e, AlertBreakGlassLogin); err != nil {
+			return err
+		}
 	}
 	_ = s.Lockout.Reset(ctx, email)
 	_ = s.DB.User.UpdateOne(u).SetLastLoginAt(time.Now()).Exec(ctx)

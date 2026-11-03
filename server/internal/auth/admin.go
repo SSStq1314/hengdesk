@@ -27,6 +27,8 @@ func (s *Service) RegisterAdmin(g *echo.Group) {
 	g.POST("/users/:id/enable", s.adminEnable)
 	g.POST("/users/:id/password-reset", s.adminResetPassword)
 	g.POST("/users/:id/unlock", s.adminUnlock)
+	g.PUT("/users/:id/oidc-identity", s.adminBindOIDC)
+	g.DELETE("/users/:id/oidc-identity", s.adminUnbindOIDC)
 }
 
 // target 取目标用户；未注入 Target 时只允许同组织（跨组织或不存在一律 404）。

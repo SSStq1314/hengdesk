@@ -50,6 +50,9 @@ func Mount(e *echo.Echo, d Deps) {
 	ah := &auditHandlers{db: d.DB}
 	admin.GET("/audit-logs", ah.list, authz.Require(rbac.AuditRead), audit.Sensitive("audit.view"))
 	admin.GET("/audit-logs/verify", ah.verify, authz.Require(rbac.AuditRead), audit.Sensitive("audit.verify"))
+	alh := &alertHandlers{db: d.DB, r: d.Auth.Sessions.R}
+	admin.GET("/alerts", alh.list, authz.Require(rbac.AuditRead))
+	admin.POST("/alerts/read", alh.markRead, authz.Require(rbac.AuditRead))
 	admin.GET("/audit-logs/export", ah.export, authz.Require(rbac.AuditExport), audit.Sensitive("audit.export"))
 
 	// 账号安全（强制下线、停用、重置密码、解锁）：组织范围 MemberManage，目标为特权角色时还需 RoleAssignPriv。

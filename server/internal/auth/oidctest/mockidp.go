@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +26,9 @@ type Identity struct {
 	Email         string
 	EmailVerified bool
 	Name          string
+	// Extra 额外 claim（如部门）；ExtraInUserInfo 为 true 时只放在 UserInfo，不放进 ID Token。
+	Extra           map[string]any
+	ExtraInUserInfo bool
 }
 
 type grant struct {
@@ -40,6 +44,7 @@ type IdP struct {
 	mu     sync.Mutex
 	next   Identity
 	codes  map[string]grant
+	tokens map[string]Identity
 	key    *rsa.PrivateKey
 	signer jose.Signer
 	// BadNonce 为 true 时签发错误的 nonce（测试重放防护）。
@@ -56,12 +61,13 @@ func New(clientID, secret string) *IdP {
 	if err != nil {
 		panic(err)
 	}
-	m := &IdP{ClientID: clientID, ClientSecret: secret, codes: map[string]grant{}, key: k, signer: sg}
+	m := &IdP{ClientID: clientID, ClientSecret: secret, codes: map[string]grant{}, tokens: map[string]Identity{}, key: k, signer: sg}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/.well-known/openid-configuration", m.discovery)
 	mux.HandleFunc("/jwks", m.jwks)
 	mux.HandleFunc("/authorize", m.authorize)
 	mux.HandleFunc("/token", m.token)
+	mux.HandleFunc("/userinfo", m.userinfo)
 	m.Server = httptest.NewServer(mux)
 	return m
 }
@@ -78,7 +84,7 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 func (m *IdP) discovery(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, 200, map[string]any{
 		"issuer": m.URL, "authorization_endpoint": m.URL + "/authorize", "token_endpoint": m.URL + "/token",
-		"jwks_uri": m.URL + "/jwks", "response_types_supported": []string{"code"},
+		"jwks_uri": m.URL + "/jwks", "userinfo_endpoint": m.URL + "/userinfo", "response_types_supported": []string{"code"},
 		"subject_types_supported": []string{"public"}, "id_token_signing_alg_values_supported": []string{"RS256"},
 		"code_challenge_methods_supported": []string{"S256"},
 	})
@@ -140,10 +146,35 @@ func (m *IdP) token(w http.ResponseWriter, r *http.Request) {
 	claims := map[string]any{"iss": m.URL, "aud": m.ClientID, "sub": g.id.Sub, "nonce": nonce,
 		"iat": now.Unix(), "exp": now.Add(5 * time.Minute).Unix(),
 		"email": g.id.Email, "email_verified": g.id.EmailVerified, "name": g.id.Name}
+	if !g.id.ExtraInUserInfo {
+		for k, v := range g.id.Extra {
+			claims[k] = v
+		}
+	}
+	at := rnd()
+	m.mu.Lock()
+	m.tokens[at] = g.id
+	m.mu.Unlock()
 	raw, err := jwt.Signed(m.signer).Claims(claims).Serialize()
 	if err != nil {
 		writeJSON(w, 500, map[string]string{"error": "server_error"})
 		return
 	}
-	writeJSON(w, 200, map[string]any{"access_token": rnd(), "token_type": "Bearer", "expires_in": 300, "id_token": raw})
+	writeJSON(w, 200, map[string]any{"access_token": at, "token_type": "Bearer", "expires_in": 300, "id_token": raw})
+}
+
+func (m *IdP) userinfo(w http.ResponseWriter, r *http.Request) {
+	tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	m.mu.Lock()
+	id, ok := m.tokens[tok]
+	m.mu.Unlock()
+	if !ok {
+		writeJSON(w, 401, map[string]string{"error": "invalid_token"})
+		return
+	}
+	out := map[string]any{"sub": id.Sub, "email": id.Email, "email_verified": id.EmailVerified}
+	for k, v := range id.Extra {
+		out[k] = v
+	}
+	writeJSON(w, 200, out)
 }

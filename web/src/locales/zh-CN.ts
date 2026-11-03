@@ -197,6 +197,16 @@ export const zh = {
     backupLowDesc: (free: string, threshold: number, keep: number) =>
       `备份目录剩余空间 ${free}%，低于 ${threshold}% 阈值。升级前备份失败会中止升级，请尽快清理或扩容（系统自动保留最近 ${keep} 份备份）。`,
   },
+  alerts: {
+    title: (n: number) => `有 ${n} 条未读的高风险事件`,
+    breakGlassLogin: (email: string, ts: string, ip: string) =>
+      `紧急管理员 ${email} 于 ${ts} 用本地密码登录（来源 ${ip}）。`,
+    other: (kind: string, email: string, ts: string) =>
+      `${ts} ${email}：${kind}`,
+    more: (n: number) =>
+      `另有 ${n} 条，请在审计日志中按动作「alert.high_risk」查看。`,
+    markRead: '标记为已读',
+  },
   a11y: {
     close: '关闭',
     sidebar: '侧边栏',

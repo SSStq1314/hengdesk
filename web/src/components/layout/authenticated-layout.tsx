@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { LayoutProvider } from '@/context/layout-provider'
 import { SearchProvider } from '@/context/search-provider'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { HighRiskAlerts } from '@/components/high-risk-alerts'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { SkipToMain } from '@/components/skip-to-main'
 import { SystemBanners } from '@/components/system-banners'
@@ -35,6 +36,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
             )}
           >
             <SystemBanners />
+            <HighRiskAlerts />
             {children ?? <Outlet />}
           </SidebarInset>
         </SidebarProvider>

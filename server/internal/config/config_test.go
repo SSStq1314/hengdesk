@@ -47,3 +47,37 @@ func TestLoginHardeningConfig(t *testing.T) {
 		t.Fatal("none should disable XFF")
 	}
 }
+
+func TestOIDCD34Config(t *testing.T) {
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.OIDCAutoCreate || len(c.OIDCEmailDomains) != 0 || c.OIDCEnforce || c.OIDCDeptMatch != "path" {
+		t.Fatalf("defaults %+v", c)
+	}
+	t.Setenv("HENGDESK_OIDC_ISSUER", "https://idp.example")
+	t.Setenv("HENGDESK_OIDC_CLIENT_ID", "x")
+	t.Setenv("HENGDESK_OIDC_REDIRECT_URL", "https://h/cb")
+	t.Setenv("HENGDESK_OIDC_EMAIL_DOMAINS", "@Corp.Example, x.local")
+	t.Setenv("HENGDESK_OIDC_ENFORCE", "true")
+	if _, err := Load(); err == nil {
+		t.Fatal("enforce without break-glass must fail")
+	}
+	t.Setenv("HENGDESK_OIDC_BREAKGLASS_EMAILS", "a@x.local,b@x.local,c@x.local")
+	if _, err := Load(); err == nil {
+		t.Fatal("more than 2 break-glass accounts must fail")
+	}
+	t.Setenv("HENGDESK_OIDC_BREAKGLASS_EMAILS", "A@x.local,b@x.local")
+	c, err = Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.OIDCEmailDomains[0] != "corp.example" || c.OIDCBreakGlass[0] != "a@x.local" {
+		t.Fatalf("%+v %+v", c.OIDCEmailDomains, c.OIDCBreakGlass)
+	}
+	t.Setenv("HENGDESK_OIDC_DEPT_MATCH", "name")
+	if _, err := Load(); err == nil {
+		t.Fatal("bad dept match must fail")
+	}
+}
