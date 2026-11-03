@@ -263,6 +263,8 @@ var (
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"manual", "upgrade", "oidc"}, Default: "manual"},
 		{Name: "private", Type: field.TypeBool, Default: false},
 		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "reviewed_by", Type: field.TypeInt, Nullable: true},
 	}
 	// EgressRulesTable holds the schema information for the "egress_rules" table.
 	EgressRulesTable = &schema.Table{

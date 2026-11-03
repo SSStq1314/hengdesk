@@ -145,6 +145,53 @@ func (_u *EgressRuleUpdate) ClearCreatedBy() *EgressRuleUpdate {
 	return _u
 }
 
+// SetReviewedAt sets the "reviewed_at" field.
+func (_u *EgressRuleUpdate) SetReviewedAt(v time.Time) *EgressRuleUpdate {
+	_u.mutation.SetReviewedAt(v)
+	return _u
+}
+
+// SetNillableReviewedAt sets the "reviewed_at" field if the given value is not nil.
+func (_u *EgressRuleUpdate) SetNillableReviewedAt(v *time.Time) *EgressRuleUpdate {
+	if v != nil {
+		_u.SetReviewedAt(*v)
+	}
+	return _u
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (_u *EgressRuleUpdate) ClearReviewedAt() *EgressRuleUpdate {
+	_u.mutation.ClearReviewedAt()
+	return _u
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (_u *EgressRuleUpdate) SetReviewedBy(v int) *EgressRuleUpdate {
+	_u.mutation.ResetReviewedBy()
+	_u.mutation.SetReviewedBy(v)
+	return _u
+}
+
+// SetNillableReviewedBy sets the "reviewed_by" field if the given value is not nil.
+func (_u *EgressRuleUpdate) SetNillableReviewedBy(v *int) *EgressRuleUpdate {
+	if v != nil {
+		_u.SetReviewedBy(*v)
+	}
+	return _u
+}
+
+// AddReviewedBy adds value to the "reviewed_by" field.
+func (_u *EgressRuleUpdate) AddReviewedBy(v int) *EgressRuleUpdate {
+	_u.mutation.AddReviewedBy(v)
+	return _u
+}
+
+// ClearReviewedBy clears the value of the "reviewed_by" field.
+func (_u *EgressRuleUpdate) ClearReviewedBy() *EgressRuleUpdate {
+	_u.mutation.ClearReviewedBy()
+	return _u
+}
+
 // Mutation returns the EgressRuleMutation object of the builder.
 func (_u *EgressRuleUpdate) Mutation() *EgressRuleMutation {
 	return _u.mutation
@@ -257,6 +304,21 @@ func (_u *EgressRuleUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if _u.mutation.CreatedByCleared() {
 		_spec.ClearField(egressrule.FieldCreatedBy, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ReviewedAt(); ok {
+		_spec.SetField(egressrule.FieldReviewedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ReviewedAtCleared() {
+		_spec.ClearField(egressrule.FieldReviewedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ReviewedBy(); ok {
+		_spec.SetField(egressrule.FieldReviewedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedReviewedBy(); ok {
+		_spec.AddField(egressrule.FieldReviewedBy, field.TypeInt, value)
+	}
+	if _u.mutation.ReviewedByCleared() {
+		_spec.ClearField(egressrule.FieldReviewedBy, field.TypeInt)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -392,6 +454,53 @@ func (_u *EgressRuleUpdateOne) AddCreatedBy(v int) *EgressRuleUpdateOne {
 // ClearCreatedBy clears the value of the "created_by" field.
 func (_u *EgressRuleUpdateOne) ClearCreatedBy() *EgressRuleUpdateOne {
 	_u.mutation.ClearCreatedBy()
+	return _u
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (_u *EgressRuleUpdateOne) SetReviewedAt(v time.Time) *EgressRuleUpdateOne {
+	_u.mutation.SetReviewedAt(v)
+	return _u
+}
+
+// SetNillableReviewedAt sets the "reviewed_at" field if the given value is not nil.
+func (_u *EgressRuleUpdateOne) SetNillableReviewedAt(v *time.Time) *EgressRuleUpdateOne {
+	if v != nil {
+		_u.SetReviewedAt(*v)
+	}
+	return _u
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (_u *EgressRuleUpdateOne) ClearReviewedAt() *EgressRuleUpdateOne {
+	_u.mutation.ClearReviewedAt()
+	return _u
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (_u *EgressRuleUpdateOne) SetReviewedBy(v int) *EgressRuleUpdateOne {
+	_u.mutation.ResetReviewedBy()
+	_u.mutation.SetReviewedBy(v)
+	return _u
+}
+
+// SetNillableReviewedBy sets the "reviewed_by" field if the given value is not nil.
+func (_u *EgressRuleUpdateOne) SetNillableReviewedBy(v *int) *EgressRuleUpdateOne {
+	if v != nil {
+		_u.SetReviewedBy(*v)
+	}
+	return _u
+}
+
+// AddReviewedBy adds value to the "reviewed_by" field.
+func (_u *EgressRuleUpdateOne) AddReviewedBy(v int) *EgressRuleUpdateOne {
+	_u.mutation.AddReviewedBy(v)
+	return _u
+}
+
+// ClearReviewedBy clears the value of the "reviewed_by" field.
+func (_u *EgressRuleUpdateOne) ClearReviewedBy() *EgressRuleUpdateOne {
+	_u.mutation.ClearReviewedBy()
 	return _u
 }
 
@@ -537,6 +646,21 @@ func (_u *EgressRuleUpdateOne) sqlSave(ctx context.Context) (_node *EgressRule, 
 	}
 	if _u.mutation.CreatedByCleared() {
 		_spec.ClearField(egressrule.FieldCreatedBy, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ReviewedAt(); ok {
+		_spec.SetField(egressrule.FieldReviewedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ReviewedAtCleared() {
+		_spec.ClearField(egressrule.FieldReviewedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ReviewedBy(); ok {
+		_spec.SetField(egressrule.FieldReviewedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedReviewedBy(); ok {
+		_spec.AddField(egressrule.FieldReviewedBy, field.TypeInt, value)
+	}
+	if _u.mutation.ReviewedByCleared() {
+		_spec.ClearField(egressrule.FieldReviewedBy, field.TypeInt)
 	}
 	_node = &EgressRule{config: _u.config}
 	_spec.Assign = _node.assignValues

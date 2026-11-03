@@ -18,7 +18,7 @@ func (EgressRule) Fields() []ent.Field {
 	return []ent.Field{
 		field.Enum("kind").Values("host", "wildcard", "ip", "cidr"),
 		field.String("value").NotEmpty().MaxLen(255),
-		// 允许的端口，逗号分隔；空字符串表示任意端口。
+		// 允许的端口，逗号分隔；空字符串只放行 443，"*" 表示任意端口（D-38 第 3 条）。
 		field.String("ports").Default("").MaxLen(100),
 		field.String("note").Default("").MaxLen(200),
 		// manual 管理员手工添加；upgrade 升级时从已有模型上游迁移；oidc 来自 OIDC 配置。
@@ -26,6 +26,9 @@ func (EgressRule) Fields() []ent.Field {
 		// 是否放行内网 / 环回 / 元数据地址（由 ip / cidr 是否覆盖内网地址自动计算，仅用于展示与审计）。
 		field.Bool("private").Default(false),
 		field.Int("created_by").Optional(),
+		// 升级 / OIDC 自动添加的条目需管理员复核一次（D-38 第 1 条）；手工条目不需要。
+		field.Time("reviewed_at").Optional().Nillable(),
+		field.Int("reviewed_by").Optional(),
 	}
 }
 

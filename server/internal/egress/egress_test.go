@@ -18,8 +18,21 @@ import (
 )
 
 type memSink struct {
-	mu   sync.Mutex
-	recs []egress.Record
+	mu        sync.Mutex
+	recs      []egress.Record
+	failStart bool
+	started   int
+}
+
+// Start 只计数，不入列表（最终结果由 Write 记录），便于既有断言保持不变。
+func (m *memSink) Start(_ context.Context, _ egress.Record) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.failStart {
+		return 0, errors.New("log down")
+	}
+	m.started++
+	return 0, nil
 }
 
 func (m *memSink) Write(_ context.Context, r egress.Record) error {
@@ -95,7 +108,7 @@ func denied(t *testing.T, err error, reason string) {
 }
 
 func TestDecide(t *testing.T) {
-	rules := egress.MustStatic("host api.deepseek.com 443", "wildcard *.openai.com", "cidr 10.1.0.0/16 8000,11434", "ip 169.254.169.254")
+	rules := egress.MustStatic("host api.deepseek.com 443", "wildcard *.openai.com *", "cidr 10.1.0.0/16 8000,11434", "ip 169.254.169.254 *")
 	cases := []struct {
 		host string
 		port int
@@ -188,7 +201,7 @@ func TestDomainResolvingToInternalBlocked(t *testing.T) {
 	defer srv.Close()
 	port := srv.URL[strings.LastIndex(srv.URL, ":")+1:]
 	// 域名在白名单，但 DNS 解析到 127.0.0.1（DNS rebinding / 内网指向）。
-	c, sink, _ := newClient(egress.MustStatic("host evil.example.com"), fakeDNS{
+	c, sink, _ := newClient(egress.MustStatic("host evil.example.com *"), fakeDNS{
 		"evil.example.com": {"127.0.0.1"},
 	})
 	_, err := get(t, c, "http://evil.example.com:"+port+"/")
@@ -197,7 +210,7 @@ func TestDomainResolvingToInternalBlocked(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 	// 混合记录：任一地址为内网即整体拒绝。
-	c2, _, _ := newClient(egress.MustStatic("host mixed.example.com"), fakeDNS{"mixed.example.com": {"1.2.3.4", "169.254.169.254"}})
+	c2, _, _ := newClient(egress.MustStatic("host mixed.example.com *"), fakeDNS{"mixed.example.com": {"1.2.3.4", "169.254.169.254"}})
 	_, err = get(t, c2, "http://mixed.example.com:"+port+"/")
 	denied(t, err, egress.ReasonMetadata)
 }
@@ -243,7 +256,7 @@ func TestExplicitInternalAllowAndLogsHaveNoSecrets(t *testing.T) {
 	}))
 	defer srv.Close()
 	port := srv.URL[strings.LastIndex(srv.URL, ":")+1:]
-	c, sink, au := newClient(egress.MustStatic("cidr 127.0.0.0/8", "host ollama.internal"), fakeDNS{"ollama.internal": {"127.0.0.1"}})
+	c, sink, au := newClient(egress.MustStatic("cidr 127.0.0.0/8 *", "host ollama.internal *"), fakeDNS{"ollama.internal": {"127.0.0.1"}})
 	code, err := get(t, c, srv.URL+"/v1/models?api_key=sk-in-query")
 	if err != nil || code != 200 {
 		t.Fatalf("%v", err)
@@ -304,7 +317,7 @@ func (m *mutPolicy) Rules(context.Context) ([]egress.Rule, error) {
 func TestRuleRemovalAppliesToPooledConn(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) }))
 	defer srv.Close()
-	p := &mutPolicy{r: egress.MustStatic("ip 127.0.0.1")}
+	p := &mutPolicy{r: egress.MustStatic("ip 127.0.0.1 *")}
 	c, _, _ := newClient(p, nil)
 	if _, err := get(t, c, srv.URL); err != nil {
 		t.Fatal(err)
@@ -347,5 +360,62 @@ func TestPlanSeed(t *testing.T) {
 	want := map[string]bool{"host api.deepseek.com 443": false, "host vllm.corp 8000": false, "ip 10.0.0.5 8000": true, "ip 127.0.0.1 11434": true}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("%v", got)
+	}
+}
+
+// D-38 第 3 条：端口留空只放行 443，「*」任意端口，不能与具体端口混用。
+func TestDefaultPortIs443(t *testing.T) {
+	rules := egress.MustStatic("host api.example.com", "host any.example.com *")
+	for _, c := range []struct {
+		host string
+		port int
+		ok   bool
+	}{{"api.example.com", 443, true}, {"api.example.com", 80, false}, {"api.example.com", 8443, false},
+		{"any.example.com", 80, true}, {"any.example.com", 8080, true}} {
+		if ok, _ := egress.HostAllowed(rules, c.host, c.port); ok != c.ok {
+			t.Errorf("%s:%d = %v want %v", c.host, c.port, ok, c.ok)
+		}
+	}
+	r, err := egress.ParseRule("host", "a.example.com", " * ")
+	if err != nil || !r.AnyPort || r.PortsString() != "*" {
+		t.Fatalf("* 解析错误：%+v %v", r, err)
+	}
+	if _, err := egress.ParseRule("host", "a.example.com", "443,*"); err == nil {
+		t.Fatal("「*」与具体端口混用应报错")
+	}
+}
+
+// D-38 第 9 条：放行日志写不进去时，未声明审计 fail-closed 的调用方拒绝，声明了的（模型网关）继续。
+func TestAllowLogFailure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) }))
+	defer srv.Close()
+	u, _ := url.Parse(srv.URL)
+	c, sink, au := newClient(egress.MustStatic("ip 127.0.0.1 "+u.Port()), nil)
+	sink.failStart = true
+	do := func(cl egress.Caller) error {
+		req, _ := http.NewRequestWithContext(egress.WithCaller(context.Background(), cl), http.MethodGet, srv.URL, nil)
+		resp, err := c.HTTP().Do(req)
+		if err == nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+		return err
+	}
+	// 未声明（默认）：拒绝，且记拒绝审计。
+	var de *egress.DeniedError
+	if err := do(egress.Caller{Module: "model.test"}); !errors.As(err, &de) || de.Reason != egress.ReasonLogFailed {
+		t.Fatalf("未声明的调用方应被拒绝，got %v", err)
+	}
+	if n := len(au.es); n != 1 || au.es[0].Action != "egress.deny" {
+		t.Fatalf("应写一条拒绝审计，got %+v", au.es)
+	}
+	// 声明了审计 fail-closed：继续出站。
+	if err := do(egress.Caller{Module: "model.chat", AuditedFailClosed: true}); err != nil {
+		t.Fatalf("已声明审计 fail-closed 的调用方应放行：%v", err)
+	}
+	// 拒绝的请求审计也写不进去：仍拒绝。
+	au.fail = true
+	if err := do(egress.Caller{Module: "model.test"}); !errors.As(err, &de) {
+		t.Fatalf("审计失败时仍应拒绝，got %v", err)
 	}
 }

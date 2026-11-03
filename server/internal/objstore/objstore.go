@@ -12,6 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+
+	"github.com/SSStq1314/hengdesk/server/internal/egress"
 )
 
 // Config 是 S3 连接参数。
@@ -50,6 +52,12 @@ func New(cfg Config) (*Store, error) {
 	if cfg.Endpoint != "" {
 		opts.BaseEndpoint = aws.String(cfg.Endpoint)
 	}
+	// D-38 第 6 条：对象存储只能连接部署配置中声明的地址，不受出站白名单约束，但也不能去别处。
+	addrs, err := egress.ObjectStoreAddrs(cfg.Endpoint, cfg.Region, cfg.Bucket)
+	if err != nil {
+		return nil, err
+	}
+	opts.HTTPClient = egress.InfraHTTP(addrs)
 	c := s3.New(opts)
 	return &Store{c: c, ps: s3.NewPresignClient(c), bucket: cfg.Bucket}, nil
 }

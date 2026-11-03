@@ -89,6 +89,16 @@ func CreatedBy(v int) predicate.EgressRule {
 	return predicate.EgressRule(sql.FieldEQ(FieldCreatedBy, v))
 }
 
+// ReviewedAt applies equality check predicate on the "reviewed_at" field. It's identical to ReviewedAtEQ.
+func ReviewedAt(v time.Time) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldEQ(FieldReviewedAt, v))
+}
+
+// ReviewedBy applies equality check predicate on the "reviewed_by" field. It's identical to ReviewedByEQ.
+func ReviewedBy(v int) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldEQ(FieldReviewedBy, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.EgressRule {
 	return predicate.EgressRule(sql.FieldEQ(FieldCreatedAt, v))
@@ -462,6 +472,106 @@ func CreatedByIsNil() predicate.EgressRule {
 // CreatedByNotNil applies the NotNil predicate on the "created_by" field.
 func CreatedByNotNil() predicate.EgressRule {
 	return predicate.EgressRule(sql.FieldNotNull(FieldCreatedBy))
+}
+
+// ReviewedAtEQ applies the EQ predicate on the "reviewed_at" field.
+func ReviewedAtEQ(v time.Time) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldEQ(FieldReviewedAt, v))
+}
+
+// ReviewedAtNEQ applies the NEQ predicate on the "reviewed_at" field.
+func ReviewedAtNEQ(v time.Time) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldNEQ(FieldReviewedAt, v))
+}
+
+// ReviewedAtIn applies the In predicate on the "reviewed_at" field.
+func ReviewedAtIn(vs ...time.Time) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldIn(FieldReviewedAt, vs...))
+}
+
+// ReviewedAtNotIn applies the NotIn predicate on the "reviewed_at" field.
+func ReviewedAtNotIn(vs ...time.Time) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldNotIn(FieldReviewedAt, vs...))
+}
+
+// ReviewedAtGT applies the GT predicate on the "reviewed_at" field.
+func ReviewedAtGT(v time.Time) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldGT(FieldReviewedAt, v))
+}
+
+// ReviewedAtGTE applies the GTE predicate on the "reviewed_at" field.
+func ReviewedAtGTE(v time.Time) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldGTE(FieldReviewedAt, v))
+}
+
+// ReviewedAtLT applies the LT predicate on the "reviewed_at" field.
+func ReviewedAtLT(v time.Time) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldLT(FieldReviewedAt, v))
+}
+
+// ReviewedAtLTE applies the LTE predicate on the "reviewed_at" field.
+func ReviewedAtLTE(v time.Time) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldLTE(FieldReviewedAt, v))
+}
+
+// ReviewedAtIsNil applies the IsNil predicate on the "reviewed_at" field.
+func ReviewedAtIsNil() predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldIsNull(FieldReviewedAt))
+}
+
+// ReviewedAtNotNil applies the NotNil predicate on the "reviewed_at" field.
+func ReviewedAtNotNil() predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldNotNull(FieldReviewedAt))
+}
+
+// ReviewedByEQ applies the EQ predicate on the "reviewed_by" field.
+func ReviewedByEQ(v int) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldEQ(FieldReviewedBy, v))
+}
+
+// ReviewedByNEQ applies the NEQ predicate on the "reviewed_by" field.
+func ReviewedByNEQ(v int) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldNEQ(FieldReviewedBy, v))
+}
+
+// ReviewedByIn applies the In predicate on the "reviewed_by" field.
+func ReviewedByIn(vs ...int) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldIn(FieldReviewedBy, vs...))
+}
+
+// ReviewedByNotIn applies the NotIn predicate on the "reviewed_by" field.
+func ReviewedByNotIn(vs ...int) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldNotIn(FieldReviewedBy, vs...))
+}
+
+// ReviewedByGT applies the GT predicate on the "reviewed_by" field.
+func ReviewedByGT(v int) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldGT(FieldReviewedBy, v))
+}
+
+// ReviewedByGTE applies the GTE predicate on the "reviewed_by" field.
+func ReviewedByGTE(v int) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldGTE(FieldReviewedBy, v))
+}
+
+// ReviewedByLT applies the LT predicate on the "reviewed_by" field.
+func ReviewedByLT(v int) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldLT(FieldReviewedBy, v))
+}
+
+// ReviewedByLTE applies the LTE predicate on the "reviewed_by" field.
+func ReviewedByLTE(v int) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldLTE(FieldReviewedBy, v))
+}
+
+// ReviewedByIsNil applies the IsNil predicate on the "reviewed_by" field.
+func ReviewedByIsNil() predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldIsNull(FieldReviewedBy))
+}
+
+// ReviewedByNotNil applies the NotNil predicate on the "reviewed_by" field.
+func ReviewedByNotNil() predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldNotNull(FieldReviewedBy))
 }
 
 // And groups predicates with the AND operator between them.

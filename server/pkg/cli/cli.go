@@ -73,6 +73,12 @@ func serverCmd() *cobra.Command {
 		} else if n > 0 {
 			lg.Warn("egress allowlist seeded from existing upstreams; review it in 出站控制", "rules", n)
 		}
+		// D-38 第 3 条：端口留空改为仅 443，升级时修正已有的空端口条目（仅一次，逐条审计）。
+		if n, err := egress.MigratePorts(context.Background(), client, w, nil, cfg.OIDCIssuer); err != nil {
+			return fmt.Errorf("egress ports migrate: %w", err)
+		} else if n > 0 {
+			lg.Warn("egress allowlist ports migrated for D-38 (empty now means 443 only); review entries marked * in 出站控制", "rules", n)
+		}
 		var oidcSvc *auth.OIDC
 		if cfg.OIDCIssuer != "" {
 			oidcSvc = &auth.OIDC{R: rdb, Cfg: auth.OIDCConfig{Issuer: cfg.OIDCIssuer, ClientID: cfg.OIDCClientID,

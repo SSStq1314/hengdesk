@@ -17,10 +17,12 @@ import (
 
 // Rule 一条白名单条目。
 type Rule struct {
-	Kind   string // host / wildcard / ip / cidr
-	Value  string
-	Ports  []int // 空表示任意端口
-	prefix netip.Prefix
+	Kind  string // host / wildcard / ip / cidr
+	Value string
+	Ports []int // 空表示仅 443（D-38 第 3 条）；AnyPort 为 true 时任意端口
+	// AnyPort 端口写成 "*"：任意端口，管理端会提示风险。
+	AnyPort bool
+	prefix  netip.Prefix
 }
 
 // metadata 云元数据地址：即使在放行的网段内，也只能用精确的 ip 条目放行。
@@ -76,8 +78,15 @@ func ParseRule(kind, value, ports string) (Rule, error) {
 	default:
 		return r, fmt.Errorf("未知类型：%q", kind)
 	}
+	if strings.TrimSpace(ports) == "*" {
+		r.AnyPort = true
+		return r, nil
+	}
 	for _, s := range strings.Split(ports, ",") {
 		s = strings.TrimSpace(s)
+		if s == "*" {
+			return r, fmt.Errorf("「*」表示任意端口，不能与具体端口混用")
+		}
 		if s == "" {
 			continue
 		}
@@ -92,6 +101,9 @@ func ParseRule(kind, value, ports string) (Rule, error) {
 
 // PortsString 规范化后的端口串。
 func (r Rule) PortsString() string {
+	if r.AnyPort {
+		return "*"
+	}
 	s := make([]string, len(r.Ports))
 	for i, p := range r.Ports {
 		s[i] = strconv.Itoa(p)
@@ -136,9 +148,15 @@ func validHost(h string) bool {
 	return true
 }
 
+// DefaultPort 端口列表留空时只放行的端口（D-38 第 3 条）。
+const DefaultPort = 443
+
 func (r Rule) portOK(port int) bool {
-	if len(r.Ports) == 0 {
+	if r.AnyPort {
 		return true
+	}
+	if len(r.Ports) == 0 {
+		return port == DefaultPort
 	}
 	for _, p := range r.Ports {
 		if p == port {
@@ -160,17 +178,18 @@ func (r Rule) hostMatch(host string) bool {
 
 // 拒绝原因。
 const (
-	ReasonEmpty       = "allowlist_empty"    // 白名单为空
-	ReasonNotAllowed  = "not_in_allowlist"   // 不在白名单
-	ReasonPort        = "port_not_allowed"   // 主机在白名单但端口不允许
-	ReasonInternal    = "internal_address"   // 内网 / 环回 / 链路本地，未显式放行
-	ReasonMetadata    = "metadata_address"   // 云元数据地址
-	ReasonInvalid     = "invalid_address"    // 未指定 / 组播等不可用地址
-	ReasonScheme      = "scheme_not_allowed" // 非 http / https
-	ReasonDNS         = "dns_failed"         // 解析失败
-	ReasonRedirects   = "too_many_redirects" // 重定向次数过多
-	ReasonAuditFailed = "audit_unavailable"  // 审计不可用（fail-closed）
-	ReasonPolicyError = "policy_unavailable" // 白名单读取失败（fail-closed）
+	ReasonEmpty       = "allowlist_empty"        // 白名单为空
+	ReasonNotAllowed  = "not_in_allowlist"       // 不在白名单
+	ReasonPort        = "port_not_allowed"       // 主机在白名单但端口不允许
+	ReasonInternal    = "internal_address"       // 内网 / 环回 / 链路本地，未显式放行
+	ReasonMetadata    = "metadata_address"       // 云元数据地址
+	ReasonInvalid     = "invalid_address"        // 未指定 / 组播等不可用地址
+	ReasonScheme      = "scheme_not_allowed"     // 非 http / https
+	ReasonDNS         = "dns_failed"             // 解析失败
+	ReasonRedirects   = "too_many_redirects"     // 重定向次数过多
+	ReasonAuditFailed = "audit_unavailable"      // 审计不可用（fail-closed）
+	ReasonPolicyError = "policy_unavailable"     // 白名单读取失败（fail-closed）
+	ReasonLogFailed   = "egress_log_unavailable" // 放行日志写入失败且调用方未声明审计 fail-closed（D-38 第 9 条）
 )
 
 // HostAllowed 只按主机名与端口判断（解析前的快速检查，以及「新建上游是否已在白名单」的提示）。
@@ -275,6 +294,8 @@ func ReasonText(reason string) string {
 		return "审计服务不可用，出站已拒绝"
 	case ReasonPolicyError:
 		return "出站白名单暂不可读，出站已拒绝"
+	case ReasonLogFailed:
+		return "出站日志写入失败，出站已拒绝"
 	}
 	return reason
 }

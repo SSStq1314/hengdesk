@@ -117,7 +117,7 @@ loop:
 			if req.Stream {
 				res, ge, started = h.stream(c, &req, t)
 			} else {
-				res, ge = h.gw.Client.Chat(egressCtx(ctx, c, "model.chat"), &req, t.Upstream, t.Config)
+				res, ge = h.gw.Client.Chat(egressCtxAudited(ctx, c, "model.chat"), &req, t.Upstream, t.Config)
 			}
 			h.finish(c, tgt, base, callStart, res, ge)
 			h.recordUsage(c, p, t, req.Stream, attempt, callStart, res, ge)
@@ -217,7 +217,7 @@ func (h *chatHandlers) stream(c echo.Context, req *gateway.ChatRequest, tgt *gat
 		w.Flush()
 		return nil
 	}
-	res, ge := h.gw.Client.Stream(egressCtx(c.Request().Context(), c, "model.chat"), req, tgt.Upstream, tgt.Config, func(d gateway.Delta) error {
+	res, ge := h.gw.Client.Stream(egressCtxAudited(c.Request().Context(), c, "model.chat"), req, tgt.Upstream, tgt.Config, func(d gateway.Delta) error {
 		start()
 		return send("delta", d)
 	})

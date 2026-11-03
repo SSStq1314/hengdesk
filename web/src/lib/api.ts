@@ -539,6 +539,9 @@ export type EgressRule = {
   note: string
   source: string
   private: boolean
+  any_port: boolean
+  needs_review: boolean
+  reviewed_at?: string
   created_at: string
   updated_at: string
 }
@@ -576,7 +579,18 @@ export type EgressLogFilter = {
   before_id?: number
 }
 export const egressApi = {
-  rules: () => api<{ items: EgressRule[] }>('/admin/egress/rules'),
+  rules: () =>
+    api<{ items: EgressRule[]; pending_review: number; default_port: number }>(
+      '/admin/egress/rules'
+    ),
+  review: (id: number) =>
+    api<EgressRule>(`/admin/egress/rules/${id}/review`, { method: 'POST' }),
+  exportUrl: (f: EgressLogFilter) => {
+    const q = new URLSearchParams()
+    for (const [k, v] of Object.entries(f))
+      if (k !== 'before_id' && v !== undefined && v !== '') q.set(k, String(v))
+    return `/api/v1/admin/egress/logs/export?${q}`
+  },
   create: (r: EgressRuleInput) =>
     api<EgressRule>('/admin/egress/rules', json('POST', r)),
   update: (id: number, r: EgressRuleInput) =>

@@ -55,6 +55,9 @@ export function LogsTab(props: { readOnly: boolean }) {
         <Button onClick={() => setFilter({ ...draft })}>
           {zh.common.query}
         </Button>
+        <Button variant='outline' asChild title={zh.egress.exportHint}>
+          <a href={egressApi.exportUrl(filter)}>{zh.egress.export}</a>
+        </Button>
       </div>
       <Table>
         <TableHeader>

@@ -58,6 +58,7 @@ export function RulesTab() {
       setEdit(null)
       refresh()
       if (r.private) toast.warning(zh.egress.privateWarn)
+      if (r.any_port) toast.warning(zh.egress.anyPortSaved)
     },
     onError: onErr,
   })
@@ -65,6 +66,14 @@ export function RulesTab() {
     mutationFn: egressApi.remove,
     onSuccess: () => {
       setDel(null)
+      refresh()
+    },
+    onError: onErr,
+  })
+  const review = useMutation({
+    mutationFn: egressApi.review,
+    onSuccess: () => {
+      toast.success(zh.egress.reviewed)
       refresh()
     },
     onError: onErr,
@@ -77,12 +86,26 @@ export function RulesTab() {
   const set = (patch: Partial<EgressRuleInput>) =>
     setEdit((e) => (e ? { ...e, v: { ...e.v, ...patch } } : e))
   const items = list.data?.items ?? []
+  const pending = list.data?.pending_review ?? 0
+  const sourceLabel: Record<string, string> = {
+    manual: zh.egress.sourceManual,
+    upgrade: zh.egress.sourceSeed,
+    oidc: zh.egress.sourceOidc,
+  }
 
   return (
     <>
       <p className='mb-3 text-sm text-muted-foreground'>
         {zh.egress.defaultDeny}
       </p>
+      {pending > 0 && (
+        <div
+          role='alert'
+          className='mb-3 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm'
+        >
+          {zh.egress.reviewBanner(pending)}
+        </div>
+      )}
       <div className='mb-3 flex flex-wrap items-center gap-2'>
         <Input
           className='w-96'
@@ -148,14 +171,32 @@ export function RulesTab() {
                   <Badge variant='destructive'>{zh.egress.privateBadge}</Badge>
                 )}
               </TableCell>
-              <TableCell>{r.ports || zh.egress.anyPort}</TableCell>
               <TableCell>
-                {r.source === 'seed'
-                  ? zh.egress.sourceSeed
-                  : zh.egress.sourceManual}
+                {r.any_port ? (
+                  <Badge variant='destructive' title={zh.egress.anyPortWarn}>
+                    {zh.egress.anyPort}
+                  </Badge>
+                ) : (
+                  r.ports || zh.egress.portsDefault
+                )}
+              </TableCell>
+              <TableCell>
+                {sourceLabel[r.source] ?? r.source}{' '}
+                {r.needs_review && (
+                  <Badge variant='outline'>{zh.egress.needsReview}</Badge>
+                )}
               </TableCell>
               <TableCell>{r.note}</TableCell>
               <TableCell className='space-x-2'>
+                {r.needs_review && (
+                  <Button
+                    size='sm'
+                    disabled={review.isPending}
+                    onClick={() => review.mutate(r.id)}
+                  >
+                    {zh.egress.markReviewed}
+                  </Button>
+                )}
                 <Button
                   size='sm'
                   variant='outline'
@@ -216,6 +257,17 @@ export function RulesTab() {
                   value={edit.v.ports}
                   onChange={(e) => set({ ports: e.target.value })}
                 />
+                <p
+                  className={
+                    edit.v.ports.trim() === '*'
+                      ? 'mt-1 text-xs text-destructive'
+                      : 'mt-1 text-xs text-muted-foreground'
+                  }
+                >
+                  {edit.v.ports.trim() === '*'
+                    ? zh.egress.anyPortWarn
+                    : zh.egress.portsHint}
+                </p>
               </Field>
               <Field label={zh.egress.note}>
                 <Input

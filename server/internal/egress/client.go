@@ -56,6 +56,9 @@ type Caller struct {
 	UserID int
 	Email  string
 	Module string // model.chat / model.test / model.provider.test / oidc / mcp / connector ...
+	// AuditedFailClosed 调用方声明：本次出站之前已经按 fail-closed 写好了审计（目前只有模型网关的对话请求）。
+	// 只有声明了的调用方，在放行日志写不进去时才允许继续出站；未声明（默认）一律拒绝（D-38 第 9 条）。
+	AuditedFailClosed bool
 }
 
 type callerKey struct{}
@@ -90,6 +93,8 @@ func (e *DeniedError) Message() string {
 
 // Record 一条出站日志。
 type Record struct {
+	// ID Sink.Start 返回的记录号；Write 时大于 0 表示更新这条记录。
+	ID         int
 	TS         time.Time
 	Caller     Caller
 	Method     string
@@ -108,7 +113,11 @@ type Record struct {
 }
 
 // Sink 出站日志落地。
+//
+// 放行的请求在发出之前先 Start 写一条记录（D-38 第 9 条：日志写不进去时，未声明审计 fail-closed 的调用方直接拒绝），
+// 请求结束后 Write 用同一个 ID 回填结果；拒绝的请求直接 Write。
 type Sink interface {
+	Start(ctx context.Context, r Record) (int, error)
 	Write(ctx context.Context, r Record) error
 }
 
@@ -280,6 +289,20 @@ func (t *logTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, t.denied(req, rec, &DeniedError{Host: rec.Host, Port: rec.Port, Reason: ReasonPolicyError})
 	} else if ok, why := HostAllowed(rules, rec.Host, rec.Port); !ok {
 		return nil, t.denied(req, rec, &DeniedError{Host: rec.Host, Port: rec.Port, Reason: why})
+	}
+	// 放行日志先落库，写不进去时只有声明了审计 fail-closed 的调用方可以继续（D-38 第 9 条）。
+	if t.c.Sink != nil {
+		start := rec
+		start.Allowed, start.Error = true, "in_progress"
+		id, serr := t.c.Sink.Start(context.WithoutCancel(req.Context()), start)
+		if serr != nil {
+			t.c.logger().Error("egress allow log write failed", "err", serr, "host", rec.Host, "module", rec.Caller.Module,
+				"audited_fail_closed", rec.Caller.AuditedFailClosed)
+			if !rec.Caller.AuditedFailClosed {
+				return nil, t.denied(req, rec, &DeniedError{Host: rec.Host, Port: rec.Port, Reason: ReasonLogFailed})
+			}
+		}
+		rec.ID = id
 	}
 	h := &hop{}
 	resp, err := t.base.RoundTrip(req.WithContext(context.WithValue(req.Context(), hopKey{}, h)))
