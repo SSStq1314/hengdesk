@@ -75,6 +75,11 @@ func DisplayName(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldDisplayName, v))
 }
 
+// EmployeeNo applies equality check predicate on the "employee_no" field. It's identical to EmployeeNoEQ.
+func EmployeeNo(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldEmployeeNo, v))
+}
+
 // PasswordHash applies equality check predicate on the "password_hash" field. It's identical to PasswordHashEQ.
 func PasswordHash(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldPasswordHash, v))
@@ -298,6 +303,71 @@ func DisplayNameEqualFold(v string) predicate.User {
 // DisplayNameContainsFold applies the ContainsFold predicate on the "display_name" field.
 func DisplayNameContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldDisplayName, v))
+}
+
+// EmployeeNoEQ applies the EQ predicate on the "employee_no" field.
+func EmployeeNoEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldEmployeeNo, v))
+}
+
+// EmployeeNoNEQ applies the NEQ predicate on the "employee_no" field.
+func EmployeeNoNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldEmployeeNo, v))
+}
+
+// EmployeeNoIn applies the In predicate on the "employee_no" field.
+func EmployeeNoIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldEmployeeNo, vs...))
+}
+
+// EmployeeNoNotIn applies the NotIn predicate on the "employee_no" field.
+func EmployeeNoNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldEmployeeNo, vs...))
+}
+
+// EmployeeNoGT applies the GT predicate on the "employee_no" field.
+func EmployeeNoGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldEmployeeNo, v))
+}
+
+// EmployeeNoGTE applies the GTE predicate on the "employee_no" field.
+func EmployeeNoGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldEmployeeNo, v))
+}
+
+// EmployeeNoLT applies the LT predicate on the "employee_no" field.
+func EmployeeNoLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldEmployeeNo, v))
+}
+
+// EmployeeNoLTE applies the LTE predicate on the "employee_no" field.
+func EmployeeNoLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldEmployeeNo, v))
+}
+
+// EmployeeNoContains applies the Contains predicate on the "employee_no" field.
+func EmployeeNoContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldEmployeeNo, v))
+}
+
+// EmployeeNoHasPrefix applies the HasPrefix predicate on the "employee_no" field.
+func EmployeeNoHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldEmployeeNo, v))
+}
+
+// EmployeeNoHasSuffix applies the HasSuffix predicate on the "employee_no" field.
+func EmployeeNoHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldEmployeeNo, v))
+}
+
+// EmployeeNoEqualFold applies the EqualFold predicate on the "employee_no" field.
+func EmployeeNoEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldEmployeeNo, v))
+}
+
+// EmployeeNoContainsFold applies the ContainsFold predicate on the "employee_no" field.
+func EmployeeNoContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldEmployeeNo, v))
 }
 
 // PasswordHashEQ applies the EQ predicate on the "password_hash" field.

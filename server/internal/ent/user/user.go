@@ -23,6 +23,8 @@ const (
 	FieldEmail = "email"
 	// FieldDisplayName holds the string denoting the display_name field in the database.
 	FieldDisplayName = "display_name"
+	// FieldEmployeeNo holds the string denoting the employee_no field in the database.
+	FieldEmployeeNo = "employee_no"
 	// FieldPasswordHash holds the string denoting the password_hash field in the database.
 	FieldPasswordHash = "password_hash"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -60,6 +62,7 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldEmail,
 	FieldDisplayName,
+	FieldEmployeeNo,
 	FieldPasswordHash,
 	FieldStatus,
 	FieldOrgID,
@@ -87,6 +90,8 @@ var (
 	EmailValidator func(string) error
 	// DefaultDisplayName holds the default value on creation for the "display_name" field.
 	DefaultDisplayName string
+	// DefaultEmployeeNo holds the default value on creation for the "employee_no" field.
+	DefaultEmployeeNo string
 )
 
 // Status defines the type for the "status" enum field.
@@ -141,6 +146,11 @@ func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 // ByDisplayName orders the results by the display_name field.
 func ByDisplayName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDisplayName, opts...).ToFunc()
+}
+
+// ByEmployeeNo orders the results by the employee_no field.
+func ByEmployeeNo(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEmployeeNo, opts...).ToFunc()
 }
 
 // ByPasswordHash orders the results by the password_hash field.

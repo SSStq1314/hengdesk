@@ -72,6 +72,20 @@ func (_c *UserCreate) SetNillableDisplayName(v *string) *UserCreate {
 	return _c
 }
 
+// SetEmployeeNo sets the "employee_no" field.
+func (_c *UserCreate) SetEmployeeNo(v string) *UserCreate {
+	_c.mutation.SetEmployeeNo(v)
+	return _c
+}
+
+// SetNillableEmployeeNo sets the "employee_no" field if the given value is not nil.
+func (_c *UserCreate) SetNillableEmployeeNo(v *string) *UserCreate {
+	if v != nil {
+		_c.SetEmployeeNo(*v)
+	}
+	return _c
+}
+
 // SetPasswordHash sets the "password_hash" field.
 func (_c *UserCreate) SetPasswordHash(v string) *UserCreate {
 	_c.mutation.SetPasswordHash(v)
@@ -187,6 +201,10 @@ func (_c *UserCreate) defaults() {
 		v := user.DefaultDisplayName
 		_c.mutation.SetDisplayName(v)
 	}
+	if _, ok := _c.mutation.EmployeeNo(); !ok {
+		v := user.DefaultEmployeeNo
+		_c.mutation.SetEmployeeNo(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := user.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -211,6 +229,9 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.DisplayName(); !ok {
 		return &ValidationError{Name: "display_name", err: errors.New(`ent: missing required field "User.display_name"`)}
+	}
+	if _, ok := _c.mutation.EmployeeNo(); !ok {
+		return &ValidationError{Name: "employee_no", err: errors.New(`ent: missing required field "User.employee_no"`)}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "User.status"`)}
@@ -268,6 +289,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DisplayName(); ok {
 		_spec.SetField(user.FieldDisplayName, field.TypeString, value)
 		_node.DisplayName = value
+	}
+	if value, ok := _c.mutation.EmployeeNo(); ok {
+		_spec.SetField(user.FieldEmployeeNo, field.TypeString, value)
+		_node.EmployeeNo = value
 	}
 	if value, ok := _c.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
@@ -399,6 +424,18 @@ func (u *UserUpsert) SetDisplayName(v string) *UserUpsert {
 // UpdateDisplayName sets the "display_name" field to the value that was provided on create.
 func (u *UserUpsert) UpdateDisplayName() *UserUpsert {
 	u.SetExcluded(user.FieldDisplayName)
+	return u
+}
+
+// SetEmployeeNo sets the "employee_no" field.
+func (u *UserUpsert) SetEmployeeNo(v string) *UserUpsert {
+	u.Set(user.FieldEmployeeNo, v)
+	return u
+}
+
+// UpdateEmployeeNo sets the "employee_no" field to the value that was provided on create.
+func (u *UserUpsert) UpdateEmployeeNo() *UserUpsert {
+	u.SetExcluded(user.FieldEmployeeNo)
 	return u
 }
 
@@ -546,6 +583,20 @@ func (u *UserUpsertOne) SetDisplayName(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateDisplayName() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateDisplayName()
+	})
+}
+
+// SetEmployeeNo sets the "employee_no" field.
+func (u *UserUpsertOne) SetEmployeeNo(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetEmployeeNo(v)
+	})
+}
+
+// UpdateEmployeeNo sets the "employee_no" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateEmployeeNo() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateEmployeeNo()
 	})
 }
 
@@ -869,6 +920,20 @@ func (u *UserUpsertBulk) SetDisplayName(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateDisplayName() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateDisplayName()
+	})
+}
+
+// SetEmployeeNo sets the "employee_no" field.
+func (u *UserUpsertBulk) SetEmployeeNo(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetEmployeeNo(v)
+	})
+}
+
+// UpdateEmployeeNo sets the "employee_no" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateEmployeeNo() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateEmployeeNo()
 	})
 }
 

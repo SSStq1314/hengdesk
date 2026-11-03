@@ -251,6 +251,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "email", Type: field.TypeString, Unique: true},
 		{Name: "display_name", Type: field.TypeString, Default: ""},
+		{Name: "employee_no", Type: field.TypeString, Default: ""},
 		{Name: "password_hash", Type: field.TypeString, Nullable: true},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "disabled"}, Default: "active"},
 		{Name: "last_login_at", Type: field.TypeTime, Nullable: true},
@@ -264,9 +265,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "users_organizations_users",
-				Columns:    []*schema.Column{UsersColumns[8]},
+				Columns:    []*schema.Column{UsersColumns[9]},
 				RefColumns: []*schema.Column{OrganizationsColumns[0]},
 				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "user_org_id_employee_no",
+				Unique:  true,
+				Columns: []*schema.Column{UsersColumns[9], UsersColumns[5]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "employee_no <> ''",
+				},
 			},
 		},
 	}

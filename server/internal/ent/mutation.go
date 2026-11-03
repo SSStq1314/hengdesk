@@ -6553,6 +6553,7 @@ type UserMutation struct {
 	updated_at         *time.Time
 	email              *string
 	display_name       *string
+	employee_no        *string
 	password_hash      *string
 	status             *user.Status
 	last_login_at      *time.Time
@@ -6807,6 +6808,42 @@ func (m *UserMutation) OldDisplayName(ctx context.Context) (v string, err error)
 // ResetDisplayName resets all changes to the "display_name" field.
 func (m *UserMutation) ResetDisplayName() {
 	m.display_name = nil
+}
+
+// SetEmployeeNo sets the "employee_no" field.
+func (m *UserMutation) SetEmployeeNo(s string) {
+	m.employee_no = &s
+}
+
+// EmployeeNo returns the value of the "employee_no" field in the mutation.
+func (m *UserMutation) EmployeeNo() (r string, exists bool) {
+	v := m.employee_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmployeeNo returns the old "employee_no" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldEmployeeNo(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmployeeNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmployeeNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmployeeNo: %w", err)
+	}
+	return oldValue.EmployeeNo, nil
+}
+
+// ResetEmployeeNo resets all changes to the "employee_no" field.
+func (m *UserMutation) ResetEmployeeNo() {
+	m.employee_no = nil
 }
 
 // SetPasswordHash sets the "password_hash" field.
@@ -7094,7 +7131,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -7106,6 +7143,9 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.display_name != nil {
 		fields = append(fields, user.FieldDisplayName)
+	}
+	if m.employee_no != nil {
+		fields = append(fields, user.FieldEmployeeNo)
 	}
 	if m.password_hash != nil {
 		fields = append(fields, user.FieldPasswordHash)
@@ -7135,6 +7175,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Email()
 	case user.FieldDisplayName:
 		return m.DisplayName()
+	case user.FieldEmployeeNo:
+		return m.EmployeeNo()
 	case user.FieldPasswordHash:
 		return m.PasswordHash()
 	case user.FieldStatus:
@@ -7160,6 +7202,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldEmail(ctx)
 	case user.FieldDisplayName:
 		return m.OldDisplayName(ctx)
+	case user.FieldEmployeeNo:
+		return m.OldEmployeeNo(ctx)
 	case user.FieldPasswordHash:
 		return m.OldPasswordHash(ctx)
 	case user.FieldStatus:
@@ -7204,6 +7248,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDisplayName(v)
+		return nil
+	case user.FieldEmployeeNo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmployeeNo(v)
 		return nil
 	case user.FieldPasswordHash:
 		v, ok := value.(string)
@@ -7311,6 +7362,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldDisplayName:
 		m.ResetDisplayName()
+		return nil
+	case user.FieldEmployeeNo:
+		m.ResetEmployeeNo()
 		return nil
 	case user.FieldPasswordHash:
 		m.ResetPasswordHash()

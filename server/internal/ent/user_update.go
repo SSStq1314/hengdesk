@@ -64,6 +64,20 @@ func (_u *UserUpdate) SetNillableDisplayName(v *string) *UserUpdate {
 	return _u
 }
 
+// SetEmployeeNo sets the "employee_no" field.
+func (_u *UserUpdate) SetEmployeeNo(v string) *UserUpdate {
+	_u.mutation.SetEmployeeNo(v)
+	return _u
+}
+
+// SetNillableEmployeeNo sets the "employee_no" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableEmployeeNo(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetEmployeeNo(*v)
+	}
+	return _u
+}
+
 // SetPasswordHash sets the "password_hash" field.
 func (_u *UserUpdate) SetPasswordHash(v string) *UserUpdate {
 	_u.mutation.SetPasswordHash(v)
@@ -259,6 +273,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.DisplayName(); ok {
 		_spec.SetField(user.FieldDisplayName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.EmployeeNo(); ok {
+		_spec.SetField(user.FieldEmployeeNo, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
 	}
@@ -398,6 +415,20 @@ func (_u *UserUpdateOne) SetDisplayName(v string) *UserUpdateOne {
 func (_u *UserUpdateOne) SetNillableDisplayName(v *string) *UserUpdateOne {
 	if v != nil {
 		_u.SetDisplayName(*v)
+	}
+	return _u
+}
+
+// SetEmployeeNo sets the "employee_no" field.
+func (_u *UserUpdateOne) SetEmployeeNo(v string) *UserUpdateOne {
+	_u.mutation.SetEmployeeNo(v)
+	return _u
+}
+
+// SetNillableEmployeeNo sets the "employee_no" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableEmployeeNo(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetEmployeeNo(*v)
 	}
 	return _u
 }
@@ -626,6 +657,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.DisplayName(); ok {
 		_spec.SetField(user.FieldDisplayName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.EmployeeNo(); ok {
+		_spec.SetField(user.FieldEmployeeNo, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
