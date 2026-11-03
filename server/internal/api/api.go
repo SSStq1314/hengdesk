@@ -25,7 +25,7 @@ type Deps struct {
 
 // Mount 挂载路由。
 func Mount(e *echo.Echo, d Deps) {
-	g := e.Group("/api/v1", d.Auth.Optional, audit.Middleware(d.Audit, auth.Actor, d.Log))
+	g := e.Group("/api/v1", d.Auth.Optional, audit.Middleware(d.Audit, auth.Actor, d.Log), auth.CSRF)
 	d.Auth.Register(g)
 	admin := g.Group("/admin", authz.RequireRole("admin", "auditor"))
 	admin.GET("/audit-logs", func(c echo.Context) error {
@@ -39,4 +39,6 @@ func Mount(e *echo.Echo, d Deps) {
 		}
 		return c.JSON(http.StatusOK, map[string]any{"items": rows})
 	})
+	// 账号安全管理（强制下线、停用、重置密码、解锁）。角色名在统一授权层 PR 中改为 PRD 的 5 个内置角色。
+	d.Auth.RegisterAdmin(g.Group("/admin", authz.RequireRole("admin")))
 }

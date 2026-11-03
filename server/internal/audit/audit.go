@@ -40,6 +40,9 @@ type Writer interface {
 // ErrAuditUnavailable 审计不可用。
 var ErrAuditUnavailable = errors.New("audit unavailable")
 
+// ErrRejected 审计写入失败时返回给客户端的统一错误（不暴露资源是否存在）。
+var ErrRejected = echo.NewHTTPError(http.StatusServiceUnavailable, "审计服务不可用，操作已拒绝")
+
 // EntWriter 基于 ent 的审计写入。
 type EntWriter struct{ C *ent.Client }
 
@@ -90,7 +93,7 @@ func Middleware(w Writer, actor ActorFunc, lg *slog.Logger) echo.MiddlewareFunc 
 			}
 			if err := w.Write(r.Context(), e); err != nil {
 				lg.Error("audit write failed, rejecting request (fail-closed)", "err", err, "path", c.Path())
-				return echo.NewHTTPError(http.StatusServiceUnavailable, "审计服务不可用，操作已拒绝")
+				return ErrRejected
 			}
 			herr := next(c)
 			status := c.Response().Status

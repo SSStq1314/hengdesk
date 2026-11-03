@@ -21,8 +21,10 @@ type Config struct {
 	S3AccessKey   string
 	S3SecretKey   string
 	S3PathStyle   bool
-	JWTSecret     string
 	SessionTTL    time.Duration
+	SessionIdle   time.Duration
+	LockoutMax    int
+	LockoutFor    time.Duration
 	AdminEmail    string
 	AdminPassword string
 	CookieSecure  bool
@@ -42,6 +44,18 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("HENGDESK_SESSION_TTL: %w", err)
 	}
+	idle, err := time.ParseDuration(get("SESSION_IDLE_TIMEOUT", "2h"))
+	if err != nil {
+		return nil, fmt.Errorf("HENGDESK_SESSION_IDLE_TIMEOUT: %w", err)
+	}
+	lockFor, err := time.ParseDuration(get("LOGIN_LOCKOUT_DURATION", "15m"))
+	if err != nil {
+		return nil, fmt.Errorf("HENGDESK_LOGIN_LOCKOUT_DURATION: %w", err)
+	}
+	lockMax, err := strconv.Atoi(get("LOGIN_MAX_FAILURES", "5"))
+	if err != nil || lockMax < 0 {
+		return nil, fmt.Errorf("HENGDESK_LOGIN_MAX_FAILURES 必须是非负整数（0 表示关闭锁定）")
+	}
 	secure, _ := strconv.ParseBool(get("COOKIE_SECURE", "false"))
 	pathStyle, _ := strconv.ParseBool(get("S3_PATH_STYLE", "true"))
 	c := &Config{
@@ -56,18 +70,14 @@ func Load() (*Config, error) {
 		S3PathStyle:   pathStyle,
 		S3AccessKey:   get("S3_ACCESS_KEY", ""),
 		S3SecretKey:   get("S3_SECRET_KEY", ""),
-		JWTSecret:     get("JWT_SECRET", ""),
 		SessionTTL:    ttl,
+		SessionIdle:   idle,
+		LockoutMax:    lockMax,
+		LockoutFor:    lockFor,
 		AdminEmail:    get("ADMIN_EMAIL", "admin@hengdesk.local"),
 		AdminPassword: get("ADMIN_PASSWORD", ""),
 		CookieSecure:  secure,
 		BackupDir:     get("BACKUP_DIR", "/backups"),
-	}
-	if c.Env == "prod" && len(c.JWTSecret) < 32 {
-		return nil, fmt.Errorf("生产环境必须设置至少 32 字节的 HENGDESK_JWT_SECRET")
-	}
-	if c.JWTSecret == "" {
-		c.JWTSecret = "dev-insecure-secret-change-me-0000000000"
 	}
 	return c, nil
 }

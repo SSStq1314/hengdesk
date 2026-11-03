@@ -13,9 +13,15 @@ func TestLoadDefaults(t *testing.T) {
 	}
 }
 
-func TestProdRequiresSecret(t *testing.T) {
-	t.Setenv("HENGDESK_ENV", "prod")
-	t.Setenv("HENGDESK_JWT_SECRET", "short")
+func TestSessionDefaults(t *testing.T) {
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.LockoutMax != 5 || c.LockoutFor.Minutes() != 15 {
+		t.Fatalf("lockout defaults %d %v", c.LockoutMax, c.LockoutFor)
+	}
+	t.Setenv("HENGDESK_LOGIN_MAX_FAILURES", "x")
 	if _, err := Load(); err == nil {
 		t.Fatal("expected error")
 	}
