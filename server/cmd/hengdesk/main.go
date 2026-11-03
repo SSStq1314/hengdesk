@@ -165,6 +165,14 @@ func migrateCmd() *cobra.Command {
 			return err
 		}
 		lg.Info("migrate done", "admin_email", cfg.AdminEmail, "admin_created", created)
+		audCreated, err := store.SeedAuditor(ctx, client, store.SeedOptions{OrgSlug: "default",
+			AdminEmail: cfg.AdminEmail, AuditorEmail: cfg.AuditorEmail, AuditorPassword: cfg.AuditorPassword})
+		if err != nil {
+			return err
+		}
+		if cfg.AuditorEmail != "" {
+			lg.Info("initial auditor", "auditor_email", cfg.AuditorEmail, "created", audCreated)
+		}
 		if cfg.S3AccessKey != "" {
 			if err := ensureBucket(ctx, cfg); err != nil {
 				return err

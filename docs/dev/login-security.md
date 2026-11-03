@@ -25,3 +25,9 @@
 ## 管理后台常驻提示
 
 `GET /api/v1/admin/system/status`（需 `system.settings`）返回 `auditor_assigned`、`disk_free_percent`、`disk_low`、`https`，前端据此显示「尚未指派安全审计员」「备份盘空间不足」等提示。
+
+## 初始安全审计员（D-33）
+- `install.sh --auditor-email E [--auditor-password P]`（交互模式也会询问）；留空密码时随机生成并写入 `.env`（权限 600），只提示查看方式，不回显。
+- `hengdesk migrate` 读取 `HENGDESK_AUDITOR_EMAIL` / `HENGDESK_AUDITOR_PASSWORD`，幂等创建；邮箱已存在则不做修改。
+- 先写 `role.assign`（actor=`system:install`）审计再落库，审计失败则 migrate 失败（fail-closed）。
+- 审计员与超级管理员不能是同一账号。

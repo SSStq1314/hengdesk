@@ -3,13 +3,14 @@
 # 交互模式：./install.sh
 # 非交互：./install.sh --non-interactive --storage seaweedfs|minio|external \
 #   [--s3-endpoint URL --s3-region R --s3-access-key AK --s3-secret-key SK --s3-bucket B --s3-path-style true|false] \
-#   [--admin-email E] [--admin-password P] [--http-port 8080] [--force] [--up]
+#   [--admin-email E] [--admin-password P] [--auditor-email E [--auditor-password P]] [--http-port 8080] [--force] [--up]
 set -euo pipefail
 cd "$(dirname "$0")"
 
 STORAGE="" INTERACTIVE=1 FORCE=0 UP=0
 S3_ENDPOINT="" S3_REGION="us-east-1" S3_AK="" S3_SK="" S3_BUCKET="hengdesk" S3_PATH_STYLE="true"
 ADMIN_EMAIL="admin@hengdesk.local" ADMIN_PASSWORD="" HTTP_PORT="8080"
+AUDITOR_EMAIL="" AUDITOR_PASSWORD=""
 
 usage() { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 die() { echo "错误：$*" >&2; exit 1; }
@@ -27,6 +28,8 @@ while [ $# -gt 0 ]; do
     --s3-path-style) S3_PATH_STYLE="$2"; shift ;;
     --admin-email) ADMIN_EMAIL="$2"; shift ;;
     --admin-password) ADMIN_PASSWORD="$2"; shift ;;
+    --auditor-email) AUDITOR_EMAIL="$2"; shift ;;
+    --auditor-password) AUDITOR_PASSWORD="$2"; shift ;;
     --http-port) HTTP_PORT="$2"; shift ;;
     --force) FORCE=1 ;;
     --up) UP=1 ;;
@@ -58,6 +61,8 @@ if [ "$INTERACTIVE" = 1 ]; then
   ask HTTP_PORT "Web 端口" "$HTTP_PORT"
   ask ADMIN_EMAIL "管理员邮箱" "$ADMIN_EMAIL"
   ask ADMIN_PASSWORD "管理员密码（留空自动生成，不回显）" "" secret
+  ask AUDITOR_EMAIL "初始安全审计员邮箱（三员分立，留空跳过）" ""
+  if [ -n "$AUDITOR_EMAIL" ]; then ask AUDITOR_PASSWORD "审计员密码（留空自动生成，不回显）" "" secret; fi
 fi
 
 STORAGE="${STORAGE:-seaweedfs}"
@@ -72,6 +77,12 @@ esac
 if [ "$STORAGE" != external ]; then S3_AK="${S3_AK:-hd$(rand 18)}"; S3_SK="${S3_SK:-$(rand 40)}"; fi
 GENERATED_PW=0
 if [ -z "$ADMIN_PASSWORD" ]; then ADMIN_PASSWORD="$(rand 20)"; GENERATED_PW=1; fi
+
+GENERATED_AUD_PW=0
+if [ -n "$AUDITOR_EMAIL" ]; then
+  [ "$(printf '%s' "$AUDITOR_EMAIL" | tr 'A-Z' 'a-z')" != "$(printf '%s' "$ADMIN_EMAIL" | tr 'A-Z' 'a-z')" ] || die "审计员不能与管理员为同一账号（三员分立）"
+  if [ -z "$AUDITOR_PASSWORD" ]; then AUDITOR_PASSWORD="$(rand 20)"; GENERATED_AUD_PW=1; fi
+fi
 
 if [ -f .env ] && [ "$FORCE" != 1 ]; then
   [ "$INTERACTIVE" = 1 ] || die ".env 已存在，使用 --force 覆盖"
@@ -91,6 +102,8 @@ POSTGRES_PASSWORD=$(rand 32)
 POSTGRES_DB=hengdesk
 HENGDESK_ADMIN_EMAIL=$ADMIN_EMAIL
 HENGDESK_ADMIN_PASSWORD=$ADMIN_PASSWORD
+HENGDESK_AUDITOR_EMAIL=$AUDITOR_EMAIL
+HENGDESK_AUDITOR_PASSWORD=$AUDITOR_PASSWORD
 HENGDESK_S3_ENDPOINT=$S3_ENDPOINT
 HENGDESK_S3_REGION=$S3_REGION
 HENGDESK_S3_BUCKET=$S3_BUCKET
@@ -102,4 +115,10 @@ ENV
 echo "已生成 $(pwd)/.env（权限 600），compose 文件：$COMPOSE_FILE"
 echo "管理员账号：$ADMIN_EMAIL"
 if [ "$GENERATED_PW" = 1 ]; then echo "管理员密码已随机生成，查看：grep HENGDESK_ADMIN_PASSWORD $(pwd)/.env"; fi
+if [ -n "$AUDITOR_EMAIL" ]; then
+  echo "初始安全审计员：$AUDITOR_EMAIL"
+  if [ "$GENERATED_AUD_PW" = 1 ]; then echo "审计员密码已随机生成，查看：grep HENGDESK_AUDITOR_PASSWORD $(pwd)/.env"; fi
+else
+  echo "提示：未指派安全审计员，管理后台会常驻提示；可稍后在「角色」页面指派。"
+fi
 if [ "$UP" = 1 ]; then docker compose up -d --build; else echo "启动：cd $(pwd) && docker compose up -d --build"; fi

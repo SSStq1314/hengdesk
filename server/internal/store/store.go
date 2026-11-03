@@ -12,6 +12,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/jackc/pgx/v5/stdlib" // postgres 驱动
 
+	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/organization"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
@@ -43,6 +44,9 @@ type SeedOptions struct {
 	OrgName, OrgSlug string
 	AdminEmail       string
 	AdminPassword    string
+	// AuditorEmail / AuditorPassword 可选：安装时创建初始安全审计员（D-33）。
+	AuditorEmail    string
+	AuditorPassword string
 }
 
 // Seed 幂等地创建默认组织、内置角色与初始超级管理员。
@@ -100,4 +104,46 @@ func SyncBuiltinRoles(ctx context.Context, c *ent.Client) error {
 		}
 	}
 	return nil
+}
+
+// SeedAuditor 幂等地创建初始安全审计员（D-33：install.sh 支持安装时创建）。
+// 先写 role.assign 审计再落库（fail-closed）；邮箱已存在时不做任何修改。
+func SeedAuditor(ctx context.Context, c *ent.Client, o SeedOptions) (bool, error) {
+	email := strings.ToLower(strings.TrimSpace(o.AuditorEmail))
+	if email == "" {
+		return false, nil
+	}
+	if email == strings.ToLower(strings.TrimSpace(o.AdminEmail)) {
+		return false, errors.New("初始审计员不能与超级管理员为同一账号（三员分立）")
+	}
+	exists, err := c.User.Query().Where(user.Email(email)).Exist(ctx)
+	if err != nil || exists {
+		return false, err
+	}
+	if len(o.AuditorPassword) < 8 || len(o.AuditorPassword) > 72 {
+		return false, errors.New("初始审计员需设置 HENGDESK_AUDITOR_PASSWORD（8~72 字节）")
+	}
+	org, err := c.Organization.Query().Where(organization.Slug(o.OrgSlug)).Only(ctx)
+	if err != nil {
+		return false, err
+	}
+	r, err := c.Role.Query().Where(role.Key(rbac.SecurityAuditor)).Only(ctx)
+	if err != nil {
+		return false, err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(o.AuditorPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return false, err
+	}
+	if err := (audit.EntWriter{C: c}).Write(ctx, audit.Entry{OrgID: org.ID, ActorEmail: "system:install",
+		Action: "role.assign", ResourceType: "user", ResourceID: email, Outcome: "success",
+		Detail: map[string]any{"role": rbac.SecurityAuditor, "via": "install"}}); err != nil {
+		return false, fmt.Errorf("%w: %w", audit.ErrAuditUnavailable, err)
+	}
+	u, err := c.User.Create().SetEmail(email).SetDisplayName("安全审计员").
+		SetPasswordHash(string(hash)).SetOrg(org).Save(ctx)
+	if err != nil {
+		return false, err
+	}
+	return true, c.Membership.Create().SetUser(u).SetRole(r).SetIsPrimary(true).Exec(ctx)
 }

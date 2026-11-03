@@ -29,8 +29,11 @@ type Config struct {
 	LockoutFor    time.Duration
 	AdminEmail    string
 	AdminPassword string
-	CookieSecure  bool
-	BackupDir     string
+	// AuditorEmail / AuditorPassword 可选的初始安全审计员。
+	AuditorEmail    string
+	AuditorPassword string
+	CookieSecure    bool
+	BackupDir       string
 	// PasswordMinLen 本地密码最小长度（默认 8，范围 8~72）。
 	PasswordMinLen int
 	// LoginIPLimit / LoginIPWindow 按 IP 的登录尝试滑动窗口限速（0 表示关闭）。
@@ -130,31 +133,33 @@ func Load() (*Config, error) {
 	secure, _ := strconv.ParseBool(get("COOKIE_SECURE", "false"))
 	pathStyle, _ := strconv.ParseBool(get("S3_PATH_STYLE", "true"))
 	c := &Config{
-		Env:            get("ENV", "dev"),
-		HTTPAddr:       get("HTTP_ADDR", ":8080"),
-		LogLevel:       get("LOG_LEVEL", "info"),
-		DatabaseURL:    get("DATABASE_URL", "postgres://hengdesk:hengdesk@localhost:5432/hengdesk?sslmode=disable"),
-		RedisAddr:      get("REDIS_ADDR", "localhost:6379"),
-		S3Endpoint:     get("S3_ENDPOINT", "http://localhost:8333"),
-		S3Region:       get("S3_REGION", "us-east-1"),
-		S3Bucket:       get("S3_BUCKET", "hengdesk"),
-		S3PathStyle:    pathStyle,
-		S3AccessKey:    get("S3_ACCESS_KEY", ""),
-		S3SecretKey:    get("S3_SECRET_KEY", ""),
-		SessionTTL:     ttl,
-		SessionIdle:    idle,
-		LockoutMax:     lockMax,
-		LockoutFor:     lockFor,
-		AdminEmail:     get("ADMIN_EMAIL", "admin@hengdesk.local"),
-		AdminPassword:  get("ADMIN_PASSWORD", ""),
-		CookieSecure:   secure,
-		BackupDir:      get("BACKUP_DIR", "/backups"),
-		PasswordMinLen: minLen,
-		LoginIPLimit:   ipLimit,
-		LoginIPWindow:  ipWin,
-		TrustedProxies: proxies,
-		BackupKeep:     keep,
-		DiskLowPercent: low,
+		Env:             get("ENV", "dev"),
+		HTTPAddr:        get("HTTP_ADDR", ":8080"),
+		LogLevel:        get("LOG_LEVEL", "info"),
+		DatabaseURL:     get("DATABASE_URL", "postgres://hengdesk:hengdesk@localhost:5432/hengdesk?sslmode=disable"),
+		RedisAddr:       get("REDIS_ADDR", "localhost:6379"),
+		S3Endpoint:      get("S3_ENDPOINT", "http://localhost:8333"),
+		S3Region:        get("S3_REGION", "us-east-1"),
+		S3Bucket:        get("S3_BUCKET", "hengdesk"),
+		S3PathStyle:     pathStyle,
+		S3AccessKey:     get("S3_ACCESS_KEY", ""),
+		S3SecretKey:     get("S3_SECRET_KEY", ""),
+		SessionTTL:      ttl,
+		SessionIdle:     idle,
+		LockoutMax:      lockMax,
+		LockoutFor:      lockFor,
+		AdminEmail:      get("ADMIN_EMAIL", "admin@hengdesk.local"),
+		AdminPassword:   get("ADMIN_PASSWORD", ""),
+		AuditorEmail:    get("AUDITOR_EMAIL", ""),
+		AuditorPassword: get("AUDITOR_PASSWORD", ""),
+		CookieSecure:    secure,
+		BackupDir:       get("BACKUP_DIR", "/backups"),
+		PasswordMinLen:  minLen,
+		LoginIPLimit:    ipLimit,
+		LoginIPWindow:   ipWin,
+		TrustedProxies:  proxies,
+		BackupKeep:      keep,
+		DiskLowPercent:  low,
 	}
 	return c, nil
 }
