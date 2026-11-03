@@ -1,0 +1,17 @@
+version: "2"
+linters:
+  default: standard
+  enable: [misspell, revive, bodyclose, errorlint]
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+  exclusions:
+    paths: [internal/ent]
+formatters:
+  enable: [gofmt, goimports]
+  exclusions:
+    paths: [internal/ent]
