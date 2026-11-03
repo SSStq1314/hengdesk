@@ -58,6 +58,19 @@ func Mount(e *echo.Echo, d Deps) {
 	sh := &systemHandlers{db: d.DB, cfg: d.System}
 	admin.GET("/system/status", sh.status, authz.Require(rbac.SettingsManage))
 
+	mh := &memberHandlers{db: d.DB, az: az, auth: d.Auth}
+	admin.GET("/users", mh.list, authz.Require(rbac.MemberRead))
+	admin.GET("/users/:id", mh.get, authz.Require(rbac.MemberRead))
+	admin.POST("/users", mh.create, authz.Require(rbac.MemberManage))
+	admin.PATCH("/users/:id", mh.update, authz.Require(rbac.MemberManage))
+
+	dh := &deptHandlers{db: d.DB, az: az}
+	admin.GET("/departments", dh.list, authz.Require(rbac.DeptRead))
+	admin.POST("/departments", dh.create, authz.Require(rbac.DeptManage))
+	admin.POST("/departments/import", dh.importCSV, authz.Require(rbac.DeptManage))
+	admin.PATCH("/departments/:id", dh.rename, authz.Require(rbac.DeptManage))
+	admin.DELETE("/departments/:id", dh.remove, authz.Require(rbac.DeptManage))
+
 	rh := &roleHandlers{db: d.DB, az: az}
 	admin.GET("/roles", rh.matrix, authz.Require(rbac.RoleRead))
 	admin.POST("/users/:id/roles", rh.assign, authz.Require(rbac.RoleAssign))

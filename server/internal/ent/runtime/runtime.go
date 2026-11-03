@@ -247,6 +247,10 @@ func init() {
 	userDescDisplayName := userFields[1].Descriptor()
 	// user.DefaultDisplayName holds the default value on creation for the display_name field.
 	user.DefaultDisplayName = userDescDisplayName.Default.(string)
+	// userDescEmployeeNo is the schema descriptor for employee_no field.
+	userDescEmployeeNo := userFields[2].Descriptor()
+	// user.DefaultEmployeeNo holds the default value on creation for the employee_no field.
+	user.DefaultEmployeeNo = userDescEmployeeNo.Default.(string)
 }
 
 const (

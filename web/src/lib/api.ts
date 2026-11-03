@@ -124,3 +124,132 @@ export type SystemStatus = {
 export const systemApi = {
   status: () => api<SystemStatus>('/admin/system/status'),
 }
+
+export type DeptRef = { id: number; name: string }
+export type RoleRef = { key: string; name: string; department_id?: number }
+
+export type Member = {
+  id: number
+  email: string
+  display_name: string
+  employee_no: string
+  status: 'active' | 'disabled'
+  has_password: boolean
+  last_login_at: string | null
+  departments: DeptRef[]
+  roles: RoleRef[]
+}
+
+export type MemberFilter = {
+  q?: string
+  dept_id?: number
+  status?: string
+  before_id?: number
+}
+
+export type MemberInput = {
+  email?: string
+  display_name?: string
+  employee_no?: string
+  department_ids?: number[]
+  password?: string
+}
+
+const json = (method: string, body: unknown): RequestInit => ({
+  method,
+  body: JSON.stringify(body),
+})
+
+export const memberApi = {
+  list: (f: MemberFilter) =>
+    api<{ items: Member[]; next_before_id: number }>(`/admin/users${qs(f)}`),
+  create: (m: MemberInput) => api<Member>('/admin/users', json('POST', m)),
+  update: (id: number, m: MemberInput) =>
+    api<Member>(`/admin/users/${id}`, json('PATCH', m)),
+  disable: (id: number) =>
+    api<void>(`/admin/users/${id}/disable`, { method: 'POST' }),
+  enable: (id: number) =>
+    api<void>(`/admin/users/${id}/enable`, { method: 'POST' }),
+  unlock: (id: number) =>
+    api<void>(`/admin/users/${id}/unlock`, { method: 'POST' }),
+  resetPassword: (id: number, password: string) =>
+    api<void>(
+      `/admin/users/${id}/password-reset`,
+      json('POST', { new_password: password })
+    ),
+  assignRole: (id: number, role: string, department_id?: number) =>
+    api<void>(
+      `/admin/users/${id}/roles`,
+      json('POST', { role, department_id })
+    ),
+  revokeRole: (id: number, role: string, department_id?: number) =>
+    api<void>(
+      `/admin/users/${id}/roles/${role}${department_id ? `?department_id=${department_id}` : ''}`,
+      { method: 'DELETE' }
+    ),
+}
+
+export type Department = {
+  id: number
+  name: string
+  parent_id: number | null
+  member_count: number
+}
+
+export type ImportResult = {
+  dry_run: boolean
+  applied: boolean
+  rows: number
+  new_departments: string[]
+  created_users: number
+  updated_users: number
+  errors: { line: number; message: string }[]
+}
+
+// 导入接口在有行错误时返回 422 + 结果体；这里统一解析成 ImportResult。
+async function postImport(csv: string, dryRun: boolean): Promise<ImportResult> {
+  const res = await fetch(
+    `/api/v1/admin/departments/import${dryRun ? '?dry_run=1' : ''}`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'text/csv', 'X-CSRF-Token': csrfToken() },
+      body: csv,
+    }
+  )
+  if (res.ok || res.status === 422) return (await res.json()) as ImportResult
+  let msg = res.statusText
+  try {
+    msg = ((await res.json()) as { message?: string }).message ?? msg
+  } catch {
+    /* 非 JSON */
+  }
+  throw new ApiError(res.status, msg)
+}
+
+export const deptApi = {
+  list: () => api<{ items: Department[] }>('/admin/departments'),
+  create: (name: string, parent_id: number | null) =>
+    api<Department>('/admin/departments', json('POST', { name, parent_id })),
+  rename: (id: number, name: string) =>
+    api<Department>(`/admin/departments/${id}`, json('PATCH', { name })),
+  remove: (id: number) =>
+    api<void>(`/admin/departments/${id}`, { method: 'DELETE' }),
+  importCsv: postImport,
+}
+
+export type RoleMatrix = {
+  roles: {
+    key: string
+    name: string
+    permissions: string[]
+    dept_scoped: boolean
+    privileged: boolean
+  }[]
+  permissions: string[]
+  exclusive: string[][] | null
+}
+
+export const roleApi = {
+  matrix: () => api<RoleMatrix>('/admin/roles'),
+}
