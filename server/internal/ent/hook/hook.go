@@ -129,6 +129,18 @@ func (f EgressRuleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EgressRuleMutation", m)
 }
 
+// The LegalHoldFunc type is an adapter to allow the use of ordinary
+// function as LegalHold mutator.
+type LegalHoldFunc func(context.Context, *ent.LegalHoldMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LegalHoldFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LegalHoldMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LegalHoldMutation", m)
+}
+
 // The MembershipFunc type is an adapter to allow the use of ordinary
 // function as Membership mutator.
 type MembershipFunc func(context.Context, *ent.MembershipMutation) (ent.Value, error)

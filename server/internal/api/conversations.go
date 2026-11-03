@@ -67,6 +67,8 @@ type msgView struct {
 	CreatedAt        time.Time `json:"created_at"`
 	// ContextTruncated 仅出现在 done 事件：本轮会话文件内容因过长被截断（UI 提示用户）。
 	ContextTruncated bool `json:"context_truncated,omitempty"`
+	// HistoryTruncated 仅出现在 done 事件：较早的历史消息因超出模型上下文窗口未发送（D-40 第 4 条）。
+	HistoryTruncated bool `json:"history_truncated,omitempty"`
 	// Notice 仅出现在 done 事件：记住的模型已不可用、已回退默认模型等需要告知用户的提示（D-40 第 8 条）。
 	Notice string `json:"notice,omitempty"`
 }
@@ -489,13 +491,20 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 	if err != nil {
 		return err
 	}
-	msgs := make([]gateway.Message, 0, len(hist)+1)
+	cms := make([]ctxMsg, 0, len(hist)+1)
 	fctx, ctxCut := fileContext(files, h.lim.TotalChars)
 	if fctx != "" {
-		msgs = append(msgs, textMessage("system", fctx))
+		cms = append(cms, ctxMsg{Role: "system", Content: fctx})
 	}
 	for i := len(hist) - 1; i >= 0; i-- {
-		msgs = append(msgs, textMessage(string(hist[i].Role), hist[i].Content))
+		cms = append(cms, ctxMsg{Role: string(hist[i].Role), Content: hist[i].Content})
+	}
+	// D-40 第 4 条：按所选模型的上下文窗口截断，始终保留系统提示词与最新一条用户消息。
+	cms, histDropped, estTokens := truncateByTokens(cms, tokenBudget(tgt.Model.ContextWindow, tgt.Model.MaxOutputTokens))
+	histCut := histDropped > 0
+	msgs := make([]gateway.Message, 0, len(cms))
+	for _, m := range cms {
+		msgs = append(msgs, textMessage(m.Role, m.Content))
 	}
 	req := gateway.ChatRequest{Model: tgt.Model.Name, Messages: msgs, Stream: true}
 
@@ -504,7 +513,7 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 		done: func(res *gateway.ChatResponse, used, primary *gateway.Target) any {
 			return msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: "done", ModelName: used.Model.Name,
 				FallbackFrom: fallbackFrom(used, primary), PromptTokens: res.Usage.PromptTokens,
-				CompletionTokens: res.Usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut, Notice: notice}
+				CompletionTokens: res.Usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut, HistoryTruncated: histCut, Notice: notice}
 		}}
 	res, ge, started, used, rerr := h.ch.run(c, p, &req, tgt, hk)
 
@@ -541,7 +550,8 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 	}
 	detail := map[string]any{"message_id": asst.ID, "model": used.Model.Name,
 		"fallback_from": fallbackFrom(used, tgt), "chars": utf8.RuneCountInString(buf.String()),
-		"files": len(files), "context_truncated": ctxCut}
+		"files": len(files), "context_truncated": ctxCut, "history_truncated": histCut,
+		"history_dropped": histDropped, "est_prompt_tokens": estTokens}
 	for k, v := range extra {
 		detail[k] = v
 	}

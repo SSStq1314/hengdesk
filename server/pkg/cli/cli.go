@@ -26,6 +26,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/auditarchive"
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
 	"github.com/SSStq1314/hengdesk/server/internal/backup"
+	"github.com/SSStq1314/hengdesk/server/internal/chatretention"
 	"github.com/SSStq1314/hengdesk/server/internal/config"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
 	"github.com/SSStq1314/hengdesk/server/internal/httpserver"
@@ -169,11 +170,37 @@ func workerCmd() *cobra.Command {
 			lg.Info("audit retention check", "due_soon", st.DueSoon, "days_left", st.DaysLeft, "reminded", sent)
 			return nil
 		})
+		// FR-40 / D-40 第 2 条：对话消息保留期清理（默认不开启；开启后按保留期删除，跳过法律保留）。
+		var objs chatretention.ObjectDeleter
+		if cfg.S3AccessKey != "" {
+			st, err := objstore.New(objstore.Config{Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, AccessKey: cfg.S3AccessKey,
+				SecretKey: cfg.S3SecretKey, Bucket: cfg.S3Bucket, PathStyle: cfg.S3PathStyle})
+			if err != nil {
+				return fmt.Errorf("对象存储配置错误: %w", err)
+			}
+			objs = st
+		}
+		mux.HandleFunc(chatretention.TaskPurge, func(ctx context.Context, _ *asynq.Task) error {
+			res, err := chatretention.Purge(ctx, client, audit.EntWriter{C: client}, objs,
+				chatretention.Operator{Email: "system", Trigger: "scheduled"}, time.Now())
+			if errors.Is(err, chatretention.ErrDisabled) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			lg.Info("chat retention purge", "conversations", res.Conversations, "messages", res.Messages, "files", res.Files,
+				"held_orgs", res.HeldOrgs, "held_users", res.HeldUsers, "object_errors", res.ObjectErrors)
+			return nil
+		})
 		if err := srv.Start(mux); err != nil {
 			return err
 		}
 		sch := asynq.NewScheduler(queue.RedisOpt(cfg.RedisAddr), nil)
 		if _, err := sch.Register("@every 12h", asynq.NewTask(auditarchive.TaskRemind, nil), asynq.Unique(time.Hour)); err != nil {
+			return err
+		}
+		if _, err := sch.Register("@every 24h", asynq.NewTask(chatretention.TaskPurge, nil), asynq.Unique(time.Hour)); err != nil {
 			return err
 		}
 		if err := sch.Start(); err != nil {

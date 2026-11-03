@@ -89,6 +89,7 @@ export interface AuditLog {
   resource_id: string
   ip: string
   request_id: string
+  trace_id?: string
   hash: string
   detail?: Record<string, unknown>
 }
@@ -97,7 +98,18 @@ export interface AuditFilter {
   actor?: string
   action?: string
   outcome?: string
+  trace_id?: string
   before_id?: number
+}
+
+export type AuditTrace = {
+  trace_id: string
+  start: string
+  end: string
+  duration_ms: number
+  count: number
+  truncated: boolean
+  items: (AuditLog & { offset_ms: number })[]
 }
 
 function qs(f: object): string {
@@ -117,6 +129,55 @@ export const auditApi = {
       '/admin/audit-logs/verify'
     ),
   exportUrl: (f: AuditFilter) => `/api/v1/admin/audit-logs/export${qs(f)}`,
+  trace: (id: string) =>
+    api<AuditTrace>(`/admin/audit-logs/traces/${encodeURIComponent(id)}`),
+}
+
+// 对话保留期与法律保全（D-40 第 2 条）。
+export type RetentionSettings = { enabled: boolean; days: number }
+export type RetentionResult = {
+  cutoff: string
+  oldest_at?: string
+  newest_at?: string
+  conversations: number
+  messages: number
+  files: number
+  held_orgs: number
+  held_users: number
+  object_errors: number
+}
+export type LegalHold = {
+  id: number
+  scope: 'org' | 'user'
+  user_id?: number
+  user_email?: string
+  reason: string
+  created_by: number
+  created_at: string
+  released_at?: string
+}
+export const retentionApi = {
+  get: () =>
+    api<{
+      settings: RetentionSettings
+      default_days: number
+      min_days: number
+    }>('/admin/chat-retention'),
+  save: (v: RetentionSettings) =>
+    api<{ settings: RetentionSettings }>('/admin/chat-retention', {
+      method: 'PUT',
+      body: JSON.stringify(v),
+    }),
+  run: () =>
+    api<RetentionResult>('/admin/chat-retention/run', { method: 'POST' }),
+  holds: () => api<{ items: LegalHold[] }>('/admin/legal-holds'),
+  createHold: (v: { user_email?: string; reason: string }) =>
+    api<LegalHold>('/admin/legal-holds', {
+      method: 'POST',
+      body: JSON.stringify(v),
+    }),
+  releaseHold: (id: number) =>
+    api<unknown>(`/admin/legal-holds/${id}`, { method: 'DELETE' }),
 }
 
 export type SystemStatus = {
@@ -647,6 +708,7 @@ export type ChatMessage = {
   completion_tokens: number
   created_at: string
   context_truncated?: boolean
+  history_truncated?: boolean
   notice?: string
 }
 export type ConvFile = {

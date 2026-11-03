@@ -51,6 +51,9 @@ func (w EntWriter) Write(ctx context.Context, e Entry) error {
 	if e.Action == "" {
 		return errors.New("audit: action required")
 	}
+	if e.TraceID == "" {
+		e.TraceID = TraceFrom(ctx)
+	}
 	phase := auditlog.PhaseResult
 	if e.Phase == "attempt" {
 		phase = auditlog.PhaseAttempt
@@ -182,3 +185,15 @@ func Sensitive(action string) echo.MiddlewareFunc {
 		}
 	}
 }
+
+// EntWriterFrom 取请求上下文中的审计写入器（供需要自行控制事务的业务使用）；没有时返回一个总是失败的写入器。
+func EntWriterFrom(c echo.Context) Writer {
+	if w, _ := c.Get(ctxWriter).(Writer); w != nil {
+		return w
+	}
+	return failWriter{}
+}
+
+type failWriter struct{}
+
+func (failWriter) Write(context.Context, Entry) error { return ErrAuditUnavailable }

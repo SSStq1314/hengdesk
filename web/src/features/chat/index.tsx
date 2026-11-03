@@ -477,6 +477,9 @@ function MessageBubble({
             {m.context_truncated && (
               <span className='text-amber-600'>{t.contextTruncated}</span>
             )}
+            {m.history_truncated && (
+              <span className='text-amber-600'>{t.historyTruncated}</span>
+            )}
             {m.status === 'error' && (
               <span className='text-destructive'>
                 {t.failed(m.error || m.error_code || '')}

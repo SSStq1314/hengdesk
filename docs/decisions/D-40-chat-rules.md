@@ -33,9 +33,9 @@
 | 条 | 状态 | 实现 |
 |---|---|---|
 | 1 | M1 已符合；「按人物理删除」列 P1 | 删除会话 / 文件只做软删除（PR1、PR2）。按人物理删除（仅超级管理员、必填原因、记审计、受法律保留限制）记入 `docs/progress/m1-block3.md` 的 P1 待办。 |
-| 2 | 第三块 PR3 | 默认不开启清理；开启后默认 365 天、最低 180 天；软删除的会话同样适用；清理记审计（操作人、时间范围、条数）；法律保留按全组织或按用户设置。范围写入 `m1-block3.md` 的 PR3。 |
+| 2 | PR3 | `internal/chatretention`：设置存 `system_settings`（键 `chat.retention`，默认 `{"enabled":false,"days":365}`，天数 180–36500，否则 422）。清理单位是会话：创建时间与最后一条消息时间都早于截止时间（now − 天数）的会话，连同消息、会话文件（含对象存储原件）物理删除；软删除的会话同样按最后活动时间计算，不看删除时间。法律保留表 `legal_holds`（`user_id` 为空 = 全组织），生效中的保留对应的组织 / 用户整体跳过。审计：attempt（fail-closed，写失败不清理，接口 503）+ result（与删除同一事务），detail 含 `trigger`（scheduled / manual）、操作人（定时任务记为 system）、`from`/`to` 时间范围、会话 / 消息 / 文件条数、跳过的保留数。asynq 周期任务 `chat:retention_purge` 每 24 小时一次；未开启时为空操作。管理接口（超级管理员 `system.settings`）：`GET/PUT /api/v1/admin/chat-retention`、`POST /api/v1/admin/chat-retention/run`、`GET/POST /api/v1/admin/legal-holds`、`DELETE /api/v1/admin/legal-holds/:id`；设置变更、保留增减都记审计。Web「安全 → 对话保留期」。 |
 | 3 | 已符合 | 对话审计只记模型、字符数、消息 ID 等元数据，不记正文。 |
-| 4 | 第三块 PR3 | 现在固定最近 50 条、单条 3.2 万字。PR3 按模型做 token 截断，始终保留系统提示词和最新一条用户消息。 |
+| 4 | PR3 | 在最近 50 条、单条 3.2 万字的基础上，按模型 `context_window` 再做 token 截断（`internal/api/contexttrunc.go`）：预算 = 上下文窗口 − 输出上限（未配置时预留 1024），至少保留窗口的 1/4；系统提示词和最新一条用户消息始终保留，其余历史从新到旧连续填充，放不下的较早消息整体丢弃（不截半条）。估算规则：中日韩字符每字 1 token，其他字符每 4 个 1 token，每条消息另加 4。发生截断时 `done` 事件带 `history_truncated`，界面提示「对话较长，较早的消息未发送给模型」；审计 detail 记 `history_truncated`、`history_dropped`、`est_prompt_tokens`。模型未配置上下文窗口时不截断。 |
 | 5 | PR2b | 停止后已生成部分计量并作为下一轮上下文（PR1 已实现）；界面标签由「已停止生成」改为「已停止」。 |
 | 6 | PR2b | `POST /api/v1/conversations/:id/regenerate`（`{"message_id":N}`），只接受会话最后一条、已结束的回复，否则 409；他人会话 / 不存在的消息 404。旧回复写 `messages.superseded_at` 软保留，会话详情和后续上下文都排除它。失败消息显示「重试」，走同一接口（审计 `kind=retry`）。与发送同样经过：会话锁 → 模型权限 → 预算 → 审计 attempt（fail-closed）→ 网关 → 审计 result。 |
 | 7 | PR2b | Valkey 锁 `hengdesk:chat:gen:<会话 ID>`：`SET NX` + 60 秒过期，生成中每 20 秒续期，结束时按令牌比对后释放（不会误删别人的锁）；进程崩溃时自动过期。占用时发送 / 重新生成返回 409。Valkey 不可用时 503，不在无锁状态下生成。 |

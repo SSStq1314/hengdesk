@@ -15,6 +15,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/legalhold"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
@@ -368,6 +369,30 @@ func init() {
 	egressruleDescReviewRequired := egressruleFields[9].Descriptor()
 	// egressrule.DefaultReviewRequired holds the default value on creation for the review_required field.
 	egressrule.DefaultReviewRequired = egressruleDescReviewRequired.Default.(bool)
+	legalholdFields := schema.LegalHold{}.Fields()
+	_ = legalholdFields
+	// legalholdDescReason is the schema descriptor for reason field.
+	legalholdDescReason := legalholdFields[2].Descriptor()
+	// legalhold.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	legalhold.ReasonValidator = func() func(string) error {
+		validators := legalholdDescReason.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(reason string) error {
+			for _, fn := range fns {
+				if err := fn(reason); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// legalholdDescCreatedAt is the schema descriptor for created_at field.
+	legalholdDescCreatedAt := legalholdFields[4].Descriptor()
+	// legalhold.DefaultCreatedAt holds the default value on creation for the created_at field.
+	legalhold.DefaultCreatedAt = legalholdDescCreatedAt.Default.(func() time.Time)
 	membershipMixin := schema.Membership{}.Mixin()
 	membershipMixinFields0 := membershipMixin[0].Fields()
 	_ = membershipMixinFields0

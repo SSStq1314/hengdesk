@@ -25,6 +25,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/legalhold"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
@@ -63,6 +64,8 @@ type Client struct {
 	EgressLog *EgressLogClient
 	// EgressRule is the client for interacting with the EgressRule builders.
 	EgressRule *EgressRuleClient
+	// LegalHold is the client for interacting with the LegalHold builders.
+	LegalHold *LegalHoldClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
 	// Message is the client for interacting with the Message builders.
@@ -106,6 +109,7 @@ func (c *Client) init() {
 	c.DeptClosure = NewDeptClosureClient(c.config)
 	c.EgressLog = NewEgressLogClient(c.config)
 	c.EgressRule = NewEgressRuleClient(c.config)
+	c.LegalHold = NewLegalHoldClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
 	c.Message = NewMessageClient(c.config)
 	c.Model = NewModelClient(c.config)
@@ -219,6 +223,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		DeptClosure:      NewDeptClosureClient(cfg),
 		EgressLog:        NewEgressLogClient(cfg),
 		EgressRule:       NewEgressRuleClient(cfg),
+		LegalHold:        NewLegalHoldClient(cfg),
 		Membership:       NewMembershipClient(cfg),
 		Message:          NewMessageClient(cfg),
 		Model:            NewModelClient(cfg),
@@ -259,6 +264,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		DeptClosure:      NewDeptClosureClient(cfg),
 		EgressLog:        NewEgressLogClient(cfg),
 		EgressRule:       NewEgressRuleClient(cfg),
+		LegalHold:        NewLegalHoldClient(cfg),
 		Membership:       NewMembershipClient(cfg),
 		Message:          NewMessageClient(cfg),
 		Model:            NewModelClient(cfg),
@@ -301,7 +307,7 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Conversation,
 		c.ConversationFile, c.Department, c.DeptClosure, c.EgressLog, c.EgressRule,
-		c.Membership, c.Message, c.Model, c.ModelProvider, c.Notification,
+		c.LegalHold, c.Membership, c.Message, c.Model, c.ModelProvider, c.Notification,
 		c.Organization, c.Role, c.SystemSetting, c.Tool, c.UsageRecord, c.User,
 	} {
 		n.Use(hooks...)
@@ -314,7 +320,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Conversation,
 		c.ConversationFile, c.Department, c.DeptClosure, c.EgressLog, c.EgressRule,
-		c.Membership, c.Message, c.Model, c.ModelProvider, c.Notification,
+		c.LegalHold, c.Membership, c.Message, c.Model, c.ModelProvider, c.Notification,
 		c.Organization, c.Role, c.SystemSetting, c.Tool, c.UsageRecord, c.User,
 	} {
 		n.Intercept(interceptors...)
@@ -344,6 +350,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EgressLog.mutate(ctx, m)
 	case *EgressRuleMutation:
 		return c.EgressRule.mutate(ctx, m)
+	case *LegalHoldMutation:
+		return c.LegalHold.mutate(ctx, m)
 	case *MembershipMutation:
 		return c.Membership.mutate(ctx, m)
 	case *MessageMutation:
@@ -1779,6 +1787,139 @@ func (c *EgressRuleClient) mutate(ctx context.Context, m *EgressRuleMutation) (V
 		return (&EgressRuleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown EgressRule mutation op: %q", m.Op())
+	}
+}
+
+// LegalHoldClient is a client for the LegalHold schema.
+type LegalHoldClient struct {
+	config
+}
+
+// NewLegalHoldClient returns a client for the LegalHold from the given config.
+func NewLegalHoldClient(c config) *LegalHoldClient {
+	return &LegalHoldClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `legalhold.Hooks(f(g(h())))`.
+func (c *LegalHoldClient) Use(hooks ...Hook) {
+	c.hooks.LegalHold = append(c.hooks.LegalHold, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `legalhold.Intercept(f(g(h())))`.
+func (c *LegalHoldClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LegalHold = append(c.inters.LegalHold, interceptors...)
+}
+
+// Create returns a builder for creating a LegalHold entity.
+func (c *LegalHoldClient) Create() *LegalHoldCreate {
+	mutation := newLegalHoldMutation(c.config, OpCreate)
+	return &LegalHoldCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LegalHold entities.
+func (c *LegalHoldClient) CreateBulk(builders ...*LegalHoldCreate) *LegalHoldCreateBulk {
+	return &LegalHoldCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LegalHoldClient) MapCreateBulk(slice any, setFunc func(*LegalHoldCreate, int)) *LegalHoldCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LegalHoldCreateBulk{err: fmt.Errorf("calling to LegalHoldClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LegalHoldCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LegalHoldCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LegalHold.
+func (c *LegalHoldClient) Update() *LegalHoldUpdate {
+	mutation := newLegalHoldMutation(c.config, OpUpdate)
+	return &LegalHoldUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LegalHoldClient) UpdateOne(_m *LegalHold) *LegalHoldUpdateOne {
+	mutation := newLegalHoldMutation(c.config, OpUpdateOne, withLegalHold(_m))
+	return &LegalHoldUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LegalHoldClient) UpdateOneID(id int) *LegalHoldUpdateOne {
+	mutation := newLegalHoldMutation(c.config, OpUpdateOne, withLegalHoldID(id))
+	return &LegalHoldUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LegalHold.
+func (c *LegalHoldClient) Delete() *LegalHoldDelete {
+	mutation := newLegalHoldMutation(c.config, OpDelete)
+	return &LegalHoldDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LegalHoldClient) DeleteOne(_m *LegalHold) *LegalHoldDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LegalHoldClient) DeleteOneID(id int) *LegalHoldDeleteOne {
+	builder := c.Delete().Where(legalhold.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LegalHoldDeleteOne{builder}
+}
+
+// Query returns a query builder for LegalHold.
+func (c *LegalHoldClient) Query() *LegalHoldQuery {
+	return &LegalHoldQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLegalHold},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LegalHold entity by its id.
+func (c *LegalHoldClient) Get(ctx context.Context, id int) (*LegalHold, error) {
+	return c.Query().Where(legalhold.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LegalHoldClient) GetX(ctx context.Context, id int) *LegalHold {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LegalHoldClient) Hooks() []Hook {
+	return c.hooks.LegalHold
+}
+
+// Interceptors returns the client interceptors.
+func (c *LegalHoldClient) Interceptors() []Interceptor {
+	return c.inters.LegalHold
+}
+
+func (c *LegalHoldClient) mutate(ctx context.Context, m *LegalHoldMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LegalHoldCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LegalHoldUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LegalHoldUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LegalHoldDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LegalHold mutation op: %q", m.Op())
 	}
 }
 
@@ -3425,14 +3566,14 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		ACL, AuditLog, Budget, BudgetAlertState, Conversation, ConversationFile,
-		Department, DeptClosure, EgressLog, EgressRule, Membership, Message, Model,
-		ModelProvider, Notification, Organization, Role, SystemSetting, Tool,
+		Department, DeptClosure, EgressLog, EgressRule, LegalHold, Membership, Message,
+		Model, ModelProvider, Notification, Organization, Role, SystemSetting, Tool,
 		UsageRecord, User []ent.Hook
 	}
 	inters struct {
 		ACL, AuditLog, Budget, BudgetAlertState, Conversation, ConversationFile,
-		Department, DeptClosure, EgressLog, EgressRule, Membership, Message, Model,
-		ModelProvider, Notification, Organization, Role, SystemSetting, Tool,
+		Department, DeptClosure, EgressLog, EgressRule, LegalHold, Membership, Message,
+		Model, ModelProvider, Notification, Organization, Role, SystemSetting, Tool,
 		UsageRecord, User []ent.Interceptor
 	}
 )

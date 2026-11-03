@@ -8,7 +8,7 @@ import (
 )
 
 // Conversation 对话会话（FR-14）。只属于创建人本人：所有读写都按 user_id 过滤，非本人一律 404。
-// 删除为软删除（deleted_at），保留消息供审计链路还原（FR-28）；M1 默认不自动删除（保留期待产品确认）。
+// 删除为软删除（deleted_at），保留消息供审计链路还原（FR-28）；物理删除只经保留期清理（D-40 第 2 条，默认不开启，见 chatretention）。
 type Conversation struct{ ent.Schema }
 
 func (Conversation) Fields() []ent.Field {

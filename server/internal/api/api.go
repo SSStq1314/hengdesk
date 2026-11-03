@@ -62,13 +62,14 @@ func Mount(e *echo.Echo, d Deps) {
 	}
 	d.Auth.GuardDisable = guardDisable(d.DB)
 
-	g := e.Group("/api/v1", d.Auth.Optional, audit.WithWriter(d.Audit, auth.Actor), audit.Middleware(d.Audit, auth.Actor, d.Log), auth.CSRF)
+	g := e.Group("/api/v1", audit.Trace(), d.Auth.Optional, audit.WithWriter(d.Audit, auth.Actor), audit.Middleware(d.Audit, auth.Actor, d.Log), auth.CSRF)
 	d.Auth.Register(g)
 	admin := g.Group("/admin")
 
 	ah := &auditHandlers{db: d.DB, retentionDays: d.System.AuditRetentionDays, now: d.System.Now}
 	admin.GET("/audit-logs", ah.list, authz.Require(rbac.AuditRead), audit.Sensitive("audit.view"))
 	admin.GET("/audit-logs/verify", ah.verify, authz.Require(rbac.AuditRead), audit.Sensitive("audit.verify"))
+	admin.GET("/audit-logs/traces/:trace_id", ah.trace, authz.Require(rbac.AuditRead), audit.Sensitive("audit.trace.view"))
 	admin.GET("/audit-logs/retention", ah.retention, authz.Require(rbac.AuditRead))
 	alh := &alertHandlers{db: d.DB, r: d.Auth.Sessions.R}
 	admin.GET("/alerts", alh.list, authz.Require(rbac.AuditRead))
@@ -82,6 +83,14 @@ func Mount(e *echo.Echo, d Deps) {
 	admin.GET("/system/status", sh.status, authz.Require(rbac.SettingsManage))
 	admin.GET("/system/tls", sh.tls, authz.Require(rbac.SettingsManage))
 	admin.POST("/system/master-key/ack", sh.ackMasterKey, authz.Require(rbac.SettingsManage))
+
+	rth := &retentionHandlers{db: d.DB, fs: d.Files, now: d.System.Now}
+	admin.GET("/chat-retention", rth.get, authz.Require(rbac.SettingsManage))
+	admin.PUT("/chat-retention", rth.put, authz.Require(rbac.SettingsManage))
+	admin.POST("/chat-retention/run", rth.run, authz.Require(rbac.SettingsManage))
+	admin.GET("/legal-holds", rth.listHolds, authz.Require(rbac.SettingsManage))
+	admin.POST("/legal-holds", rth.createHold, authz.Require(rbac.SettingsManage))
+	admin.DELETE("/legal-holds/:id", rth.releaseHold, authz.Require(rbac.SettingsManage))
 
 	mh := &memberHandlers{db: d.DB, az: az, auth: d.Auth}
 	admin.GET("/users", mh.list, authz.Require(rbac.MemberRead))
