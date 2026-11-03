@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: '1.25.x', cache-dependency-path: server/go.sum}
+        with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
       - uses: golangci/golangci-lint-action@v8
         with: {version: latest, working-directory: server}
       - run: go vet ./...
@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: '1.25.x', cache-dependency-path: server/go.sum}
+        with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
       - working-directory: server
         run: CGO_ENABLED=0 go build -o /tmp/hengdesk ./cmd/hengdesk
       - name: migrate（两次，验证幂等）
@@ -58,6 +58,23 @@ jobs:
           curl -fsS -b /tmp/ck localhost:8080/api/v1/auth/me
           test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"email":"admin@hengdesk.local","password":"bad-password"}' localhost:8080/api/v1/auth/login)" = 401
 
+  govulncheck:
+    name: govulncheck（可达漏洞阻断）
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: server}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
+      - run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+      - name: 扫描并按可达性判定
+        run: |
+          govulncheck -format json ./... > ../govulncheck.json
+          python3 ../.github/scripts/govulncheck-gate.py .govulncheck-exemptions.md < ../govulncheck.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: govulncheck, path: govulncheck.json}
+
   valkey:
     name: valkey 兼容性（asynq 入队/重试/延时/调度）
     runs-on: ubuntu-latest
@@ -73,7 +90,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: '1.25.x', cache-dependency-path: server/go.sum}
+        with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
       - run: go test -race -count=1 -run TestValkeyAsynqCompat -v ./internal/queue/
 
   compose:
@@ -86,7 +103,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: '1.25.x', cache-dependency-path: server/go.sum}
+        with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
       - name: install.sh 非交互生成 .env
         working-directory: deploy
         run: ./install.sh --non-interactive --storage ${{ matrix.storage }} --admin-password ci-only-password-123 --force
@@ -143,7 +160,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: '1.25.x', cache-dependency-path: server/go.sum}
+        with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
       - name: Go 依赖许可（拒绝 AGPL/GPL/LGPL 等 forbidden/restricted 类）
         working-directory: server
         run: |
