@@ -91,6 +91,36 @@ var (
 			},
 		},
 	}
+	// BudgetsColumns holds the columns for the "budgets" table.
+	BudgetsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "scope", Type: field.TypeEnum, Enums: []string{"org", "dept", "user", "model"}},
+		{Name: "scope_id", Type: field.TypeInt, Default: 0},
+		{Name: "period", Type: field.TypeEnum, Enums: []string{"day", "month"}},
+		{Name: "metric", Type: field.TypeEnum, Enums: []string{"tokens", "cost"}},
+		{Name: "limit_value", Type: field.TypeInt64},
+		{Name: "threshold_pct", Type: field.TypeInt, Default: 80},
+		{Name: "action", Type: field.TypeEnum, Enums: []string{"block", "alert_only"}, Default: "block"},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "note", Type: field.TypeString, Size: 200, Default: ""},
+		{Name: "created_by", Type: field.TypeInt},
+	}
+	// BudgetsTable holds the schema information for the "budgets" table.
+	BudgetsTable = &schema.Table{
+		Name:       "budgets",
+		Columns:    BudgetsColumns,
+		PrimaryKey: []*schema.Column{BudgetsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "budget_org_id_scope_scope_id_period_metric",
+				Unique:  true,
+				Columns: []*schema.Column{BudgetsColumns[3], BudgetsColumns[4], BudgetsColumns[5], BudgetsColumns[6], BudgetsColumns[7]},
+			},
+		},
+	}
 	// DepartmentsColumns holds the columns for the "departments" table.
 	DepartmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -248,6 +278,36 @@ var (
 		Name:       "model_providers",
 		Columns:    ModelProvidersColumns,
 		PrimaryKey: []*schema.Column{ModelProvidersColumns[0]},
+	}
+	// NotificationsColumns holds the columns for the "notifications" table.
+	NotificationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "title", Type: field.TypeString},
+		{Name: "detail", Type: field.TypeJSON, Nullable: true},
+		{Name: "dedupe_key", Type: field.TypeString},
+		{Name: "read_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// NotificationsTable holds the schema information for the "notifications" table.
+	NotificationsTable = &schema.Table{
+		Name:       "notifications",
+		Columns:    NotificationsColumns,
+		PrimaryKey: []*schema.Column{NotificationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "notification_user_id_dedupe_key",
+				Unique:  true,
+				Columns: []*schema.Column{NotificationsColumns[2], NotificationsColumns[6]},
+			},
+			{
+				Name:    "notification_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationsColumns[2], NotificationsColumns[8]},
+			},
+		},
 	}
 	// OrganizationsColumns holds the columns for the "organizations" table.
 	OrganizationsColumns = []*schema.Column{
@@ -414,11 +474,13 @@ var (
 	Tables = []*schema.Table{
 		ACLTable,
 		AuditLogsTable,
+		BudgetsTable,
 		DepartmentsTable,
 		DeptClosureTable,
 		MembershipsTable,
 		ModelsTable,
 		ModelProvidersTable,
+		NotificationsTable,
 		OrganizationsTable,
 		RolesTable,
 		SystemSettingsTable,

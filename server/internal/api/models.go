@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SSStq1314/hengdesk/server/internal/budget"
+
 	"github.com/labstack/echo/v4"
 
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
@@ -26,6 +28,7 @@ import (
 type modelHandlers struct {
 	db *ent.Client
 	gw *gateway.Service
+	bs *budget.Service
 }
 
 type providerView struct {

@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"strconv"
 
+	"github.com/SSStq1314/hengdesk/server/internal/budget"
+
 	"github.com/labstack/echo/v4"
 
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
@@ -25,6 +27,8 @@ type Deps struct {
 	System SystemConfig
 	// Gateway 模型网关；为 nil 时用默认 HTTP 客户端且不配置主密钥（不能保存或使用上游密钥）。
 	Gateway *gateway.Service
+	// Budget 预算服务；为 nil 时用 Auth.Sessions.R（Valkey）构造。
+	Budget *budget.Service
 }
 
 // Mount 挂载路由。所有 /admin 接口都经统一授权层：未登录 401，无权限或越权 404。
@@ -84,7 +88,11 @@ func Mount(e *echo.Echo, d Deps) {
 	if gw == nil {
 		gw = &gateway.Service{DB: d.DB, Client: &gateway.Client{}}
 	}
-	mdh := &modelHandlers{db: d.DB, gw: gw}
+	bs := d.Budget
+	if bs == nil {
+		bs = &budget.Service{DB: d.DB, R: d.Auth.Sessions.R, Log: d.Log}
+	}
+	mdh := &modelHandlers{db: d.DB, gw: gw, bs: bs}
 	admin.GET("/model-providers", mdh.listProviders, authz.Require(rbac.ModelManage))
 	admin.POST("/model-providers", mdh.createProvider, authz.Require(rbac.ModelManage))
 	admin.PATCH("/model-providers/:id", mdh.updateProvider, authz.Require(rbac.ModelManage))
@@ -103,8 +111,19 @@ func Mount(e *echo.Echo, d Deps) {
 	admin.GET("/usage/records", mdh.usageRecords, authz.Require(rbac.ModelManage))
 	g.GET("/models", func(c echo.Context) error { return mdh.myModels(c, az) })
 	g.GET("/usage/me", mdh.myUsage)
-	ch := &chatHandlers{gw: gw, az: az, log: d.Log}
+	ch := &chatHandlers{gw: gw, az: az, log: d.Log, bs: bs}
 	g.POST("/chat/completions", ch.complete)
+
+	bh := &budgetHandlers{db: d.DB, bs: bs}
+	admin.GET("/budgets", bh.list, authz.Require(rbac.BudgetManage))
+	admin.POST("/budgets", bh.create, authz.Require(rbac.BudgetManage))
+	admin.PUT("/budgets/:id", bh.update, authz.Require(rbac.BudgetManage))
+	admin.DELETE("/budgets/:id", bh.remove, authz.Require(rbac.BudgetManage))
+	admin.POST("/budgets/reconcile", bh.reconcile, authz.Require(rbac.BudgetManage))
+	g.GET("/budgets/me", bh.mine)
+	nh := &notificationHandlers{db: d.DB}
+	g.GET("/notifications", nh.list)
+	g.POST("/notifications/read", nh.markRead)
 
 	mountEdition(g, d.Auth)
 

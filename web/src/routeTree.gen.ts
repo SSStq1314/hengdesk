@@ -15,6 +15,7 @@ import { Route as AuthenticatedRolesRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedModelsRouteImport } from './routes/_authenticated/models'
 import { Route as AuthenticatedMembersRouteImport } from './routes/_authenticated/members'
 import { Route as AuthenticatedDepartmentsRouteImport } from './routes/_authenticated/departments'
+import { Route as AuthenticatedBudgetsRouteImport } from './routes/_authenticated/budgets'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
@@ -54,6 +55,11 @@ const AuthenticatedDepartmentsRoute =
     path: '/departments',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBudgetsRoute = AuthenticatedBudgetsRouteImport.update({
+  id: '/budgets',
+  path: '/budgets',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/audit': typeof AuthenticatedAuditRoute
+  '/budgets': typeof AuthenticatedBudgetsRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/members': typeof AuthenticatedMembersRoute
   '/models': typeof AuthenticatedModelsRoute
@@ -119,6 +126,7 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/audit': typeof AuthenticatedAuditRoute
+  '/budgets': typeof AuthenticatedBudgetsRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/members': typeof AuthenticatedMembersRoute
   '/models': typeof AuthenticatedModelsRoute
@@ -136,6 +144,7 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
+  '/_authenticated/budgets': typeof AuthenticatedBudgetsRoute
   '/_authenticated/departments': typeof AuthenticatedDepartmentsRoute
   '/_authenticated/members': typeof AuthenticatedMembersRoute
   '/_authenticated/models': typeof AuthenticatedModelsRoute
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/audit'
+    | '/budgets'
     | '/departments'
     | '/members'
     | '/models'
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/audit'
+    | '/budgets'
     | '/departments'
     | '/members'
     | '/models'
@@ -184,6 +195,7 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/audit'
+    | '/_authenticated/budgets'
     | '/_authenticated/departments'
     | '/_authenticated/members'
     | '/_authenticated/models'
@@ -244,6 +256,13 @@ declare module '@tanstack/react-router' {
       path: '/departments'
       fullPath: '/departments'
       preLoaderRoute: typeof AuthenticatedDepartmentsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/budgets': {
+      id: '/_authenticated/budgets'
+      path: '/budgets'
+      fullPath: '/budgets'
+      preLoaderRoute: typeof AuthenticatedBudgetsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/audit': {
@@ -307,6 +326,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
+  AuthenticatedBudgetsRoute: typeof AuthenticatedBudgetsRoute
   AuthenticatedDepartmentsRoute: typeof AuthenticatedDepartmentsRoute
   AuthenticatedMembersRoute: typeof AuthenticatedMembersRoute
   AuthenticatedModelsRoute: typeof AuthenticatedModelsRoute
@@ -317,6 +337,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
+  AuthenticatedBudgetsRoute: AuthenticatedBudgetsRoute,
   AuthenticatedDepartmentsRoute: AuthenticatedDepartmentsRoute,
   AuthenticatedMembersRoute: AuthenticatedMembersRoute,
   AuthenticatedModelsRoute: AuthenticatedModelsRoute,

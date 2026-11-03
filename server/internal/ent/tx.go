@@ -16,6 +16,8 @@ type Tx struct {
 	ACL *ACLClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
+	// Budget is the client for interacting with the Budget builders.
+	Budget *BudgetClient
 	// Department is the client for interacting with the Department builders.
 	Department *DepartmentClient
 	// DeptClosure is the client for interacting with the DeptClosure builders.
@@ -26,6 +28,8 @@ type Tx struct {
 	Model *ModelClient
 	// ModelProvider is the client for interacting with the ModelProvider builders.
 	ModelProvider *ModelProviderClient
+	// Notification is the client for interacting with the Notification builders.
+	Notification *NotificationClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// Role is the client for interacting with the Role builders.
@@ -171,11 +175,13 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.ACL = NewACLClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
+	tx.Budget = NewBudgetClient(tx.config)
 	tx.Department = NewDepartmentClient(tx.config)
 	tx.DeptClosure = NewDeptClosureClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
 	tx.Model = NewModelClient(tx.config)
 	tx.ModelProvider = NewModelProviderClient(tx.config)
+	tx.Notification = NewNotificationClient(tx.config)
 	tx.Organization = NewOrganizationClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
 	tx.SystemSetting = NewSystemSettingClient(tx.config)

@@ -14,11 +14,13 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/notification"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/organization"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/systemsetting"
@@ -87,11 +89,13 @@ func checkColumn(t, c string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			acl.Table:           acl.ValidColumn,
 			auditlog.Table:      auditlog.ValidColumn,
+			budget.Table:        budget.ValidColumn,
 			department.Table:    department.ValidColumn,
 			deptclosure.Table:   deptclosure.ValidColumn,
 			membership.Table:    membership.ValidColumn,
 			model.Table:         model.ValidColumn,
 			modelprovider.Table: modelprovider.ValidColumn,
+			notification.Table:  notification.ValidColumn,
 			organization.Table:  organization.ValidColumn,
 			role.Table:          role.ValidColumn,
 			systemsetting.Table: systemsetting.ValidColumn,

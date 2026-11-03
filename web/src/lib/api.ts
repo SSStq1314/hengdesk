@@ -438,3 +438,86 @@ export const modelApi = {
   usageRecords: (f: UsageFilter) =>
     api<{ items: UsageRecord[] }>(`/admin/usage/records${qs(f)}`),
 }
+
+// ---- 预算与配额（M1 第二块 PR3） ----
+export type BudgetScope = 'org' | 'dept' | 'user' | 'model'
+
+export type Budget = {
+  id: number
+  scope: BudgetScope
+  scope_id: number
+  scope_name: string
+  period: 'day' | 'month'
+  metric: 'tokens' | 'cost'
+  limit: number
+  threshold_pct: number
+  action: 'block' | 'alert_only'
+  enabled: boolean
+  note: string
+  used: number
+  pct: number
+  period_key: string
+  reset_at: string
+  counter_unavailable?: boolean
+  updated_at: string
+}
+
+export type BudgetInput = Pick<
+  Budget,
+  | 'scope'
+  | 'scope_id'
+  | 'period'
+  | 'metric'
+  | 'limit'
+  | 'threshold_pct'
+  | 'action'
+  | 'enabled'
+  | 'note'
+>
+
+export type BudgetRecon = {
+  budget_id: number
+  period: string
+  counter: number | null
+  db: number
+  drift: number
+}
+
+export const budgetApi = {
+  list: () => api<Budget[]>('/admin/budgets'),
+  create: (b: BudgetInput) => api<Budget>('/admin/budgets', json('POST', b)),
+  update: (id: number, b: BudgetInput) =>
+    api<Budget>(`/admin/budgets/${id}`, json('PUT', b)),
+  remove: (id: number) =>
+    api<void>(`/admin/budgets/${id}`, { method: 'DELETE' }),
+  reconcile: () =>
+    api<BudgetRecon[]>('/admin/budgets/reconcile', { method: 'POST' }),
+  mine: () => api<Budget[]>('/budgets/me'),
+}
+
+export type AppNotification = {
+  id: number
+  kind: string
+  title: string
+  read: boolean
+  created_at: string
+  detail?: {
+    scope?: BudgetScope
+    scope_id?: number
+    scope_name?: string
+    period?: string
+    metric?: 'tokens' | 'cost'
+    limit?: number
+    used?: number
+    level?: number
+    action?: string
+    budget_id?: number
+  }
+}
+
+// 站内提醒（只含发给自己的）。
+export const notificationApi = {
+  list: () =>
+    api<{ unread: number; items: AppNotification[] }>('/notifications'),
+  markRead: () => api<void>('/notifications/read', { method: 'POST' }),
+}

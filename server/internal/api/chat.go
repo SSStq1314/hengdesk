@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/SSStq1314/hengdesk/server/internal/budget"
+
 	"github.com/labstack/echo/v4"
 
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
@@ -25,11 +27,12 @@ const maxChatBody = 8 << 20
 // chatHandlers 统一内部 Chat API：POST /api/v1/chat/completions。
 // 处理顺序：鉴权 → 模型解析 → 模型 ACL（无权限与不存在一律 404）→ 审计 attempt（写失败拒绝调用，fail-closed）
 // → 调用上游（stream=true 时 SSE）→ 审计 result（含 usage、耗时、错误码）。
-// 预算预检查与出站白名单在后续 PR 插入到审计 attempt 之前。
+// 预算预检查（PR3）在审计 attempt 之前；出站白名单在后续 PR 插入。
 type chatHandlers struct {
 	gw  *gateway.Service
 	az  *authz.Service
 	log *slog.Logger
+	bs  *budget.Service
 }
 
 type chatResult struct {
@@ -72,6 +75,9 @@ func (h *chatHandlers) complete(c echo.Context) error {
 		if !ok {
 			return authz.Deny(c, "model:acl")
 		}
+	}
+	if err := budgetGate(c, h.bs, h.gw.DB, tgt.Model.ID, tgt.Model.Name); err != nil || c.Response().Committed {
+		return err
 	}
 	base := map[string]any{"model": tgt.Model.Name, "provider": tgt.Upstream.Name, "upstream_model": tgt.Config.UpstreamModel,
 		"stream": req.Stream, "messages": len(req.Messages), "tools": len(req.Tools)}
@@ -143,9 +149,11 @@ func (h *chatHandlers) recordUsage(c echo.Context, p *auth.Principal, tgt *gatew
 	} else if res != nil {
 		rec.Usage = res.Usage
 	}
-	if _, err := usage.Write(ctx, h.gw.DB, rec); err != nil {
+	ur, err := usage.Write(ctx, h.gw.DB, rec)
+	if err != nil {
 		h.log.Error("usage record write failed", "model", tgt.Model.Name, "err", err)
 	}
+	settle(ctx, h.bs, ur) // 流式调用在结束后才走到这里：按实际用量结算
 }
 
 // stream SSE 输出：event: delta（增量）、event: done（聚合后的完整 assistant 消息与 usage，供多轮原样回传）、

@@ -6,6 +6,7 @@ import {
   ScrollText,
   ShieldCheck,
   Users,
+  Wallet,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -47,6 +48,12 @@ export const sidebarData: SidebarData = {
           url: '/models',
           icon: Bot,
           perm: 'model.manage',
+        },
+        {
+          title: zh.nav.budgets,
+          url: '/budgets',
+          icon: Wallet,
+          perm: 'budget.manage',
         },
       ],
     },

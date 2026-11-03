@@ -8,7 +8,7 @@ func TestSeparationOfDuties(t *testing.T) {
 		t.Fatal("超级管理员不应能查看审计")
 	}
 	au := Resolve([]Grant{{Role: SecurityAuditor}})
-	for _, p := range []Perm{MemberManage, DeptManage, RoleAssign, RoleAssignPriv, SSOManage, SettingsManage, ToolManage, ModelManage} {
+	for _, p := range []Perm{MemberManage, DeptManage, RoleAssign, RoleAssignPriv, SSOManage, SettingsManage, ToolManage, ModelManage, BudgetManage} {
 		if au.Has(p) {
 			t.Fatalf("审计员不应有 %s", p)
 		}
