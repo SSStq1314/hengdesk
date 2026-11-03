@@ -55,9 +55,9 @@ type VerifyResult struct {
 }
 
 // Anchor 查找担保 prev 的归档断点：断点记录本身在链上（受哈希保护），detail.last_hash == prev，
-// 且被归档区间在 firstID 之前、断点写在 firstID 之后。找不到返回 0。
+// 且被归档区间在 firstID 之前、断点写在 firstID 或之后（断点本身可以是剩余链的首条）。找不到返回 0。
 func Anchor(ctx context.Context, c *ent.Client, prev string, firstID int) (int, error) {
-	cps, err := c.AuditLog.Query().Where(auditlog.Action(CheckpointAction), auditlog.HashNEQ(""), auditlog.IDGT(firstID)).
+	cps, err := c.AuditLog.Query().Where(auditlog.Action(CheckpointAction), auditlog.HashNEQ(""), auditlog.IDGTE(firstID)).
 		Order(ent.Asc(auditlog.FieldID)).All(ctx)
 	if err != nil {
 		return 0, err
