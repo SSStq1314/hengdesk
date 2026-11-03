@@ -1,4 +1,4 @@
-# 模型网关（M1 PR1）
+# 模型网关（M1 第二块 PR1 / PR2）
 
 ## 主密钥
 
@@ -11,6 +11,40 @@
 `upgrade.sh` 会为旧安装补上。**主密钥丢失后已保存的上游 Key 无法解密，只能重新录入**，请与数据库备份分开保管。
 未配置主密钥时可以管理模型，但保存 Key 返回 503，调用返回 `upstream_key_unavailable`。
 
+### 安装确认与后台提示（D-36）
+
+- `install.sh` 结束时打印主密钥路径和「丢失后已存的 Key 无法恢复，请与数据库备份分开保管」，交互模式须输入 `yes`；
+  非交互 / 自动化安装须显式带 `--ack-master-key`，否则安装失败。
+- 管理后台在管理员确认前常驻红色提示（显示路径），点「我已单独备份」后消失（记审计 `system.master_key.ack`）。
+  确认绑定主密钥指纹，轮换后需要重新确认。
+
+### 启动自检
+
+server 启动时检查主密钥能否解密库内全部上游 Key；缺失或不匹配时直接启动失败并给出指引
+（恢复正确的 `secrets/master.key`，或在后台清除 Key 后重新录入）。单独检查：
+
+```bash
+cd deploy && docker compose --profile tools run --rm keytool keys check
+```
+
+### 轮换
+
+```bash
+cd deploy
+docker compose stop server worker
+docker compose --profile tools run --rm keytool keys rotate-master --yes
+./upgrade.sh          # 或手动把 secrets/master.key 的新值写入 .env 的 HENGDESK_MASTER_KEY，再启动
+```
+
+- 在一个事务里用新密钥重新加密全部上游 Key 并写审计 `model.master_key.rotate`；任何一步失败整体回滚，密钥文件不动。
+- 旧密钥保留为 `secrets/master.key.bak`，确认新密钥已备份、服务正常后由管理员自行删除。
+- 轮换后后台会重新要求确认备份。
+
+### 备份
+
+`/backups`（`hengdesk backup` / `upgrade.sh` 的升级前备份）**不包含主密钥**，备份完成时日志提示单独保管。
+恢复时需要同时有数据库备份和当时的主密钥。
+
 ## Admin API（仅超级管理员，其他人 404）
 
 - `GET/POST /api/v1/admin/model-providers`，`PATCH/DELETE /api/v1/admin/model-providers/:id`
@@ -19,6 +53,20 @@
 - `GET/POST /api/v1/admin/models`，`PATCH/DELETE /api/v1/admin/models/:id`
   字段：`name`（对内模型名）、`provider_id`、`upstream_model`、`thinking`（`off` / `on` / `provider_default`）、
   `tool_choice_policy`（`downgrade` / `reject`）、`context_window`、`max_output_tokens`、`enabled`。
+
+## 模型管理与用量（PR2，仅 `model.manage`，其他人 404）
+
+- `POST /admin/model-providers/:id/test`：测试连接（请求上游 `/models`，错误已脱敏）。
+- `POST /admin/models/:id/default`：设为默认模型；`POST /admin/models/:id/test`：发一条极短对话（用量记为 `purpose=test`）。
+- 价格字段：`price_input_micros`（未命中缓存输入）、`price_cached_micros`（缓存命中输入）、`price_output_micros`（输出，含思考），
+  单位为每百万 token 的「微元」（1 元 = 1,000,000）。金额 = Σ(token × 单价) / 1e6，四舍五入到微元，在调用结束时算好落库。
+- `GET/POST /admin/models/:id/acl`，`DELETE /admin/models/:id/acl/:type/:sid`：`subject_type` 为 `user` / `dept` / `role`，
+  部门可 `include_children`。
+- `GET /admin/usage/summary?group_by=model|user|department|total&from=YYYY-MM-DD&to=YYYY-MM-DD`：
+  汇总 `calls`、`error_calls`、各类 token、`cost_micros`，以及 `estimated_calls` / `estimated_tokens` / `estimated_cost_micros`
+  （上游未返回 usage、由网关估算的部分）。
+- `GET /admin/usage/records`：最近 200 条明细，`estimated=true` 表示估算。`GET /usage/me`：本人按模型的用量。
+- 管理后台：左侧「AI → 模型网关」。
 
 ## Chat API
 

@@ -65,6 +65,7 @@ func Mount(e *echo.Echo, d Deps) {
 	sh := &systemHandlers{db: d.DB, cfg: d.System}
 	admin.GET("/system/status", sh.status, authz.Require(rbac.SettingsManage))
 	admin.GET("/system/tls", sh.tls, authz.Require(rbac.SettingsManage))
+	admin.POST("/system/master-key/ack", sh.ackMasterKey, authz.Require(rbac.SettingsManage))
 
 	mh := &memberHandlers{db: d.DB, az: az, auth: d.Auth}
 	admin.GET("/users", mh.list, authz.Require(rbac.MemberRead))
@@ -92,6 +93,16 @@ func Mount(e *echo.Echo, d Deps) {
 	admin.POST("/models", mdh.createModel, authz.Require(rbac.ModelManage))
 	admin.PATCH("/models/:id", mdh.updateModel, authz.Require(rbac.ModelManage))
 	admin.DELETE("/models/:id", mdh.deleteModel, authz.Require(rbac.ModelManage))
+	admin.POST("/model-providers/:id/test", mdh.testProvider, authz.Require(rbac.ModelManage))
+	admin.POST("/models/:id/default", mdh.setDefault, authz.Require(rbac.ModelManage))
+	admin.POST("/models/:id/test", mdh.testModel, authz.Require(rbac.ModelManage))
+	admin.GET("/models/:id/acl", mdh.listACL, authz.Require(rbac.ModelManage))
+	admin.POST("/models/:id/acl", mdh.grantACL, authz.Require(rbac.ModelManage))
+	admin.DELETE("/models/:id/acl/:type/:sid", mdh.revokeACL, authz.Require(rbac.ModelManage))
+	admin.GET("/usage/summary", mdh.usageSummary, authz.Require(rbac.ModelManage))
+	admin.GET("/usage/records", mdh.usageRecords, authz.Require(rbac.ModelManage))
+	g.GET("/models", func(c echo.Context) error { return mdh.myModels(c, az) })
+	g.GET("/usage/me", mdh.myUsage)
 	ch := &chatHandlers{gw: gw, az: az, log: d.Log}
 	g.POST("/chat/completions", ch.complete)
 

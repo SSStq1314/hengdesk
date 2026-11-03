@@ -19,6 +19,16 @@ if ! grep -q '^HENGDESK_MASTER_KEY=' .env; then
   printf 'HENGDESK_MASTER_KEY=%s\n' "$(cat secrets/master.key)" >> .env
   echo "==> 已生成模型网关主密钥 secrets/master.key 并写入 .env（请妥善保管）"
 fi
+# D-36：补上主密钥宿主机路径；主密钥轮换（keytool）后把 secrets/master.key 同步到 .env。
+grep -q '^HENGDESK_MASTER_KEY_HOST_PATH=' .env || printf 'HENGDESK_MASTER_KEY_HOST_PATH=%s\n' "$(pwd)/secrets/master.key" >> .env
+if [ -r secrets/master.key ]; then
+  K=$(tr -d ' \n' < secrets/master.key)
+  if [ -n "$K" ] && ! grep -qx "HENGDESK_MASTER_KEY=$K" .env; then
+    sed -i "s/^HENGDESK_MASTER_KEY=.*/HENGDESK_MASTER_KEY=$K/" .env
+    echo "==> 已把 secrets/master.key（轮换后的新主密钥）同步到 .env"
+  fi
+  unset K
+fi
 if [ "${1:-}" = "--build" ]; then docker compose build migrate; fi
 echo "==> 停止 server / worker（停写，保证备份一致）"
 docker compose stop server worker

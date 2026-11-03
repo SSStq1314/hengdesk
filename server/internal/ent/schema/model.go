@@ -23,6 +23,13 @@ func (Model) Fields() []ent.Field {
 		field.Int("context_window").Default(0),
 		field.Int("max_output_tokens").Default(0),
 		field.Bool("enabled").Default(true),
+		// is_default 默认模型：调用方不指定 model 时使用；全局至多一个（设置时在同一事务里清掉其他模型的标记）。
+		field.Bool("is_default").Default(false),
+		// 价格表：每百万 token 的价格，单位「微元」（1 元 = 1e6），避免浮点误差。
+		field.Int64("price_input_micros").Default(0).Min(0).Comment("未命中缓存的输入，每百万 token"),
+		field.Int64("price_cached_micros").Default(0).Min(0).Comment("命中缓存的输入，每百万 token"),
+		field.Int64("price_output_micros").Default(0).Min(0).Comment("输出（含思考 token），每百万 token"),
+		field.String("currency").Default("CNY").MaxLen(8),
 	}
 }
 

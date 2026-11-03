@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -19,7 +20,19 @@ const keyVersion = 1
 var ErrNoMasterKey = errors.New("gateway: 未配置主密钥（HENGDESK_MASTER_KEY_FILE 或 HENGDESK_MASTER_KEY）")
 
 // Keyring 用主密钥做 AES-256-GCM 加解密。
-type Keyring struct{ aead cipher.AEAD }
+type Keyring struct {
+	aead cipher.AEAD
+	fp   string
+}
+
+// Fingerprint 主密钥指纹（sha256("hengdesk-master-key-fp/" || key) 前 16 位 hex），用于界面展示与「已备份」确认，
+// 不能反推密钥。轮换后指纹变化，备份确认随之失效。
+func (k *Keyring) Fingerprint() string {
+	if k == nil {
+		return ""
+	}
+	return k.fp
+}
 
 // NewKeyring 由 32 字节主密钥构造。
 func NewKeyring(master []byte) (*Keyring, error) {
@@ -34,7 +47,8 @@ func NewKeyring(master []byte) (*Keyring, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Keyring{aead: a}, nil
+	sum := sha256.Sum256(append([]byte("hengdesk-master-key-fp/"), master...))
+	return &Keyring{aead: a, fp: hex.EncodeToString(sum[:8])}, nil
 }
 
 // ParseMasterKey 接受 64 位 hex 或 base64（标准 / URL，可无填充）编码的 32 字节。

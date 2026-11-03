@@ -253,6 +253,24 @@ func (c *Client) Stream(ctx context.Context, req *ChatRequest, up Upstream, m Mo
 	sawReasoning := false
 	calls := map[int]*ToolCall{}
 	var usage *wireUsage
+	// fail 流已开始后出错：附上已产生的用量（上游给过 usage 就用上游的，否则按已收到的内容估算并标记 Estimated），
+	// 供计量记录中断前消耗的 token。
+	fail := func(e *Error) (*ChatResponse, *Error) {
+		var u Usage
+		if usage != nil {
+			u = usage.toUsage()
+		} else {
+			part := Message{Role: "assistant"}
+			part.Content, _ = json.Marshal(content.String())
+			if reasoning.Len() > 0 {
+				r := reasoning.String()
+				part.ReasoningContent = &r
+			}
+			u = Estimate(req.Messages, part)
+		}
+		e.Usage = &u
+		return nil, e
+	}
 	sc := bufio.NewScanner(resp.Body)
 	sc.Buffer(make([]byte, 64<<10), 16<<20)
 	done := false
@@ -270,7 +288,7 @@ func (c *Client) Stream(ctx context.Context, req *ChatRequest, up Upstream, m Mo
 		var w wireResponse
 		if err := json.Unmarshal([]byte(data), &w); err != nil {
 			// 有些上游在流里发 {"error":...}
-			return nil, newErr(http.StatusBadGateway, CodeUpstreamProtocol, "上游流式数据无法解析")
+			return fail(newErr(http.StatusBadGateway, CodeUpstreamProtocol, "上游流式数据无法解析"))
 		}
 		if w.ID != "" {
 			out.ID = w.ID
@@ -327,23 +345,23 @@ func (c *Client) Stream(ctx context.Context, req *ChatRequest, up Upstream, m Mo
 			}
 			if d.Content != "" || d.ReasoningContent != "" || len(d.ToolCalls) > 0 || d.FinishReason != "" {
 				if err := onDelta(d); err != nil {
-					return nil, newErr(499, "client_closed", "调用方已断开")
+					return fail(newErr(499, "client_closed", "调用方已断开"))
 				}
 			}
 		}
 	}
 	if err := sc.Err(); err != nil || !done {
 		if timedOut.Load() {
-			return nil, newErr(http.StatusGatewayTimeout, CodeUpstreamTimeout, "上游流式响应超时（%s 内没有收到数据）", idle)
+			return fail(newErr(http.StatusGatewayTimeout, CodeUpstreamTimeout, "上游流式响应超时（%s 内没有收到数据）", idle))
 		}
 		if ctx.Err() != nil && !timedOut.Load() {
-			return nil, newErr(499, "client_closed", "调用方已断开")
+			return fail(newErr(499, "client_closed", "调用方已断开"))
 		}
 		if err != nil {
-			return nil, newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "上游流中断")
+			return fail(newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "上游流中断"))
 		}
 		if out.FinishReason == "" {
-			return nil, newErr(http.StatusBadGateway, CodeUpstreamProtocol, "上游流未正常结束")
+			return fail(newErr(http.StatusBadGateway, CodeUpstreamProtocol, "上游流未正常结束"))
 		}
 	}
 	msg := Message{Role: "assistant"}
@@ -410,4 +428,43 @@ func Estimate(prompt []Message, completion Message) Usage {
 	u.CompletionTokens = count(text(completion))
 	u.TotalTokens = u.PromptTokens + u.CompletionTokens
 	return u
+}
+
+// ListModels 调用上游 GET {base}/models，用于管理员「测试连接」：验证地址可达、Key 有效，返回上游可用模型 ID。
+func (c *Client) ListModels(ctx context.Context, up Upstream) ([]string, *Error) {
+	ctx, cancel := context.WithTimeout(ctx, timeoutOf(up))
+	defer cancel()
+	url := strings.TrimRight(up.BaseURL, "/") + "/models"
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "上游地址无效")
+	}
+	if up.APIKey != "" {
+		r.Header.Set("Authorization", "Bearer "+up.APIKey)
+	}
+	resp, err := c.httpClient().Do(r)
+	if err != nil {
+		if ctx.Err() != nil || isTimeout(err) {
+			return nil, newErr(http.StatusGatewayTimeout, CodeUpstreamTimeout, "上游响应超时")
+		}
+		return nil, newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "无法连接上游：%s", Redact(err.Error(), up.APIKey))
+	}
+	defer func() { _ = resp.Body.Close() }()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode/100 != 2 {
+		return nil, upstreamError(resp.StatusCode, raw, up.APIKey)
+	}
+	var w struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(raw, &w); err != nil {
+		return nil, newErr(http.StatusBadGateway, CodeUpstreamProtocol, "上游 /models 返回无法解析")
+	}
+	ids := make([]string, 0, len(w.Data))
+	for _, d := range w.Data {
+		ids = append(ids, d.ID)
+	}
+	return ids, nil
 }

@@ -139,6 +139,76 @@ func (_c *ModelCreate) SetNillableEnabled(v *bool) *ModelCreate {
 	return _c
 }
 
+// SetIsDefault sets the "is_default" field.
+func (_c *ModelCreate) SetIsDefault(v bool) *ModelCreate {
+	_c.mutation.SetIsDefault(v)
+	return _c
+}
+
+// SetNillableIsDefault sets the "is_default" field if the given value is not nil.
+func (_c *ModelCreate) SetNillableIsDefault(v *bool) *ModelCreate {
+	if v != nil {
+		_c.SetIsDefault(*v)
+	}
+	return _c
+}
+
+// SetPriceInputMicros sets the "price_input_micros" field.
+func (_c *ModelCreate) SetPriceInputMicros(v int64) *ModelCreate {
+	_c.mutation.SetPriceInputMicros(v)
+	return _c
+}
+
+// SetNillablePriceInputMicros sets the "price_input_micros" field if the given value is not nil.
+func (_c *ModelCreate) SetNillablePriceInputMicros(v *int64) *ModelCreate {
+	if v != nil {
+		_c.SetPriceInputMicros(*v)
+	}
+	return _c
+}
+
+// SetPriceCachedMicros sets the "price_cached_micros" field.
+func (_c *ModelCreate) SetPriceCachedMicros(v int64) *ModelCreate {
+	_c.mutation.SetPriceCachedMicros(v)
+	return _c
+}
+
+// SetNillablePriceCachedMicros sets the "price_cached_micros" field if the given value is not nil.
+func (_c *ModelCreate) SetNillablePriceCachedMicros(v *int64) *ModelCreate {
+	if v != nil {
+		_c.SetPriceCachedMicros(*v)
+	}
+	return _c
+}
+
+// SetPriceOutputMicros sets the "price_output_micros" field.
+func (_c *ModelCreate) SetPriceOutputMicros(v int64) *ModelCreate {
+	_c.mutation.SetPriceOutputMicros(v)
+	return _c
+}
+
+// SetNillablePriceOutputMicros sets the "price_output_micros" field if the given value is not nil.
+func (_c *ModelCreate) SetNillablePriceOutputMicros(v *int64) *ModelCreate {
+	if v != nil {
+		_c.SetPriceOutputMicros(*v)
+	}
+	return _c
+}
+
+// SetCurrency sets the "currency" field.
+func (_c *ModelCreate) SetCurrency(v string) *ModelCreate {
+	_c.mutation.SetCurrency(v)
+	return _c
+}
+
+// SetNillableCurrency sets the "currency" field if the given value is not nil.
+func (_c *ModelCreate) SetNillableCurrency(v *string) *ModelCreate {
+	if v != nil {
+		_c.SetCurrency(*v)
+	}
+	return _c
+}
+
 // SetProvider sets the "provider" edge to the ModelProvider entity.
 func (_c *ModelCreate) SetProvider(v *ModelProvider) *ModelCreate {
 	return _c.SetProviderID(v.ID)
@@ -207,6 +277,26 @@ func (_c *ModelCreate) defaults() {
 		v := model.DefaultEnabled
 		_c.mutation.SetEnabled(v)
 	}
+	if _, ok := _c.mutation.IsDefault(); !ok {
+		v := model.DefaultIsDefault
+		_c.mutation.SetIsDefault(v)
+	}
+	if _, ok := _c.mutation.PriceInputMicros(); !ok {
+		v := model.DefaultPriceInputMicros
+		_c.mutation.SetPriceInputMicros(v)
+	}
+	if _, ok := _c.mutation.PriceCachedMicros(); !ok {
+		v := model.DefaultPriceCachedMicros
+		_c.mutation.SetPriceCachedMicros(v)
+	}
+	if _, ok := _c.mutation.PriceOutputMicros(); !ok {
+		v := model.DefaultPriceOutputMicros
+		_c.mutation.SetPriceOutputMicros(v)
+	}
+	if _, ok := _c.mutation.Currency(); !ok {
+		v := model.DefaultCurrency
+		_c.mutation.SetCurrency(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -260,6 +350,41 @@ func (_c *ModelCreate) check() error {
 	}
 	if _, ok := _c.mutation.Enabled(); !ok {
 		return &ValidationError{Name: "enabled", err: errors.New(`ent: missing required field "Model.enabled"`)}
+	}
+	if _, ok := _c.mutation.IsDefault(); !ok {
+		return &ValidationError{Name: "is_default", err: errors.New(`ent: missing required field "Model.is_default"`)}
+	}
+	if _, ok := _c.mutation.PriceInputMicros(); !ok {
+		return &ValidationError{Name: "price_input_micros", err: errors.New(`ent: missing required field "Model.price_input_micros"`)}
+	}
+	if v, ok := _c.mutation.PriceInputMicros(); ok {
+		if err := model.PriceInputMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "price_input_micros", err: fmt.Errorf(`ent: validator failed for field "Model.price_input_micros": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.PriceCachedMicros(); !ok {
+		return &ValidationError{Name: "price_cached_micros", err: errors.New(`ent: missing required field "Model.price_cached_micros"`)}
+	}
+	if v, ok := _c.mutation.PriceCachedMicros(); ok {
+		if err := model.PriceCachedMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "price_cached_micros", err: fmt.Errorf(`ent: validator failed for field "Model.price_cached_micros": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.PriceOutputMicros(); !ok {
+		return &ValidationError{Name: "price_output_micros", err: errors.New(`ent: missing required field "Model.price_output_micros"`)}
+	}
+	if v, ok := _c.mutation.PriceOutputMicros(); ok {
+		if err := model.PriceOutputMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "price_output_micros", err: fmt.Errorf(`ent: validator failed for field "Model.price_output_micros": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Currency(); !ok {
+		return &ValidationError{Name: "currency", err: errors.New(`ent: missing required field "Model.currency"`)}
+	}
+	if v, ok := _c.mutation.Currency(); ok {
+		if err := model.CurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "Model.currency": %w`, err)}
+		}
 	}
 	if len(_c.mutation.ProviderIDs()) == 0 {
 		return &ValidationError{Name: "provider", err: errors.New(`ent: missing required edge "Model.provider"`)}
@@ -326,6 +451,26 @@ func (_c *ModelCreate) createSpec() (*Model, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Enabled(); ok {
 		_spec.SetField(model.FieldEnabled, field.TypeBool, value)
 		_node.Enabled = value
+	}
+	if value, ok := _c.mutation.IsDefault(); ok {
+		_spec.SetField(model.FieldIsDefault, field.TypeBool, value)
+		_node.IsDefault = value
+	}
+	if value, ok := _c.mutation.PriceInputMicros(); ok {
+		_spec.SetField(model.FieldPriceInputMicros, field.TypeInt64, value)
+		_node.PriceInputMicros = value
+	}
+	if value, ok := _c.mutation.PriceCachedMicros(); ok {
+		_spec.SetField(model.FieldPriceCachedMicros, field.TypeInt64, value)
+		_node.PriceCachedMicros = value
+	}
+	if value, ok := _c.mutation.PriceOutputMicros(); ok {
+		_spec.SetField(model.FieldPriceOutputMicros, field.TypeInt64, value)
+		_node.PriceOutputMicros = value
+	}
+	if value, ok := _c.mutation.Currency(); ok {
+		_spec.SetField(model.FieldCurrency, field.TypeString, value)
+		_node.Currency = value
 	}
 	if nodes := _c.mutation.ProviderIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -516,6 +661,84 @@ func (u *ModelUpsert) UpdateEnabled() *ModelUpsert {
 	return u
 }
 
+// SetIsDefault sets the "is_default" field.
+func (u *ModelUpsert) SetIsDefault(v bool) *ModelUpsert {
+	u.Set(model.FieldIsDefault, v)
+	return u
+}
+
+// UpdateIsDefault sets the "is_default" field to the value that was provided on create.
+func (u *ModelUpsert) UpdateIsDefault() *ModelUpsert {
+	u.SetExcluded(model.FieldIsDefault)
+	return u
+}
+
+// SetPriceInputMicros sets the "price_input_micros" field.
+func (u *ModelUpsert) SetPriceInputMicros(v int64) *ModelUpsert {
+	u.Set(model.FieldPriceInputMicros, v)
+	return u
+}
+
+// UpdatePriceInputMicros sets the "price_input_micros" field to the value that was provided on create.
+func (u *ModelUpsert) UpdatePriceInputMicros() *ModelUpsert {
+	u.SetExcluded(model.FieldPriceInputMicros)
+	return u
+}
+
+// AddPriceInputMicros adds v to the "price_input_micros" field.
+func (u *ModelUpsert) AddPriceInputMicros(v int64) *ModelUpsert {
+	u.Add(model.FieldPriceInputMicros, v)
+	return u
+}
+
+// SetPriceCachedMicros sets the "price_cached_micros" field.
+func (u *ModelUpsert) SetPriceCachedMicros(v int64) *ModelUpsert {
+	u.Set(model.FieldPriceCachedMicros, v)
+	return u
+}
+
+// UpdatePriceCachedMicros sets the "price_cached_micros" field to the value that was provided on create.
+func (u *ModelUpsert) UpdatePriceCachedMicros() *ModelUpsert {
+	u.SetExcluded(model.FieldPriceCachedMicros)
+	return u
+}
+
+// AddPriceCachedMicros adds v to the "price_cached_micros" field.
+func (u *ModelUpsert) AddPriceCachedMicros(v int64) *ModelUpsert {
+	u.Add(model.FieldPriceCachedMicros, v)
+	return u
+}
+
+// SetPriceOutputMicros sets the "price_output_micros" field.
+func (u *ModelUpsert) SetPriceOutputMicros(v int64) *ModelUpsert {
+	u.Set(model.FieldPriceOutputMicros, v)
+	return u
+}
+
+// UpdatePriceOutputMicros sets the "price_output_micros" field to the value that was provided on create.
+func (u *ModelUpsert) UpdatePriceOutputMicros() *ModelUpsert {
+	u.SetExcluded(model.FieldPriceOutputMicros)
+	return u
+}
+
+// AddPriceOutputMicros adds v to the "price_output_micros" field.
+func (u *ModelUpsert) AddPriceOutputMicros(v int64) *ModelUpsert {
+	u.Add(model.FieldPriceOutputMicros, v)
+	return u
+}
+
+// SetCurrency sets the "currency" field.
+func (u *ModelUpsert) SetCurrency(v string) *ModelUpsert {
+	u.Set(model.FieldCurrency, v)
+	return u
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *ModelUpsert) UpdateCurrency() *ModelUpsert {
+	u.SetExcluded(model.FieldCurrency)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -698,6 +921,97 @@ func (u *ModelUpsertOne) SetEnabled(v bool) *ModelUpsertOne {
 func (u *ModelUpsertOne) UpdateEnabled() *ModelUpsertOne {
 	return u.Update(func(s *ModelUpsert) {
 		s.UpdateEnabled()
+	})
+}
+
+// SetIsDefault sets the "is_default" field.
+func (u *ModelUpsertOne) SetIsDefault(v bool) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetIsDefault(v)
+	})
+}
+
+// UpdateIsDefault sets the "is_default" field to the value that was provided on create.
+func (u *ModelUpsertOne) UpdateIsDefault() *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdateIsDefault()
+	})
+}
+
+// SetPriceInputMicros sets the "price_input_micros" field.
+func (u *ModelUpsertOne) SetPriceInputMicros(v int64) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetPriceInputMicros(v)
+	})
+}
+
+// AddPriceInputMicros adds v to the "price_input_micros" field.
+func (u *ModelUpsertOne) AddPriceInputMicros(v int64) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.AddPriceInputMicros(v)
+	})
+}
+
+// UpdatePriceInputMicros sets the "price_input_micros" field to the value that was provided on create.
+func (u *ModelUpsertOne) UpdatePriceInputMicros() *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdatePriceInputMicros()
+	})
+}
+
+// SetPriceCachedMicros sets the "price_cached_micros" field.
+func (u *ModelUpsertOne) SetPriceCachedMicros(v int64) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetPriceCachedMicros(v)
+	})
+}
+
+// AddPriceCachedMicros adds v to the "price_cached_micros" field.
+func (u *ModelUpsertOne) AddPriceCachedMicros(v int64) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.AddPriceCachedMicros(v)
+	})
+}
+
+// UpdatePriceCachedMicros sets the "price_cached_micros" field to the value that was provided on create.
+func (u *ModelUpsertOne) UpdatePriceCachedMicros() *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdatePriceCachedMicros()
+	})
+}
+
+// SetPriceOutputMicros sets the "price_output_micros" field.
+func (u *ModelUpsertOne) SetPriceOutputMicros(v int64) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetPriceOutputMicros(v)
+	})
+}
+
+// AddPriceOutputMicros adds v to the "price_output_micros" field.
+func (u *ModelUpsertOne) AddPriceOutputMicros(v int64) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.AddPriceOutputMicros(v)
+	})
+}
+
+// UpdatePriceOutputMicros sets the "price_output_micros" field to the value that was provided on create.
+func (u *ModelUpsertOne) UpdatePriceOutputMicros() *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdatePriceOutputMicros()
+	})
+}
+
+// SetCurrency sets the "currency" field.
+func (u *ModelUpsertOne) SetCurrency(v string) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetCurrency(v)
+	})
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *ModelUpsertOne) UpdateCurrency() *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdateCurrency()
 	})
 }
 
@@ -1049,6 +1363,97 @@ func (u *ModelUpsertBulk) SetEnabled(v bool) *ModelUpsertBulk {
 func (u *ModelUpsertBulk) UpdateEnabled() *ModelUpsertBulk {
 	return u.Update(func(s *ModelUpsert) {
 		s.UpdateEnabled()
+	})
+}
+
+// SetIsDefault sets the "is_default" field.
+func (u *ModelUpsertBulk) SetIsDefault(v bool) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetIsDefault(v)
+	})
+}
+
+// UpdateIsDefault sets the "is_default" field to the value that was provided on create.
+func (u *ModelUpsertBulk) UpdateIsDefault() *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdateIsDefault()
+	})
+}
+
+// SetPriceInputMicros sets the "price_input_micros" field.
+func (u *ModelUpsertBulk) SetPriceInputMicros(v int64) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetPriceInputMicros(v)
+	})
+}
+
+// AddPriceInputMicros adds v to the "price_input_micros" field.
+func (u *ModelUpsertBulk) AddPriceInputMicros(v int64) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.AddPriceInputMicros(v)
+	})
+}
+
+// UpdatePriceInputMicros sets the "price_input_micros" field to the value that was provided on create.
+func (u *ModelUpsertBulk) UpdatePriceInputMicros() *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdatePriceInputMicros()
+	})
+}
+
+// SetPriceCachedMicros sets the "price_cached_micros" field.
+func (u *ModelUpsertBulk) SetPriceCachedMicros(v int64) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetPriceCachedMicros(v)
+	})
+}
+
+// AddPriceCachedMicros adds v to the "price_cached_micros" field.
+func (u *ModelUpsertBulk) AddPriceCachedMicros(v int64) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.AddPriceCachedMicros(v)
+	})
+}
+
+// UpdatePriceCachedMicros sets the "price_cached_micros" field to the value that was provided on create.
+func (u *ModelUpsertBulk) UpdatePriceCachedMicros() *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdatePriceCachedMicros()
+	})
+}
+
+// SetPriceOutputMicros sets the "price_output_micros" field.
+func (u *ModelUpsertBulk) SetPriceOutputMicros(v int64) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetPriceOutputMicros(v)
+	})
+}
+
+// AddPriceOutputMicros adds v to the "price_output_micros" field.
+func (u *ModelUpsertBulk) AddPriceOutputMicros(v int64) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.AddPriceOutputMicros(v)
+	})
+}
+
+// UpdatePriceOutputMicros sets the "price_output_micros" field to the value that was provided on create.
+func (u *ModelUpsertBulk) UpdatePriceOutputMicros() *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdatePriceOutputMicros()
+	})
+}
+
+// SetCurrency sets the "currency" field.
+func (u *ModelUpsertBulk) SetCurrency(v string) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetCurrency(v)
+	})
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *ModelUpsertBulk) UpdateCurrency() *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdateCurrency()
 	})
 }
 

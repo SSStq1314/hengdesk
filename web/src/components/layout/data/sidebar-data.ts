@@ -1,5 +1,6 @@
 import { zh } from '@/locales/zh-CN'
 import {
+  Bot,
   Building2,
   LayoutDashboard,
   ScrollText,
@@ -35,6 +36,17 @@ export const sidebarData: SidebarData = {
           url: '/roles',
           icon: ShieldCheck,
           perm: 'org.role.read',
+        },
+      ],
+    },
+    {
+      title: zh.nav.ai,
+      items: [
+        {
+          title: zh.nav.models,
+          url: '/models',
+          icon: Bot,
+          perm: 'model.manage',
         },
       ],
     },

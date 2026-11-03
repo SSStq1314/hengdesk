@@ -11,7 +11,6 @@ import (
 
 	"github.com/SSStq1314/hengdesk/server/internal/api"
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
-	"github.com/SSStq1314/hengdesk/server/internal/authz"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway/mockupstream"
@@ -163,11 +162,10 @@ func TestChatNonStreamSSEAndACL(t *testing.T) {
 		t.Fatalf("missing model %d", got)
 	}
 	// 授予 use 后可用
-	org := g.c.Organization.Query().FirstX(ctx)
-	admin := g.c.User.Query().FirstX(ctx)
 	memID := atoi(g.uid(t, "member@x.local"))
-	if err := (&authz.Service{DB: g.c}).Grant(ctx, org.ID, admin.ID, rbac.ResModel, "ds-flash", authz.Subject{Type: "user", ID: memID}, rbac.BitUse); err != nil {
-		t.Fatal(err)
+	mid := g.c.Model.Query().OnlyX(ctx).ID
+	if rec := g.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/models/%d/acl", mid), fmt.Sprintf(`{"subject_type":"user","subject_id":%d}`, memID), true); rec.Code != 204 {
+		t.Fatalf("grant %d %s", rec.Code, rec.Body)
 	}
 	if rec := mem.do(http.MethodPost, "/api/v1/chat/completions", chat, true); rec.Code != 200 {
 		t.Fatalf("with acl %d %s", rec.Code, rec.Body)

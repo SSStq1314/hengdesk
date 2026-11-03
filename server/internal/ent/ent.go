@@ -21,7 +21,9 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/organization"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/systemsetting"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/tool"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/usagerecord"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
 )
 
@@ -92,7 +94,9 @@ func checkColumn(t, c string) error {
 			modelprovider.Table: modelprovider.ValidColumn,
 			organization.Table:  organization.ValidColumn,
 			role.Table:          role.ValidColumn,
+			systemsetting.Table: systemsetting.ValidColumn,
 			tool.Table:          tool.ValidColumn,
+			usagerecord.Table:   usagerecord.ValidColumn,
 			user.Table:          user.ValidColumn,
 		})
 	})

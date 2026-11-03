@@ -37,7 +37,7 @@ import (
 // Main 执行命令行。
 func Main() {
 	root := &cobra.Command{Use: "hengdesk", Short: "衡台 HengDesk 企业 AI 办公平台", SilenceUsage: true}
-	root.AddCommand(serverCmd(), workerCmd(), migrateCmd(), auditCmd())
+	root.AddCommand(serverCmd(), workerCmd(), migrateCmd(), auditCmd(), keysCmd())
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}
@@ -75,10 +75,16 @@ func serverCmd() *cobra.Command {
 		}
 		keys, err := gateway.LoadKeyring(cfg.MasterKeyFile, cfg.MasterKey)
 		if err != nil {
+			return masterKeyLoadError(cfg.MasterKeyFile, err)
+		}
+		// D-36 启动自检：有密文却没有 / 解不开主密钥时明确失败，而不是带病启动。
+		if err := gateway.SelfCheck(context.Background(), client, keys, cfg.Env == "prod"); err != nil {
 			return err
 		}
 		if keys == nil {
 			lg.Warn("model gateway master key not configured; upstream API keys cannot be stored or used")
+		} else {
+			lg.Info("model gateway master key loaded", "file", cfg.MasterKeyFile, "fingerprint", keys.Fingerprint())
 		}
 		gw := &gateway.Service{DB: client, Keys: keys, Client: &gateway.Client{HTTP: &http.Client{
 			Transport: &http.Transport{Proxy: http.ProxyFromEnvironment, ResponseHeaderTimeout: 0, MaxIdleConnsPerHost: 16}}}}
@@ -90,7 +96,7 @@ func serverCmd() *cobra.Command {
 			Passwords: auth.PasswordPolicy{MinLen: cfg.PasswordMinLen},
 		}, System: api.SystemConfig{BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, DiskLowPercent: cfg.DiskLowPercent,
 			PublicHTTPS: cfg.PublicHTTPS, TrustedProxies: cfg.TrustedProxies, TLSCertFile: cfg.TLSCertFile,
-			AuditRetentionDays: cfg.AuditRetentionDays}})
+			AuditRetentionDays: cfg.AuditRetentionDays, MasterKeyPath: masterKeyHostPath(cfg), MasterKeyFingerprint: keys.Fingerprint()}})
 		ctx, stop := signalCtx()
 		defer stop()
 		go func() {
@@ -197,6 +203,7 @@ func migrateCmd() *cobra.Command {
 				return fmt.Errorf("升级前备份失败，已中止升级: %w", err)
 			}
 			lg.Info("升级前备份完成", "file", file)
+			lg.Warn("备份文件不包含主密钥：请把主密钥文件与数据库备份分开保管，丢失后已存的上游 Key 无法恢复", "backup", file)
 			removed, err := backup.Prune(cfg.BackupDir, cfg.BackupKeep)
 			if err != nil {
 				lg.Warn("清理旧备份失败", "err", err)
@@ -251,4 +258,19 @@ func ensureBucket(ctx context.Context, cfg *config.Config) error {
 		case <-time.After(2 * time.Second):
 		}
 	}
+}
+
+// masterKeyHostPath 管理后台展示的主密钥位置：优先 HENGDESK_MASTER_KEY_HOST_PATH（宿主机路径，由 compose 传入），
+// 其次容器内文件路径；用环境变量传入时提示迁移。
+func masterKeyHostPath(cfg *config.Config) string {
+	if v := os.Getenv("HENGDESK_MASTER_KEY_HOST_PATH"); v != "" {
+		return v
+	}
+	if cfg.MasterKeyFile != "" {
+		return cfg.MasterKeyFile
+	}
+	if cfg.MasterKey != "" {
+		return "环境变量 HENGDESK_MASTER_KEY（建议迁移到 secrets/master.key）"
+	}
+	return ""
 }
