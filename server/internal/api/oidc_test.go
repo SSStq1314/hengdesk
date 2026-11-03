@@ -35,7 +35,7 @@ type oidcEnv struct {
 	c   *ent.Client
 }
 
-func newOIDCEnv(t *testing.T, linkBy string, autoCreate bool) *oidcEnv {
+func newOIDCEnv(t *testing.T, linkBy string, autoCreate bool, opts ...func(*auth.Service)) *oidcEnv {
 	t.Helper()
 	c := storetest.NewTestClient(t)
 	ctx := context.Background()
@@ -55,14 +55,17 @@ func newOIDCEnv(t *testing.T, linkBy string, autoCreate bool) *oidcEnv {
 	srv := httptest.NewUnstartedServer(e)
 	srv.Start()
 	t.Cleanup(srv.Close)
-	api.Mount(e, api.Deps{DB: c, Audit: w, Log: slog.Default(),
-		Auth: &auth.Service{DB: c, Audit: w, BcryptCost: bcrypt.MinCost,
-			Sessions:  &session.Store{R: rdb, TTL: time.Hour},
-			Lockout:   &session.Lockout{R: rdb, MaxFailures: 5, Duration: 15 * time.Minute},
-			IPLimit:   &session.RateLimiter{R: rdb, Limit: 100, Window: 10 * time.Minute},
-			Passwords: auth.PasswordPolicy{MinLen: 8},
-			OIDC: &auth.OIDC{R: rdb, Cfg: auth.OIDCConfig{Issuer: idp.URL, ClientID: "hengdesk", ClientSecret: "test-secret",
-				RedirectURL: srv.URL + "/api/v1/auth/oidc/callback", LinkBy: linkBy, AutoCreate: autoCreate, OrgSlug: "o"}}},
+	svc := &auth.Service{DB: c, Audit: w, BcryptCost: bcrypt.MinCost,
+		Sessions:  &session.Store{R: rdb, TTL: time.Hour},
+		Lockout:   &session.Lockout{R: rdb, MaxFailures: 5, Duration: 15 * time.Minute},
+		IPLimit:   &session.RateLimiter{R: rdb, Limit: 100, Window: 10 * time.Minute},
+		Passwords: auth.PasswordPolicy{MinLen: 8},
+		OIDC: &auth.OIDC{R: rdb, Cfg: auth.OIDCConfig{Issuer: idp.URL, ClientID: "hengdesk", ClientSecret: "test-secret",
+			RedirectURL: srv.URL + "/api/v1/auth/oidc/callback", LinkBy: linkBy, AutoCreate: autoCreate, OrgSlug: "o"}}}
+	for _, f := range opts {
+		f(svc)
+	}
+	api.Mount(e, api.Deps{DB: c, Audit: w, Log: slog.Default(), Auth: svc,
 		System: api.SystemConfig{BackupDir: t.TempDir(), BackupKeep: 5, DiskLowPercent: 10}})
 	return &oidcEnv{srv: srv, idp: idp, c: c}
 }
@@ -200,7 +203,7 @@ func TestOIDCDeniedCases(t *testing.T) {
 }
 
 func TestOIDCAutoCreateAndLinkBySub(t *testing.T) {
-	o := newOIDCEnv(t, "sub", true)
+	o := newOIDCEnv(t, "sub", true, func(s *auth.Service) { s.OIDC.Cfg.EmailDomains = []string{"x.local"} })
 	ctx := context.Background()
 	// LinkBy=sub：同邮箱本地账号不会被自动关联或合并
 	o.idp.SetIdentity(oidctest.Identity{Sub: "s1", Email: "member@x.local", EmailVerified: true})

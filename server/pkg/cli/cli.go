@@ -66,10 +66,12 @@ func serverCmd() *cobra.Command {
 		if cfg.OIDCIssuer != "" {
 			oidcSvc = &auth.OIDC{R: rdb, Cfg: auth.OIDCConfig{Issuer: cfg.OIDCIssuer, ClientID: cfg.OIDCClientID,
 				ClientSecret: cfg.OIDCClientSecret, RedirectURL: cfg.OIDCRedirectURL, Scopes: cfg.OIDCScopes,
-				LinkBy: cfg.OIDCLinkBy, AutoCreate: cfg.OIDCAutoCreate, OrgSlug: "default", DisplayName: cfg.OIDCDisplayName}}
-			lg.Info("oidc enabled", "issuer", cfg.OIDCIssuer, "link_by", cfg.OIDCLinkBy, "auto_create", cfg.OIDCAutoCreate)
+				LinkBy: cfg.OIDCLinkBy, AutoCreate: cfg.OIDCAutoCreate, OrgSlug: "default", DisplayName: cfg.OIDCDisplayName,
+				EmailDomains: cfg.OIDCEmailDomains, DeptClaim: cfg.OIDCDeptClaim, DeptMatch: cfg.OIDCDeptMatch, DeptDefault: cfg.OIDCDeptDefault}}
+			lg.Info("oidc enabled", "issuer", cfg.OIDCIssuer, "link_by", cfg.OIDCLinkBy, "auto_create", cfg.OIDCAutoCreate,
+				"auto_create_effective", cfg.OIDCAutoCreate && len(cfg.OIDCEmailDomains) > 0, "dept_claim", cfg.OIDCDeptClaim, "enforce", cfg.OIDCEnforce)
 		}
-		api.Mount(e, api.Deps{DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc,
+		api.Mount(e, api.Deps{DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc, EnforceSSO: cfg.OIDCEnforce, BreakGlass: cfg.OIDCBreakGlass,
 			DB: client, Audit: w, Secure: cfg.CookieSecure,
 			Sessions:  &session.Store{R: rdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle},
 			Lockout:   &session.Lockout{R: rdb, MaxFailures: cfg.LockoutMax, Duration: cfg.LockoutFor},

@@ -4,7 +4,9 @@ package auth
 //
 //   - state / nonce / code_verifier 存 Valkey（10 分钟、一次性），state 同时写入浏览器 cookie，回调时两者必须一致。
 //   - 关联本地用户：先按 (issuer, sub)；LinkBy=email 时再按「已验证」邮箱匹配未关联 SSO 的本地账号并写入 sub。
-//   - 自动建号（AutoCreate）默认关闭；开启后以「成员」角色在默认组织创建。
+//   - 自动建号（AutoCreate，D-34 默认开启）只在邮箱域名白名单非空且命中时生效，只给「成员」角色。
+//   - 特权账号（超级管理员 / 安全审计员）不按邮箱自动关联，拒绝并记审计；只能由管理员手动绑定。
+//   - 部门按 claim 映射（path / code），映射不到归入默认部门；每次登录同步，变化时记审计。
 //   - 成功、拒绝、关联、建号都写审计，且先审计后签发会话（fail-closed）。
 
 import (
@@ -46,6 +48,14 @@ type OIDCConfig struct {
 	LinkBy string
 	// AutoCreate 无匹配本地账号时是否自动建号（默认 false）。
 	AutoCreate bool
+	// EmailDomains 邮箱域名白名单（小写、不含 @）。为空时不自动建号；非空时按邮箱关联也须命中。
+	EmailDomains []string
+	// DeptClaim 部门 claim 名（字符串或字符串数组）；为空不映射。
+	DeptClaim string
+	// DeptMatch path：按部门名路径（如 研发部/后端组）匹配；code：按部门编码（external_id）匹配。
+	DeptMatch string
+	// DeptDefault 映射不到时归入的部门（写法同 DeptMatch）；为空表示不变。
+	DeptDefault string
 	// OrgSlug 自动建号所属组织。
 	OrgSlug string
 	// DisplayName 登录页按钮文案。
@@ -110,7 +120,7 @@ func (s *Service) oidcConfig(c echo.Context) error {
 	if name == "" {
 		name = "企业单点登录"
 	}
-	return c.JSON(http.StatusOK, map[string]any{"enabled": true, "display_name": name})
+	return c.JSON(http.StatusOK, map[string]any{"enabled": true, "display_name": name, "enforced": s.EnforceSSO})
 }
 
 func (s *Service) oidcLogin(c echo.Context) error {
@@ -195,13 +205,24 @@ func (s *Service) oidcCallback(c echo.Context) error {
 		return s.oidcFail(c, e, "nonce_mismatch")
 	}
 	var cl oidcClaims
-	if err := idt.Claims(&cl); err != nil || cl.Sub == "" {
+	all := map[string]any{}
+	if err := idt.Claims(&cl); err != nil || cl.Sub == "" || idt.Claims(&all) != nil {
 		return s.oidcFail(c, e, "claims_invalid")
+	}
+	if dc := s.OIDC.Cfg.DeptClaim; dc != "" {
+		if _, ok := all[dc]; !ok { // 部门 claim 不在 ID Token 时再查 UserInfo
+			if ui, uerr := p.UserInfo(s.OIDC.ctx(ctx), oauth2.StaticTokenSource(tok)); uerr == nil {
+				_ = ui.Claims(&all)
+			}
+		}
 	}
 	cl.Email = strings.ToLower(strings.TrimSpace(cl.Email))
 	e.ActorEmail = cl.Email
 	u, err := s.oidcResolve(c, e, idt.Issuer, cl)
-	if err != nil {
+	var d oidcDenial
+	if errors.As(err, &d) {
+		return s.oidcFail(c, e, d.reason)
+	} else if err != nil {
 		return err
 	}
 	if u == nil {
@@ -209,6 +230,11 @@ func (s *Service) oidcCallback(c echo.Context) error {
 	}
 	if u.Status != user.StatusActive {
 		return s.oidcFail(c, e, "disabled")
+	}
+	if s.OIDC.Cfg.DeptClaim != "" {
+		if err := s.oidcSyncDepts(c, e, u, claimValues(all[s.OIDC.Cfg.DeptClaim])); err != nil {
+			return err
+		}
 	}
 	e.Outcome, e.ActorID, e.OrgID, e.ActorEmail = "success", u.ID, u.OrgID, u.Email
 	e.Detail = map[string]any{"method": "oidc", "issuer": idt.Issuer}
@@ -240,6 +266,14 @@ func (s *Service) oidcResolve(c echo.Context, e audit.Entry, iss string, cl oidc
 			if u.OidcSubject != "" { // 已关联其他 SSO 身份，拒绝改绑
 				return nil, nil
 			}
+			if len(s.OIDC.Cfg.EmailDomains) > 0 && !s.OIDC.domainAllowed(cl.Email) {
+				return nil, oidcDenial{"email_domain_not_allowed"}
+			}
+			if priv, err := IsPrivileged(ctx, s.DB, u.ID); err != nil {
+				return nil, err
+			} else if priv { // D-34：特权账号不按邮箱自动合并，只能由管理员手动绑定
+				return nil, oidcDenial{"privileged_link_refused"}
+			}
 			le := e
 			le.Action, le.Outcome, le.ActorID, le.OrgID = "auth.oidc.link", "success", u.ID, u.OrgID
 			le.ResourceType, le.ResourceID = "user", u.Email
@@ -254,6 +288,9 @@ func (s *Service) oidcResolve(c echo.Context, e audit.Entry, iss string, cl oidc
 	}
 	if !s.OIDC.Cfg.AutoCreate || cl.Email == "" || !verified {
 		return nil, nil
+	}
+	if !s.OIDC.domainAllowed(cl.Email) { // 白名单为空一律不建号
+		return nil, oidcDenial{"email_domain_not_allowed"}
 	}
 	if exists, err := s.DB.User.Query().Where(user.Email(cl.Email)).Exist(ctx); err != nil || exists {
 		return nil, err // LinkBy=sub 时同邮箱本地账号存在：不自动合并

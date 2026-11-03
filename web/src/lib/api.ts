@@ -59,6 +59,7 @@ export interface Me {
 export interface OIDCConfig {
   enabled: boolean
   display_name?: string
+  enforced?: boolean
 }
 
 export const authApi = {
@@ -125,6 +126,24 @@ export type SystemStatus = {
   disk_low_threshold: number
   disk_low: boolean
   https: boolean
+}
+
+export type HighRiskAlert = {
+  id: number
+  ts: string
+  actor_email: string
+  ip: string
+  detail: { kind?: string; severity?: string }
+}
+
+// 审计员站内通知（D-34）：未读的高风险审计事件。
+export const alertApi = {
+  list: () => api<{ unread: number; items: HighRiskAlert[] }>('/admin/alerts'),
+  markRead: (upToId: number) =>
+    api<void>('/admin/alerts/read', {
+      method: 'POST',
+      body: JSON.stringify({ up_to_id: upToId }),
+    }),
 }
 
 export const systemApi = {
