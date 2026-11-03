@@ -1,0 +1,5 @@
+# 可选：使用外部 S3（AWS S3 / 企业已有 MinIO / 其他兼容实现），不启动内置对象存储。
+# 在 .env 中设置 HENGDESK_S3_ENDPOINT / REGION / ACCESS_KEY / SECRET_KEY / BUCKET / PATH_STYLE。
+services:
+  seaweedfs:
+    profiles: ["disabled"]
