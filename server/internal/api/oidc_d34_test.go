@@ -94,7 +94,7 @@ func (o *oidcEnv) call(t *testing.T, b *http.Client, method, path, body string) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	out := map[string]any{}
 	_ = json.NewDecoder(resp.Body).Decode(&out)
 	return resp.StatusCode, out

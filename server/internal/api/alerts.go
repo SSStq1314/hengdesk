@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -34,7 +35,7 @@ func (h *alertHandlers) list(c echo.Context) error {
 	p := auth.Current(c)
 	ctx := c.Request().Context()
 	last, err := h.r.Get(ctx, alertReadKey(p.ID)).Int()
-	if err != nil && err != redis.Nil {
+	if err != nil && !errors.Is(err, redis.Nil) {
 		return auth.ErrUnavailable
 	}
 	q := h.db.AuditLog.Query().Where(auditlog.Action(auth.AlertAction), auditlog.IDGT(last),
@@ -65,7 +66,7 @@ func (h *alertHandlers) markRead(c echo.Context) error {
 	p := auth.Current(c)
 	ctx := c.Request().Context()
 	last, err := h.r.Get(ctx, alertReadKey(p.ID)).Int()
-	if err != nil && err != redis.Nil {
+	if err != nil && !errors.Is(err, redis.Nil) {
 		return auth.ErrUnavailable
 	}
 	if req.UpTo > last {
