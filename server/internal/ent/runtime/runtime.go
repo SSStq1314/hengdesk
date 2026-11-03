@@ -10,6 +10,8 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/organization"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
@@ -139,6 +141,88 @@ func init() {
 	membershipDescIsPrimary := membershipFields[3].Descriptor()
 	// membership.DefaultIsPrimary holds the default value on creation for the is_primary field.
 	membership.DefaultIsPrimary = membershipDescIsPrimary.Default.(bool)
+	modelMixin := schema.Model{}.Mixin()
+	modelMixinFields0 := modelMixin[0].Fields()
+	_ = modelMixinFields0
+	modelFields := schema.Model{}.Fields()
+	_ = modelFields
+	// modelDescCreatedAt is the schema descriptor for created_at field.
+	modelDescCreatedAt := modelMixinFields0[0].Descriptor()
+	// model.DefaultCreatedAt holds the default value on creation for the created_at field.
+	model.DefaultCreatedAt = modelDescCreatedAt.Default.(func() time.Time)
+	// modelDescUpdatedAt is the schema descriptor for updated_at field.
+	modelDescUpdatedAt := modelMixinFields0[1].Descriptor()
+	// model.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	model.DefaultUpdatedAt = modelDescUpdatedAt.Default.(func() time.Time)
+	// model.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	model.UpdateDefaultUpdatedAt = modelDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// modelDescName is the schema descriptor for name field.
+	modelDescName := modelFields[0].Descriptor()
+	// model.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	model.NameValidator = modelDescName.Validators[0].(func(string) error)
+	// modelDescUpstreamModel is the schema descriptor for upstream_model field.
+	modelDescUpstreamModel := modelFields[2].Descriptor()
+	// model.UpstreamModelValidator is a validator for the "upstream_model" field. It is called by the builders before save.
+	model.UpstreamModelValidator = modelDescUpstreamModel.Validators[0].(func(string) error)
+	// modelDescContextWindow is the schema descriptor for context_window field.
+	modelDescContextWindow := modelFields[5].Descriptor()
+	// model.DefaultContextWindow holds the default value on creation for the context_window field.
+	model.DefaultContextWindow = modelDescContextWindow.Default.(int)
+	// modelDescMaxOutputTokens is the schema descriptor for max_output_tokens field.
+	modelDescMaxOutputTokens := modelFields[6].Descriptor()
+	// model.DefaultMaxOutputTokens holds the default value on creation for the max_output_tokens field.
+	model.DefaultMaxOutputTokens = modelDescMaxOutputTokens.Default.(int)
+	// modelDescEnabled is the schema descriptor for enabled field.
+	modelDescEnabled := modelFields[7].Descriptor()
+	// model.DefaultEnabled holds the default value on creation for the enabled field.
+	model.DefaultEnabled = modelDescEnabled.Default.(bool)
+	modelproviderMixin := schema.ModelProvider{}.Mixin()
+	modelproviderMixinFields0 := modelproviderMixin[0].Fields()
+	_ = modelproviderMixinFields0
+	modelproviderFields := schema.ModelProvider{}.Fields()
+	_ = modelproviderFields
+	// modelproviderDescCreatedAt is the schema descriptor for created_at field.
+	modelproviderDescCreatedAt := modelproviderMixinFields0[0].Descriptor()
+	// modelprovider.DefaultCreatedAt holds the default value on creation for the created_at field.
+	modelprovider.DefaultCreatedAt = modelproviderDescCreatedAt.Default.(func() time.Time)
+	// modelproviderDescUpdatedAt is the schema descriptor for updated_at field.
+	modelproviderDescUpdatedAt := modelproviderMixinFields0[1].Descriptor()
+	// modelprovider.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	modelprovider.DefaultUpdatedAt = modelproviderDescUpdatedAt.Default.(func() time.Time)
+	// modelprovider.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	modelprovider.UpdateDefaultUpdatedAt = modelproviderDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// modelproviderDescName is the schema descriptor for name field.
+	modelproviderDescName := modelproviderFields[0].Descriptor()
+	// modelprovider.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	modelprovider.NameValidator = modelproviderDescName.Validators[0].(func(string) error)
+	// modelproviderDescBaseURL is the schema descriptor for base_url field.
+	modelproviderDescBaseURL := modelproviderFields[3].Descriptor()
+	// modelprovider.BaseURLValidator is a validator for the "base_url" field. It is called by the builders before save.
+	modelprovider.BaseURLValidator = modelproviderDescBaseURL.Validators[0].(func(string) error)
+	// modelproviderDescEnabled is the schema descriptor for enabled field.
+	modelproviderDescEnabled := modelproviderFields[5].Descriptor()
+	// modelprovider.DefaultEnabled holds the default value on creation for the enabled field.
+	modelprovider.DefaultEnabled = modelproviderDescEnabled.Default.(bool)
+	// modelproviderDescTimeoutSeconds is the schema descriptor for timeout_seconds field.
+	modelproviderDescTimeoutSeconds := modelproviderFields[6].Descriptor()
+	// modelprovider.DefaultTimeoutSeconds holds the default value on creation for the timeout_seconds field.
+	modelprovider.DefaultTimeoutSeconds = modelproviderDescTimeoutSeconds.Default.(int)
+	// modelprovider.TimeoutSecondsValidator is a validator for the "timeout_seconds" field. It is called by the builders before save.
+	modelprovider.TimeoutSecondsValidator = func() func(int) error {
+		validators := modelproviderDescTimeoutSeconds.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(timeout_seconds int) error {
+			for _, fn := range fns {
+				if err := fn(timeout_seconds); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	organizationMixin := schema.Organization{}.Mixin()
 	organizationMixinFields0 := organizationMixin[0].Fields()
 	_ = organizationMixinFields0

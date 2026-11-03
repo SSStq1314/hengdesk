@@ -52,6 +52,10 @@ type Config struct {
 	// AuditArchiveSignKeyFile 归档包 Ed25519 签名私钥文件（hex 编码的 32 字节种子）；为空不签名。
 	AuditArchiveSignKeyFile string
 	DiskLowPercent          int
+	// MasterKeyFile / MasterKey 模型网关主密钥（32 字节，hex 或 base64），用于 AES-256-GCM 加密上游 API Key；
+	// 文件优先。都为空时不能保存或使用上游密钥。
+	MasterKeyFile string
+	MasterKey     string
 	// OIDC 单点登录（OIDCIssuer 为空表示未启用）。
 	OIDCIssuer       string
 	OIDCClientID     string
@@ -202,6 +206,8 @@ func Load() (*Config, error) {
 		BackupKeep:              keep,
 		AuditRetentionDays:      retention,
 		AuditArchiveSignKeyFile: get("AUDIT_ARCHIVE_SIGN_KEY_FILE", ""),
+		MasterKeyFile:           get("MASTER_KEY_FILE", ""),
+		MasterKey:               get("MASTER_KEY", ""),
 		DiskLowPercent:          low,
 		OIDCIssuer:              get("OIDC_ISSUER", ""),
 		OIDCClientID:            get("OIDC_CLIENT_ID", ""),

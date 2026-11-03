@@ -20,6 +20,8 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/organization"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/tool"
@@ -41,6 +43,10 @@ type Client struct {
 	DeptClosure *DeptClosureClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
+	// Model is the client for interacting with the Model builders.
+	Model *ModelClient
+	// ModelProvider is the client for interacting with the ModelProvider builders.
+	ModelProvider *ModelProviderClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// Role is the client for interacting with the Role builders.
@@ -65,6 +71,8 @@ func (c *Client) init() {
 	c.Department = NewDepartmentClient(c.config)
 	c.DeptClosure = NewDeptClosureClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
+	c.Model = NewModelClient(c.config)
+	c.ModelProvider = NewModelProviderClient(c.config)
 	c.Organization = NewOrganizationClient(c.config)
 	c.Role = NewRoleClient(c.config)
 	c.Tool = NewToolClient(c.config)
@@ -159,17 +167,19 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:          ctx,
-		config:       cfg,
-		ACL:          NewACLClient(cfg),
-		AuditLog:     NewAuditLogClient(cfg),
-		Department:   NewDepartmentClient(cfg),
-		DeptClosure:  NewDeptClosureClient(cfg),
-		Membership:   NewMembershipClient(cfg),
-		Organization: NewOrganizationClient(cfg),
-		Role:         NewRoleClient(cfg),
-		Tool:         NewToolClient(cfg),
-		User:         NewUserClient(cfg),
+		ctx:           ctx,
+		config:        cfg,
+		ACL:           NewACLClient(cfg),
+		AuditLog:      NewAuditLogClient(cfg),
+		Department:    NewDepartmentClient(cfg),
+		DeptClosure:   NewDeptClosureClient(cfg),
+		Membership:    NewMembershipClient(cfg),
+		Model:         NewModelClient(cfg),
+		ModelProvider: NewModelProviderClient(cfg),
+		Organization:  NewOrganizationClient(cfg),
+		Role:          NewRoleClient(cfg),
+		Tool:          NewToolClient(cfg),
+		User:          NewUserClient(cfg),
 	}, nil
 }
 
@@ -187,17 +197,19 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:          ctx,
-		config:       cfg,
-		ACL:          NewACLClient(cfg),
-		AuditLog:     NewAuditLogClient(cfg),
-		Department:   NewDepartmentClient(cfg),
-		DeptClosure:  NewDeptClosureClient(cfg),
-		Membership:   NewMembershipClient(cfg),
-		Organization: NewOrganizationClient(cfg),
-		Role:         NewRoleClient(cfg),
-		Tool:         NewToolClient(cfg),
-		User:         NewUserClient(cfg),
+		ctx:           ctx,
+		config:        cfg,
+		ACL:           NewACLClient(cfg),
+		AuditLog:      NewAuditLogClient(cfg),
+		Department:    NewDepartmentClient(cfg),
+		DeptClosure:   NewDeptClosureClient(cfg),
+		Membership:    NewMembershipClient(cfg),
+		Model:         NewModelClient(cfg),
+		ModelProvider: NewModelProviderClient(cfg),
+		Organization:  NewOrganizationClient(cfg),
+		Role:          NewRoleClient(cfg),
+		Tool:          NewToolClient(cfg),
+		User:          NewUserClient(cfg),
 	}, nil
 }
 
@@ -227,8 +239,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.ACL, c.AuditLog, c.Department, c.DeptClosure, c.Membership, c.Organization,
-		c.Role, c.Tool, c.User,
+		c.ACL, c.AuditLog, c.Department, c.DeptClosure, c.Membership, c.Model,
+		c.ModelProvider, c.Organization, c.Role, c.Tool, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -238,8 +250,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.ACL, c.AuditLog, c.Department, c.DeptClosure, c.Membership, c.Organization,
-		c.Role, c.Tool, c.User,
+		c.ACL, c.AuditLog, c.Department, c.DeptClosure, c.Membership, c.Model,
+		c.ModelProvider, c.Organization, c.Role, c.Tool, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -258,6 +270,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.DeptClosure.mutate(ctx, m)
 	case *MembershipMutation:
 		return c.Membership.mutate(ctx, m)
+	case *ModelMutation:
+		return c.Model.mutate(ctx, m)
+	case *ModelProviderMutation:
+		return c.ModelProvider.mutate(ctx, m)
 	case *OrganizationMutation:
 		return c.Organization.mutate(ctx, m)
 	case *RoleMutation:
@@ -1049,6 +1065,304 @@ func (c *MembershipClient) mutate(ctx context.Context, m *MembershipMutation) (V
 	}
 }
 
+// ModelClient is a client for the Model schema.
+type ModelClient struct {
+	config
+}
+
+// NewModelClient returns a client for the Model from the given config.
+func NewModelClient(c config) *ModelClient {
+	return &ModelClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `model.Hooks(f(g(h())))`.
+func (c *ModelClient) Use(hooks ...Hook) {
+	c.hooks.Model = append(c.hooks.Model, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `model.Intercept(f(g(h())))`.
+func (c *ModelClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Model = append(c.inters.Model, interceptors...)
+}
+
+// Create returns a builder for creating a Model entity.
+func (c *ModelClient) Create() *ModelCreate {
+	mutation := newModelMutation(c.config, OpCreate)
+	return &ModelCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Model entities.
+func (c *ModelClient) CreateBulk(builders ...*ModelCreate) *ModelCreateBulk {
+	return &ModelCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ModelClient) MapCreateBulk(slice any, setFunc func(*ModelCreate, int)) *ModelCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ModelCreateBulk{err: fmt.Errorf("calling to ModelClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ModelCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ModelCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Model.
+func (c *ModelClient) Update() *ModelUpdate {
+	mutation := newModelMutation(c.config, OpUpdate)
+	return &ModelUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ModelClient) UpdateOne(_m *Model) *ModelUpdateOne {
+	mutation := newModelMutation(c.config, OpUpdateOne, withModel(_m))
+	return &ModelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ModelClient) UpdateOneID(id int) *ModelUpdateOne {
+	mutation := newModelMutation(c.config, OpUpdateOne, withModelID(id))
+	return &ModelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Model.
+func (c *ModelClient) Delete() *ModelDelete {
+	mutation := newModelMutation(c.config, OpDelete)
+	return &ModelDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ModelClient) DeleteOne(_m *Model) *ModelDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ModelClient) DeleteOneID(id int) *ModelDeleteOne {
+	builder := c.Delete().Where(model.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ModelDeleteOne{builder}
+}
+
+// Query returns a query builder for Model.
+func (c *ModelClient) Query() *ModelQuery {
+	return &ModelQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeModel},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Model entity by its id.
+func (c *ModelClient) Get(ctx context.Context, id int) (*Model, error) {
+	return c.Query().Where(model.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ModelClient) GetX(ctx context.Context, id int) *Model {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProvider queries the provider edge of a Model.
+func (c *ModelClient) QueryProvider(_m *Model) *ModelProviderQuery {
+	query := (&ModelProviderClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(model.Table, model.FieldID, id),
+			sqlgraph.To(modelprovider.Table, modelprovider.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, model.ProviderTable, model.ProviderColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ModelClient) Hooks() []Hook {
+	return c.hooks.Model
+}
+
+// Interceptors returns the client interceptors.
+func (c *ModelClient) Interceptors() []Interceptor {
+	return c.inters.Model
+}
+
+func (c *ModelClient) mutate(ctx context.Context, m *ModelMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ModelCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ModelUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ModelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ModelDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Model mutation op: %q", m.Op())
+	}
+}
+
+// ModelProviderClient is a client for the ModelProvider schema.
+type ModelProviderClient struct {
+	config
+}
+
+// NewModelProviderClient returns a client for the ModelProvider from the given config.
+func NewModelProviderClient(c config) *ModelProviderClient {
+	return &ModelProviderClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `modelprovider.Hooks(f(g(h())))`.
+func (c *ModelProviderClient) Use(hooks ...Hook) {
+	c.hooks.ModelProvider = append(c.hooks.ModelProvider, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `modelprovider.Intercept(f(g(h())))`.
+func (c *ModelProviderClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ModelProvider = append(c.inters.ModelProvider, interceptors...)
+}
+
+// Create returns a builder for creating a ModelProvider entity.
+func (c *ModelProviderClient) Create() *ModelProviderCreate {
+	mutation := newModelProviderMutation(c.config, OpCreate)
+	return &ModelProviderCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ModelProvider entities.
+func (c *ModelProviderClient) CreateBulk(builders ...*ModelProviderCreate) *ModelProviderCreateBulk {
+	return &ModelProviderCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ModelProviderClient) MapCreateBulk(slice any, setFunc func(*ModelProviderCreate, int)) *ModelProviderCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ModelProviderCreateBulk{err: fmt.Errorf("calling to ModelProviderClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ModelProviderCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ModelProviderCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ModelProvider.
+func (c *ModelProviderClient) Update() *ModelProviderUpdate {
+	mutation := newModelProviderMutation(c.config, OpUpdate)
+	return &ModelProviderUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ModelProviderClient) UpdateOne(_m *ModelProvider) *ModelProviderUpdateOne {
+	mutation := newModelProviderMutation(c.config, OpUpdateOne, withModelProvider(_m))
+	return &ModelProviderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ModelProviderClient) UpdateOneID(id int) *ModelProviderUpdateOne {
+	mutation := newModelProviderMutation(c.config, OpUpdateOne, withModelProviderID(id))
+	return &ModelProviderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ModelProvider.
+func (c *ModelProviderClient) Delete() *ModelProviderDelete {
+	mutation := newModelProviderMutation(c.config, OpDelete)
+	return &ModelProviderDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ModelProviderClient) DeleteOne(_m *ModelProvider) *ModelProviderDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ModelProviderClient) DeleteOneID(id int) *ModelProviderDeleteOne {
+	builder := c.Delete().Where(modelprovider.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ModelProviderDeleteOne{builder}
+}
+
+// Query returns a query builder for ModelProvider.
+func (c *ModelProviderClient) Query() *ModelProviderQuery {
+	return &ModelProviderQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeModelProvider},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ModelProvider entity by its id.
+func (c *ModelProviderClient) Get(ctx context.Context, id int) (*ModelProvider, error) {
+	return c.Query().Where(modelprovider.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ModelProviderClient) GetX(ctx context.Context, id int) *ModelProvider {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryModels queries the models edge of a ModelProvider.
+func (c *ModelProviderClient) QueryModels(_m *ModelProvider) *ModelQuery {
+	query := (&ModelClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(modelprovider.Table, modelprovider.FieldID, id),
+			sqlgraph.To(model.Table, model.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, modelprovider.ModelsTable, modelprovider.ModelsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ModelProviderClient) Hooks() []Hook {
+	return c.hooks.ModelProvider
+}
+
+// Interceptors returns the client interceptors.
+func (c *ModelProviderClient) Interceptors() []Interceptor {
+	return c.inters.ModelProvider
+}
+
+func (c *ModelProviderClient) mutate(ctx context.Context, m *ModelProviderMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ModelProviderCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ModelProviderUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ModelProviderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ModelProviderDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ModelProvider mutation op: %q", m.Op())
+	}
+}
+
 // OrganizationClient is a client for the Organization schema.
 type OrganizationClient struct {
 	config
@@ -1664,11 +1978,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		ACL, AuditLog, Department, DeptClosure, Membership, Organization, Role, Tool,
-		User []ent.Hook
+		ACL, AuditLog, Department, DeptClosure, Membership, Model, ModelProvider,
+		Organization, Role, Tool, User []ent.Hook
 	}
 	inters struct {
-		ACL, AuditLog, Department, DeptClosure, Membership, Organization, Role, Tool,
-		User []ent.Interceptor
+		ACL, AuditLog, Department, DeptClosure, Membership, Model, ModelProvider,
+		Organization, Role, Tool, User []ent.Interceptor
 	}
 )

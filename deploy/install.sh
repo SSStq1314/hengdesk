@@ -164,6 +164,13 @@ if [ "$TLS" = 1 ]; then
   fi
   [ "$HTTPS_PORT" != "$HTTP_PORT" ] && [ "$HTTPS_PORT" != "$REDIRECT_PORT" ] || die "--https-port 与其他端口冲突"
 fi
+# 模型网关主密钥（AES-256-GCM，加密上游 API Key）：只在不存在时生成，--force 重装也不会覆盖，
+# 否则已保存的上游密钥将无法解密。
+mkdir -p secrets && chmod 700 secrets
+if [ ! -s secrets/master.key ]; then
+  head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > secrets/master.key && chmod 600 secrets/master.key
+  echo "已生成模型网关主密钥 $(pwd)/secrets/master.key，请与数据库备份分开妥善保管"
+fi
 cat > .env <<ENV
 # 由 install.sh 于 $(date '+%Y-%m-%d %H:%M:%S %z') 生成，存储：$STORAGE
 COMPOSE_FILE=$COMPOSE_FILE
@@ -189,6 +196,7 @@ HENGDESK_S3_BUCKET=$S3_BUCKET
 HENGDESK_S3_ACCESS_KEY=$S3_AK
 HENGDESK_S3_SECRET_KEY=$S3_SK
 HENGDESK_S3_PATH_STYLE=$S3_PATH_STYLE
+HENGDESK_MASTER_KEY=$(cat secrets/master.key)
 ENV
 
 echo "已生成 $(pwd)/.env（权限 600），compose 文件：$COMPOSE_FILE"

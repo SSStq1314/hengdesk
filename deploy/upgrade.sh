@@ -12,6 +12,13 @@ if grep -q 'docker-compose.tls.yml' .env && ! grep -q '^HENGDESK_HTTP_REDIRECT='
   printf 'HENGDESK_HTTP_REDIRECT=true\nHENGDESK_REDIRECT_PORT=80\n' >> .env
   echo "==> 已为旧 .env 补上 HTTP 跳转配置（保持 80 跳转 443）"
 fi
+# 兼容旧 .env（模型网关之前生成）：补上主密钥，已有 secrets/master.key 时沿用。
+if ! grep -q '^HENGDESK_MASTER_KEY=' .env; then
+  (umask 077; mkdir -p secrets
+   [ -s secrets/master.key ] || head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > secrets/master.key)
+  printf 'HENGDESK_MASTER_KEY=%s\n' "$(cat secrets/master.key)" >> .env
+  echo "==> 已生成模型网关主密钥 secrets/master.key 并写入 .env（请妥善保管）"
+fi
 if [ "${1:-}" = "--build" ]; then docker compose build migrate; fi
 echo "==> 停止 server / worker（停写，保证备份一致）"
 docker compose stop server worker

@@ -25,6 +25,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
 	"github.com/SSStq1314/hengdesk/server/internal/backup"
 	"github.com/SSStq1314/hengdesk/server/internal/config"
+	"github.com/SSStq1314/hengdesk/server/internal/gateway"
 	"github.com/SSStq1314/hengdesk/server/internal/httpserver"
 	hlog "github.com/SSStq1314/hengdesk/server/internal/log"
 	"github.com/SSStq1314/hengdesk/server/internal/objstore"
@@ -72,7 +73,16 @@ func serverCmd() *cobra.Command {
 			lg.Info("oidc enabled", "issuer", cfg.OIDCIssuer, "link_by", cfg.OIDCLinkBy, "auto_create", cfg.OIDCAutoCreate,
 				"auto_create_effective", cfg.OIDCAutoCreate && len(cfg.OIDCEmailDomains) > 0, "dept_claim", cfg.OIDCDeptClaim, "enforce", cfg.OIDCEnforce)
 		}
-		api.Mount(e, api.Deps{DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc, EnforceSSO: cfg.OIDCEnforce, BreakGlass: cfg.OIDCBreakGlass,
+		keys, err := gateway.LoadKeyring(cfg.MasterKeyFile, cfg.MasterKey)
+		if err != nil {
+			return err
+		}
+		if keys == nil {
+			lg.Warn("model gateway master key not configured; upstream API keys cannot be stored or used")
+		}
+		gw := &gateway.Service{DB: client, Keys: keys, Client: &gateway.Client{HTTP: &http.Client{
+			Transport: &http.Transport{Proxy: http.ProxyFromEnvironment, ResponseHeaderTimeout: 0, MaxIdleConnsPerHost: 16}}}}
+		api.Mount(e, api.Deps{Gateway: gw, DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc, EnforceSSO: cfg.OIDCEnforce, BreakGlass: cfg.OIDCBreakGlass,
 			DB: client, Audit: w, Secure: cfg.CookieSecure,
 			Sessions:  &session.Store{R: rdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle},
 			Lockout:   &session.Lockout{R: rdb, MaxFailures: cfg.LockoutMax, Duration: cfg.LockoutFor},

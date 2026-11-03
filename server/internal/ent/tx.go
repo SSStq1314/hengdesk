@@ -22,6 +22,10 @@ type Tx struct {
 	DeptClosure *DeptClosureClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
+	// Model is the client for interacting with the Model builders.
+	Model *ModelClient
+	// ModelProvider is the client for interacting with the ModelProvider builders.
+	ModelProvider *ModelProviderClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// Role is the client for interacting with the Role builders.
@@ -166,6 +170,8 @@ func (tx *Tx) init() {
 	tx.Department = NewDepartmentClient(tx.config)
 	tx.DeptClosure = NewDeptClosureClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
+	tx.Model = NewModelClient(tx.config)
+	tx.ModelProvider = NewModelProviderClient(tx.config)
 	tx.Organization = NewOrganizationClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
 	tx.Tool = NewToolClient(tx.config)

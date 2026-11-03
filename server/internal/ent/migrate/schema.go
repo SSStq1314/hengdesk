@@ -197,6 +197,53 @@ var (
 			},
 		},
 	}
+	// ModelsColumns holds the columns for the "models" table.
+	ModelsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "name", Type: field.TypeString, Unique: true},
+		{Name: "upstream_model", Type: field.TypeString},
+		{Name: "thinking", Type: field.TypeEnum, Enums: []string{"off", "on", "provider_default"}, Default: "off"},
+		{Name: "tool_choice_policy", Type: field.TypeEnum, Enums: []string{"downgrade", "reject"}, Default: "downgrade"},
+		{Name: "context_window", Type: field.TypeInt, Default: 0},
+		{Name: "max_output_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "provider_id", Type: field.TypeInt},
+	}
+	// ModelsTable holds the schema information for the "models" table.
+	ModelsTable = &schema.Table{
+		Name:       "models",
+		Columns:    ModelsColumns,
+		PrimaryKey: []*schema.Column{ModelsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "models_model_providers_models",
+				Columns:    []*schema.Column{ModelsColumns[10]},
+				RefColumns: []*schema.Column{ModelProvidersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// ModelProvidersColumns holds the columns for the "model_providers" table.
+	ModelProvidersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "name", Type: field.TypeString, Unique: true},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"openai_compat"}, Default: "openai_compat"},
+		{Name: "dialect", Type: field.TypeEnum, Enums: []string{"generic", "deepseek"}, Default: "generic"},
+		{Name: "base_url", Type: field.TypeString},
+		{Name: "api_key_enc", Type: field.TypeBytes, Nullable: true},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "timeout_seconds", Type: field.TypeInt, Default: 120},
+	}
+	// ModelProvidersTable holds the schema information for the "model_providers" table.
+	ModelProvidersTable = &schema.Table{
+		Name:       "model_providers",
+		Columns:    ModelProvidersColumns,
+		PrimaryKey: []*schema.Column{ModelProvidersColumns[0]},
+	}
 	// OrganizationsColumns holds the columns for the "organizations" table.
 	OrganizationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -298,6 +345,8 @@ var (
 		DepartmentsTable,
 		DeptClosureTable,
 		MembershipsTable,
+		ModelsTable,
+		ModelProvidersTable,
 		OrganizationsTable,
 		RolesTable,
 		ToolsTable,
@@ -317,5 +366,6 @@ func init() {
 	MembershipsTable.ForeignKeys[0].RefTable = DepartmentsTable
 	MembershipsTable.ForeignKeys[1].RefTable = RolesTable
 	MembershipsTable.ForeignKeys[2].RefTable = UsersTable
+	ModelsTable.ForeignKeys[0].RefTable = ModelProvidersTable
 	UsersTable.ForeignKeys[0].RefTable = OrganizationsTable
 }
