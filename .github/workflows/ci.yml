@@ -132,7 +132,7 @@ jobs:
         with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
       - name: install.sh 非交互生成 .env
         working-directory: deploy
-        run: ./install.sh --non-interactive --storage ${{ matrix.storage }} --admin-password ci-only-password-123 --force
+        run: ./install.sh --non-interactive --storage ${{ matrix.storage }} --admin-password ci-only-password-123 --auditor-email auditor@hengdesk.local --auditor-password ci-only-auditor-456 --force
       - name: docker compose up
         working-directory: deploy
         run: docker compose up -d --build
@@ -148,6 +148,9 @@ jobs:
             -d '{"email":"admin@hengdesk.local","password":"ci-only-password-123"}' localhost:8080/api/v1/auth/login
           curl -fsS -b /tmp/ck localhost:8080/api/v1/auth/me
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/v1/auth/me)" = 401
+          # 安装时创建的初始安全审计员可登录（D-33）
+          curl -fsS -H 'Content-Type: application/json' \
+            -d '{"email":"auditor@hengdesk.local","password":"ci-only-auditor-456"}' localhost:8080/api/v1/auth/login | grep -q security_auditor
       - name: worker 运行中
         working-directory: deploy
         run: docker compose ps worker --status running --quiet | grep -q .
