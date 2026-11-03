@@ -1,0 +1,436 @@
+{
+ "chat-no-thinking": {
+  "body": {
+   "choices": [
+    {
+     "finish_reason": "stop",
+     "index": 0,
+     "logprobs": null,
+     "message": {
+      "content": "我是DeepSeek，由深度求索公司创造的AI助手，致力于用热情细腻的方式帮助你探索世界、解决问题。",
+      "role": "assistant"
+     }
+    }
+   ],
+   "created": 1793677252,
+   "id": "bd56e685-c76f-450f-91fe-9f1d16178395",
+   "model": "deepseek-flash",
+   "object": "chat.completion",
+   "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+   "usage": {
+    "completion_tokens": 25,
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 9,
+    "prompt_tokens": 9,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    },
+    "total_tokens": 34
+   }
+  },
+  "request_body": {
+   "max_tokens": 256,
+   "messages": [
+    {
+     "content": "用一句话介绍你自己。",
+     "role": "user"
+    }
+   ],
+   "model": "deepseek-flash",
+   "thinking": {
+    "type": "disabled"
+   }
+  },
+  "source_case": "T-disabled/chat#1",
+  "status": 200
+ },
+ "chat-thinking": {
+  "body": {
+   "choices": [
+    {
+     "finish_reason": "stop",
+     "index": 0,
+     "logprobs": null,
+     "message": {
+      "content": "我是 DeepSeek，由深度求索公司创造的 AI 助手，可以帮你解答问题、处理信息和创作内容。",
+      "reasoning_content": "我们需要回答中文，一句话介绍自己。需要符合模型身份。简洁。可以：“我是 DeepSeek，由深度求索公司创造的 AI 助手，能帮你解答问题、处理信息和创作内容。” 一句话。注意不要过度。最终只给一句。",
+      "role": "assistant"
+     }
+    }
+   ],
+   "created": 1793677273,
+   "id": "1bb2ad4c-6791-4fa8-8745-6e6433b8142f",
+   "model": "deepseek-flash",
+   "object": "chat.completion",
+   "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+   "usage": {
+    "completion_tokens": 80,
+    "completion_tokens_details": {
+     "reasoning_tokens": 54
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 35,
+    "prompt_tokens": 35,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    },
+    "total_tokens": 115
+   }
+  },
+  "request_body": {
+   "max_tokens": 2048,
+   "messages": [
+    {
+     "content": "用一句话介绍你自己。",
+     "role": "user"
+    }
+   ],
+   "model": "deepseek-flash",
+   "reasoning_effort": "low",
+   "thinking": {
+    "type": "enabled"
+   }
+  },
+  "source_case": "T-enabled/chat#1",
+  "status": 200
+ },
+ "err-context-too-long": {
+  "body": {
+   "error": {
+    "code": "invalid_request_error",
+    "message": "This model's maximum context length is 1048576 tokens. However, you requested 1300021 tokens (1300005 in the messages, 16 in the completion). Please reduce the length of the messages or completion. (request_id: 48ae29bd-286e-4fd9-a499-132684d0d1cf)",
+    "param": null,
+    "type": "invalid_request_error"
+   }
+  },
+  "request_body": {
+   "max_tokens": 16,
+   "messages": [
+    {
+     "content": "<7800000 bytes omitted>",
+     "role": "user"
+    }
+   ],
+   "model": "deepseek-flash",
+   "thinking": {
+    "type": "disabled"
+   }
+  },
+  "source_case": "err/context-too-long",
+  "status": 400
+ },
+ "err-invalid-key": {
+  "body": {
+   "error": {
+    "code": "invalid_request_error",
+    "message": "Authentication Fails, Your api key: ****<REDACTED> is invalid (request_id: 6693f25d-1801-4d96-bd43-1ec6e2b21592)",
+    "param": null,
+    "type": "authentication_error"
+   }
+  },
+  "request_body": {
+   "max_tokens": 256,
+   "messages": [
+    {
+     "content": "用一句话介绍你自己。",
+     "role": "user"
+    }
+   ],
+   "model": "deepseek-flash",
+   "thinking": {
+    "type": "disabled"
+   }
+  },
+  "source_case": "err/invalid-key",
+  "status": 401
+ },
+ "err-invalid-model": {
+  "body": {
+   "error": {
+    "code": "invalid_request_error",
+    "message": "The supported API model names are deepseek-flash, deepseek-v4-pro, but you passed deepseek-not-exist. (request_id: abceddbf-3761-4412-8271-d9a169127874)",
+    "param": null,
+    "type": "invalid_request_error"
+   }
+  },
+  "request_body": {
+   "max_tokens": 256,
+   "messages": [
+    {
+     "content": "用一句话介绍你自己。",
+     "role": "user"
+    }
+   ],
+   "model": "deepseek-not-exist",
+   "thinking": {
+    "type": "disabled"
+   }
+  },
+  "source_case": "err/invalid-model",
+  "status": 400
+ },
+ "stream-no-thinking": {
+  "chunks": [
+   {
+    "choices": [
+     {
+      "delta": {
+       "content": "",
+       "role": "assistant"
+      },
+      "finish_reason": null,
+      "index": 0,
+      "logprobs": null
+     }
+    ],
+    "created": 1793677256,
+    "id": "95246d65-a160-4901-b366-2782082ea14d",
+    "model": "deepseek-flash",
+    "object": "chat.completion.chunk",
+    "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+    "usage": null
+   },
+   {
+    "choices": [
+     {
+      "delta": {
+       "content": "任务"
+      },
+      "finish_reason": null,
+      "index": 0,
+      "logprobs": null
+     }
+    ],
+    "created": 1793677256,
+    "id": "95246d65-a160-4901-b366-2782082ea14d",
+    "model": "deepseek-flash",
+    "object": "chat.completion.chunk",
+    "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+    "usage": null
+   },
+   {
+    "choices": [
+     {
+      "delta": {
+       "content": "。"
+      },
+      "finish_reason": null,
+      "index": 0,
+      "logprobs": null
+     }
+    ],
+    "created": 1793677256,
+    "id": "95246d65-a160-4901-b366-2782082ea14d",
+    "model": "deepseek-flash",
+    "object": "chat.completion.chunk",
+    "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+    "usage": null
+   },
+   {
+    "choices": [
+     {
+      "delta": {
+       "content": ""
+      },
+      "finish_reason": "stop",
+      "index": 0,
+      "logprobs": null
+     }
+    ],
+    "created": 1793677256,
+    "id": "95246d65-a160-4901-b366-2782082ea14d",
+    "model": "deepseek-flash",
+    "object": "chat.completion.chunk",
+    "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+    "usage": {
+     "completion_tokens": 26,
+     "prompt_cache_hit_tokens": 0,
+     "prompt_cache_miss_tokens": 9,
+     "prompt_tokens": 9,
+     "prompt_tokens_details": {
+      "cached_tokens": 0
+     },
+     "total_tokens": 35
+    }
+   }
+  ],
+  "done_marker": true,
+  "finish_reason": "stop",
+  "request_body": {
+   "max_tokens": 256,
+   "messages": [
+    {
+     "content": "用一句话介绍你自己。",
+     "role": "user"
+    }
+   ],
+   "model": "deepseek-flash",
+   "stream": true,
+   "stream_options": {
+    "include_usage": true
+   },
+   "thinking": {
+    "type": "disabled"
+   }
+  },
+  "source_case": "T-disabled/stream-include-usage#1",
+  "status": 200,
+  "usage": {
+   "completion_tokens": 26,
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 9,
+   "prompt_tokens": 9,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "total_tokens": 35
+  }
+ },
+ "stream-thinking": {
+  "chunks": [
+   {
+    "choices": [
+     {
+      "delta": {
+       "content": null,
+       "reasoning_content": "",
+       "role": "assistant"
+      },
+      "finish_reason": null,
+      "index": 0,
+      "logprobs": null
+     }
+    ],
+    "created": 1793677279,
+    "id": "7b2d6a59-7318-4aca-a5fa-d344b703e154",
+    "model": "deepseek-flash",
+    "object": "chat.completion.chunk",
+    "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+    "usage": null
+   },
+   {
+    "choices": [
+     {
+      "delta": {
+       "content": null,
+       "reasoning_content": "我们需要回答用户中文问题：“用一句话介绍你自己。” 需要用一句话介绍自己。应该简洁中文一句话。作为AI助手。可以：“我是DeepSeek，由深度求索公司创造的AI助手，随时为你提供帮助。” 一句话。注意不要声称自己是DeepSeek? 系统说AI assistant accessed via API. 我们可以说“我是DeepSeek AI助手，可以帮你解答问题、处理信息并提供建议。” 一句话。需…"
+      },
+      "finish_reason": null,
+      "index": 0,
+      "logprobs": null
+     }
+    ],
+    "created": 1793677279,
+    "id": "7b2d6a59-7318-4aca-a5fa-d344b703e154",
+    "model": "deepseek-flash",
+    "object": "chat.completion.chunk",
+    "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+    "usage": null
+   },
+   {
+    "choices": [
+     {
+      "delta": {
+       "content": "帮助",
+       "reasoning_content": null
+      },
+      "finish_reason": null,
+      "index": 0,
+      "logprobs": null
+     }
+    ],
+    "created": 1793677279,
+    "id": "7b2d6a59-7318-4aca-a5fa-d344b703e154",
+    "model": "deepseek-flash",
+    "object": "chat.completion.chunk",
+    "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+    "usage": null
+   },
+   {
+    "choices": [
+     {
+      "delta": {
+       "content": "。",
+       "reasoning_content": null
+      },
+      "finish_reason": null,
+      "index": 0,
+      "logprobs": null
+     }
+    ],
+    "created": 1793677279,
+    "id": "7b2d6a59-7318-4aca-a5fa-d344b703e154",
+    "model": "deepseek-flash",
+    "object": "chat.completion.chunk",
+    "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+    "usage": null
+   },
+   {
+    "choices": [
+     {
+      "delta": {
+       "content": "",
+       "reasoning_content": null
+      },
+      "finish_reason": "stop",
+      "index": 0,
+      "logprobs": null
+     }
+    ],
+    "created": 1793677279,
+    "id": "7b2d6a59-7318-4aca-a5fa-d344b703e154",
+    "model": "deepseek-flash",
+    "object": "chat.completion.chunk",
+    "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+    "usage": {
+     "completion_tokens": 117,
+     "completion_tokens_details": {
+      "reasoning_tokens": 99
+     },
+     "prompt_cache_hit_tokens": 0,
+     "prompt_cache_miss_tokens": 35,
+     "prompt_tokens": 35,
+     "prompt_tokens_details": {
+      "cached_tokens": 0
+     },
+     "total_tokens": 152
+    }
+   }
+  ],
+  "done_marker": true,
+  "finish_reason": "stop",
+  "request_body": {
+   "max_tokens": 2048,
+   "messages": [
+    {
+     "content": "用一句话介绍你自己。",
+     "role": "user"
+    }
+   ],
+   "model": "deepseek-flash",
+   "reasoning_effort": "low",
+   "stream": true,
+   "stream_options": {
+    "include_usage": true
+   },
+   "thinking": {
+    "type": "enabled"
+   }
+  },
+  "source_case": "T-enabled/stream-include-usage#1",
+  "status": 200,
+  "usage": {
+   "completion_tokens": 117,
+   "completion_tokens_details": {
+    "reasoning_tokens": 99
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 35,
+   "prompt_tokens": 35,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "total_tokens": 152
+  }
+ }
+}

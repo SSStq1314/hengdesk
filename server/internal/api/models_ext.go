@@ -107,7 +107,7 @@ func (h *modelHandlers) listACL(c echo.Context) error {
 	out := make([]aclView, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, aclView{SubjectType: string(r.SubjectType), SubjectID: r.SubjectID,
-			SubjectName: h.subjectName(ctx, p.OrgID, string(r.SubjectType), r.SubjectID),
+			SubjectName:     h.subjectName(ctx, p.OrgID, string(r.SubjectType), r.SubjectID),
 			IncludeChildren: r.IncludeChildren, Perms: r.Perms})
 	}
 	return c.JSON(http.StatusOK, map[string]any{"items": out, "manage_perm_bypass": true})

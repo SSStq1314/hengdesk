@@ -36,4 +36,3 @@ func (Model) Fields() []ent.Field {
 func (Model) Edges() []ent.Edge {
 	return []ent.Edge{edge.From("provider", ModelProvider.Type).Ref("models").Field("provider_id").Unique().Required()}
 }
-

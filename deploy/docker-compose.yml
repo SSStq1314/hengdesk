@@ -28,6 +28,8 @@ x-hengdesk-env: &hd-env
   HENGDESK_AUDIT_ARCHIVE_SIGN_KEY_FILE: ${HENGDESK_AUDIT_ARCHIVE_SIGN_KEY_FILE:-}
   HENGDESK_MASTER_KEY: ${HENGDESK_MASTER_KEY:-}
   HENGDESK_MASTER_KEY_FILE: ${HENGDESK_MASTER_KEY_FILE:-}
+  # 主密钥在宿主机上的位置，仅用于管理后台展示（D-36）；主密钥不进入 /backups。
+  HENGDESK_MASTER_KEY_HOST_PATH: ${HENGDESK_MASTER_KEY_HOST_PATH:-}
   HENGDESK_OIDC_ISSUER: ${HENGDESK_OIDC_ISSUER:-}
   HENGDESK_OIDC_CLIENT_ID: ${HENGDESK_OIDC_CLIENT_ID:-}
   HENGDESK_OIDC_CLIENT_SECRET: ${HENGDESK_OIDC_CLIENT_SECRET:-}
@@ -113,6 +115,22 @@ services:
     depends_on:
       migrate: {condition: service_completed_successfully}
       valkey: {condition: service_healthy}
+
+  # 主密钥运维工具（D-36）：仅在 --profile tools 下运行，先停 server/worker。
+  #   docker compose --profile tools run --rm keytool keys check
+  #   docker compose stop server worker && docker compose --profile tools run --rm keytool keys rotate-master --yes && ./upgrade.sh
+  keytool:
+    image: hengdesk/server:${HENGDESK_VERSION:-dev}
+    profiles: [tools]
+    user: "0:0"
+    environment:
+      <<: *hd-env
+      HENGDESK_MASTER_KEY: ""
+      HENGDESK_MASTER_KEY_FILE: /etc/hengdesk/secrets/master.key
+    volumes: [./secrets:/etc/hengdesk/secrets]
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
 
   web:
     build: {context: ../web}

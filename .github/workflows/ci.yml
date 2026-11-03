@@ -139,7 +139,10 @@ jobs:
         with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
       - name: install.sh 非交互生成 .env
         working-directory: deploy
-        run: ./install.sh --non-interactive --storage ${{ matrix.storage }} --admin-password ci-only-password-123 --auditor-email auditor@hengdesk.local --auditor-password ci-only-auditor-456 --force
+        run: |
+          # D-36：非交互安装必须显式确认主密钥备份
+          if ./install.sh --non-interactive --storage ${{ matrix.storage }} --admin-password x --force >/dev/null 2>&1; then exit 1; fi
+          ./install.sh --non-interactive --ack-master-key --storage ${{ matrix.storage }} --admin-password ci-only-password-123 --auditor-email auditor@hengdesk.local --auditor-password ci-only-auditor-456 --force
       - name: docker compose up
         working-directory: deploy
         run: docker compose up -d --build
@@ -170,6 +173,15 @@ jobs:
           docker compose ps --format '{{.Publishers}}' "$svc" | tee /tmp/pub
           ! grep -E '0\.0\.0\.0|::' /tmp/pub
           grep -q '127.0.0.1' /tmp/pub
+      - name: 主密钥提示 + 自检 + 确认（D-36）
+        working-directory: deploy
+        run: |
+          grep -q '"master_key":{"configured":true' /tmp/st
+          grep -q '"acknowledged":false' /tmp/st
+          grep -q "$(pwd)/secrets/master.key" /tmp/st
+          docker compose --profile tools run --rm keytool keys check
+          docker compose exec -T postgres sh -c 'ls -A /backups' | tee /tmp/bk
+          ! grep -q master /tmp/bk
       - name: worker 运行中
         working-directory: deploy
         run: docker compose ps worker --status running --quiet | grep -q .
@@ -213,7 +225,7 @@ jobs:
       - name: 生成自签证书并以 TLS 模式安装
         working-directory: deploy
         run: |
-          ./install.sh --non-interactive --storage seaweedfs --admin-password ci-only-password-123 \
+          ./install.sh --non-interactive --ack-master-key --storage seaweedfs --admin-password ci-only-password-123 \
             --self-signed --san localhost --san 127.0.0.1 --force
           grep -q '^HENGDESK_TLS_SELF_SIGNED=true' .env
           openssl x509 -in tls/tls.crt -noout -ext subjectAltName | tee /tmp/san
@@ -223,13 +235,13 @@ jobs:
           # 后续步骤沿用这张自签证书
           cp tls/tls.crt /tmp/ci.crt && cp tls/tls.key /tmp/ci.key
           # --self-signed 与 --tls-cert 互斥
-          if ./install.sh --non-interactive --self-signed --tls-cert /tmp/ci.crt --tls-key /tmp/ci.key --force >/dev/null 2>&1; then exit 1; fi
+          if ./install.sh --non-interactive --ack-master-key --self-signed --tls-cert /tmp/ci.crt --tls-key /tmp/ci.key --force >/dev/null 2>&1; then exit 1; fi
           grep -q '^HENGDESK_COOKIE_SECURE=true' .env
           grep -q 'docker-compose.tls.yml' .env
           test "$(stat -c %a tls/tls.key)" = 600
           # 证书与私钥不匹配应被拒绝
           openssl genpkey -algorithm RSA -out /tmp/other.key 2>/dev/null
-          if ./install.sh --non-interactive --tls-cert /tmp/ci.crt --tls-key /tmp/other.key --force >/dev/null 2>&1; then exit 1; fi
+          if ./install.sh --non-interactive --ack-master-key --tls-cert /tmp/ci.crt --tls-key /tmp/other.key --force >/dev/null 2>&1; then exit 1; fi
           grep -q '^HENGDESK_COOKIE_SECURE=true' .env
       - name: docker compose up
         working-directory: deploy
@@ -255,7 +267,7 @@ jobs:
         run: |
           # 重新安装会生成新的数据库密码，先清掉旧数据卷（只在 CI 里这样做）
           docker compose down -v
-          ./install.sh --non-interactive --storage seaweedfs --admin-password ci-only-password-123 \
+          ./install.sh --non-interactive --ack-master-key --storage seaweedfs --admin-password ci-only-password-123 \
             --tls-cert /tmp/ci.crt --tls-key /tmp/ci.key --redirect-port 8880 --force
           grep -q '^HENGDESK_REDIRECT_PORT=8880' .env
           docker compose up -d
@@ -268,7 +280,7 @@ jobs:
         run: |
           # 重新安装会生成新的数据库密码，先清掉旧数据卷（只在 CI 里这样做）
           docker compose down -v
-          ./install.sh --non-interactive --storage seaweedfs --admin-password ci-only-password-123 \
+          ./install.sh --non-interactive --ack-master-key --storage seaweedfs --admin-password ci-only-password-123 \
             --tls-cert /tmp/ci.crt --tls-key /tmp/ci.key --no-http-redirect --force
           grep -q '^HENGDESK_HTTP_REDIRECT=false' .env
           if grep -q 'tls-redirect' .env; then exit 1; fi

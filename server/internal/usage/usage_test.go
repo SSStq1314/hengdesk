@@ -47,9 +47,9 @@ func TestWriteAndSummary(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	w(1, &d1, "a", gateway.Usage{PromptTokens: 1000, CompletionTokens: 1000}, "")                  // 3000 微元
-	w(1, &d1, "a", gateway.Usage{PromptTokens: 500, CompletionTokens: 0, Estimated: true}, "")     // 500 微元（估算）
-	w(2, &d2, "b", gateway.Usage{PromptTokens: 10, CompletionTokens: 10}, "")                      // 0
+	w(1, &d1, "a", gateway.Usage{PromptTokens: 1000, CompletionTokens: 1000}, "")              // 3000 微元
+	w(1, &d1, "a", gateway.Usage{PromptTokens: 500, CompletionTokens: 0, Estimated: true}, "") // 500 微元（估算）
+	w(2, &d2, "b", gateway.Usage{PromptTokens: 10, CompletionTokens: 10}, "")                  // 0
 	w(3, nil, "a", gateway.Usage{PromptTokens: 0, CompletionTokens: 0, Estimated: true}, "upstream_timeout")
 	if _, err := usage.Write(ctx, c, usage.Record{OrgID: 2, UserID: 9, Model: m1, Usage: gateway.Usage{PromptTokens: 1e6}}); err != nil {
 		t.Fatal(err)

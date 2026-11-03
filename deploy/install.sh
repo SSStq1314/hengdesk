@@ -4,7 +4,7 @@
 # 非交互：./install.sh --non-interactive --storage seaweedfs|minio|external \
 #   [--s3-endpoint URL --s3-region R --s3-access-key AK --s3-secret-key SK --s3-bucket B --s3-path-style true|false] \
 #   [--admin-email E] [--admin-password P] [--auditor-email E [--auditor-password P]] [--http-port 8080] \
-#   [--tls-cert 证书.pem --tls-key 私钥.pem | --self-signed [--san 域名或IP ...]] [--https-port 443] [--redirect-port 80] [--no-http-redirect] [--force] [--up]
+#   [--tls-cert 证书.pem --tls-key 私钥.pem | --self-signed [--san 域名或IP ...]] [--https-port 443] [--redirect-port 80] [--no-http-redirect] [--force] [--up] [--ack-master-key]
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -15,6 +15,7 @@ AUDITOR_EMAIL="" AUDITOR_PASSWORD=""
 TLS_CERT="" TLS_KEY=""
 SELF_SIGNED=0 SANS=() SAN_LIST=""
 HTTPS_PORT="443" REDIRECT_PORT="80" HTTP_REDIRECT="true"
+ACK_MASTER_KEY=0
 
 usage() { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 die() { echo "错误：$*" >&2; exit 1; }
@@ -44,6 +45,7 @@ while [ $# -gt 0 ]; do
     --no-http-redirect) HTTP_REDIRECT="false" ;;
     --force) FORCE=1 ;;
     --up) UP=1 ;;
+    --ack-master-key) ACK_MASTER_KEY=1 ;;
     -h|--help) usage 0 ;;
     *) echo "未知参数：$1" >&2; usage 1 ;;
   esac
@@ -169,7 +171,15 @@ fi
 mkdir -p secrets && chmod 700 secrets
 if [ ! -s secrets/master.key ]; then
   head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > secrets/master.key && chmod 600 secrets/master.key
-  echo "已生成模型网关主密钥 $(pwd)/secrets/master.key，请与数据库备份分开妥善保管"
+fi
+MASTER_KEY_PATH="$(pwd)/secrets/master.key"
+echo "模型网关主密钥：$MASTER_KEY_PATH"
+echo "！丢失后已存的 Key 无法恢复，请与数据库备份分开保管（数据库备份 /backups 不包含主密钥）。"
+if [ "$INTERACTIVE" = 1 ]; then
+  ask ack "已把主密钥复制到与数据库备份不同的位置？输入 yes 确认" ""
+  [ "$ack" = yes ] || die "请先备份主密钥再继续安装（也可在管理后台「系统状态」稍后确认）"
+elif [ "$ACK_MASTER_KEY" != 1 ]; then
+  die "非交互安装需加 --ack-master-key，表示已知晓主密钥位置并会单独备份：$MASTER_KEY_PATH"
 fi
 cat > .env <<ENV
 # 由 install.sh 于 $(date '+%Y-%m-%d %H:%M:%S %z') 生成，存储：$STORAGE
@@ -197,6 +207,7 @@ HENGDESK_S3_ACCESS_KEY=$S3_AK
 HENGDESK_S3_SECRET_KEY=$S3_SK
 HENGDESK_S3_PATH_STYLE=$S3_PATH_STYLE
 HENGDESK_MASTER_KEY=$(cat secrets/master.key)
+HENGDESK_MASTER_KEY_HOST_PATH=$MASTER_KEY_PATH
 ENV
 
 echo "已生成 $(pwd)/.env（权限 600），compose 文件：$COMPOSE_FILE"
@@ -206,6 +217,7 @@ if [ "$TLS" = 1 ]; then
   if [ "$HTTP_REDIRECT" = true ]; then echo "HTTP 端口 $REDIRECT_PORT 与 $HTTP_PORT 自动跳转 HTTPS"
   else echo "HTTP 跳转已关闭：不占用 $REDIRECT_PORT，$HTTP_PORT 只保留 /healthz"; fi
 else echo "提示：未导入证书，仅 HTTP；请在前置负载均衡终止 TLS 并设置 HENGDESK_PUBLIC_HTTPS=true，否则管理后台会常驻提示。"; fi
+echo "主密钥：$MASTER_KEY_PATH（管理后台「系统状态」会常驻提示，直到管理员确认已单独备份）"
 echo "管理员账号：$ADMIN_EMAIL"
 if [ "$GENERATED_PW" = 1 ]; then echo "管理员密码已随机生成，查看：grep HENGDESK_ADMIN_PASSWORD $(pwd)/.env"; fi
 if [ -n "$AUDITOR_EMAIL" ]; then
