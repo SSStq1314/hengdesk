@@ -14,9 +14,17 @@
 | PR2 | 会话内文件上传（txt/md/docx/xlsx/pptx/文本 PDF），文件只属于该会话；解析、截断后注入上下文，经过出站与审计；删除会话时一并删除文件。 | FR-15 | 已合并（#34） |
 | PR2b | D-40 对话规则：同一会话同时只生成一条（Valkey 锁，409）；只对最后一条回复「重新生成」/ 失败「重试」，旧回复软保留；记住的模型失效回退默认模型并提示；「已停止」标签。 | D-40 第 5–8 条 | 已合并（#35） |
 | PR3 | 保留期与清理任务（FR-40，按 D-40 第 2 条：默认不开启；开启后默认 365 天、最低 180 天；软删除的会话同样适用；清理记审计——操作人、时间范围、条数；法律保留可按全组织或按用户设置，保留中的数据不清理）；按模型的 token 上下文截断（D-40 第 4 条：始终保留系统提示词和最新一条用户消息）；对话审计接入 trace_id 回放（FR-28，第 14 步）；首 token 时延与 200 并发会话的压测。 | FR-40、FR-28、D-40 第 2、4 条、非功能指标 | 本 PR |
-| PR4 | 留给第四、五块的接口：`citation`、`tool_call`、`approval_pending` 事件类型，以及在消息上挂载引用和工具调用的结构（只定义，不实现）。 | §9.3 | 待做 |
+| PR4 | 留给第四、五块的接口：`citation`、`tool_call`、`approval_pending` 事件类型，以及在消息上挂载引用和工具调用的结构（只定义，不实现）。 | §9.3 | 本 PR |
 
 P1 待办（不在 M1）：**按人物理删除**（D-40 第 1 条）——用于响应个人信息删除请求；只有超级管理员可以操作，必须填写原因，记审计，受法律保留限制。
+
+## PR4 实现说明（预留接口，只定义不实现）
+
+- **SSE 事件名**（`server/internal/api/chatevents.go`）：现有 `token` / `done` / `error`；预留 `citation`（`Citation`）、`tool_call`（`ToolCall`）、`approval_pending`（`ApprovalPending`）。当前服务端不会发出预留事件。
+- **消息结构**：`done` 事件的消息上预留 `citations`、`tool_calls` 两个可选数组，为空时不序列化；暂不建表、不持久化，第四、五块落地时再加迁移。
+- **字段**：`Citation{index, kb_id, document_id, document_name, chunk_id, snippet?, page?, score?}`（只返回用户有权读取的片段）；`ToolCall{id, tool, server_id?, status, args_summary?, result_summary?, error_code?, approval_id?}`，状态 `pending / approval / running / succeeded / failed / rejected`；`ApprovalPending{approval_id, tool_call_id, tool, reason?}`。
+- **Web**：`web/src/lib/api.ts` 定义同名 TS 类型；SSE 解析器对不认识的事件（含预留事件）一律忽略。
+- **测试**：`chatevents_test.go`（空字段不输出、字段名与 JSON 形状、事件名不与现有冲突）。
 
 ## PR3 实现说明（保留期、trace_id 回放、token 截断、压测）
 

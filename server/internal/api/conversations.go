@@ -71,6 +71,9 @@ type msgView struct {
 	HistoryTruncated bool `json:"history_truncated,omitempty"`
 	// Notice 仅出现在 done 事件：记住的模型已不可用、已回退默认模型等需要告知用户的提示（D-40 第 8 条）。
 	Notice string `json:"notice,omitempty"`
+	// Citations / ToolCalls 为第四、五块预留（见 chatevents.go），当前始终为空、不序列化。
+	Citations []Citation `json:"citations,omitempty"`
+	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
 }
 
 func toConv(c *ent.Conversation) convView {
@@ -509,7 +512,7 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 	req := gateway.ChatRequest{Model: tgt.Model.Name, Messages: msgs, Stream: true}
 
 	var buf strings.Builder
-	hk := streamHooks{delta: "token", tap: func(d gateway.Delta) { buf.WriteString(d.Content) },
+	hk := streamHooks{delta: EventToken, tap: func(d gateway.Delta) { buf.WriteString(d.Content) },
 		done: func(res *gateway.ChatResponse, used, primary *gateway.Target) any {
 			return msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: "done", ModelName: used.Model.Name,
 				FallbackFrom: fallbackFrom(used, primary), PromptTokens: res.Usage.PromptTokens,

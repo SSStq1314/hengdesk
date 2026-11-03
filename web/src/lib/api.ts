@@ -710,6 +710,49 @@ export type ChatMessage = {
   context_truncated?: boolean
   history_truncated?: boolean
   notice?: string
+  // 预留（第四、五块）：当前服务端始终不返回。
+  citations?: ChatCitation[]
+  tool_calls?: ChatToolCall[]
+}
+// 对话 SSE 预留事件（PR4，只定义不实现）：citation 留给知识库，tool_call / approval_pending 留给 MCP 与审批。
+// 解析器遇到不认识的事件一律忽略。
+export const CHAT_RESERVED_EVENTS = [
+  'citation',
+  'tool_call',
+  'approval_pending',
+] as const
+export type ChatCitation = {
+  index: number
+  kb_id: number
+  document_id: number
+  document_name: string
+  chunk_id: string
+  snippet?: string
+  page?: number
+  score?: number
+}
+export type ChatToolCallStatus =
+  | 'pending'
+  | 'approval'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'rejected'
+export type ChatToolCall = {
+  id: string
+  tool: string
+  server_id?: number
+  status: ChatToolCallStatus
+  args_summary?: string
+  result_summary?: string
+  error_code?: string
+  approval_id?: number
+}
+export type ChatApprovalPending = {
+  approval_id: number
+  tool_call_id: string
+  tool: string
+  reason?: string
 }
 export type ConvFile = {
   id: number
@@ -860,6 +903,7 @@ async function streamPost(
         const e = (p as { error?: { code?: string; message?: string } }).error
         h.onError(e?.code ?? 'error', e?.message ?? '')
       }
+      // 其余事件（含预留的 citation / tool_call / approval_pending）暂时忽略。
     }
   }
 }
