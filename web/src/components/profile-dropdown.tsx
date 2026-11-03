@@ -1,3 +1,4 @@
+import { zh } from '@/locales/zh-CN'
 import { useAuthStore } from '@/stores/auth-store'
 import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -38,7 +39,7 @@ export function ProfileDropdown() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant='destructive' onClick={() => setOpen(true)}>
-            退出登录
+            {zh.common.signOut}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

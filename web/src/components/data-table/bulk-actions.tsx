@@ -1,3 +1,4 @@
+import { zh } from '@/locales/zh-CN'
 import { useState, useEffect, useRef } from 'react'
 import { type Table } from '@tanstack/react-table'
 import { X } from 'lucide-react'
@@ -163,11 +164,11 @@ export function DataTableBulkActions<TData>({
                 size='icon'
                 onClick={handleClearSelection}
                 className='size-6 rounded-full'
-                aria-label='Clear selection'
-                title='Clear selection (Escape)'
+                aria-label={zh.a11y.clearSelection}
+                title={zh.a11y.clearSelectionEsc}
               >
                 <X />
-                <span className='sr-only'>Clear selection</span>
+                <span className='sr-only'>{zh.a11y.clearSelection}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>

@@ -1,4 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
+import { zh } from '@/locales/zh-CN'
 import { useAuthStore } from '@/stores/auth-store'
 import { authApi } from '@/lib/api'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -25,10 +26,10 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title='退出登录'
-      desc='确定要退出登录吗？'
-      confirmText='退出'
-      cancelBtnText='取消'
+      title={zh.common.signOut}
+      desc={zh.signOut.desc}
+      confirmText={zh.signOut.confirm}
+      cancelBtnText={zh.common.cancel}
       destructive
       handleConfirm={handleSignOut}
       className='sm:max-w-sm'

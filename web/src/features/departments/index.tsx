@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { zh } from '@/locales/zh-CN'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { deptApi, type ImportResult } from '@/lib/api'
@@ -30,8 +31,7 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { flattenTree } from './tree'
 
-const SAMPLE =
-  'dept_path,name,email,employee_no\n研发部/后端组,张三,zhangsan@example.com,E001\n'
+const SAMPLE: string = zh.departments.csvTemplate
 
 type Edit = { mode: 'create' | 'rename'; id: number | null; name: string }
 
@@ -73,16 +73,18 @@ export function DepartmentsPage() {
       </Header>
       <Main>
         <div className='mb-4 flex flex-wrap items-center gap-2'>
-          <h1 className='me-auto text-2xl font-bold tracking-tight'>部门</h1>
+          <h1 className='me-auto text-2xl font-bold tracking-tight'>
+            {zh.departments.title}
+          </h1>
           {canManage && (
             <>
               <Button
                 onClick={() => setEdit({ mode: 'create', id: null, name: '' })}
               >
-                新建顶层部门
+                {zh.departments.newTop}
               </Button>
               <Button variant='outline' onClick={() => setImportOpen(true)}>
-                CSV 导入
+                {zh.departments.csvImport}
               </Button>
             </>
           )}
@@ -90,9 +92,13 @@ export function DepartmentsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>名称</TableHead>
-              <TableHead className='w-24'>成员数</TableHead>
-              {canManage && <TableHead className='w-64'>操作</TableHead>}
+              <TableHead>{zh.departments.colName}</TableHead>
+              <TableHead className='w-24'>
+                {zh.departments.colMembers}
+              </TableHead>
+              {canManage && (
+                <TableHead className='w-64'>{zh.common.actions}</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -114,7 +120,7 @@ export function DepartmentsPage() {
                         setEdit({ mode: 'create', id: d.id, name: '' })
                       }
                     >
-                      添加子部门
+                      {zh.departments.addChild}
                     </Button>
                     <Button
                       size='sm'
@@ -123,18 +129,20 @@ export function DepartmentsPage() {
                         setEdit({ mode: 'rename', id: d.id, name: d.name })
                       }
                     >
-                      重命名
+                      {zh.departments.rename}
                     </Button>
                     <Button
                       size='sm'
                       variant='ghost'
                       className='text-destructive'
                       onClick={() => {
-                        if (window.confirm(`删除部门「${d.path}」？`))
+                        if (
+                          window.confirm(zh.departments.confirmDelete(d.path))
+                        )
                           remove.mutate(d.id)
                       }}
                     >
-                      删除
+                      {zh.common.delete}
                     </Button>
                   </TableCell>
                 )}
@@ -143,7 +151,7 @@ export function DepartmentsPage() {
             {nodes.length === 0 && !list.isLoading && (
               <TableRow>
                 <TableCell colSpan={3} className='text-muted-foreground'>
-                  还没有部门，可以新建或通过 CSV 导入。
+                  {zh.departments.empty}
                 </TableCell>
               </TableRow>
             )}
@@ -155,12 +163,14 @@ export function DepartmentsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {edit?.mode === 'rename' ? '重命名部门' : '新建部门'}
+              {edit?.mode === 'rename'
+                ? zh.departments.renameTitle
+                : zh.departments.newTitle}
             </DialogTitle>
           </DialogHeader>
           <Input
             autoFocus
-            placeholder='部门名称'
+            placeholder={zh.departments.namePlaceholder}
             value={edit?.name ?? ''}
             onChange={(e) => edit && setEdit({ ...edit, name: e.target.value })}
           />
@@ -169,7 +179,7 @@ export function DepartmentsPage() {
               disabled={!edit?.name.trim() || save.isPending}
               onClick={() => edit && save.mutate(edit)}
             >
-              保存
+              {zh.common.save}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -204,7 +214,7 @@ function ImportDialog({
       setResult(r)
       if (r.applied) {
         toast.success(
-          `导入完成：新建 ${r.created_users} 人，更新 ${r.updated_users} 人`
+          zh.departments.importDone(r.created_users, r.updated_users)
         )
         onDone()
       }
@@ -223,12 +233,8 @@ function ImportDialog({
     >
       <DialogContent className='sm:max-w-2xl'>
         <DialogHeader>
-          <DialogTitle>CSV 导入部门与成员</DialogTitle>
-          <DialogDescription>
-            表头：dept_path,name,email,employee_no。dept_path 用 /
-            分隔层级，缺失的部门会自动创建；成员按邮箱新建或更新，新建的成员没有本地密码，需重置密码或通过
-            SSO 登录。先预览，确认无误后再导入；有任何错误时整批不写入。
-          </DialogDescription>
+          <DialogTitle>{zh.departments.importTitle}</DialogTitle>
+          <DialogDescription>{zh.departments.importHelp}</DialogDescription>
         </DialogHeader>
         <Input
           type='file'
@@ -252,9 +258,13 @@ function ImportDialog({
         {result && (
           <Alert variant={result.errors.length ? 'destructive' : 'default'}>
             <AlertTitle>
-              {result.applied ? '已导入' : '预览'}：共 {result.rows} 行，新建{' '}
-              {result.created_users} 人，更新 {result.updated_users}{' '}
-              人，新建部门 {result.new_departments.length} 个
+              {zh.departments.importSummary(
+                result.applied,
+                result.rows,
+                result.created_users,
+                result.updated_users,
+                result.new_departments.length
+              )}
             </AlertTitle>
             <AlertDescription>
               {result.new_departments.length > 0 && (
@@ -268,7 +278,7 @@ function ImportDialog({
               )}
               {result.errors.slice(0, 50).map((e) => (
                 <div key={`${e.line}-${e.message}`}>
-                  第 {e.line} 行：{e.message}
+                  {zh.departments.importLineError(e.line, e.message)}
                 </div>
               ))}
             </AlertDescription>
@@ -280,13 +290,13 @@ function ImportDialog({
             disabled={run.isPending}
             onClick={() => run.mutate(true)}
           >
-            预览
+            {zh.departments.preview}
           </Button>
           <Button
             disabled={!canApply || run.isPending}
             onClick={() => run.mutate(false)}
           >
-            确认导入
+            {zh.departments.confirmImport}
           </Button>
         </DialogFooter>
       </DialogContent>

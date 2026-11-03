@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { zh } from '@/locales/zh-CN'
 import { Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -25,8 +26,8 @@ export function AppTitle() {
               onClick={() => setOpenMobile(false)}
               className='grid flex-1 text-start text-sm leading-tight'
             >
-              <span className='truncate font-bold'>衡台 HengDesk</span>
-              <span className='truncate text-xs'>企业 AI 办公平台</span>
+              <span className='truncate font-bold'>{zh.brand.name}</span>
+              <span className='truncate text-xs'>{zh.brand.tagline}</span>
             </Link>
             <ToggleSidebar />
           </div>
@@ -58,7 +59,7 @@ function ToggleSidebar({
     >
       <X className='md:hidden' />
       <Menu className='max-md:hidden' />
-      <span className='sr-only'>Toggle Sidebar</span>
+      <span className='sr-only'>{zh.a11y.toggleSidebar}</span>
     </Button>
   )
 }

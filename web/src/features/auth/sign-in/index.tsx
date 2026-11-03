@@ -1,4 +1,5 @@
 import { useSearch } from '@tanstack/react-router'
+import { zh } from '@/locales/zh-CN'
 import {
   Card,
   CardContent,
@@ -16,10 +17,10 @@ export function SignIn() {
     <AuthLayout>
       <Card className='w-sm max-w-sm gap-4'>
         <CardHeader>
-          <CardTitle className='text-lg tracking-tight'>登录</CardTitle>
-          <CardDescription>
-            使用企业账号登录衡台 · 企业 AI 办公平台
-          </CardDescription>
+          <CardTitle className='text-lg tracking-tight'>
+            {zh.signIn.title}
+          </CardTitle>
+          <CardDescription>{zh.signIn.subtitle}</CardDescription>
         </CardHeader>
         <CardContent>
           <UserAuthForm redirectTo={redirect} />

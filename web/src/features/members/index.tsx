@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { zh } from '@/locales/zh-CN'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import {
@@ -130,10 +131,12 @@ export function MembersPage() {
       </Header>
       <Main>
         <div className='mb-4 flex flex-wrap items-center gap-2'>
-          <h1 className='me-auto text-2xl font-bold tracking-tight'>成员</h1>
+          <h1 className='me-auto text-2xl font-bold tracking-tight'>
+            {zh.members.title}
+          </h1>
           <Input
             className='w-56'
-            placeholder='邮箱 / 姓名 / 工号'
+            placeholder={zh.members.searchPlaceholder}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) =>
@@ -153,7 +156,7 @@ export function MembersPage() {
                 })
               }
             >
-              <option value=''>全部部门</option>
+              <option value=''>{zh.members.allDepartments}</option>
               {nodes.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.path}
@@ -165,22 +168,24 @@ export function MembersPage() {
             variant='outline'
             onClick={() => setFilter({ ...filter, q, before_id: undefined })}
           >
-            查询
+            {zh.common.query}
           </Button>
           {canManage && (
-            <Button onClick={() => setDraft({ ...empty })}>新建成员</Button>
+            <Button onClick={() => setDraft({ ...empty })}>
+              {zh.members.create}
+            </Button>
           )}
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>姓名</TableHead>
-              <TableHead>邮箱</TableHead>
-              <TableHead>工号</TableHead>
-              <TableHead>部门</TableHead>
-              <TableHead>角色</TableHead>
-              <TableHead>状态</TableHead>
-              <TableHead>最近登录</TableHead>
+              <TableHead>{zh.members.colName}</TableHead>
+              <TableHead>{zh.members.colEmail}</TableHead>
+              <TableHead>{zh.members.colEmployeeNo}</TableHead>
+              <TableHead>{zh.members.colDepartment}</TableHead>
+              <TableHead>{zh.members.colRoles}</TableHead>
+              <TableHead>{zh.members.colStatus}</TableHead>
+              <TableHead>{zh.members.colLastLogin}</TableHead>
               <TableHead className='w-16' />
             </TableRow>
           </TableHeader>
@@ -205,13 +210,13 @@ export function MembersPage() {
                 </TableCell>
                 <TableCell>
                   {m.status === 'active' ? (
-                    <Badge variant='outline'>启用</Badge>
+                    <Badge variant='outline'>{zh.common.enabled}</Badge>
                   ) : (
-                    <Badge variant='destructive'>停用</Badge>
+                    <Badge variant='destructive'>{zh.common.disabled}</Badge>
                   )}
                   {!m.has_password && (
                     <Badge variant='outline' className='ms-1'>
-                      未设密码
+                      {zh.members.noPassword}
                     </Badge>
                   )}
                 </TableCell>
@@ -224,7 +229,11 @@ export function MembersPage() {
                   {(canManage || canAssign) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button size='sm' variant='ghost' aria-label='操作'>
+                        <Button
+                          size='sm'
+                          variant='ghost'
+                          aria-label={zh.common.actions}
+                        >
                           ⋯
                         </Button>
                       </DropdownMenuTrigger>
@@ -242,12 +251,12 @@ export function MembersPage() {
                               })
                             }
                           >
-                            编辑
+                            {zh.common.edit}
                           </DropdownMenuItem>
                         )}
                         {canAssign && (
                           <DropdownMenuItem onClick={() => setRolesFor(m)}>
-                            角色
+                            {zh.members.colRoles}
                           </DropdownMenuItem>
                         )}
                         {canManage && (
@@ -255,52 +264,52 @@ export function MembersPage() {
                             <DropdownMenuItem
                               onClick={() => {
                                 const pw = window.prompt(
-                                  `为 ${m.email} 设置新密码（至少 8 位，对方所有会话将下线）`
+                                  zh.members.resetPasswordPrompt(m.email)
                                 )
                                 if (pw)
                                   action.mutate({
                                     fn: () => memberApi.resetPassword(m.id, pw),
-                                    msg: '密码已重置',
+                                    msg: zh.members.passwordReset,
                                   })
                               }}
                             >
-                              重置密码
+                              {zh.members.resetPassword}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
                                 action.mutate({
                                   fn: () => memberApi.unlock(m.id),
-                                  msg: '已解除登录锁定',
+                                  msg: zh.members.unlocked,
                                 })
                               }
                             >
-                              解除锁定
+                              {zh.members.unlock}
                             </DropdownMenuItem>
                             {m.status === 'active' ? (
                               <DropdownMenuItem
                                 className='text-destructive'
                                 onClick={() =>
                                   window.confirm(
-                                    `停用 ${m.email}？对方会立即下线。`
+                                    zh.members.confirmDisable(m.email)
                                   ) &&
                                   action.mutate({
                                     fn: () => memberApi.disable(m.id),
-                                    msg: '已停用',
+                                    msg: zh.members.disabledDone,
                                   })
                                 }
                               >
-                                停用
+                                {zh.common.disabled}
                               </DropdownMenuItem>
                             ) : (
                               <DropdownMenuItem
                                 onClick={() =>
                                   action.mutate({
                                     fn: () => memberApi.enable(m.id),
-                                    msg: '已启用',
+                                    msg: zh.members.enabledDone,
                                   })
                                 }
                               >
-                                启用
+                                {zh.common.enabled}
                               </DropdownMenuItem>
                             )}
                           </>
@@ -321,7 +330,7 @@ export function MembersPage() {
               setFilter({ ...filter, before_id: list.data.next_before_id })
             }
           >
-            下一页
+            {zh.common.nextPage}
           </Button>
         )}
       </Main>
@@ -329,24 +338,26 @@ export function MembersPage() {
       <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{draft?.id ? '编辑成员' : '新建成员'}</DialogTitle>
+            <DialogTitle>
+              {draft?.id ? zh.members.editTitle : zh.members.create}
+            </DialogTitle>
           </DialogHeader>
           {draft && (
             <div className='grid gap-3'>
-              <Label>邮箱</Label>
+              <Label>{zh.members.colEmail}</Label>
               <Input
                 disabled={!!draft.id}
                 value={draft.email}
                 onChange={(e) => setDraft({ ...draft, email: e.target.value })}
               />
-              <Label>姓名</Label>
+              <Label>{zh.members.colName}</Label>
               <Input
                 value={draft.display_name}
                 onChange={(e) =>
                   setDraft({ ...draft, display_name: e.target.value })
                 }
               />
-              <Label>工号</Label>
+              <Label>{zh.members.colEmployeeNo}</Label>
               <Input
                 value={draft.employee_no}
                 onChange={(e) =>
@@ -355,9 +366,7 @@ export function MembersPage() {
               />
               {!draft.id && (
                 <>
-                  <Label>
-                    初始密码（可选，留空则需重置密码或通过 SSO 登录）
-                  </Label>
+                  <Label>{zh.members.initialPassword}</Label>
                   <Input
                     type='password'
                     autoComplete='new-password'
@@ -368,7 +377,7 @@ export function MembersPage() {
                   />
                 </>
               )}
-              <Label>部门</Label>
+              <Label>{zh.members.colDepartment}</Label>
               <DeptPicker
                 nodes={nodes}
                 value={draft.department_ids}
@@ -381,7 +390,7 @@ export function MembersPage() {
               disabled={save.isPending || !draft?.email}
               onClick={() => draft && save.mutate(draft)}
             >
-              保存
+              {zh.common.save}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -410,7 +419,11 @@ function DeptPicker({
   onChange: (ids: number[]) => void
 }) {
   if (nodes.length === 0)
-    return <p className='text-sm text-muted-foreground'>暂无部门</p>
+    return (
+      <p className='text-sm text-muted-foreground'>
+        {zh.members.noDepartments}
+      </p>
+    )
   return (
     <ScrollArea className='h-40 rounded-md border p-2'>
       {nodes.map((d) => (
@@ -462,11 +475,13 @@ function RolesDialog({
     <Dialog open={!!member} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{member?.email} 的角色</DialogTitle>
+          <DialogTitle>{zh.members.rolesOf(member?.email ?? '')}</DialogTitle>
         </DialogHeader>
         <div className='flex flex-wrap gap-2'>
           {member?.roles.length === 0 && (
-            <span className='text-sm text-muted-foreground'>仅普通成员</span>
+            <span className='text-sm text-muted-foreground'>
+              {zh.members.onlyMember}
+            </span>
           )}
           {member?.roles.map((r) => (
             <Badge key={`${r.key}-${r.department_id ?? 0}`} variant='secondary'>
@@ -476,7 +491,7 @@ function RolesDialog({
                 : ''}
               <button
                 className='ms-1'
-                aria-label='撤销'
+                aria-label={zh.members.revoke}
                 onClick={() =>
                   change.mutate(() =>
                     memberApi.revokeRole(member.id, r.key, r.department_id)
@@ -494,11 +509,11 @@ function RolesDialog({
             value={role}
             onChange={(e) => setRole(e.target.value)}
           >
-            <option value=''>选择角色</option>
+            <option value=''>{zh.members.selectRole}</option>
             {roles.map((r) => (
               <option key={r.key} value={r.key}>
                 {r.name}
-                {r.privileged ? '（特权）' : ''}
+                {r.privileged ? zh.members.privilegedSuffix : ''}
               </option>
             ))}
           </select>
@@ -508,7 +523,7 @@ function RolesDialog({
               value={dept ?? ''}
               onChange={(e) => setDept(Number(e.target.value) || undefined)}
             >
-              <option value=''>选择部门</option>
+              <option value=''>{zh.members.selectDepartment}</option>
               {nodes.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.path}
@@ -530,12 +545,10 @@ function RolesDialog({
               )
             }
           >
-            分配
+            {zh.members.assign}
           </Button>
         </div>
-        <p className='text-xs text-muted-foreground'>
-          超级管理员与安全审计员互斥（三员分立）；分配特权角色需要相应权限，所有变更都会记入审计日志。
-        </p>
+        <p className='text-xs text-muted-foreground'>{zh.members.rolesHelp}</p>
       </DialogContent>
     </Dialog>
   )
