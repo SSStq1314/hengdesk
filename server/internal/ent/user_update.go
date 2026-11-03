@@ -98,20 +98,6 @@ func (_u *UserUpdate) SetNillableStatus(v *user.Status) *UserUpdate {
 	return _u
 }
 
-// SetIsSuperAdmin sets the "is_super_admin" field.
-func (_u *UserUpdate) SetIsSuperAdmin(v bool) *UserUpdate {
-	_u.mutation.SetIsSuperAdmin(v)
-	return _u
-}
-
-// SetNillableIsSuperAdmin sets the "is_super_admin" field if the given value is not nil.
-func (_u *UserUpdate) SetNillableIsSuperAdmin(v *bool) *UserUpdate {
-	if v != nil {
-		_u.SetIsSuperAdmin(*v)
-	}
-	return _u
-}
-
 // SetOrgID sets the "org_id" field.
 func (_u *UserUpdate) SetOrgID(v int) *UserUpdate {
 	_u.mutation.SetOrgID(v)
@@ -282,9 +268,6 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeEnum, value)
 	}
-	if value, ok := _u.mutation.IsSuperAdmin(); ok {
-		_spec.SetField(user.FieldIsSuperAdmin, field.TypeBool, value)
-	}
 	if value, ok := _u.mutation.LastLoginAt(); ok {
 		_spec.SetField(user.FieldLastLoginAt, field.TypeTime, value)
 	}
@@ -449,20 +432,6 @@ func (_u *UserUpdateOne) SetStatus(v user.Status) *UserUpdateOne {
 func (_u *UserUpdateOne) SetNillableStatus(v *user.Status) *UserUpdateOne {
 	if v != nil {
 		_u.SetStatus(*v)
-	}
-	return _u
-}
-
-// SetIsSuperAdmin sets the "is_super_admin" field.
-func (_u *UserUpdateOne) SetIsSuperAdmin(v bool) *UserUpdateOne {
-	_u.mutation.SetIsSuperAdmin(v)
-	return _u
-}
-
-// SetNillableIsSuperAdmin sets the "is_super_admin" field if the given value is not nil.
-func (_u *UserUpdateOne) SetNillableIsSuperAdmin(v *bool) *UserUpdateOne {
-	if v != nil {
-		_u.SetIsSuperAdmin(*v)
 	}
 	return _u
 }
@@ -666,9 +635,6 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeEnum, value)
-	}
-	if value, ok := _u.mutation.IsSuperAdmin(); ok {
-		_spec.SetField(user.FieldIsSuperAdmin, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.LastLoginAt(); ok {
 		_spec.SetField(user.FieldLastLoginAt, field.TypeTime, value)

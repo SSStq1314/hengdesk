@@ -100,20 +100,6 @@ func (_c *UserCreate) SetNillableStatus(v *user.Status) *UserCreate {
 	return _c
 }
 
-// SetIsSuperAdmin sets the "is_super_admin" field.
-func (_c *UserCreate) SetIsSuperAdmin(v bool) *UserCreate {
-	_c.mutation.SetIsSuperAdmin(v)
-	return _c
-}
-
-// SetNillableIsSuperAdmin sets the "is_super_admin" field if the given value is not nil.
-func (_c *UserCreate) SetNillableIsSuperAdmin(v *bool) *UserCreate {
-	if v != nil {
-		_c.SetIsSuperAdmin(*v)
-	}
-	return _c
-}
-
 // SetOrgID sets the "org_id" field.
 func (_c *UserCreate) SetOrgID(v int) *UserCreate {
 	_c.mutation.SetOrgID(v)
@@ -205,10 +191,6 @@ func (_c *UserCreate) defaults() {
 		v := user.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
-	if _, ok := _c.mutation.IsSuperAdmin(); !ok {
-		v := user.DefaultIsSuperAdmin
-		_c.mutation.SetIsSuperAdmin(v)
-	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -237,9 +219,6 @@ func (_c *UserCreate) check() error {
 		if err := user.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "User.status": %w`, err)}
 		}
-	}
-	if _, ok := _c.mutation.IsSuperAdmin(); !ok {
-		return &ValidationError{Name: "is_super_admin", err: errors.New(`ent: missing required field "User.is_super_admin"`)}
 	}
 	if _, ok := _c.mutation.OrgID(); !ok {
 		return &ValidationError{Name: "org_id", err: errors.New(`ent: missing required field "User.org_id"`)}
@@ -297,10 +276,6 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
-	}
-	if value, ok := _c.mutation.IsSuperAdmin(); ok {
-		_spec.SetField(user.FieldIsSuperAdmin, field.TypeBool, value)
-		_node.IsSuperAdmin = value
 	}
 	if value, ok := _c.mutation.LastLoginAt(); ok {
 		_spec.SetField(user.FieldLastLoginAt, field.TypeTime, value)
@@ -457,18 +432,6 @@ func (u *UserUpsert) UpdateStatus() *UserUpsert {
 	return u
 }
 
-// SetIsSuperAdmin sets the "is_super_admin" field.
-func (u *UserUpsert) SetIsSuperAdmin(v bool) *UserUpsert {
-	u.Set(user.FieldIsSuperAdmin, v)
-	return u
-}
-
-// UpdateIsSuperAdmin sets the "is_super_admin" field to the value that was provided on create.
-func (u *UserUpsert) UpdateIsSuperAdmin() *UserUpsert {
-	u.SetExcluded(user.FieldIsSuperAdmin)
-	return u
-}
-
 // SetOrgID sets the "org_id" field.
 func (u *UserUpsert) SetOrgID(v int) *UserUpsert {
 	u.Set(user.FieldOrgID, v)
@@ -618,20 +581,6 @@ func (u *UserUpsertOne) SetStatus(v user.Status) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateStatus() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateStatus()
-	})
-}
-
-// SetIsSuperAdmin sets the "is_super_admin" field.
-func (u *UserUpsertOne) SetIsSuperAdmin(v bool) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetIsSuperAdmin(v)
-	})
-}
-
-// UpdateIsSuperAdmin sets the "is_super_admin" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateIsSuperAdmin() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateIsSuperAdmin()
 	})
 }
 
@@ -955,20 +904,6 @@ func (u *UserUpsertBulk) SetStatus(v user.Status) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateStatus() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateStatus()
-	})
-}
-
-// SetIsSuperAdmin sets the "is_super_admin" field.
-func (u *UserUpsertBulk) SetIsSuperAdmin(v bool) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetIsSuperAdmin(v)
-	})
-}
-
-// UpdateIsSuperAdmin sets the "is_super_admin" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateIsSuperAdmin() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateIsSuperAdmin()
 	})
 }
 

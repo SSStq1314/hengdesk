@@ -15,8 +15,10 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/organization"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
@@ -29,10 +31,14 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// ACL is the client for interacting with the ACL builders.
+	ACL *ACLClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
 	// Department is the client for interacting with the Department builders.
 	Department *DepartmentClient
+	// DeptClosure is the client for interacting with the DeptClosure builders.
+	DeptClosure *DeptClosureClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
 	// Organization is the client for interacting with the Organization builders.
@@ -54,8 +60,10 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.ACL = NewACLClient(c.config)
 	c.AuditLog = NewAuditLogClient(c.config)
 	c.Department = NewDepartmentClient(c.config)
+	c.DeptClosure = NewDeptClosureClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
 	c.Organization = NewOrganizationClient(c.config)
 	c.Role = NewRoleClient(c.config)
@@ -153,8 +161,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:          ctx,
 		config:       cfg,
+		ACL:          NewACLClient(cfg),
 		AuditLog:     NewAuditLogClient(cfg),
 		Department:   NewDepartmentClient(cfg),
+		DeptClosure:  NewDeptClosureClient(cfg),
 		Membership:   NewMembershipClient(cfg),
 		Organization: NewOrganizationClient(cfg),
 		Role:         NewRoleClient(cfg),
@@ -179,8 +189,10 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:          ctx,
 		config:       cfg,
+		ACL:          NewACLClient(cfg),
 		AuditLog:     NewAuditLogClient(cfg),
 		Department:   NewDepartmentClient(cfg),
+		DeptClosure:  NewDeptClosureClient(cfg),
 		Membership:   NewMembershipClient(cfg),
 		Organization: NewOrganizationClient(cfg),
 		Role:         NewRoleClient(cfg),
@@ -192,7 +204,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		AuditLog.
+//		ACL.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -215,7 +227,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.AuditLog, c.Department, c.Membership, c.Organization, c.Role, c.Tool, c.User,
+		c.ACL, c.AuditLog, c.Department, c.DeptClosure, c.Membership, c.Organization,
+		c.Role, c.Tool, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -225,7 +238,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.AuditLog, c.Department, c.Membership, c.Organization, c.Role, c.Tool, c.User,
+		c.ACL, c.AuditLog, c.Department, c.DeptClosure, c.Membership, c.Organization,
+		c.Role, c.Tool, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -234,10 +248,14 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *ACLMutation:
+		return c.ACL.mutate(ctx, m)
 	case *AuditLogMutation:
 		return c.AuditLog.mutate(ctx, m)
 	case *DepartmentMutation:
 		return c.Department.mutate(ctx, m)
+	case *DeptClosureMutation:
+		return c.DeptClosure.mutate(ctx, m)
 	case *MembershipMutation:
 		return c.Membership.mutate(ctx, m)
 	case *OrganizationMutation:
@@ -250,6 +268,139 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.User.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// ACLClient is a client for the ACL schema.
+type ACLClient struct {
+	config
+}
+
+// NewACLClient returns a client for the ACL from the given config.
+func NewACLClient(c config) *ACLClient {
+	return &ACLClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `acl.Hooks(f(g(h())))`.
+func (c *ACLClient) Use(hooks ...Hook) {
+	c.hooks.ACL = append(c.hooks.ACL, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `acl.Intercept(f(g(h())))`.
+func (c *ACLClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ACL = append(c.inters.ACL, interceptors...)
+}
+
+// Create returns a builder for creating a ACL entity.
+func (c *ACLClient) Create() *ACLCreate {
+	mutation := newACLMutation(c.config, OpCreate)
+	return &ACLCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ACL entities.
+func (c *ACLClient) CreateBulk(builders ...*ACLCreate) *ACLCreateBulk {
+	return &ACLCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ACLClient) MapCreateBulk(slice any, setFunc func(*ACLCreate, int)) *ACLCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ACLCreateBulk{err: fmt.Errorf("calling to ACLClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ACLCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ACLCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ACL.
+func (c *ACLClient) Update() *ACLUpdate {
+	mutation := newACLMutation(c.config, OpUpdate)
+	return &ACLUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ACLClient) UpdateOne(_m *ACL) *ACLUpdateOne {
+	mutation := newACLMutation(c.config, OpUpdateOne, withACL(_m))
+	return &ACLUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ACLClient) UpdateOneID(id int) *ACLUpdateOne {
+	mutation := newACLMutation(c.config, OpUpdateOne, withACLID(id))
+	return &ACLUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ACL.
+func (c *ACLClient) Delete() *ACLDelete {
+	mutation := newACLMutation(c.config, OpDelete)
+	return &ACLDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ACLClient) DeleteOne(_m *ACL) *ACLDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ACLClient) DeleteOneID(id int) *ACLDeleteOne {
+	builder := c.Delete().Where(acl.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ACLDeleteOne{builder}
+}
+
+// Query returns a query builder for ACL.
+func (c *ACLClient) Query() *ACLQuery {
+	return &ACLQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeACL},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ACL entity by its id.
+func (c *ACLClient) Get(ctx context.Context, id int) (*ACL, error) {
+	return c.Query().Where(acl.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ACLClient) GetX(ctx context.Context, id int) *ACL {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ACLClient) Hooks() []Hook {
+	return c.hooks.ACL
+}
+
+// Interceptors returns the client interceptors.
+func (c *ACLClient) Interceptors() []Interceptor {
+	return c.inters.ACL
+}
+
+func (c *ACLClient) mutate(ctx context.Context, m *ACLMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ACLCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ACLUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ACLUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ACLDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ACL mutation op: %q", m.Op())
 	}
 }
 
@@ -581,6 +732,139 @@ func (c *DepartmentClient) mutate(ctx context.Context, m *DepartmentMutation) (V
 		return (&DepartmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Department mutation op: %q", m.Op())
+	}
+}
+
+// DeptClosureClient is a client for the DeptClosure schema.
+type DeptClosureClient struct {
+	config
+}
+
+// NewDeptClosureClient returns a client for the DeptClosure from the given config.
+func NewDeptClosureClient(c config) *DeptClosureClient {
+	return &DeptClosureClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `deptclosure.Hooks(f(g(h())))`.
+func (c *DeptClosureClient) Use(hooks ...Hook) {
+	c.hooks.DeptClosure = append(c.hooks.DeptClosure, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `deptclosure.Intercept(f(g(h())))`.
+func (c *DeptClosureClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DeptClosure = append(c.inters.DeptClosure, interceptors...)
+}
+
+// Create returns a builder for creating a DeptClosure entity.
+func (c *DeptClosureClient) Create() *DeptClosureCreate {
+	mutation := newDeptClosureMutation(c.config, OpCreate)
+	return &DeptClosureCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DeptClosure entities.
+func (c *DeptClosureClient) CreateBulk(builders ...*DeptClosureCreate) *DeptClosureCreateBulk {
+	return &DeptClosureCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DeptClosureClient) MapCreateBulk(slice any, setFunc func(*DeptClosureCreate, int)) *DeptClosureCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DeptClosureCreateBulk{err: fmt.Errorf("calling to DeptClosureClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DeptClosureCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DeptClosureCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DeptClosure.
+func (c *DeptClosureClient) Update() *DeptClosureUpdate {
+	mutation := newDeptClosureMutation(c.config, OpUpdate)
+	return &DeptClosureUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DeptClosureClient) UpdateOne(_m *DeptClosure) *DeptClosureUpdateOne {
+	mutation := newDeptClosureMutation(c.config, OpUpdateOne, withDeptClosure(_m))
+	return &DeptClosureUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DeptClosureClient) UpdateOneID(id int) *DeptClosureUpdateOne {
+	mutation := newDeptClosureMutation(c.config, OpUpdateOne, withDeptClosureID(id))
+	return &DeptClosureUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DeptClosure.
+func (c *DeptClosureClient) Delete() *DeptClosureDelete {
+	mutation := newDeptClosureMutation(c.config, OpDelete)
+	return &DeptClosureDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DeptClosureClient) DeleteOne(_m *DeptClosure) *DeptClosureDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DeptClosureClient) DeleteOneID(id int) *DeptClosureDeleteOne {
+	builder := c.Delete().Where(deptclosure.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DeptClosureDeleteOne{builder}
+}
+
+// Query returns a query builder for DeptClosure.
+func (c *DeptClosureClient) Query() *DeptClosureQuery {
+	return &DeptClosureQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDeptClosure},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DeptClosure entity by its id.
+func (c *DeptClosureClient) Get(ctx context.Context, id int) (*DeptClosure, error) {
+	return c.Query().Where(deptclosure.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DeptClosureClient) GetX(ctx context.Context, id int) *DeptClosure {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DeptClosureClient) Hooks() []Hook {
+	return c.hooks.DeptClosure
+}
+
+// Interceptors returns the client interceptors.
+func (c *DeptClosureClient) Interceptors() []Interceptor {
+	return c.inters.DeptClosure
+}
+
+func (c *DeptClosureClient) mutate(ctx context.Context, m *DeptClosureMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DeptClosureCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DeptClosureUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DeptClosureUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DeptClosureDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DeptClosure mutation op: %q", m.Op())
 	}
 }
 
@@ -1380,10 +1664,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AuditLog, Department, Membership, Organization, Role, Tool, User []ent.Hook
+		ACL, AuditLog, Department, DeptClosure, Membership, Organization, Role, Tool,
+		User []ent.Hook
 	}
 	inters struct {
-		AuditLog, Department, Membership, Organization, Role, Tool,
+		ACL, AuditLog, Department, DeptClosure, Membership, Organization, Role, Tool,
 		User []ent.Interceptor
 	}
 )

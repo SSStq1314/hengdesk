@@ -11,8 +11,10 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/organization"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/predicate"
@@ -30,14 +32,932 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
+	TypeACL          = "ACL"
 	TypeAuditLog     = "AuditLog"
 	TypeDepartment   = "Department"
+	TypeDeptClosure  = "DeptClosure"
 	TypeMembership   = "Membership"
 	TypeOrganization = "Organization"
 	TypeRole         = "Role"
 	TypeTool         = "Tool"
 	TypeUser         = "User"
 )
+
+// ACLMutation represents an operation that mutates the ACL nodes in the graph.
+type ACLMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int
+	org_id           *int
+	addorg_id        *int
+	resource_type    *string
+	resource_id      *string
+	subject_type     *acl.SubjectType
+	subject_id       *int
+	addsubject_id    *int
+	include_children *bool
+	perms            *int
+	addperms         *int
+	created_by       *int
+	addcreated_by    *int
+	created_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*ACL, error)
+	predicates       []predicate.ACL
+}
+
+var _ ent.Mutation = (*ACLMutation)(nil)
+
+// aclOption allows management of the mutation configuration using functional options.
+type aclOption func(*ACLMutation)
+
+// newACLMutation creates new mutation for the ACL entity.
+func newACLMutation(c config, op Op, opts ...aclOption) *ACLMutation {
+	m := &ACLMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeACL,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withACLID sets the ID field of the mutation.
+func withACLID(id int) aclOption {
+	return func(m *ACLMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ACL
+		)
+		m.oldValue = func(ctx context.Context) (*ACL, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ACL.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withACL sets the old ACL of the mutation.
+func withACL(node *ACL) aclOption {
+	return func(m *ACLMutation) {
+		m.oldValue = func(context.Context) (*ACL, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ACLMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ACLMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ACLMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ACLMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ACL.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetOrgID sets the "org_id" field.
+func (m *ACLMutation) SetOrgID(i int) {
+	m.org_id = &i
+	m.addorg_id = nil
+}
+
+// OrgID returns the value of the "org_id" field in the mutation.
+func (m *ACLMutation) OrgID() (r int, exists bool) {
+	v := m.org_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrgID returns the old "org_id" field's value of the ACL entity.
+// If the ACL object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ACLMutation) OldOrgID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrgID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrgID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrgID: %w", err)
+	}
+	return oldValue.OrgID, nil
+}
+
+// AddOrgID adds i to the "org_id" field.
+func (m *ACLMutation) AddOrgID(i int) {
+	if m.addorg_id != nil {
+		*m.addorg_id += i
+	} else {
+		m.addorg_id = &i
+	}
+}
+
+// AddedOrgID returns the value that was added to the "org_id" field in this mutation.
+func (m *ACLMutation) AddedOrgID() (r int, exists bool) {
+	v := m.addorg_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrgID resets all changes to the "org_id" field.
+func (m *ACLMutation) ResetOrgID() {
+	m.org_id = nil
+	m.addorg_id = nil
+}
+
+// SetResourceType sets the "resource_type" field.
+func (m *ACLMutation) SetResourceType(s string) {
+	m.resource_type = &s
+}
+
+// ResourceType returns the value of the "resource_type" field in the mutation.
+func (m *ACLMutation) ResourceType() (r string, exists bool) {
+	v := m.resource_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResourceType returns the old "resource_type" field's value of the ACL entity.
+// If the ACL object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ACLMutation) OldResourceType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResourceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResourceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResourceType: %w", err)
+	}
+	return oldValue.ResourceType, nil
+}
+
+// ResetResourceType resets all changes to the "resource_type" field.
+func (m *ACLMutation) ResetResourceType() {
+	m.resource_type = nil
+}
+
+// SetResourceID sets the "resource_id" field.
+func (m *ACLMutation) SetResourceID(s string) {
+	m.resource_id = &s
+}
+
+// ResourceID returns the value of the "resource_id" field in the mutation.
+func (m *ACLMutation) ResourceID() (r string, exists bool) {
+	v := m.resource_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResourceID returns the old "resource_id" field's value of the ACL entity.
+// If the ACL object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ACLMutation) OldResourceID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResourceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResourceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResourceID: %w", err)
+	}
+	return oldValue.ResourceID, nil
+}
+
+// ResetResourceID resets all changes to the "resource_id" field.
+func (m *ACLMutation) ResetResourceID() {
+	m.resource_id = nil
+}
+
+// SetSubjectType sets the "subject_type" field.
+func (m *ACLMutation) SetSubjectType(at acl.SubjectType) {
+	m.subject_type = &at
+}
+
+// SubjectType returns the value of the "subject_type" field in the mutation.
+func (m *ACLMutation) SubjectType() (r acl.SubjectType, exists bool) {
+	v := m.subject_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubjectType returns the old "subject_type" field's value of the ACL entity.
+// If the ACL object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ACLMutation) OldSubjectType(ctx context.Context) (v acl.SubjectType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubjectType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubjectType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubjectType: %w", err)
+	}
+	return oldValue.SubjectType, nil
+}
+
+// ResetSubjectType resets all changes to the "subject_type" field.
+func (m *ACLMutation) ResetSubjectType() {
+	m.subject_type = nil
+}
+
+// SetSubjectID sets the "subject_id" field.
+func (m *ACLMutation) SetSubjectID(i int) {
+	m.subject_id = &i
+	m.addsubject_id = nil
+}
+
+// SubjectID returns the value of the "subject_id" field in the mutation.
+func (m *ACLMutation) SubjectID() (r int, exists bool) {
+	v := m.subject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubjectID returns the old "subject_id" field's value of the ACL entity.
+// If the ACL object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ACLMutation) OldSubjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubjectID: %w", err)
+	}
+	return oldValue.SubjectID, nil
+}
+
+// AddSubjectID adds i to the "subject_id" field.
+func (m *ACLMutation) AddSubjectID(i int) {
+	if m.addsubject_id != nil {
+		*m.addsubject_id += i
+	} else {
+		m.addsubject_id = &i
+	}
+}
+
+// AddedSubjectID returns the value that was added to the "subject_id" field in this mutation.
+func (m *ACLMutation) AddedSubjectID() (r int, exists bool) {
+	v := m.addsubject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSubjectID resets all changes to the "subject_id" field.
+func (m *ACLMutation) ResetSubjectID() {
+	m.subject_id = nil
+	m.addsubject_id = nil
+}
+
+// SetIncludeChildren sets the "include_children" field.
+func (m *ACLMutation) SetIncludeChildren(b bool) {
+	m.include_children = &b
+}
+
+// IncludeChildren returns the value of the "include_children" field in the mutation.
+func (m *ACLMutation) IncludeChildren() (r bool, exists bool) {
+	v := m.include_children
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIncludeChildren returns the old "include_children" field's value of the ACL entity.
+// If the ACL object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ACLMutation) OldIncludeChildren(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIncludeChildren is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIncludeChildren requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIncludeChildren: %w", err)
+	}
+	return oldValue.IncludeChildren, nil
+}
+
+// ResetIncludeChildren resets all changes to the "include_children" field.
+func (m *ACLMutation) ResetIncludeChildren() {
+	m.include_children = nil
+}
+
+// SetPerms sets the "perms" field.
+func (m *ACLMutation) SetPerms(i int) {
+	m.perms = &i
+	m.addperms = nil
+}
+
+// Perms returns the value of the "perms" field in the mutation.
+func (m *ACLMutation) Perms() (r int, exists bool) {
+	v := m.perms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPerms returns the old "perms" field's value of the ACL entity.
+// If the ACL object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ACLMutation) OldPerms(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPerms is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPerms requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPerms: %w", err)
+	}
+	return oldValue.Perms, nil
+}
+
+// AddPerms adds i to the "perms" field.
+func (m *ACLMutation) AddPerms(i int) {
+	if m.addperms != nil {
+		*m.addperms += i
+	} else {
+		m.addperms = &i
+	}
+}
+
+// AddedPerms returns the value that was added to the "perms" field in this mutation.
+func (m *ACLMutation) AddedPerms() (r int, exists bool) {
+	v := m.addperms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPerms resets all changes to the "perms" field.
+func (m *ACLMutation) ResetPerms() {
+	m.perms = nil
+	m.addperms = nil
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *ACLMutation) SetCreatedBy(i int) {
+	m.created_by = &i
+	m.addcreated_by = nil
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *ACLMutation) CreatedBy() (r int, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the ACL entity.
+// If the ACL object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ACLMutation) OldCreatedBy(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// AddCreatedBy adds i to the "created_by" field.
+func (m *ACLMutation) AddCreatedBy(i int) {
+	if m.addcreated_by != nil {
+		*m.addcreated_by += i
+	} else {
+		m.addcreated_by = &i
+	}
+}
+
+// AddedCreatedBy returns the value that was added to the "created_by" field in this mutation.
+func (m *ACLMutation) AddedCreatedBy() (r int, exists bool) {
+	v := m.addcreated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCreatedBy clears the value of the "created_by" field.
+func (m *ACLMutation) ClearCreatedBy() {
+	m.created_by = nil
+	m.addcreated_by = nil
+	m.clearedFields[acl.FieldCreatedBy] = struct{}{}
+}
+
+// CreatedByCleared returns if the "created_by" field was cleared in this mutation.
+func (m *ACLMutation) CreatedByCleared() bool {
+	_, ok := m.clearedFields[acl.FieldCreatedBy]
+	return ok
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *ACLMutation) ResetCreatedBy() {
+	m.created_by = nil
+	m.addcreated_by = nil
+	delete(m.clearedFields, acl.FieldCreatedBy)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ACLMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ACLMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ACL entity.
+// If the ACL object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ACLMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ACLMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the ACLMutation builder.
+func (m *ACLMutation) Where(ps ...predicate.ACL) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ACLMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ACLMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ACL, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ACLMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ACLMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ACL).
+func (m *ACLMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ACLMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.org_id != nil {
+		fields = append(fields, acl.FieldOrgID)
+	}
+	if m.resource_type != nil {
+		fields = append(fields, acl.FieldResourceType)
+	}
+	if m.resource_id != nil {
+		fields = append(fields, acl.FieldResourceID)
+	}
+	if m.subject_type != nil {
+		fields = append(fields, acl.FieldSubjectType)
+	}
+	if m.subject_id != nil {
+		fields = append(fields, acl.FieldSubjectID)
+	}
+	if m.include_children != nil {
+		fields = append(fields, acl.FieldIncludeChildren)
+	}
+	if m.perms != nil {
+		fields = append(fields, acl.FieldPerms)
+	}
+	if m.created_by != nil {
+		fields = append(fields, acl.FieldCreatedBy)
+	}
+	if m.created_at != nil {
+		fields = append(fields, acl.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ACLMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case acl.FieldOrgID:
+		return m.OrgID()
+	case acl.FieldResourceType:
+		return m.ResourceType()
+	case acl.FieldResourceID:
+		return m.ResourceID()
+	case acl.FieldSubjectType:
+		return m.SubjectType()
+	case acl.FieldSubjectID:
+		return m.SubjectID()
+	case acl.FieldIncludeChildren:
+		return m.IncludeChildren()
+	case acl.FieldPerms:
+		return m.Perms()
+	case acl.FieldCreatedBy:
+		return m.CreatedBy()
+	case acl.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ACLMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case acl.FieldOrgID:
+		return m.OldOrgID(ctx)
+	case acl.FieldResourceType:
+		return m.OldResourceType(ctx)
+	case acl.FieldResourceID:
+		return m.OldResourceID(ctx)
+	case acl.FieldSubjectType:
+		return m.OldSubjectType(ctx)
+	case acl.FieldSubjectID:
+		return m.OldSubjectID(ctx)
+	case acl.FieldIncludeChildren:
+		return m.OldIncludeChildren(ctx)
+	case acl.FieldPerms:
+		return m.OldPerms(ctx)
+	case acl.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case acl.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ACL field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ACLMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case acl.FieldOrgID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrgID(v)
+		return nil
+	case acl.FieldResourceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResourceType(v)
+		return nil
+	case acl.FieldResourceID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResourceID(v)
+		return nil
+	case acl.FieldSubjectType:
+		v, ok := value.(acl.SubjectType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubjectType(v)
+		return nil
+	case acl.FieldSubjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubjectID(v)
+		return nil
+	case acl.FieldIncludeChildren:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIncludeChildren(v)
+		return nil
+	case acl.FieldPerms:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPerms(v)
+		return nil
+	case acl.FieldCreatedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case acl.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ACL field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ACLMutation) AddedFields() []string {
+	var fields []string
+	if m.addorg_id != nil {
+		fields = append(fields, acl.FieldOrgID)
+	}
+	if m.addsubject_id != nil {
+		fields = append(fields, acl.FieldSubjectID)
+	}
+	if m.addperms != nil {
+		fields = append(fields, acl.FieldPerms)
+	}
+	if m.addcreated_by != nil {
+		fields = append(fields, acl.FieldCreatedBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ACLMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case acl.FieldOrgID:
+		return m.AddedOrgID()
+	case acl.FieldSubjectID:
+		return m.AddedSubjectID()
+	case acl.FieldPerms:
+		return m.AddedPerms()
+	case acl.FieldCreatedBy:
+		return m.AddedCreatedBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ACLMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case acl.FieldOrgID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrgID(v)
+		return nil
+	case acl.FieldSubjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSubjectID(v)
+		return nil
+	case acl.FieldPerms:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPerms(v)
+		return nil
+	case acl.FieldCreatedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreatedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ACL numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ACLMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(acl.FieldCreatedBy) {
+		fields = append(fields, acl.FieldCreatedBy)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ACLMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ACLMutation) ClearField(name string) error {
+	switch name {
+	case acl.FieldCreatedBy:
+		m.ClearCreatedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown ACL nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ACLMutation) ResetField(name string) error {
+	switch name {
+	case acl.FieldOrgID:
+		m.ResetOrgID()
+		return nil
+	case acl.FieldResourceType:
+		m.ResetResourceType()
+		return nil
+	case acl.FieldResourceID:
+		m.ResetResourceID()
+		return nil
+	case acl.FieldSubjectType:
+		m.ResetSubjectType()
+		return nil
+	case acl.FieldSubjectID:
+		m.ResetSubjectID()
+		return nil
+	case acl.FieldIncludeChildren:
+		m.ResetIncludeChildren()
+		return nil
+	case acl.FieldPerms:
+		m.ResetPerms()
+		return nil
+	case acl.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case acl.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ACL field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ACLMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ACLMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ACLMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ACLMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ACLMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ACLMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ACLMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown ACL unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ACLMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown ACL edge %s", name)
+}
 
 // AuditLogMutation represents an operation that mutates the AuditLog nodes in the graph.
 type AuditLogMutation struct {
@@ -2104,6 +3024,629 @@ func (m *DepartmentMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Department edge %s", name)
+}
+
+// DeptClosureMutation represents an operation that mutates the DeptClosure nodes in the graph.
+type DeptClosureMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int
+	org_id           *int
+	addorg_id        *int
+	ancestor_id      *int
+	addancestor_id   *int
+	descendant_id    *int
+	adddescendant_id *int
+	depth            *int
+	adddepth         *int
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*DeptClosure, error)
+	predicates       []predicate.DeptClosure
+}
+
+var _ ent.Mutation = (*DeptClosureMutation)(nil)
+
+// deptclosureOption allows management of the mutation configuration using functional options.
+type deptclosureOption func(*DeptClosureMutation)
+
+// newDeptClosureMutation creates new mutation for the DeptClosure entity.
+func newDeptClosureMutation(c config, op Op, opts ...deptclosureOption) *DeptClosureMutation {
+	m := &DeptClosureMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDeptClosure,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDeptClosureID sets the ID field of the mutation.
+func withDeptClosureID(id int) deptclosureOption {
+	return func(m *DeptClosureMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *DeptClosure
+		)
+		m.oldValue = func(ctx context.Context) (*DeptClosure, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().DeptClosure.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDeptClosure sets the old DeptClosure of the mutation.
+func withDeptClosure(node *DeptClosure) deptclosureOption {
+	return func(m *DeptClosureMutation) {
+		m.oldValue = func(context.Context) (*DeptClosure, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DeptClosureMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DeptClosureMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DeptClosureMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DeptClosureMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().DeptClosure.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetOrgID sets the "org_id" field.
+func (m *DeptClosureMutation) SetOrgID(i int) {
+	m.org_id = &i
+	m.addorg_id = nil
+}
+
+// OrgID returns the value of the "org_id" field in the mutation.
+func (m *DeptClosureMutation) OrgID() (r int, exists bool) {
+	v := m.org_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrgID returns the old "org_id" field's value of the DeptClosure entity.
+// If the DeptClosure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeptClosureMutation) OldOrgID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrgID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrgID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrgID: %w", err)
+	}
+	return oldValue.OrgID, nil
+}
+
+// AddOrgID adds i to the "org_id" field.
+func (m *DeptClosureMutation) AddOrgID(i int) {
+	if m.addorg_id != nil {
+		*m.addorg_id += i
+	} else {
+		m.addorg_id = &i
+	}
+}
+
+// AddedOrgID returns the value that was added to the "org_id" field in this mutation.
+func (m *DeptClosureMutation) AddedOrgID() (r int, exists bool) {
+	v := m.addorg_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrgID resets all changes to the "org_id" field.
+func (m *DeptClosureMutation) ResetOrgID() {
+	m.org_id = nil
+	m.addorg_id = nil
+}
+
+// SetAncestorID sets the "ancestor_id" field.
+func (m *DeptClosureMutation) SetAncestorID(i int) {
+	m.ancestor_id = &i
+	m.addancestor_id = nil
+}
+
+// AncestorID returns the value of the "ancestor_id" field in the mutation.
+func (m *DeptClosureMutation) AncestorID() (r int, exists bool) {
+	v := m.ancestor_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAncestorID returns the old "ancestor_id" field's value of the DeptClosure entity.
+// If the DeptClosure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeptClosureMutation) OldAncestorID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAncestorID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAncestorID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAncestorID: %w", err)
+	}
+	return oldValue.AncestorID, nil
+}
+
+// AddAncestorID adds i to the "ancestor_id" field.
+func (m *DeptClosureMutation) AddAncestorID(i int) {
+	if m.addancestor_id != nil {
+		*m.addancestor_id += i
+	} else {
+		m.addancestor_id = &i
+	}
+}
+
+// AddedAncestorID returns the value that was added to the "ancestor_id" field in this mutation.
+func (m *DeptClosureMutation) AddedAncestorID() (r int, exists bool) {
+	v := m.addancestor_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAncestorID resets all changes to the "ancestor_id" field.
+func (m *DeptClosureMutation) ResetAncestorID() {
+	m.ancestor_id = nil
+	m.addancestor_id = nil
+}
+
+// SetDescendantID sets the "descendant_id" field.
+func (m *DeptClosureMutation) SetDescendantID(i int) {
+	m.descendant_id = &i
+	m.adddescendant_id = nil
+}
+
+// DescendantID returns the value of the "descendant_id" field in the mutation.
+func (m *DeptClosureMutation) DescendantID() (r int, exists bool) {
+	v := m.descendant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescendantID returns the old "descendant_id" field's value of the DeptClosure entity.
+// If the DeptClosure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeptClosureMutation) OldDescendantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescendantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescendantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescendantID: %w", err)
+	}
+	return oldValue.DescendantID, nil
+}
+
+// AddDescendantID adds i to the "descendant_id" field.
+func (m *DeptClosureMutation) AddDescendantID(i int) {
+	if m.adddescendant_id != nil {
+		*m.adddescendant_id += i
+	} else {
+		m.adddescendant_id = &i
+	}
+}
+
+// AddedDescendantID returns the value that was added to the "descendant_id" field in this mutation.
+func (m *DeptClosureMutation) AddedDescendantID() (r int, exists bool) {
+	v := m.adddescendant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDescendantID resets all changes to the "descendant_id" field.
+func (m *DeptClosureMutation) ResetDescendantID() {
+	m.descendant_id = nil
+	m.adddescendant_id = nil
+}
+
+// SetDepth sets the "depth" field.
+func (m *DeptClosureMutation) SetDepth(i int) {
+	m.depth = &i
+	m.adddepth = nil
+}
+
+// Depth returns the value of the "depth" field in the mutation.
+func (m *DeptClosureMutation) Depth() (r int, exists bool) {
+	v := m.depth
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDepth returns the old "depth" field's value of the DeptClosure entity.
+// If the DeptClosure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeptClosureMutation) OldDepth(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDepth is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDepth requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDepth: %w", err)
+	}
+	return oldValue.Depth, nil
+}
+
+// AddDepth adds i to the "depth" field.
+func (m *DeptClosureMutation) AddDepth(i int) {
+	if m.adddepth != nil {
+		*m.adddepth += i
+	} else {
+		m.adddepth = &i
+	}
+}
+
+// AddedDepth returns the value that was added to the "depth" field in this mutation.
+func (m *DeptClosureMutation) AddedDepth() (r int, exists bool) {
+	v := m.adddepth
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDepth resets all changes to the "depth" field.
+func (m *DeptClosureMutation) ResetDepth() {
+	m.depth = nil
+	m.adddepth = nil
+}
+
+// Where appends a list predicates to the DeptClosureMutation builder.
+func (m *DeptClosureMutation) Where(ps ...predicate.DeptClosure) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DeptClosureMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DeptClosureMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DeptClosure, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DeptClosureMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DeptClosureMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (DeptClosure).
+func (m *DeptClosureMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DeptClosureMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.org_id != nil {
+		fields = append(fields, deptclosure.FieldOrgID)
+	}
+	if m.ancestor_id != nil {
+		fields = append(fields, deptclosure.FieldAncestorID)
+	}
+	if m.descendant_id != nil {
+		fields = append(fields, deptclosure.FieldDescendantID)
+	}
+	if m.depth != nil {
+		fields = append(fields, deptclosure.FieldDepth)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DeptClosureMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case deptclosure.FieldOrgID:
+		return m.OrgID()
+	case deptclosure.FieldAncestorID:
+		return m.AncestorID()
+	case deptclosure.FieldDescendantID:
+		return m.DescendantID()
+	case deptclosure.FieldDepth:
+		return m.Depth()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DeptClosureMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case deptclosure.FieldOrgID:
+		return m.OldOrgID(ctx)
+	case deptclosure.FieldAncestorID:
+		return m.OldAncestorID(ctx)
+	case deptclosure.FieldDescendantID:
+		return m.OldDescendantID(ctx)
+	case deptclosure.FieldDepth:
+		return m.OldDepth(ctx)
+	}
+	return nil, fmt.Errorf("unknown DeptClosure field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DeptClosureMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case deptclosure.FieldOrgID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrgID(v)
+		return nil
+	case deptclosure.FieldAncestorID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAncestorID(v)
+		return nil
+	case deptclosure.FieldDescendantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescendantID(v)
+		return nil
+	case deptclosure.FieldDepth:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDepth(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DeptClosure field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DeptClosureMutation) AddedFields() []string {
+	var fields []string
+	if m.addorg_id != nil {
+		fields = append(fields, deptclosure.FieldOrgID)
+	}
+	if m.addancestor_id != nil {
+		fields = append(fields, deptclosure.FieldAncestorID)
+	}
+	if m.adddescendant_id != nil {
+		fields = append(fields, deptclosure.FieldDescendantID)
+	}
+	if m.adddepth != nil {
+		fields = append(fields, deptclosure.FieldDepth)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DeptClosureMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case deptclosure.FieldOrgID:
+		return m.AddedOrgID()
+	case deptclosure.FieldAncestorID:
+		return m.AddedAncestorID()
+	case deptclosure.FieldDescendantID:
+		return m.AddedDescendantID()
+	case deptclosure.FieldDepth:
+		return m.AddedDepth()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DeptClosureMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case deptclosure.FieldOrgID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrgID(v)
+		return nil
+	case deptclosure.FieldAncestorID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAncestorID(v)
+		return nil
+	case deptclosure.FieldDescendantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDescendantID(v)
+		return nil
+	case deptclosure.FieldDepth:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDepth(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DeptClosure numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DeptClosureMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DeptClosureMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DeptClosureMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown DeptClosure nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DeptClosureMutation) ResetField(name string) error {
+	switch name {
+	case deptclosure.FieldOrgID:
+		m.ResetOrgID()
+		return nil
+	case deptclosure.FieldAncestorID:
+		m.ResetAncestorID()
+		return nil
+	case deptclosure.FieldDescendantID:
+		m.ResetDescendantID()
+		return nil
+	case deptclosure.FieldDepth:
+		m.ResetDepth()
+		return nil
+	}
+	return fmt.Errorf("unknown DeptClosure field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DeptClosureMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DeptClosureMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DeptClosureMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DeptClosureMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DeptClosureMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DeptClosureMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DeptClosureMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown DeptClosure unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DeptClosureMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown DeptClosure edge %s", name)
 }
 
 // MembershipMutation represents an operation that mutates the Membership nodes in the graph.
@@ -4904,7 +6447,6 @@ type UserMutation struct {
 	display_name       *string
 	password_hash      *string
 	status             *user.Status
-	is_super_admin     *bool
 	last_login_at      *time.Time
 	clearedFields      map[string]struct{}
 	org                *int
@@ -5244,42 +6786,6 @@ func (m *UserMutation) ResetStatus() {
 	m.status = nil
 }
 
-// SetIsSuperAdmin sets the "is_super_admin" field.
-func (m *UserMutation) SetIsSuperAdmin(b bool) {
-	m.is_super_admin = &b
-}
-
-// IsSuperAdmin returns the value of the "is_super_admin" field in the mutation.
-func (m *UserMutation) IsSuperAdmin() (r bool, exists bool) {
-	v := m.is_super_admin
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldIsSuperAdmin returns the old "is_super_admin" field's value of the User entity.
-// If the User object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UserMutation) OldIsSuperAdmin(ctx context.Context) (v bool, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldIsSuperAdmin is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldIsSuperAdmin requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldIsSuperAdmin: %w", err)
-	}
-	return oldValue.IsSuperAdmin, nil
-}
-
-// ResetIsSuperAdmin resets all changes to the "is_super_admin" field.
-func (m *UserMutation) ResetIsSuperAdmin() {
-	m.is_super_admin = nil
-}
-
 // SetOrgID sets the "org_id" field.
 func (m *UserMutation) SetOrgID(i int) {
 	m.org = &i
@@ -5480,7 +6986,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 8)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -5498,9 +7004,6 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, user.FieldStatus)
-	}
-	if m.is_super_admin != nil {
-		fields = append(fields, user.FieldIsSuperAdmin)
 	}
 	if m.org != nil {
 		fields = append(fields, user.FieldOrgID)
@@ -5528,8 +7031,6 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.PasswordHash()
 	case user.FieldStatus:
 		return m.Status()
-	case user.FieldIsSuperAdmin:
-		return m.IsSuperAdmin()
 	case user.FieldOrgID:
 		return m.OrgID()
 	case user.FieldLastLoginAt:
@@ -5555,8 +7056,6 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldPasswordHash(ctx)
 	case user.FieldStatus:
 		return m.OldStatus(ctx)
-	case user.FieldIsSuperAdmin:
-		return m.OldIsSuperAdmin(ctx)
 	case user.FieldOrgID:
 		return m.OldOrgID(ctx)
 	case user.FieldLastLoginAt:
@@ -5611,13 +7110,6 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
-		return nil
-	case user.FieldIsSuperAdmin:
-		v, ok := value.(bool)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetIsSuperAdmin(v)
 		return nil
 	case user.FieldOrgID:
 		v, ok := value.(int)
@@ -5717,9 +7209,6 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldStatus:
 		m.ResetStatus()
-		return nil
-	case user.FieldIsSuperAdmin:
-		m.ResetIsSuperAdmin()
 		return nil
 	case user.FieldOrgID:
 		m.ResetOrgID()

@@ -17,6 +17,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
 	_ "github.com/SSStq1314/hengdesk/server/internal/ent/runtime" // 注册 schema hooks（审计 append-only）
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
+	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -37,15 +38,6 @@ func CreateSchemaForTest(ctx context.Context, c *ent.Client) error {
 	return nil
 }
 
-// BuiltinRoles 内置角色。
-var BuiltinRoles = []struct{ Key, Name string }{
-	{"super_admin", "超级管理员"},
-	{"admin", "管理员"},
-	{"auditor", "审计员"},
-	{"approver", "审批人"},
-	{"member", "普通成员"},
-}
-
 // SeedOptions 初始数据参数。
 type SeedOptions struct {
 	OrgName, OrgSlug string
@@ -63,11 +55,8 @@ func Seed(ctx context.Context, c *ent.Client, o SeedOptions) (created bool, err 
 	if err != nil {
 		return false, err
 	}
-	for _, r := range BuiltinRoles {
-		if err := c.Role.Create().SetKey(r.Key).SetName(r.Name).SetBuiltin(true).
-			OnConflictColumns(role.FieldKey).Ignore().Exec(ctx); err != nil {
-			return false, err
-		}
+	if err := SyncBuiltinRoles(ctx, c); err != nil {
+		return false, err
 	}
 	email := strings.ToLower(strings.TrimSpace(o.AdminEmail))
 	exists, err := c.User.Query().Where(user.Email(email)).Exist(ctx)
@@ -81,12 +70,12 @@ func Seed(ctx context.Context, c *ent.Client, o SeedOptions) (created bool, err 
 	if err != nil {
 		return false, err
 	}
-	sa, err := c.Role.Query().Where(role.Key("super_admin")).Only(ctx)
+	sa, err := c.Role.Query().Where(role.Key(rbac.SuperAdmin)).Only(ctx)
 	if err != nil {
 		return false, err
 	}
 	u, err := c.User.Create().SetEmail(email).SetDisplayName("超级管理员").
-		SetPasswordHash(string(hash)).SetIsSuperAdmin(true).SetOrg(org).Save(ctx)
+		SetPasswordHash(string(hash)).SetOrg(org).Save(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -94,4 +83,21 @@ func Seed(ctx context.Context, c *ent.Client, o SeedOptions) (created bool, err 
 		return false, err
 	}
 	return true, nil
+}
+
+// SyncBuiltinRoles 幂等地写入 5 个内置角色，并把名称和权限点同步为代码中的定义。
+func SyncBuiltinRoles(ctx context.Context, c *ent.Client) error {
+	for _, r := range rbac.Builtin {
+		perms := make([]string, 0, len(r.Perms))
+		for _, p := range r.Perms {
+			perms = append(perms, string(p))
+		}
+		if err := c.Role.Create().SetKey(r.Key).SetName(r.Name).SetBuiltin(true).SetPermissions(perms).
+			OnConflictColumns(role.FieldKey).
+			Update(func(u *ent.RoleUpsert) { u.UpdateName().UpdatePermissions().UpdateBuiltin() }).
+			Exec(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }

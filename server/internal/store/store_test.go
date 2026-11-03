@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/SSStq1314/hengdesk/server/internal/rbac"
+
 	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
 	"github.com/SSStq1314/hengdesk/server/internal/store"
 	"github.com/SSStq1314/hengdesk/server/internal/store/storetest"
@@ -20,7 +22,7 @@ func TestSeedIdempotent(t *testing.T) {
 	if ok, err := store.Seed(ctx, c, o); err != nil || ok {
 		t.Fatalf("second seed: %v %v", ok, err)
 	}
-	if n := c.Role.Query().CountX(ctx); n != len(store.BuiltinRoles) {
+	if n := c.Role.Query().CountX(ctx); n != len(rbac.Builtin) {
 		t.Fatalf("roles=%d", n)
 	}
 }

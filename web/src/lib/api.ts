@@ -52,6 +52,7 @@ export interface Me {
   display_name: string
   is_super_admin: boolean
   roles: string[]
+  permissions: string[]
   csrf_token?: string
 }
 

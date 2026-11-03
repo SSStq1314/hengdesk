@@ -27,8 +27,11 @@ func (s *Service) RegisterAdmin(g *echo.Group) {
 	g.POST("/users/:id/unlock", s.adminUnlock)
 }
 
-// target 取同组织的目标用户；跨组织或不存在一律 404。
+// target 取目标用户；未注入 Target 时只允许同组织（跨组织或不存在一律 404）。
 func (s *Service) target(c echo.Context) (*ent.User, error) {
+	if s.Target != nil {
+		return s.Target(c)
+	}
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return nil, errNotFound
@@ -60,6 +63,11 @@ func (s *Service) adminDisable(c echo.Context) error {
 	}
 	if u.ID == Current(c).ID {
 		return echo.NewHTTPError(http.StatusBadRequest, "不能停用自己的账号")
+	}
+	if s.GuardDisable != nil {
+		if err := s.GuardDisable(c, u); err != nil {
+			return err
+		}
 	}
 	if err := s.DB.User.UpdateOne(u).SetStatus(user.StatusDisabled).Exec(c.Request().Context()); err != nil {
 		return err
