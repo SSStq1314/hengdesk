@@ -6556,6 +6556,8 @@ type UserMutation struct {
 	employee_no        *string
 	password_hash      *string
 	status             *user.Status
+	oidc_issuer        *string
+	oidc_subject       *string
 	last_login_at      *time.Time
 	clearedFields      map[string]struct{}
 	org                *int
@@ -6967,6 +6969,78 @@ func (m *UserMutation) ResetOrgID() {
 	m.org = nil
 }
 
+// SetOidcIssuer sets the "oidc_issuer" field.
+func (m *UserMutation) SetOidcIssuer(s string) {
+	m.oidc_issuer = &s
+}
+
+// OidcIssuer returns the value of the "oidc_issuer" field in the mutation.
+func (m *UserMutation) OidcIssuer() (r string, exists bool) {
+	v := m.oidc_issuer
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOidcIssuer returns the old "oidc_issuer" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldOidcIssuer(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOidcIssuer is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOidcIssuer requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOidcIssuer: %w", err)
+	}
+	return oldValue.OidcIssuer, nil
+}
+
+// ResetOidcIssuer resets all changes to the "oidc_issuer" field.
+func (m *UserMutation) ResetOidcIssuer() {
+	m.oidc_issuer = nil
+}
+
+// SetOidcSubject sets the "oidc_subject" field.
+func (m *UserMutation) SetOidcSubject(s string) {
+	m.oidc_subject = &s
+}
+
+// OidcSubject returns the value of the "oidc_subject" field in the mutation.
+func (m *UserMutation) OidcSubject() (r string, exists bool) {
+	v := m.oidc_subject
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOidcSubject returns the old "oidc_subject" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldOidcSubject(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOidcSubject is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOidcSubject requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOidcSubject: %w", err)
+	}
+	return oldValue.OidcSubject, nil
+}
+
+// ResetOidcSubject resets all changes to the "oidc_subject" field.
+func (m *UserMutation) ResetOidcSubject() {
+	m.oidc_subject = nil
+}
+
 // SetLastLoginAt sets the "last_login_at" field.
 func (m *UserMutation) SetLastLoginAt(t time.Time) {
 	m.last_login_at = &t
@@ -7131,7 +7205,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 11)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -7155,6 +7229,12 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.org != nil {
 		fields = append(fields, user.FieldOrgID)
+	}
+	if m.oidc_issuer != nil {
+		fields = append(fields, user.FieldOidcIssuer)
+	}
+	if m.oidc_subject != nil {
+		fields = append(fields, user.FieldOidcSubject)
 	}
 	if m.last_login_at != nil {
 		fields = append(fields, user.FieldLastLoginAt)
@@ -7183,6 +7263,10 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case user.FieldOrgID:
 		return m.OrgID()
+	case user.FieldOidcIssuer:
+		return m.OidcIssuer()
+	case user.FieldOidcSubject:
+		return m.OidcSubject()
 	case user.FieldLastLoginAt:
 		return m.LastLoginAt()
 	}
@@ -7210,6 +7294,10 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldStatus(ctx)
 	case user.FieldOrgID:
 		return m.OldOrgID(ctx)
+	case user.FieldOidcIssuer:
+		return m.OldOidcIssuer(ctx)
+	case user.FieldOidcSubject:
+		return m.OldOidcSubject(ctx)
 	case user.FieldLastLoginAt:
 		return m.OldLastLoginAt(ctx)
 	}
@@ -7276,6 +7364,20 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetOrgID(v)
+		return nil
+	case user.FieldOidcIssuer:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOidcIssuer(v)
+		return nil
+	case user.FieldOidcSubject:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOidcSubject(v)
 		return nil
 	case user.FieldLastLoginAt:
 		v, ok := value.(time.Time)
@@ -7374,6 +7476,12 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldOrgID:
 		m.ResetOrgID()
+		return nil
+	case user.FieldOidcIssuer:
+		m.ResetOidcIssuer()
+		return nil
+	case user.FieldOidcSubject:
+		m.ResetOidcSubject()
 		return nil
 	case user.FieldLastLoginAt:
 		m.ResetLastLoginAt()

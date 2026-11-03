@@ -254,6 +254,8 @@ var (
 		{Name: "employee_no", Type: field.TypeString, Default: ""},
 		{Name: "password_hash", Type: field.TypeString, Nullable: true},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "disabled"}, Default: "active"},
+		{Name: "oidc_issuer", Type: field.TypeString, Default: ""},
+		{Name: "oidc_subject", Type: field.TypeString, Default: ""},
 		{Name: "last_login_at", Type: field.TypeTime, Nullable: true},
 		{Name: "org_id", Type: field.TypeInt},
 	}
@@ -265,7 +267,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "users_organizations_users",
-				Columns:    []*schema.Column{UsersColumns[9]},
+				Columns:    []*schema.Column{UsersColumns[11]},
 				RefColumns: []*schema.Column{OrganizationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -274,9 +276,17 @@ var (
 			{
 				Name:    "user_org_id_employee_no",
 				Unique:  true,
-				Columns: []*schema.Column{UsersColumns[9], UsersColumns[5]},
+				Columns: []*schema.Column{UsersColumns[11], UsersColumns[5]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "employee_no <> ''",
+				},
+			},
+			{
+				Name:    "user_oidc_issuer_oidc_subject",
+				Unique:  true,
+				Columns: []*schema.Column{UsersColumns[8], UsersColumns[9]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "oidc_subject <> ''",
 				},
 			},
 		},

@@ -58,7 +58,14 @@ func serverCmd() *cobra.Command {
 		w := audit.EntWriter{C: client}
 		rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 		defer func() { _ = rdb.Close() }()
-		api.Mount(e, api.Deps{DB: client, Audit: w, Log: lg, Auth: &auth.Service{
+		var oidcSvc *auth.OIDC
+		if cfg.OIDCIssuer != "" {
+			oidcSvc = &auth.OIDC{R: rdb, Cfg: auth.OIDCConfig{Issuer: cfg.OIDCIssuer, ClientID: cfg.OIDCClientID,
+				ClientSecret: cfg.OIDCClientSecret, RedirectURL: cfg.OIDCRedirectURL, Scopes: cfg.OIDCScopes,
+				LinkBy: cfg.OIDCLinkBy, AutoCreate: cfg.OIDCAutoCreate, OrgSlug: "default", DisplayName: cfg.OIDCDisplayName}}
+			lg.Info("oidc enabled", "issuer", cfg.OIDCIssuer, "link_by", cfg.OIDCLinkBy, "auto_create", cfg.OIDCAutoCreate)
+		}
+		api.Mount(e, api.Deps{DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc,
 			DB: client, Audit: w, Secure: cfg.CookieSecure,
 			Sessions:  &session.Store{R: rdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle},
 			Lockout:   &session.Lockout{R: rdb, MaxFailures: cfg.LockoutMax, Duration: cfg.LockoutFor},
