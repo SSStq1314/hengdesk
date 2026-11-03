@@ -4,7 +4,7 @@
 # 非交互：./install.sh --non-interactive --storage seaweedfs|minio|external \
 #   [--s3-endpoint URL --s3-region R --s3-access-key AK --s3-secret-key SK --s3-bucket B --s3-path-style true|false] \
 #   [--admin-email E] [--admin-password P] [--auditor-email E [--auditor-password P]] [--http-port 8080] \
-#   [--tls-cert 证书.pem --tls-key 私钥.pem] [--force] [--up]
+#   [--tls-cert 证书.pem --tls-key 私钥.pem [--https-port 443] [--redirect-port 80] [--no-http-redirect]] [--force] [--up]
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -13,8 +13,9 @@ S3_ENDPOINT="" S3_REGION="us-east-1" S3_AK="" S3_SK="" S3_BUCKET="hengdesk" S3_P
 ADMIN_EMAIL="admin@hengdesk.local" ADMIN_PASSWORD="" HTTP_PORT="8080"
 AUDITOR_EMAIL="" AUDITOR_PASSWORD=""
 TLS_CERT="" TLS_KEY=""
+HTTPS_PORT="443" REDIRECT_PORT="80" HTTP_REDIRECT="true"
 
-usage() { sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 die() { echo "错误：$*" >&2; exit 1; }
 rand() { local s=""; while [ "${#s}" -lt "$1" ]; do s+=$(head -c 64 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9'); done; printf '%s' "${s:0:$1}"; }
 
@@ -35,6 +36,9 @@ while [ $# -gt 0 ]; do
     --http-port) HTTP_PORT="$2"; shift ;;
     --tls-cert) TLS_CERT="$2"; shift ;;
     --tls-key) TLS_KEY="$2"; shift ;;
+    --https-port) HTTPS_PORT="$2"; shift ;;
+    --redirect-port) REDIRECT_PORT="$2"; shift ;;
+    --no-http-redirect) HTTP_REDIRECT="false" ;;
     --force) FORCE=1 ;;
     --up) UP=1 ;;
     -h|--help) usage 0 ;;
@@ -68,8 +72,17 @@ if [ "$INTERACTIVE" = 1 ]; then
   ask AUDITOR_EMAIL "初始安全审计员邮箱（三员分立，留空跳过）" ""
   if [ -n "$AUDITOR_EMAIL" ]; then ask AUDITOR_PASSWORD "审计员密码（留空自动生成，不回显）" "" secret; fi
   ask TLS_CERT "HTTPS 证书路径（PEM，含中间证书；留空则仅 HTTP，由前置负载均衡处理 TLS）" ""
-  if [ -n "$TLS_CERT" ]; then ask TLS_KEY "私钥路径（PEM）" ""; fi
+  if [ -n "$TLS_CERT" ]; then
+    ask TLS_KEY "私钥路径（PEM）" ""
+    ask HTTPS_PORT "HTTPS 端口" "$HTTPS_PORT"
+    ask HTTP_REDIRECT "HTTP 是否跳转 HTTPS（true/false）" "$HTTP_REDIRECT"
+    if [ "$HTTP_REDIRECT" = true ]; then ask REDIRECT_PORT "跳转用的 HTTP 端口" "$REDIRECT_PORT"; fi
+  fi
 fi
+
+port_ok() { case "$2" in ''|*[!0-9]*) die "$1 必须是 1-65535 的数字：$2" ;; esac; [ "$2" -ge 1 ] && [ "$2" -le 65535 ] || die "$1 必须是 1-65535 的数字：$2"; }
+port_ok --http-port "$HTTP_PORT"; port_ok --https-port "$HTTPS_PORT"; port_ok --redirect-port "$REDIRECT_PORT"
+case "$HTTP_REDIRECT" in true|false) ;; *) die "HTTP 跳转只能是 true / false" ;; esac
 
 # 可选导入 TLS 证书（D-30）：校验后复制到 ./tls，nginx 启用 443，80/8080 跳转 443，会话 cookie 打开 Secure。
 TLS=0
@@ -118,12 +131,20 @@ if [ "$TLS" = 1 ]; then
   mv tls/tls.crt.new tls/tls.crt && mv tls/tls.key.new tls/tls.key
   chmod 644 tls/tls.crt && chmod 600 tls/tls.key
   COMPOSE_FILE="$COMPOSE_FILE:docker-compose.tls.yml"; COOKIE_SECURE=true; PUBLIC_HTTPS=true
+  if [ "$HTTP_REDIRECT" = true ]; then
+    [ "$REDIRECT_PORT" != "$HTTP_PORT" ] || die "--redirect-port 不能与 --http-port 相同"
+    COMPOSE_FILE="$COMPOSE_FILE:docker-compose.tls-redirect.yml"
+  fi
+  [ "$HTTPS_PORT" != "$HTTP_PORT" ] && [ "$HTTPS_PORT" != "$REDIRECT_PORT" ] || die "--https-port 与其他端口冲突"
 fi
 cat > .env <<ENV
 # 由 install.sh 于 $(date '+%Y-%m-%d %H:%M:%S %z') 生成，存储：$STORAGE
 COMPOSE_FILE=$COMPOSE_FILE
 HENGDESK_VERSION=dev
 HENGDESK_HTTP_PORT=$HTTP_PORT
+HENGDESK_HTTPS_PORT=$HTTPS_PORT
+HENGDESK_REDIRECT_PORT=$REDIRECT_PORT
+HENGDESK_HTTP_REDIRECT=$HTTP_REDIRECT
 HENGDESK_ENV=prod
 HENGDESK_COOKIE_SECURE=$COOKIE_SECURE
 HENGDESK_PUBLIC_HTTPS=$PUBLIC_HTTPS
@@ -143,7 +164,10 @@ HENGDESK_S3_PATH_STYLE=$S3_PATH_STYLE
 ENV
 
 echo "已生成 $(pwd)/.env（权限 600），compose 文件：$COMPOSE_FILE"
-if [ "$TLS" = 1 ]; then echo "HTTPS 已启用：证书已导入 $(pwd)/tls，访问 https://<主机>/（80 与 $HTTP_PORT 自动跳转）"
+if [ "$TLS" = 1 ]; then
+  echo "HTTPS 已启用：证书已导入 $(pwd)/tls，访问 https://<主机>:$HTTPS_PORT/"
+  if [ "$HTTP_REDIRECT" = true ]; then echo "HTTP 端口 $REDIRECT_PORT 与 $HTTP_PORT 自动跳转 HTTPS"
+  else echo "HTTP 跳转已关闭：不占用 $REDIRECT_PORT，$HTTP_PORT 只保留 /healthz"; fi
 else echo "提示：未导入证书，仅 HTTP；请在前置负载均衡终止 TLS 并设置 HENGDESK_PUBLIC_HTTPS=true，否则管理后台会常驻提示。"; fi
 echo "管理员账号：$ADMIN_EMAIL"
 if [ "$GENERATED_PW" = 1 ]; then echo "管理员密码已随机生成，查看：grep HENGDESK_ADMIN_PASSWORD $(pwd)/.env"; fi

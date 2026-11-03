@@ -199,6 +199,7 @@ jobs:
   compose-tls:
     name: compose 冒烟（HTTPS 自签证书）
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: 生成自签证书并以 TLS 模式安装
@@ -231,6 +232,43 @@ jobs:
           grep -i '^set-cookie: hd_session=' /tmp/h | grep -qi 'secure'
           curl -fsS --cacert /tmp/ci.crt -b /tmp/ck https://localhost/api/v1/admin/system/status | tee /tmp/st
           grep -q '"https":true' /tmp/st
+      - name: 改跳转端口（--redirect-port 8880）
+        working-directory: deploy
+        run: |
+          # 重新安装会生成新的数据库密码，先清掉旧数据卷（只在 CI 里这样做）
+          docker compose down -v
+          ./install.sh --non-interactive --storage seaweedfs --admin-password ci-only-password-123 \
+            --tls-cert /tmp/ci.crt --tls-key /tmp/ci.key --redirect-port 8880 --force
+          grep -q '^HENGDESK_REDIRECT_PORT=8880' .env
+          docker compose up -d
+          for i in $(seq 1 60); do curl -fsS --cacert /tmp/ci.crt https://localhost/healthz >/dev/null && break; sleep 2; done
+          curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' http://localhost:8880/x | tee /tmp/r
+          grep -q '^301 https://localhost/x' /tmp/r
+          if curl -s -m 3 -o /dev/null http://localhost:80/; then echo "80 仍被占用"; exit 1; fi
+      - name: 关闭 HTTP 跳转（--no-http-redirect）
+        working-directory: deploy
+        run: |
+          # 重新安装会生成新的数据库密码，先清掉旧数据卷（只在 CI 里这样做）
+          docker compose down -v
+          ./install.sh --non-interactive --storage seaweedfs --admin-password ci-only-password-123 \
+            --tls-cert /tmp/ci.crt --tls-key /tmp/ci.key --no-http-redirect --force
+          grep -q '^HENGDESK_HTTP_REDIRECT=false' .env
+          if grep -q 'tls-redirect' .env; then exit 1; fi
+          docker compose up -d
+          for i in $(seq 1 60); do curl -fsS --cacert /tmp/ci.crt https://localhost/healthz >/dev/null && break; sleep 2; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/sign-in)" = 404
+          curl -fsS http://localhost:8080/healthz >/dev/null
+          for p in 80 8880; do if curl -s -m 3 -o /dev/null "http://localhost:$p/"; then echo "$p 仍被占用"; exit 1; fi; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' --cacert /tmp/ci.crt https://localhost/)" = 200
+      - name: 旧 .env 升级后保持 80 跳转
+        working-directory: deploy
+        run: |
+          sed -i '/^HENGDESK_HTTP_REDIRECT=/d; /^HENGDESK_REDIRECT_PORT=/d' .env
+          ./upgrade.sh
+          grep -q 'tls-redirect' .env
+          for i in $(seq 1 60); do curl -fsS --cacert /tmp/ci.crt https://localhost/healthz >/dev/null && break; sleep 2; done
+          curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' http://localhost/ | tee /tmp/r
+          grep -q '^301 https://localhost/' /tmp/r
       - name: 失败时输出日志
         if: failure()
         working-directory: deploy

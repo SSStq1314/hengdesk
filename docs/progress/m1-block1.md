@@ -1,6 +1,6 @@
 # M1 第一块（IAM / 审计底座 + 部署加固）进度报告
 
-日期：2026-11-02（工程）。范围：PR #9 – #21。
+日期：2026-11-02（工程）。范围：PR #9 – #22。
 
 ## 1. PR 清单
 | PR | 一句话说明 |
@@ -16,8 +16,9 @@
 | [#17](https://github.com/SSStq1314/hengdesk/pull/17) | OIDC 单点登录（授权码 + PKCE），按邮箱关联、可选自动建号、登出审计。 |
 | [#18](https://github.com/SSStq1314/hengdesk/pull/18) | 社区版许可确认为 Apache-2.0，专业版扩展点（D-30）。 |
 | [#19](https://github.com/SSStq1314/hengdesk/pull/19) | 前端文案集中到 web/src/locales/zh-CN.ts，CI 检查不得写死中文。 |
-| [#21](https://github.com/SSStq1314/hengdesk/pull/21) | 补齐 FR-03 / AC-02 并落实 D-34 第 1 点：部门 claim 映射、域名白名单、特权账号只能手动绑定、强制 SSO 与紧急账号高风险审计 / 审计员站内提醒。 |
 | [#20](https://github.com/SSStq1314/hengdesk/pull/20) | 可选 HTTPS：install.sh 导入证书、nginx 443 与跳转、Secure cookie、后台非 HTTPS 提示、对象存储只绑 127.0.0.1、CI 自签证书冒烟；本报告。 |
+| [#21](https://github.com/SSStq1314/hengdesk/pull/21) | 补齐 FR-03 / AC-02 并落实 D-34 第 1 点：部门 claim 映射、域名白名单、特权账号只能手动绑定、强制 SSO 与紧急账号高风险审计 / 审计员站内提醒。 |
+| [#22](https://github.com/SSStq1314/hengdesk/pull/22) | D-34 第 2 点：HTTPS 模式下跳转端口、HTTPS 端口可配置，可关闭 HTTP 跳转；默认行为不变，旧 .env 升级兼容，compose 冒烟覆盖。 |
 
 ## 2. FR / AC 覆盖（PRD §8 / §14）
 | 编号 | 状态 | 说明 |
@@ -29,7 +30,7 @@
 | FR-07 资源 ACL | 底座完成 | #12；具体资源（知识库、智能体）随后续模块接入。 |
 | FR-28 全链路审计 | 部分 | #13：登录、配置变更、越权已记；对话 / 模型 / 工具链路随后续模块。 |
 | FR-29（P1）审计导出、哈希链 | 提前完成 | #13。 |
-| FR-35 部署 | 部分 | #10 #16 #20：install.sh、迁移、备份恢复、可选 HTTPS；离线安装包未做。 |
+| FR-35 部署 | 部分 | #10 #16 #20 #22：install.sh、迁移、备份恢复、可选 HTTPS、端口与跳转可配置；离线安装包未做。 |
 | FR-38（P1）版本特性开关 | 扩展点 | #18；license 校验未做。 |
 | FR-40 保留期 | 部分 | 备份保留（默认 5 份）已做；会话时长可配置；审计保留期未做。 |
 | AC-02 SSO 建号并归入部门 | 完成 | #21：模拟 IdP 端到端测试覆盖首次登录建号并归入 claim 对应部门。 |

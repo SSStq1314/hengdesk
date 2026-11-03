@@ -9,7 +9,17 @@
    docker compose up -d --build
    ```
    - install.sh 校验 PEM 格式、证书与私钥是否匹配，复制到 `deploy/tls/`（私钥 600，目录 700，已加入 .gitignore）。
-   - nginx 监听 443（TLS 1.2/1.3，HSTS）；宿主机 80 和 `HENGDESK_HTTP_PORT`（默认 8080）一律 301 到 `https://<主机>/`，`/healthz` 例外。
+   - nginx 监听 443（TLS 1.2/1.3，HSTS）；默认宿主机 80 和 `HENGDESK_HTTP_PORT`（默认 8080）一律 301 到 `https://<主机>/`，`/healthz` 例外。
+   - 端口（D-34 第 2 点，默认值与原行为一致）：
+
+     | install.sh 参数 | .env 变量 | 默认 | 说明 |
+     |---|---|---|---|
+     | `--https-port` | `HENGDESK_HTTPS_PORT` | 443 | 宿主机 HTTPS 端口；非 443 时跳转地址带端口 |
+     | `--redirect-port` | `HENGDESK_REDIRECT_PORT` | 80 | 额外占用、用于跳转的 HTTP 端口（`docker-compose.tls-redirect.yml`） |
+     | `--no-http-redirect` | `HENGDESK_HTTP_REDIRECT=false` | 跳转开启 | 关闭跳转：不加载 `docker-compose.tls-redirect.yml`，不占用 80；`HENGDESK_HTTP_PORT` 上只保留 `/healthz`，其余 404 |
+
+     例：80 被占用时 `./install.sh -y --tls-cert … --tls-key … --redirect-port 8880`；完全不要明文跳转时加 `--no-http-redirect`。
+   - 旧版 install.sh 生成的 HTTPS `.env` 在执行 `upgrade.sh` 时会自动补上跳转配置，保持 80 跳转。
    - `.env` 写入 `HENGDESK_COOKIE_SECURE=true`、`HENGDESK_PUBLIC_HTTPS=true`，会话 / CSRF / OIDC state cookie 带 Secure。
    - 换证书：替换 `deploy/tls/tls.crt`、`tls.key` 后执行 `docker compose restart web`。
 2. **前置负载均衡终止 TLS**：保持 HTTP 8080，在 `.env` 设置 `HENGDESK_COOKIE_SECURE=true`（`HENGDESK_PUBLIC_HTTPS` 默认跟随它）。
