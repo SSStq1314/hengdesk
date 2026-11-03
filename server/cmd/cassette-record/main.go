@@ -6,6 +6,10 @@
 //	HENGDESK_RECORD_API_KEY=... go run ./cmd/cassette-record -vendor dashscope \
 //	  -base https://dashscope.aliyuncs.com/compatible-mode/v1 -model qwen-plus \
 //	  -out internal/gateway/testdata/dashscope_cassette.json
+//
+// 出站请求经统一出站客户端（白名单 + DNS rebinding 防护），并把出站日志写到 -egress-log（JSON Lines，
+// 默认 cassette-record-egress.jsonl，只含方法 / 主机 / 端口 / 路径 / 结果，不含请求头与密钥）。D-39 第 3 条：
+// 真正发请求的命令行工具必须留出站日志；日志文件打不开或写不进去时不发请求。
 package main
 
 import (
@@ -50,6 +54,7 @@ func main() {
 	base := flag.String("base", "", "上游 base URL")
 	model := flag.String("model", "", "上游模型名")
 	out := flag.String("out", "", "输出文件")
+	egressLog := flag.String("egress-log", "cassette-record-egress.jsonl", "出站日志文件（JSON Lines，追加写入）")
 	allow := flag.String("allow", "", "额外出站白名单（如 vLLM 内网：\"cidr 10.0.0.0/8 8000\"）；默认只放行 -base 的主机")
 	flag.Parse()
 	key := os.Getenv(keyEnv)
@@ -72,7 +77,12 @@ func main() {
 		specs = append(specs, *allow)
 	}
 	// 与网关一致：经统一出站客户端（白名单 + DNS rebinding 防护 + 不走环境代理）。
-	hc = (&egress.Client{Policy: egress.MustStatic(specs...)}).HTTP()
+	lf, err := os.OpenFile(*egressLog, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		fail("无法打开出站日志文件：" + err.Error())
+	}
+	defer func() { _ = lf.Close() }()
+	hc = (&egress.Client{Policy: egress.MustStatic(specs...), Sink: &egress.JSONLSink{W: lf}}).HTTP()
 	msgs := []map[string]any{{"role": "user", "content": "用一句话介绍你自己。"}}
 	think := func(on bool) map[string]any {
 		switch *vendor {
@@ -176,7 +186,7 @@ func call(base string, anth bool, key string, body map[string]any) (rec, error) 
 	} else if key != "" {
 		req.Header.Set("Authorization", "Bearer "+key)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(egress.WithCaller(context.Background(), egress.Caller{Module: "cli.cassette-record"}), 120*time.Second)
 	defer cancel()
 	resp, err := hc.Do(req.WithContext(ctx))
 	if err != nil {

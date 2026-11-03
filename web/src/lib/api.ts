@@ -354,6 +354,7 @@ export type Model = {
   currency: string
   // 备用模型（按顺序）：首字节前遇到连接错误 / 429 / 5xx 且重试用尽时依次切换
   fallback_model_ids: number[] | null
+  fallback_acl_mismatch?: number[] | null
 }
 export type ModelInput = Partial<Omit<Model, 'id' | 'is_default'>>
 export type ModelACL = {
@@ -578,7 +579,21 @@ export type EgressLogFilter = {
   to?: string
   before_id?: number
 }
+export type EgressBlocked = {
+  host: string
+  port: number
+  reason: string
+  reason_text: string
+  count: number
+  last_ts: string
+  last_module: string
+}
+
 export const egressApi = {
+  blocked: (days = 7) =>
+    api<{ items: EgressBlocked[]; days: number }>(
+      `/admin/egress/blocked?days=${days}`
+    ),
   rules: () =>
     api<{ items: EgressRule[]; pending_review: number; default_port: number }>(
       '/admin/egress/rules'

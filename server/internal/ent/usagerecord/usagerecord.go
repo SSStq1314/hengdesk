@@ -58,6 +58,8 @@ const (
 	FieldLatencyMs = "latency_ms"
 	// FieldAttempt holds the string denoting the attempt field in the database.
 	FieldAttempt = "attempt"
+	// FieldFallbackFrom holds the string denoting the fallback_from field in the database.
+	FieldFallbackFrom = "fallback_from"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// Table holds the table name of the usagerecord in the database.
@@ -89,6 +91,7 @@ var Columns = []string{
 	FieldUsageUnknown,
 	FieldLatencyMs,
 	FieldAttempt,
+	FieldFallbackFrom,
 	FieldCreatedAt,
 }
 
@@ -131,6 +134,8 @@ var (
 	DefaultLatencyMs int
 	// DefaultAttempt holds the default value on creation for the "attempt" field.
 	DefaultAttempt int
+	// DefaultFallbackFrom holds the default value on creation for the "fallback_from" field.
+	DefaultFallbackFrom string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 )
@@ -303,6 +308,11 @@ func ByLatencyMs(opts ...sql.OrderTermOption) OrderOption {
 // ByAttempt orders the results by the attempt field.
 func ByAttempt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAttempt, opts...).ToFunc()
+}
+
+// ByFallbackFrom orders the results by the fallback_from field.
+func ByFallbackFrom(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFallbackFrom, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

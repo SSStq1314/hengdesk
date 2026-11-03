@@ -113,6 +113,7 @@ func Mount(e *echo.Echo, d Deps) {
 	admin.POST("/egress/rules/:id/review", eh.reviewRule, authz.Require(rbac.EgressManage))
 	admin.GET("/egress/logs", eh.logs, authz.Require(rbac.EgressLogRead))
 	admin.GET("/egress/logs/export", eh.exportLogs, authz.Require(rbac.EgressLogRead))
+	admin.GET("/egress/blocked", eh.blocked, authz.Require(rbac.EgressLogRead))
 	admin.GET("/model-providers", mdh.listProviders, authz.Require(rbac.ModelManage))
 	admin.POST("/model-providers", mdh.createProvider, authz.Require(rbac.ModelManage))
 	admin.PATCH("/model-providers/:id", mdh.updateProvider, authz.Require(rbac.ModelManage))

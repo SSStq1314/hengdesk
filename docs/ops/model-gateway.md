@@ -125,14 +125,17 @@ curl -N -b c.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
 
 ## 重试与故障转移（PR5）
 
-- **只在首字节之前重试**，且只针对：连接错误、429、5xx（含 Anthropic 529）。4xx（参数、鉴权）和超时不重试。
-- **流式一旦开始输出就不再重试**（含 Anthropic 流内 `error` 事件），直接把错误发给客户端。
+- **只在首字节之前重试**，且只针对：建立连接阶段的失败（连接超时、连接被拒，502）、429、5xx（含 Anthropic 529）。4xx（参数、鉴权）、读超时（504）和连接建立后的中断不重试（D-39 第 5 条）。
+- **流式收到首个 token 后不再重试或切换**（含 Anthropic 流内 `error` 事件），直接以 SSE `error` 事件结束；首个 token 之前的失败按非流式规则处理（D-39 第 8 条）。
 - 每个上游最多尝试 2 次（间隔 200 ms × 次数），用尽后按模型配置的**备用模型**（`fallback_model_ids`，最多 3 个，按顺序）依次切换。
   备用模型须存在、已启用、不能是自身、不能重复；管理端在「模型 → 编辑 → 备用模型」勾选。
 - **每次尝试都单独写审计**（`model.call` / `attempt`，含 `attempt` 序号，切换时带 `fallback_model`）和 `usage_record`（`attempt` 字段，同一 `request_id`）。
   第 1 次尝试的审计写失败 → 拒绝请求；后续尝试的审计写失败 → 停止重试，返回上一次错误（不会在无审计的情况下调用上游）。
 - **预算只计实际产生的用量一次**：预算预检只在第一次尝试前做一次（以主模型为准）；失败尝试 token 与金额为 0（标记用量未知，D-37），
-  只有成功那次按实际用量记账。备用模型不再单独做使用权限检查（由管理员配置，视为主模型的一部分）。
+  只有成功那次按实际用量记账。
+- **只切换到调用人有使用权限的备用模型**（D-39 第 6 条）：逐个按资源 ACL 使用位校验；都没有权限时返回主模型的原错误，不调用备用。
+  模型列表 / 详情返回 `fallback_acl_mismatch`，编辑框在使用人群与主模型不一致的备用旁提示。
+- **记录实际使用的模型**（D-39 第 7 条）：响应 `model` 为实际模型并带 `fallback_from`；`usage_record.fallback_from`；审计 `resource_id` 为实际模型，`detail.note`「由 X 切换」。
 
 ## 契约测试与录制（D-35）
 
@@ -154,7 +157,7 @@ HENGDESK_RECORD_API_KEY=<Anthropic Key> go run ./cmd/cassette-record -vendor ant
 go test ./internal/gateway/ -run Contract
 ```
 
-  录制工具只保存请求体与响应体（不保存任何请求头），写盘前把 Key 替换为 `[REDACTED]` 并断言文件中不含 Key；同样经出站客户端，默认只放行 `-base` 的主机。
+  录制工具只保存请求体与响应体（不保存任何请求头），写盘前把 Key 替换为 `[REDACTED]` 并断言文件中不含 Key；同样经出站客户端，默认只放行 `-base` 的主机，出站日志写到 `-egress-log`（默认 `cassette-record-egress.jsonl`，勿提交）。
   录制后检查 diff，确认无敏感内容再提交。
 
 ## Ollama（本机验证步骤）

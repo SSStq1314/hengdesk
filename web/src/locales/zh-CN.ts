@@ -276,6 +276,9 @@ export const zh = {
       'vLLM / Ollama 通常部署在内网。内网地址默认被出站白名单拒绝，请先由超级管理员在「出站控制 → 出站白名单」中显式放行该地址段和端口（如 cidr 10.0.0.0/8，端口 8000 或 11434），否则测试连接会失败。',
     fallbacks: '备用模型',
     fallbackOrder: (n: number) => `第 ${n} 备用`,
+    fallbackAclMismatch: '使用人群与主模型不一致',
+    fallbackAclHint:
+      '切换只会落到调用人有使用权限的备用模型；都没有权限时直接返回原错误。',
     fallbackHint:
       '最多 3 个，按勾选顺序切换。仅在开始返回内容之前、遇到连接错误 / 429 / 5xx 且重试用尽时切换；已开始流式输出后不会重试。',
     baseURL: '接口地址',
@@ -401,6 +404,17 @@ export const zh = {
     month: '本月',
   },
   egress: {
+    tabBlocked: '被拦截的出站请求',
+    blockedIntro: (d: number) =>
+      `最近 ${d} 天被拦截的出站请求（按主机、端口、原因聚合，最多 200 条）。升级收窄端口后，正常请求被拦会出现在这里。`,
+    blockedEmpty: '最近没有被拦截的请求',
+    blockedCount: '次数',
+    blockedLast: '最近一次',
+    blockedModule: '调用模块',
+    blockedReason: '原因',
+    blockedAdd: '加入白名单',
+    blockedAdded: '已加入白名单',
+    blockedAddNote: (n: number) => `由被拦截列表添加（${n} 次）`,
     title: '出站控制',
     tabRules: '出站白名单',
     tabLogs: '出站日志',
@@ -419,7 +433,8 @@ export const zh = {
       'api.deepseek.com / *.example.com / 10.0.0.5 / 10.0.0.0/24',
     ports: '端口',
     portsPlaceholder: '留空仅 443；例如 443,8443；* 表示任意端口',
-    portsHint: '留空时只放行 443。填 * 放行任意端口，风险较高，仅在确有需要时使用。',
+    portsHint:
+      '留空时只放行 443。填 * 放行任意端口，风险较高，仅在确有需要时使用。',
     portsDefault: '443（默认）',
     anyPort: '任意（*）',
     anyPortWarn: '任意端口：该目标的所有端口都可访问，请确认确有需要。',

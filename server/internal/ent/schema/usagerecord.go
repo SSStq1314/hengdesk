@@ -40,6 +40,8 @@ func (UsageRecord) Fields() []ent.Field {
 		field.Int("latency_ms").Default(0),
 		// attempt 同一请求内的第几次尝试（重试 / 故障转移，从 1 开始）；同一 request_id 可有多条。
 		field.Int("attempt").Default(1),
+		// fallback_from 切换到备用模型时的原模型名（D-39 第 7 条：model_* 记实际使用的模型，并标注「由 A 切换」）。
+		field.String("fallback_from").Default(""),
 		field.Time("created_at").Default(time.Now).Immutable(),
 	}
 }

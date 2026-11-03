@@ -9,13 +9,17 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/SSStq1314/hengdesk/server/internal/api"
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/egress"
+	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 	"github.com/SSStq1314/hengdesk/server/internal/store/storetest"
@@ -119,7 +123,7 @@ func TestEgressLogSensitiveRead(t *testing.T) {
 	}
 
 	g2 := newGW(t, false, func(d *api.Deps) { d.Audit = failEgressLogAudit{d.Audit} })
-	for _, u := range []string{"/api/v1/admin/egress/logs", "/api/v1/admin/egress/logs?decision=deny", "/api/v1/admin/egress/logs/export"} {
+	for _, u := range []string{"/api/v1/admin/egress/logs", "/api/v1/admin/egress/logs?decision=deny", "/api/v1/admin/egress/logs/export", "/api/v1/admin/egress/blocked"} {
 		rec := g2.admin.do("GET", u, "", false)
 		if rec.Code != http.StatusServiceUnavailable || strings.Contains(rec.Body.String(), "items") || strings.Contains(rec.Body.String(), "decision,") {
 			t.Fatalf("%s: 审计失败应拒绝，got %d %s", u, rec.Code, rec.Body)
@@ -202,5 +206,97 @@ func TestEgressMigratePorts(t *testing.T) {
 	c.EgressRule.Create().SetKind(egressrule.KindHost).SetValue("new.example.com").ExecX(ctx)
 	if n, _ := egress.MigratePorts(ctx, c, w, fakeResolver{}, ""); n != 0 {
 		t.Fatal("只执行一次；之后新建的空端口条目按新语义仅 443")
+	}
+}
+
+// D-39 第 1 条：#31 改成 * 的手工条目收窄为 443（上游引用的主机用实际端口）、标记待复核、逐条审计；
+// 之后被管理员改过的、本来就是 * 的手工条目不动；只执行一次。
+func TestEgressMigrateD39Ports(t *testing.T) {
+	c := storetest.NewTestClient(t)
+	ctx := context.Background()
+	c.ModelProvider.Create().SetName("vllm").SetBaseURL("http://vllm.corp:9000/v1").ExecX(ctx)
+	for _, v := range []string{"plain.example.com", "vllm.corp", "edited.example.com", "dup.example.com"} {
+		c.EgressRule.Create().SetKind(egressrule.KindHost).SetValue(v).ExecX(ctx)
+	}
+	w := audit.EntWriter{C: c}
+	if _, err := egress.MigratePorts(ctx, c, w, fakeResolver{}, ""); err != nil {
+		t.Fatal(err)
+	}
+	// 用户自己建的 * 条目、#31 之后已存在的 443 同名条目、#31 之后管理员编辑过的条目
+	own := c.EgressRule.Create().SetKind(egressrule.KindHost).SetValue("own.example.com").SetPorts("*").SaveX(ctx)
+	c.EgressRule.Create().SetKind(egressrule.KindHost).SetValue("dup.example.com").SetPorts("443").ExecX(ctx)
+	ed := c.EgressRule.Query().Where(egressrule.Value("edited.example.com")).OnlyX(ctx)
+	time.Sleep(5 * time.Millisecond)
+	if err := w.Write(ctx, audit.Entry{ActorEmail: "admin@x.local", Action: "egress.rule.update", ResourceType: "egress_rule",
+		ResourceID: strconv.Itoa(ed.ID), Phase: "result", Outcome: "success"}); err != nil {
+		t.Fatal(err)
+	}
+	n, err := egress.MigrateD39Ports(ctx, c, w, fakeResolver{}, "")
+	if err != nil || n != 3 {
+		t.Fatalf("%d %v", n, err)
+	}
+	want := map[string]string{"plain.example.com": "443", "vllm.corp": "9000", "edited.example.com": "*", "own.example.com": "*"}
+	for _, r := range c.EgressRule.Query().AllX(ctx) {
+		if r.Value == "dup.example.com" {
+			if r.Ports != "443" || !r.ReviewRequired {
+				t.Errorf("dup 应合并为 443 并待复核：%+v", r)
+			}
+			continue
+		}
+		if want[r.Value] != r.Ports {
+			t.Errorf("%s ports=%q want %q", r.Value, r.Ports, want[r.Value])
+		}
+		narrowed := r.Value == "plain.example.com" || r.Value == "vllm.corp"
+		if r.ReviewRequired != narrowed || (narrowed && r.ReviewedAt != nil) {
+			t.Errorf("%s review_required=%v", r.Value, r.ReviewRequired)
+		}
+	}
+	if n := c.EgressRule.Query().Where(egressrule.Value("dup.example.com")).CountX(ctx); n != 1 {
+		t.Fatalf("dup 条目数 %d", n)
+	}
+	if a := c.AuditLog.Query().Where(auditlog.Action("egress.rule.ports_migrate")).AllX(ctx); len(a) != 4+3 {
+		t.Fatalf("audit %d", len(a))
+	}
+	_ = own
+	if n, _ := egress.MigrateD39Ports(ctx, c, w, fakeResolver{}, ""); n != 0 {
+		t.Fatal("只执行一次")
+	}
+}
+
+// D-39 第 2 条：导出分批流式输出（跨多个批次），超过上限截断并在审计里记录匹配总数。
+func TestEgressExportStreamed(t *testing.T) {
+	g := newGW(t, false)
+	ctx := context.Background()
+	for i := 0; i < 2500; i++ {
+		g.c.EgressLog.Create().SetHost(fmt.Sprintf("h%d.example.com", i)).SetPort(443).SetDecision(egresslog.DecisionDeny).SetReason("not_allowed").ExecX(ctx)
+	}
+	rec := g.admin.do("GET", "/api/v1/admin/egress/logs/export", "", false)
+	if rec.Code != 200 || rec.Header().Get("X-Export-Truncated") != "" {
+		t.Fatalf("export %d", rec.Code)
+	}
+	if n := strings.Count(rec.Body.String(), "\n"); n != 2501 {
+		t.Fatalf("行数 %d", n)
+	}
+	defer api.SetEgressExportMax(1200)()
+	rec = g.admin.do("GET", "/api/v1/admin/egress/logs/export", "", false)
+	if rec.Code != 200 || rec.Header().Get("X-Export-Truncated") != "true" || strings.Count(rec.Body.String(), "\n") != 1201 ||
+		!strings.Contains(rec.Body.String(), "h2499.example.com") || strings.Contains(rec.Body.String(), "h1299.example.com,") {
+		t.Fatalf("截断导出 %d lines=%d", rec.Code, strings.Count(rec.Body.String(), "\n"))
+	}
+	e := g.c.AuditLog.Query().Where(auditlog.Action("egress.log.export")).Order(ent.Desc(auditlog.FieldID)).FirstX(ctx)
+	if e.Detail["rows"] != float64(1200) || e.Detail["matched"] != float64(2500) || e.Detail["truncated"] != true {
+		t.Fatalf("audit %+v", e.Detail)
+	}
+	// 被拦截的出站请求列表：按主机聚合
+	rec = g.admin.do("GET", "/api/v1/admin/egress/blocked", "", false)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"host":"h2499.example.com"`) {
+		t.Fatalf("blocked %d", rec.Code)
+	}
+	if g.c.AuditLog.Query().Where(auditlog.Action("egress.log.blocked")).CountX(ctx) != 1 {
+		t.Fatal("blocked 应记敏感读取审计")
+	}
+	member := g.loginAs(t, "member@x.local", "password123")
+	if got := member.do("GET", "/api/v1/admin/egress/blocked", "", false).Code; got != 404 {
+		t.Fatalf("member blocked %d", got)
 	}
 }

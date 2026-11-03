@@ -290,6 +290,20 @@ func (_c *UsageRecordCreate) SetNillableAttempt(v *int) *UsageRecordCreate {
 	return _c
 }
 
+// SetFallbackFrom sets the "fallback_from" field.
+func (_c *UsageRecordCreate) SetFallbackFrom(v string) *UsageRecordCreate {
+	_c.mutation.SetFallbackFrom(v)
+	return _c
+}
+
+// SetNillableFallbackFrom sets the "fallback_from" field if the given value is not nil.
+func (_c *UsageRecordCreate) SetNillableFallbackFrom(v *string) *UsageRecordCreate {
+	if v != nil {
+		_c.SetFallbackFrom(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *UsageRecordCreate) SetCreatedAt(v time.Time) *UsageRecordCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -403,6 +417,10 @@ func (_c *UsageRecordCreate) defaults() {
 		v := usagerecord.DefaultAttempt
 		_c.mutation.SetAttempt(v)
 	}
+	if _, ok := _c.mutation.FallbackFrom(); !ok {
+		v := usagerecord.DefaultFallbackFrom
+		_c.mutation.SetFallbackFrom(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := usagerecord.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -483,6 +501,9 @@ func (_c *UsageRecordCreate) check() error {
 	}
 	if _, ok := _c.mutation.Attempt(); !ok {
 		return &ValidationError{Name: "attempt", err: errors.New(`ent: missing required field "UsageRecord.attempt"`)}
+	}
+	if _, ok := _c.mutation.FallbackFrom(); !ok {
+		return &ValidationError{Name: "fallback_from", err: errors.New(`ent: missing required field "UsageRecord.fallback_from"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "UsageRecord.created_at"`)}
@@ -601,6 +622,10 @@ func (_c *UsageRecordCreate) createSpec() (*UsageRecord, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Attempt(); ok {
 		_spec.SetField(usagerecord.FieldAttempt, field.TypeInt, value)
 		_node.Attempt = value
+	}
+	if value, ok := _c.mutation.FallbackFrom(); ok {
+		_spec.SetField(usagerecord.FieldFallbackFrom, field.TypeString, value)
+		_node.FallbackFrom = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(usagerecord.FieldCreatedAt, field.TypeTime, value)
@@ -1003,6 +1028,18 @@ func (u *UsageRecordUpsert) UpdateAttempt() *UsageRecordUpsert {
 // AddAttempt adds v to the "attempt" field.
 func (u *UsageRecordUpsert) AddAttempt(v int) *UsageRecordUpsert {
 	u.Add(usagerecord.FieldAttempt, v)
+	return u
+}
+
+// SetFallbackFrom sets the "fallback_from" field.
+func (u *UsageRecordUpsert) SetFallbackFrom(v string) *UsageRecordUpsert {
+	u.Set(usagerecord.FieldFallbackFrom, v)
+	return u
+}
+
+// UpdateFallbackFrom sets the "fallback_from" field to the value that was provided on create.
+func (u *UsageRecordUpsert) UpdateFallbackFrom() *UsageRecordUpsert {
+	u.SetExcluded(usagerecord.FieldFallbackFrom)
 	return u
 }
 
@@ -1454,6 +1491,20 @@ func (u *UsageRecordUpsertOne) AddAttempt(v int) *UsageRecordUpsertOne {
 func (u *UsageRecordUpsertOne) UpdateAttempt() *UsageRecordUpsertOne {
 	return u.Update(func(s *UsageRecordUpsert) {
 		s.UpdateAttempt()
+	})
+}
+
+// SetFallbackFrom sets the "fallback_from" field.
+func (u *UsageRecordUpsertOne) SetFallbackFrom(v string) *UsageRecordUpsertOne {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.SetFallbackFrom(v)
+	})
+}
+
+// UpdateFallbackFrom sets the "fallback_from" field to the value that was provided on create.
+func (u *UsageRecordUpsertOne) UpdateFallbackFrom() *UsageRecordUpsertOne {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.UpdateFallbackFrom()
 	})
 }
 
@@ -2071,6 +2122,20 @@ func (u *UsageRecordUpsertBulk) AddAttempt(v int) *UsageRecordUpsertBulk {
 func (u *UsageRecordUpsertBulk) UpdateAttempt() *UsageRecordUpsertBulk {
 	return u.Update(func(s *UsageRecordUpsert) {
 		s.UpdateAttempt()
+	})
+}
+
+// SetFallbackFrom sets the "fallback_from" field.
+func (u *UsageRecordUpsertBulk) SetFallbackFrom(v string) *UsageRecordUpsertBulk {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.SetFallbackFrom(v)
+	})
+}
+
+// UpdateFallbackFrom sets the "fallback_from" field to the value that was provided on create.
+func (u *UsageRecordUpsertBulk) UpdateFallbackFrom() *UsageRecordUpsertBulk {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.UpdateFallbackFrom()
 	})
 }
 

@@ -7065,26 +7065,27 @@ func (m *EgressLogMutation) ResetEdge(name string) error {
 // EgressRuleMutation represents an operation that mutates the EgressRule nodes in the graph.
 type EgressRuleMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	created_at     *time.Time
-	updated_at     *time.Time
-	kind           *egressrule.Kind
-	value          *string
-	ports          *string
-	note           *string
-	source         *egressrule.Source
-	private        *bool
-	created_by     *int
-	addcreated_by  *int
-	reviewed_at    *time.Time
-	reviewed_by    *int
-	addreviewed_by *int
-	clearedFields  map[string]struct{}
-	done           bool
-	oldValue       func(context.Context) (*EgressRule, error)
-	predicates     []predicate.EgressRule
+	op              Op
+	typ             string
+	id              *int
+	created_at      *time.Time
+	updated_at      *time.Time
+	kind            *egressrule.Kind
+	value           *string
+	ports           *string
+	note            *string
+	source          *egressrule.Source
+	private         *bool
+	created_by      *int
+	addcreated_by   *int
+	reviewed_at     *time.Time
+	reviewed_by     *int
+	addreviewed_by  *int
+	review_required *bool
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*EgressRule, error)
+	predicates      []predicate.EgressRule
 }
 
 var _ ent.Mutation = (*EgressRuleMutation)(nil)
@@ -7662,6 +7663,42 @@ func (m *EgressRuleMutation) ResetReviewedBy() {
 	delete(m.clearedFields, egressrule.FieldReviewedBy)
 }
 
+// SetReviewRequired sets the "review_required" field.
+func (m *EgressRuleMutation) SetReviewRequired(b bool) {
+	m.review_required = &b
+}
+
+// ReviewRequired returns the value of the "review_required" field in the mutation.
+func (m *EgressRuleMutation) ReviewRequired() (r bool, exists bool) {
+	v := m.review_required
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewRequired returns the old "review_required" field's value of the EgressRule entity.
+// If the EgressRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EgressRuleMutation) OldReviewRequired(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewRequired is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewRequired requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewRequired: %w", err)
+	}
+	return oldValue.ReviewRequired, nil
+}
+
+// ResetReviewRequired resets all changes to the "review_required" field.
+func (m *EgressRuleMutation) ResetReviewRequired() {
+	m.review_required = nil
+}
+
 // Where appends a list predicates to the EgressRuleMutation builder.
 func (m *EgressRuleMutation) Where(ps ...predicate.EgressRule) {
 	m.predicates = append(m.predicates, ps...)
@@ -7696,7 +7733,7 @@ func (m *EgressRuleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EgressRuleMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 12)
 	if m.created_at != nil {
 		fields = append(fields, egressrule.FieldCreatedAt)
 	}
@@ -7730,6 +7767,9 @@ func (m *EgressRuleMutation) Fields() []string {
 	if m.reviewed_by != nil {
 		fields = append(fields, egressrule.FieldReviewedBy)
 	}
+	if m.review_required != nil {
+		fields = append(fields, egressrule.FieldReviewRequired)
+	}
 	return fields
 }
 
@@ -7760,6 +7800,8 @@ func (m *EgressRuleMutation) Field(name string) (ent.Value, bool) {
 		return m.ReviewedAt()
 	case egressrule.FieldReviewedBy:
 		return m.ReviewedBy()
+	case egressrule.FieldReviewRequired:
+		return m.ReviewRequired()
 	}
 	return nil, false
 }
@@ -7791,6 +7833,8 @@ func (m *EgressRuleMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldReviewedAt(ctx)
 	case egressrule.FieldReviewedBy:
 		return m.OldReviewedBy(ctx)
+	case egressrule.FieldReviewRequired:
+		return m.OldReviewRequired(ctx)
 	}
 	return nil, fmt.Errorf("unknown EgressRule field %s", name)
 }
@@ -7876,6 +7920,13 @@ func (m *EgressRuleMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetReviewedBy(v)
+		return nil
+	case egressrule.FieldReviewRequired:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewRequired(v)
 		return nil
 	}
 	return fmt.Errorf("unknown EgressRule field %s", name)
@@ -8006,6 +8057,9 @@ func (m *EgressRuleMutation) ResetField(name string) error {
 		return nil
 	case egressrule.FieldReviewedBy:
 		m.ResetReviewedBy()
+		return nil
+	case egressrule.FieldReviewRequired:
+		m.ResetReviewRequired()
 		return nil
 	}
 	return fmt.Errorf("unknown EgressRule field %s", name)
@@ -14553,6 +14607,7 @@ type UsageRecordMutation struct {
 	addlatency_ms        *int
 	attempt              *int
 	addattempt           *int
+	fallback_from        *string
 	created_at           *time.Time
 	clearedFields        map[string]struct{}
 	done                 bool
@@ -15724,6 +15779,42 @@ func (m *UsageRecordMutation) ResetAttempt() {
 	m.addattempt = nil
 }
 
+// SetFallbackFrom sets the "fallback_from" field.
+func (m *UsageRecordMutation) SetFallbackFrom(s string) {
+	m.fallback_from = &s
+}
+
+// FallbackFrom returns the value of the "fallback_from" field in the mutation.
+func (m *UsageRecordMutation) FallbackFrom() (r string, exists bool) {
+	v := m.fallback_from
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFallbackFrom returns the old "fallback_from" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldFallbackFrom(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFallbackFrom is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFallbackFrom requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFallbackFrom: %w", err)
+	}
+	return oldValue.FallbackFrom, nil
+}
+
+// ResetFallbackFrom resets all changes to the "fallback_from" field.
+func (m *UsageRecordMutation) ResetFallbackFrom() {
+	m.fallback_from = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *UsageRecordMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -15794,7 +15885,7 @@ func (m *UsageRecordMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageRecordMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 24)
 	if m.org_id != nil {
 		fields = append(fields, usagerecord.FieldOrgID)
 	}
@@ -15861,6 +15952,9 @@ func (m *UsageRecordMutation) Fields() []string {
 	if m.attempt != nil {
 		fields = append(fields, usagerecord.FieldAttempt)
 	}
+	if m.fallback_from != nil {
+		fields = append(fields, usagerecord.FieldFallbackFrom)
+	}
 	if m.created_at != nil {
 		fields = append(fields, usagerecord.FieldCreatedAt)
 	}
@@ -15916,6 +16010,8 @@ func (m *UsageRecordMutation) Field(name string) (ent.Value, bool) {
 		return m.LatencyMs()
 	case usagerecord.FieldAttempt:
 		return m.Attempt()
+	case usagerecord.FieldFallbackFrom:
+		return m.FallbackFrom()
 	case usagerecord.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -15971,6 +16067,8 @@ func (m *UsageRecordMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldLatencyMs(ctx)
 	case usagerecord.FieldAttempt:
 		return m.OldAttempt(ctx)
+	case usagerecord.FieldFallbackFrom:
+		return m.OldFallbackFrom(ctx)
 	case usagerecord.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -16135,6 +16233,13 @@ func (m *UsageRecordMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAttempt(v)
+		return nil
+	case usagerecord.FieldFallbackFrom:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFallbackFrom(v)
 		return nil
 	case usagerecord.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -16425,6 +16530,9 @@ func (m *UsageRecordMutation) ResetField(name string) error {
 		return nil
 	case usagerecord.FieldAttempt:
 		m.ResetAttempt()
+		return nil
+	case usagerecord.FieldFallbackFrom:
+		m.ResetFallbackFrom()
 		return nil
 	case usagerecord.FieldCreatedAt:
 		m.ResetCreatedAt()

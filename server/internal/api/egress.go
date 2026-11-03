@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -38,7 +39,7 @@ type egressRuleView struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	// AnyPort 端口为 "*"（任意端口），管理端显示风险提示。
 	AnyPort bool `json:"any_port"`
-	// NeedsReview 升级 / OIDC 自动添加、尚未复核（D-38 第 1 条）。
+	// NeedsReview 升级 / OIDC 自动添加、尚未复核（D-38 第 1 条）；或 D-39 迁移收窄过端口的手工条目。
 	NeedsReview bool       `json:"needs_review"`
 	ReviewedAt  *time.Time `json:"reviewed_at,omitempty"`
 	ReviewedBy  int        `json:"reviewed_by,omitempty"`
@@ -47,7 +48,7 @@ type egressRuleView struct {
 func toRuleView(r *ent.EgressRule) egressRuleView {
 	return egressRuleView{ID: r.ID, Kind: string(r.Kind), Value: r.Value, Ports: r.Ports, Note: r.Note, Source: string(r.Source),
 		Private: r.Private, CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
-		AnyPort: strings.TrimSpace(r.Ports) == "*", NeedsReview: r.Source != egressrule.SourceManual && r.ReviewedAt == nil,
+		AnyPort: strings.TrimSpace(r.Ports) == "*", NeedsReview: (r.Source != egressrule.SourceManual || r.ReviewRequired) && r.ReviewedAt == nil,
 		ReviewedAt: r.ReviewedAt, ReviewedBy: r.ReviewedBy}
 }
 
@@ -175,7 +176,7 @@ func (h *egressHandlers) reviewRule(c echo.Context) error {
 	if err != nil {
 		return notFoundOr(err)
 	}
-	if old.Source == egressrule.SourceManual {
+	if old.Source == egressrule.SourceManual && !old.ReviewRequired {
 		return bad("手工添加的条目不需要复核")
 	}
 	if old.ReviewedAt != nil {
@@ -397,25 +398,34 @@ func (h *egressHandlers) logs(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-// egressExportMax 单次导出上限，超过请缩小时间范围。
-const egressExportMax = 10000
+// egressExportMax 单次导出上限（D-39 第 2 条：10 万行，分批查询流式输出，不一次读入内存）；超过请缩小时间范围。
+var egressExportMax = 100000
 
-// exportLogs GET /admin/egress/logs/export：按当前筛选条件导出 CSV（最多 10000 行）。
-// 先查出数据、写好审计（含导出行数）再开始输出；审计写不进去返回 503，不输出任何数据。
+// egressExportBatch 每批查询的行数。
+const egressExportBatch = 1000
+
+// exportLogs GET /admin/egress/logs/export：按当前筛选条件导出 CSV（最多 egressExportMax 行）。
+// 先确定导出范围（不超过当前最大 ID 的快照）与行数并写好审计，再分批查询、流式输出；
+// 审计写不进去返回 503，不输出任何数据。
 func (h *egressHandlers) exportLogs(c echo.Context) error {
+	ctx := c.Request().Context()
 	q, filters, err := h.logQuery(c)
 	if err != nil {
 		return err
 	}
-	rows, err := q.Order(ent.Desc(egresslog.FieldID)).Limit(egressExportMax + 1).All(c.Request().Context())
+	top, err := q.Clone().Order(ent.Desc(egresslog.FieldID)).Limit(1).IDs(ctx)
 	if err != nil {
 		return err
 	}
-	truncated := len(rows) > egressExportMax
-	if truncated {
-		rows = rows[:egressExportMax]
+	total := 0
+	if len(top) > 0 {
+		if total, err = q.Clone().Where(egresslog.IDLTE(top[0])).Count(ctx); err != nil {
+			return err
+		}
 	}
-	if err := logReadAudit(c, "egress.log.export", filters, len(rows), map[string]any{"truncated": truncated, "format": "csv"}); err != nil {
+	rows := min(total, egressExportMax)
+	truncated := total > egressExportMax
+	if err := logReadAudit(c, "egress.log.export", filters, rows, map[string]any{"truncated": truncated, "format": "csv", "matched": total}); err != nil {
 		return err
 	}
 	c.Response().Header().Set(echo.HeaderContentType, "text/csv; charset=utf-8")
@@ -428,17 +438,91 @@ func (h *egressHandlers) exportLogs(c echo.Context) error {
 	w := csv.NewWriter(c.Response())
 	_ = w.Write([]string{"id", "ts", "user_id", "actor_email", "module", "method", "scheme", "host", "port", "path", "ip",
 		"decision", "reason", "status", "duration_ms", "bytes_out", "bytes_in", "error"})
-	for _, r := range rows {
-		uid := ""
-		if r.UserID != nil {
-			uid = strconv.Itoa(*r.UserID)
+	written := 0
+	cursor := 0
+	if len(top) > 0 {
+		cursor = top[0] + 1
+	}
+	for written < rows {
+		batch, err := q.Clone().Where(egresslog.IDLT(cursor)).Order(ent.Desc(egresslog.FieldID)).Limit(min(egressExportBatch, rows-written)).All(ctx)
+		if err != nil {
+			return err // 响应已开始输出，只能中断；审计已记录本次导出
 		}
-		_ = w.Write([]string{strconv.Itoa(r.ID), r.Ts.Format(time.RFC3339), uid, csvSafe(r.ActorEmail), csvSafe(r.Module),
-			r.Method, r.Scheme, csvSafe(r.Host), strconv.Itoa(r.Port), csvSafe(r.Path), r.IP, string(r.Decision), r.Reason,
-			strconv.Itoa(r.Status), strconv.FormatInt(r.DurationMs, 10), strconv.FormatInt(r.BytesOut, 10), strconv.FormatInt(r.BytesIn, 10), r.Error})
+		if len(batch) == 0 {
+			break
+		}
+		for _, r := range batch {
+			uid := ""
+			if r.UserID != nil {
+				uid = strconv.Itoa(*r.UserID)
+			}
+			_ = w.Write([]string{strconv.Itoa(r.ID), r.Ts.Format(time.RFC3339), uid, csvSafe(r.ActorEmail), csvSafe(r.Module),
+				r.Method, r.Scheme, csvSafe(r.Host), strconv.Itoa(r.Port), csvSafe(r.Path), r.IP, string(r.Decision), r.Reason,
+				strconv.Itoa(r.Status), strconv.FormatInt(r.DurationMs, 10), strconv.FormatInt(r.BytesOut, 10), strconv.FormatInt(r.BytesIn, 10), csvSafe(r.Error)})
+		}
+		written += len(batch)
+		cursor = batch[len(batch)-1].ID
+		w.Flush()
+		if err := w.Error(); err != nil {
+			return nil // 客户端断开
+		}
 	}
 	w.Flush()
 	return w.Error()
+}
+
+// blocked GET /admin/egress/blocked?days=7：最近被拦截的出站请求，按 主机 + 端口 + 原因 聚合（D-39 第 1 条），
+// 便于管理员发现迁移收窄端口后被拦的正常请求并补加白名单。按敏感读取记审计，写不进去不返回数据。
+func (h *egressHandlers) blocked(c echo.Context) error {
+	days := 7
+	if v, err := strconv.Atoi(c.QueryParam("days")); err == nil && v > 0 && v <= 90 {
+		days = v
+	}
+	since := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
+	var groups []struct {
+		Host   string `json:"host"`
+		Port   int    `json:"port"`
+		Reason string `json:"reason"`
+		Count  int    `json:"count"`
+		LastID int    `json:"last_id"`
+	}
+	err := h.db.EgressLog.Query().Where(egresslog.DecisionEQ(egresslog.DecisionDeny), egresslog.TsGTE(since)).
+		GroupBy(egresslog.FieldHost, egresslog.FieldPort, egresslog.FieldReason).
+		Aggregate(ent.As(ent.Count(), "count"), ent.As(ent.Max(egresslog.FieldID), "last_id")).
+		Scan(c.Request().Context(), &groups)
+	if err != nil {
+		return err
+	}
+	sort.Slice(groups, func(i, j int) bool {
+		if groups[i].Count != groups[j].Count {
+			return groups[i].Count > groups[j].Count
+		}
+		return groups[i].LastID > groups[j].LastID
+	})
+	if len(groups) > 200 {
+		groups = groups[:200]
+	}
+	ids := make([]int, len(groups))
+	for i, g := range groups {
+		ids[i] = g.LastID
+	}
+	lasts, err := h.db.EgressLog.Query().Where(egresslog.IDIn(ids...)).Select(egresslog.FieldID, egresslog.FieldTs, egresslog.FieldModule).All(c.Request().Context())
+	if err != nil {
+		return err
+	}
+	last := map[int]*ent.EgressLog{}
+	for _, l := range lasts {
+		last[l.ID] = l
+	}
+	if err := logReadAudit(c, "egress.log.blocked", map[string]any{"decision": "deny", "days": days}, len(groups), nil); err != nil {
+		return err
+	}
+	out := make([]map[string]any, 0, len(groups))
+	for _, g := range groups {
+		out = append(out, map[string]any{"host": g.Host, "port": g.Port, "reason": g.Reason, "reason_text": egress.ReasonText(g.Reason),
+			"count": g.Count, "last_ts": last[g.LastID].Ts, "last_module": last[g.LastID].Module})
+	}
+	return c.JSON(http.StatusOK, map[string]any{"items": out, "days": days})
 }
 
 // providerEgressHint 新建 / 修改模型上游时提示是否已在白名单（只提示，不自动添加）。

@@ -315,11 +315,24 @@ export function ModelsTab() {
                               {zh.models.fallbackOrder(pos + 1)}
                             </span>
                           )}
+                          {pos >= 0 &&
+                            edit.id !== null &&
+                            (
+                              models.data?.items.find((x) => x.id === edit.id)
+                                ?.fallback_acl_mismatch ?? []
+                            ).includes(m.id) && (
+                              <Badge variant='destructive'>
+                                {zh.models.fallbackAclMismatch}
+                              </Badge>
+                            )}
                         </label>
                       )
                     })}
                   <p className='text-xs text-muted-foreground'>
                     {zh.models.fallbackHint}
+                  </p>
+                  <p className='text-xs text-muted-foreground'>
+                    {zh.models.fallbackAclHint}
                   </p>
                 </div>
               </Field>

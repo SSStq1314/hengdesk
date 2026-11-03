@@ -42,6 +42,8 @@ type chatResult struct {
 	FinishReason string          `json:"finish_reason"`
 	Usage        gateway.Usage   `json:"usage"`
 	Warnings     []string        `json:"warnings,omitempty"`
+	// FallbackFrom 本次由主模型切换到备用模型时为主模型名，Model 为实际使用的模型（D-39 第 7 条）。
+	FallbackFrom string `json:"fallback_from,omitempty"`
 }
 
 func gwError(c echo.Context, e *gateway.Error) error {
@@ -82,11 +84,16 @@ func (h *chatHandlers) complete(c echo.Context) error {
 	// 重试与故障转移（PR5）：主模型 + 备用模型依次尝试；每次尝试都先写审计 attempt（fail-closed），
 	// 结束后写审计 result 和一条 usage_record（attempt 递增）。只有首字节之前的连接错误 / 429 / 5xx 会重试；
 	// 预算预检查只做一次，失败的尝试没有产生用量（按 0 记账），所以预算只计实际成功那次的用量。
-	targets := append([]*gateway.Target{tgt}, h.gw.Fallbacks(ctx, tgt.Model)...)
+	fbs, err := h.usableFallbacks(c, p, tgt)
+	if err != nil {
+		return err
+	}
+	targets := append([]*gateway.Target{tgt}, fbs...)
 	var (
 		res     *gateway.ChatResponse
 		ge      *gateway.Error
 		started bool
+		used    = tgt
 	)
 	attempt := 0
 loop:
@@ -100,13 +107,15 @@ loop:
 				}
 			}
 			attempt++
-			base := map[string]any{"model": tgt.Model.Name, "provider": t.Upstream.Name, "upstream_model": t.Config.UpstreamModel,
+			base := map[string]any{"model": t.Model.Name, "provider": t.Upstream.Name, "upstream_model": t.Config.UpstreamModel,
 				"stream": req.Stream, "messages": len(req.Messages), "tools": len(req.Tools), "attempt": attempt}
+			// D-39 第 7 条：审计与用量记实际使用的模型，并标注「由 A 切换」。
 			if t != tgt {
-				base["fallback_model"] = t.Model.Name
+				base["fallback_from"] = tgt.Model.Name
+				base["note"] = "由 " + tgt.Model.Name + " 切换"
 			}
 			if err := audit.Record(c, audit.Entry{Action: "model.call", Phase: "attempt", ResourceType: "model",
-				ResourceID: tgt.Model.Name, Detail: base}); err != nil {
+				ResourceID: t.Model.Name, Detail: base}); err != nil {
 				if attempt == 1 {
 					return err // fail-closed：审计写不进去就不调用模型
 				}
@@ -114,13 +123,14 @@ loop:
 				break loop // 之前尝试的错误照常返回
 			}
 			callStart := time.Now()
+			used = t
 			if req.Stream {
-				res, ge, started = h.stream(c, &req, t)
+				res, ge, started = h.stream(c, &req, t, tgt)
 			} else {
 				res, ge = h.gw.Client.Chat(egressCtxAudited(ctx, c, "model.chat"), &req, t.Upstream, t.Config)
 			}
-			h.finish(c, tgt, base, callStart, res, ge)
-			h.recordUsage(c, p, t, req.Stream, attempt, callStart, res, ge)
+			h.finish(c, t, base, callStart, res, ge)
+			h.recordUsage(c, p, t, fallbackFrom(t, tgt), req.Stream, attempt, callStart, res, ge)
 			if !gateway.ShouldRetry(ge, started) {
 				break loop
 			}
@@ -138,8 +148,38 @@ loop:
 	if ge != nil {
 		return gwError(c, ge)
 	}
-	return c.JSON(http.StatusOK, chatResult{ID: res.ID, Model: tgt.Model.Name, Message: res.Message,
-		FinishReason: res.FinishReason, Usage: res.Usage, Warnings: res.Warnings})
+	return c.JSON(http.StatusOK, chatResult{ID: res.ID, Model: used.Model.Name, Message: res.Message,
+		FinishReason: res.FinishReason, Usage: res.Usage, Warnings: res.Warnings, FallbackFrom: fallbackFrom(used, tgt)})
+}
+
+func fallbackFrom(used, primary *gateway.Target) string {
+	if used == primary {
+		return ""
+	}
+	return primary.Model.Name
+}
+
+// usableFallbacks D-39 第 6 条：只切换到调用人有使用权限的备用模型（与主模型同样的 ACL 判断，模型管理员不受限）。
+// 一个都没有时返回空，重试耗尽后返回主模型的原错误。
+func (h *chatHandlers) usableFallbacks(c echo.Context, p *auth.Principal, tgt *gateway.Target) ([]*gateway.Target, error) {
+	ctx := c.Request().Context()
+	all := h.gw.Fallbacks(ctx, tgt.Model)
+	if p.Perms.Has(rbac.ModelManage) {
+		return all, nil
+	}
+	out := make([]*gateway.Target, 0, len(all))
+	for _, t := range all {
+		ok, err := h.az.Check(ctx, p, rbac.ResModel, strconv.Itoa(t.Model.ID), rbac.BitUse)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			out = append(out, t)
+		} else {
+			h.log.Info("skip fallback model without use permission", "model", tgt.Model.Name, "fallback", t.Model.Name, "user", p.ID)
+		}
+	}
+	return out, nil
 }
 
 // finish 写审计 result。此时调用已发生，写失败只记日志（与 audit.Middleware 的 result 一致）。
@@ -171,11 +211,11 @@ func (h *chatHandlers) finish(c echo.Context, tgt *gateway.Target, base map[stri
 
 // recordUsage 写 usage_records（计量与 PR3 预算的数据源）。调用已发生，写失败只记日志；
 // 用 WithoutCancel 保证调用方断开后仍能记账。上游返回前就失败的调用记 0 token。
-func (h *chatHandlers) recordUsage(c echo.Context, p *auth.Principal, tgt *gateway.Target, stream bool, attempt int, start time.Time, res *gateway.ChatResponse, ge *gateway.Error) {
+func (h *chatHandlers) recordUsage(c echo.Context, p *auth.Principal, tgt *gateway.Target, from string, stream bool, attempt int, start time.Time, res *gateway.ChatResponse, ge *gateway.Error) {
 	ctx := context.WithoutCancel(c.Request().Context())
 	rec := usage.Record{OrgID: p.OrgID, UserID: p.ID, DeptID: usage.PrimaryDept(ctx, h.gw.DB, p.ID), Model: tgt.Model,
 		ProviderID: tgt.Model.ProviderID, RequestID: c.Response().Header().Get(echo.HeaderXRequestID),
-		Purpose: "chat", Stream: stream, Attempt: attempt, Latency: time.Since(start)}
+		Purpose: "chat", Stream: stream, Attempt: attempt, Latency: time.Since(start), FallbackFrom: from}
 	if ge != nil {
 		rec.ErrorCode = ge.Code
 		if ge.Usage != nil {
@@ -193,7 +233,7 @@ func (h *chatHandlers) recordUsage(c echo.Context, p *auth.Principal, tgt *gatew
 
 // stream SSE 输出：event: delta（增量）、event: done（聚合后的完整 assistant 消息与 usage，供多轮原样回传）、
 // event: error（流开始后出错）。流开始前出错时不写响应，返回 started=false，由调用方决定重试或返回 JSON 错误。
-func (h *chatHandlers) stream(c echo.Context, req *gateway.ChatRequest, tgt *gateway.Target) (*gateway.ChatResponse, *gateway.Error, bool) {
+func (h *chatHandlers) stream(c echo.Context, req *gateway.ChatRequest, tgt, primary *gateway.Target) (*gateway.ChatResponse, *gateway.Error, bool) {
 	w := c.Response()
 	started := false
 	start := func() {
@@ -230,7 +270,7 @@ func (h *chatHandlers) stream(c echo.Context, req *gateway.ChatRequest, tgt *gat
 	}
 	start()
 	if err := send("done", chatResult{ID: res.ID, Model: tgt.Model.Name, Message: res.Message,
-		FinishReason: res.FinishReason, Usage: res.Usage, Warnings: res.Warnings}); err != nil && !errors.Is(err, http.ErrHandlerTimeout) {
+		FinishReason: res.FinishReason, Usage: res.Usage, Warnings: res.Warnings, FallbackFrom: fallbackFrom(tgt, primary)}); err != nil && !errors.Is(err, http.ErrHandlerTimeout) {
 		h.log.Debug("sse write failed", "err", err)
 	}
 	return res, nil, true

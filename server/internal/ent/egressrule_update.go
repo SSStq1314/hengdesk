@@ -192,6 +192,20 @@ func (_u *EgressRuleUpdate) ClearReviewedBy() *EgressRuleUpdate {
 	return _u
 }
 
+// SetReviewRequired sets the "review_required" field.
+func (_u *EgressRuleUpdate) SetReviewRequired(v bool) *EgressRuleUpdate {
+	_u.mutation.SetReviewRequired(v)
+	return _u
+}
+
+// SetNillableReviewRequired sets the "review_required" field if the given value is not nil.
+func (_u *EgressRuleUpdate) SetNillableReviewRequired(v *bool) *EgressRuleUpdate {
+	if v != nil {
+		_u.SetReviewRequired(*v)
+	}
+	return _u
+}
+
 // Mutation returns the EgressRuleMutation object of the builder.
 func (_u *EgressRuleUpdate) Mutation() *EgressRuleMutation {
 	return _u.mutation
@@ -319,6 +333,9 @@ func (_u *EgressRuleUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if _u.mutation.ReviewedByCleared() {
 		_spec.ClearField(egressrule.FieldReviewedBy, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ReviewRequired(); ok {
+		_spec.SetField(egressrule.FieldReviewRequired, field.TypeBool, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -504,6 +521,20 @@ func (_u *EgressRuleUpdateOne) ClearReviewedBy() *EgressRuleUpdateOne {
 	return _u
 }
 
+// SetReviewRequired sets the "review_required" field.
+func (_u *EgressRuleUpdateOne) SetReviewRequired(v bool) *EgressRuleUpdateOne {
+	_u.mutation.SetReviewRequired(v)
+	return _u
+}
+
+// SetNillableReviewRequired sets the "review_required" field if the given value is not nil.
+func (_u *EgressRuleUpdateOne) SetNillableReviewRequired(v *bool) *EgressRuleUpdateOne {
+	if v != nil {
+		_u.SetReviewRequired(*v)
+	}
+	return _u
+}
+
 // Mutation returns the EgressRuleMutation object of the builder.
 func (_u *EgressRuleUpdateOne) Mutation() *EgressRuleMutation {
 	return _u.mutation
@@ -661,6 +692,9 @@ func (_u *EgressRuleUpdateOne) sqlSave(ctx context.Context) (_node *EgressRule, 
 	}
 	if _u.mutation.ReviewedByCleared() {
 		_spec.ClearField(egressrule.FieldReviewedBy, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ReviewRequired(); ok {
+		_spec.SetField(egressrule.FieldReviewRequired, field.TypeBool, value)
 	}
 	_node = &EgressRule{config: _u.config}
 	_spec.Assign = _node.assignValues

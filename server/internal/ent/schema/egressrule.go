@@ -29,6 +29,8 @@ func (EgressRule) Fields() []ent.Field {
 		// 升级 / OIDC 自动添加的条目需管理员复核一次（D-38 第 1 条）；手工条目不需要。
 		field.Time("reviewed_at").Optional().Nillable(),
 		field.Int("reviewed_by").Optional(),
+		// review_required 手工条目也需要复核（D-39 第 1 条：#31 把空端口手工条目改成 * 后又收窄为 443 的条目）。
+		field.Bool("review_required").Default(false),
 	}
 }
 

@@ -154,6 +154,11 @@ func Attempt(v int) predicate.UsageRecord {
 	return predicate.UsageRecord(sql.FieldEQ(FieldAttempt, v))
 }
 
+// FallbackFrom applies equality check predicate on the "fallback_from" field. It's identical to FallbackFromEQ.
+func FallbackFrom(v string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldEQ(FieldFallbackFrom, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.UsageRecord {
 	return predicate.UsageRecord(sql.FieldEQ(FieldCreatedAt, v))
@@ -1017,6 +1022,71 @@ func AttemptLT(v int) predicate.UsageRecord {
 // AttemptLTE applies the LTE predicate on the "attempt" field.
 func AttemptLTE(v int) predicate.UsageRecord {
 	return predicate.UsageRecord(sql.FieldLTE(FieldAttempt, v))
+}
+
+// FallbackFromEQ applies the EQ predicate on the "fallback_from" field.
+func FallbackFromEQ(v string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldEQ(FieldFallbackFrom, v))
+}
+
+// FallbackFromNEQ applies the NEQ predicate on the "fallback_from" field.
+func FallbackFromNEQ(v string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldNEQ(FieldFallbackFrom, v))
+}
+
+// FallbackFromIn applies the In predicate on the "fallback_from" field.
+func FallbackFromIn(vs ...string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldIn(FieldFallbackFrom, vs...))
+}
+
+// FallbackFromNotIn applies the NotIn predicate on the "fallback_from" field.
+func FallbackFromNotIn(vs ...string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldNotIn(FieldFallbackFrom, vs...))
+}
+
+// FallbackFromGT applies the GT predicate on the "fallback_from" field.
+func FallbackFromGT(v string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldGT(FieldFallbackFrom, v))
+}
+
+// FallbackFromGTE applies the GTE predicate on the "fallback_from" field.
+func FallbackFromGTE(v string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldGTE(FieldFallbackFrom, v))
+}
+
+// FallbackFromLT applies the LT predicate on the "fallback_from" field.
+func FallbackFromLT(v string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldLT(FieldFallbackFrom, v))
+}
+
+// FallbackFromLTE applies the LTE predicate on the "fallback_from" field.
+func FallbackFromLTE(v string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldLTE(FieldFallbackFrom, v))
+}
+
+// FallbackFromContains applies the Contains predicate on the "fallback_from" field.
+func FallbackFromContains(v string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldContains(FieldFallbackFrom, v))
+}
+
+// FallbackFromHasPrefix applies the HasPrefix predicate on the "fallback_from" field.
+func FallbackFromHasPrefix(v string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldHasPrefix(FieldFallbackFrom, v))
+}
+
+// FallbackFromHasSuffix applies the HasSuffix predicate on the "fallback_from" field.
+func FallbackFromHasSuffix(v string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldHasSuffix(FieldFallbackFrom, v))
+}
+
+// FallbackFromEqualFold applies the EqualFold predicate on the "fallback_from" field.
+func FallbackFromEqualFold(v string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldEqualFold(FieldFallbackFrom, v))
+}
+
+// FallbackFromContainsFold applies the ContainsFold predicate on the "fallback_from" field.
+func FallbackFromContainsFold(v string) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldContainsFold(FieldFallbackFrom, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

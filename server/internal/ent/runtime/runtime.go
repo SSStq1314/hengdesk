@@ -309,6 +309,10 @@ func init() {
 	egressruleDescPrivate := egressruleFields[5].Descriptor()
 	// egressrule.DefaultPrivate holds the default value on creation for the private field.
 	egressrule.DefaultPrivate = egressruleDescPrivate.Default.(bool)
+	// egressruleDescReviewRequired is the schema descriptor for review_required field.
+	egressruleDescReviewRequired := egressruleFields[9].Descriptor()
+	// egressrule.DefaultReviewRequired holds the default value on creation for the review_required field.
+	egressrule.DefaultReviewRequired = egressruleDescReviewRequired.Default.(bool)
 	membershipMixin := schema.Membership{}.Mixin()
 	membershipMixinFields0 := membershipMixin[0].Fields()
 	_ = membershipMixinFields0
@@ -611,8 +615,12 @@ func init() {
 	usagerecordDescAttempt := usagerecordFields[21].Descriptor()
 	// usagerecord.DefaultAttempt holds the default value on creation for the attempt field.
 	usagerecord.DefaultAttempt = usagerecordDescAttempt.Default.(int)
+	// usagerecordDescFallbackFrom is the schema descriptor for fallback_from field.
+	usagerecordDescFallbackFrom := usagerecordFields[22].Descriptor()
+	// usagerecord.DefaultFallbackFrom holds the default value on creation for the fallback_from field.
+	usagerecord.DefaultFallbackFrom = usagerecordDescFallbackFrom.Default.(string)
 	// usagerecordDescCreatedAt is the schema descriptor for created_at field.
-	usagerecordDescCreatedAt := usagerecordFields[22].Descriptor()
+	usagerecordDescCreatedAt := usagerecordFields[23].Descriptor()
 	// usagerecord.DefaultCreatedAt holds the default value on creation for the created_at field.
 	usagerecord.DefaultCreatedAt = usagerecordDescCreatedAt.Default.(func() time.Time)
 	userMixin := schema.User{}.Mixin()

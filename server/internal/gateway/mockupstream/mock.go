@@ -35,6 +35,8 @@ type Server struct {
 	Delay time.Duration
 	// OmitUsage 不返回 usage（用于估算测试）。
 	OmitUsage bool
+	// CutAfter 非 0 时流式回答输出 CutAfter 个字符后直接断开连接（用于首 token 之后失败的测试）。
+	CutAfter int
 }
 
 // New 启动模拟上游；key 为期望的 API Key。
@@ -217,8 +219,16 @@ func (s *Server) stream(w http.ResponseWriter, id, model, reasoning, content str
 		}
 		finish = "tool_calls"
 	} else {
+		s.mu.Lock()
+		cut := s.CutAfter
+		s.mu.Unlock()
+		n := 0
 		for _, r := range content {
+			if cut > 0 && n == cut {
+				panic(http.ErrAbortHandler) // 模拟上游中途断开
+			}
 			send(map[string]any{"content": string(r), "reasoning_content": nil}, nil, nil)
+			n++
 		}
 	}
 	var u any

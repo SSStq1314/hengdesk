@@ -61,6 +61,8 @@ type UsageRecord struct {
 	LatencyMs int `json:"latency_ms,omitempty"`
 	// Attempt holds the value of the "attempt" field.
 	Attempt int `json:"attempt,omitempty"`
+	// FallbackFrom holds the value of the "fallback_from" field.
+	FallbackFrom string `json:"fallback_from,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt    time.Time `json:"created_at,omitempty"`
 	selectValues sql.SelectValues
@@ -75,7 +77,7 @@ func (*UsageRecord) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case usagerecord.FieldID, usagerecord.FieldOrgID, usagerecord.FieldUserID, usagerecord.FieldDepartmentID, usagerecord.FieldModelID, usagerecord.FieldProviderID, usagerecord.FieldPromptTokens, usagerecord.FieldCachedTokens, usagerecord.FieldCompletionTokens, usagerecord.FieldReasoningTokens, usagerecord.FieldTotalTokens, usagerecord.FieldCostMicros, usagerecord.FieldLatencyMs, usagerecord.FieldAttempt:
 			values[i] = new(sql.NullInt64)
-		case usagerecord.FieldModelName, usagerecord.FieldRequestID, usagerecord.FieldPurpose, usagerecord.FieldStatus, usagerecord.FieldErrorCode, usagerecord.FieldCurrency:
+		case usagerecord.FieldModelName, usagerecord.FieldRequestID, usagerecord.FieldPurpose, usagerecord.FieldStatus, usagerecord.FieldErrorCode, usagerecord.FieldCurrency, usagerecord.FieldFallbackFrom:
 			values[i] = new(sql.NullString)
 		case usagerecord.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -233,6 +235,12 @@ func (_m *UsageRecord) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Attempt = int(value.Int64)
 			}
+		case usagerecord.FieldFallbackFrom:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field fallback_from", values[i])
+			} else if value.Valid {
+				_m.FallbackFrom = value.String
+			}
 		case usagerecord.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -342,6 +350,9 @@ func (_m *UsageRecord) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("attempt=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Attempt))
+	builder.WriteString(", ")
+	builder.WriteString("fallback_from=")
+	builder.WriteString(_m.FallbackFrom)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
