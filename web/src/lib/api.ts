@@ -126,6 +126,20 @@ export type SystemStatus = {
   disk_low_threshold: number
   disk_low: boolean
   https: boolean
+  tls: TLSInfo | null
+}
+
+// 部署证书信息（D-34 第 3 点）。
+export type TLSInfo = {
+  present: boolean
+  self_signed: boolean
+  subject?: string
+  sans?: string[]
+  not_after?: string
+  days_left: number
+  expiring: boolean
+  expired: boolean
+  warn_days: number
 }
 
 export type HighRiskAlert = {
@@ -148,6 +162,7 @@ export const alertApi = {
 
 export const systemApi = {
   status: () => api<SystemStatus>('/admin/system/status'),
+  tls: () => api<TLSInfo>('/admin/system/tls'),
 }
 
 export type DeptRef = { id: number; name: string }

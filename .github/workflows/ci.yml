@@ -158,6 +158,7 @@ jobs:
             -d '{"email":"admin@hengdesk.local","password":"ci-only-password-123"}' localhost:8080/api/v1/auth/login >/dev/null
           curl -fsS -b /tmp/ck -H 'X-Forwarded-Proto: https' localhost:8080/api/v1/admin/system/status | tee /tmp/st
           grep -q '"https":false' /tmp/st
+          grep -q '"present":false' /tmp/st
           svc=seaweedfs; [ "${{ matrix.storage }}" = minio ] && svc=minio
           docker compose ps --format '{{.Publishers}}' "$svc" | tee /tmp/pub
           ! grep -E '0\.0\.0\.0|::' /tmp/pub
@@ -205,10 +206,17 @@ jobs:
       - name: 生成自签证书并以 TLS 模式安装
         working-directory: deploy
         run: |
-          openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj '/CN=localhost' \
-            -addext 'subjectAltName=DNS:localhost' -keyout /tmp/ci.key -out /tmp/ci.crt
           ./install.sh --non-interactive --storage seaweedfs --admin-password ci-only-password-123 \
-            --tls-cert /tmp/ci.crt --tls-key /tmp/ci.key --force
+            --self-signed --san localhost --san 127.0.0.1 --force
+          grep -q '^HENGDESK_TLS_SELF_SIGNED=true' .env
+          openssl x509 -in tls/tls.crt -noout -ext subjectAltName | tee /tmp/san
+          grep -q 'DNS:localhost' /tmp/san && grep -q 'IP Address:127.0.0.1' /tmp/san
+          days=$(( ($(date -d "$(openssl x509 -in tls/tls.crt -noout -enddate | cut -d= -f2)" +%s) - $(date +%s)) / 86400 ))
+          test "$days" -ge 364 && test "$days" -le 366
+          # 后续步骤沿用这张自签证书
+          cp tls/tls.crt /tmp/ci.crt && cp tls/tls.key /tmp/ci.key
+          # --self-signed 与 --tls-cert 互斥
+          if ./install.sh --non-interactive --self-signed --tls-cert /tmp/ci.crt --tls-key /tmp/ci.key --force >/dev/null 2>&1; then exit 1; fi
           grep -q '^HENGDESK_COOKIE_SECURE=true' .env
           grep -q 'docker-compose.tls.yml' .env
           test "$(stat -c %a tls/tls.key)" = 600
@@ -232,6 +240,9 @@ jobs:
           grep -i '^set-cookie: hd_session=' /tmp/h | grep -qi 'secure'
           curl -fsS --cacert /tmp/ci.crt -b /tmp/ck https://localhost/api/v1/admin/system/status | tee /tmp/st
           grep -q '"https":true' /tmp/st
+          grep -q '"self_signed":true' /tmp/st
+          curl -fsS --cacert /tmp/ci.crt -b /tmp/ck https://localhost/api/v1/admin/system/tls | tee /tmp/tls
+          grep -Eq '"days_left":36[45]' /tmp/tls && grep -q '"expiring":false' /tmp/tls
       - name: 改跳转端口（--redirect-port 8880）
         working-directory: deploy
         run: |

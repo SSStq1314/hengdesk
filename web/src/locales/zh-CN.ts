@@ -193,6 +193,13 @@ export const zh = {
     noHttpsTitle: '当前未启用 HTTPS',
     noHttpsDesc:
       '会话与单点登录（OIDC）在生产环境必须走 HTTPS。请用 install.sh 导入证书启用 443，或在前置负载均衡终止 TLS 后设置 HENGDESK_PUBLIC_HTTPS=true。',
+    selfSignedTitle: '当前为自签证书',
+    selfSignedDesc:
+      '浏览器会提示证书不受信任，用户需手动信任或导入证书。正式使用请用 install.sh --tls-cert / --tls-key 导入受信任 CA 签发的证书。',
+    certExpiringTitle: (days: number) => `HTTPS 证书将在 ${days} 天后到期`,
+    certExpiredTitle: 'HTTPS 证书已过期',
+    certExpiryDesc: (date: string) =>
+      `到期时间 ${date}。请替换 deploy/tls/ 下的证书后执行 docker compose restart web；自签证书可重新执行 install.sh --self-signed。`,
     backupLowTitle: '备份盘空间不足',
     backupLowDesc: (free: string, threshold: number, keep: number) =>
       `备份目录剩余空间 ${free}%，低于 ${threshold}% 阈值。升级前备份失败会中止升级，请尽快清理或扩容（系统自动保留最近 ${keep} 份备份）。`,

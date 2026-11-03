@@ -78,7 +78,7 @@ func serverCmd() *cobra.Command {
 			IPLimit:   &session.RateLimiter{R: rdb, Limit: cfg.LoginIPLimit, Window: cfg.LoginIPWindow},
 			Passwords: auth.PasswordPolicy{MinLen: cfg.PasswordMinLen},
 		}, System: api.SystemConfig{BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, DiskLowPercent: cfg.DiskLowPercent,
-			PublicHTTPS: cfg.PublicHTTPS, TrustedProxies: cfg.TrustedProxies}})
+			PublicHTTPS: cfg.PublicHTTPS, TrustedProxies: cfg.TrustedProxies, TLSCertFile: cfg.TLSCertFile}})
 		ctx, stop := signalCtx()
 		defer stop()
 		go func() {

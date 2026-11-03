@@ -3,6 +3,7 @@ package api
 import (
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
 	"github.com/SSStq1314/hengdesk/server/internal/httpserver"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
+	"github.com/SSStq1314/hengdesk/server/internal/tlsinfo"
 )
 
 // SystemConfig 管理后台常驻提示所需的配置。
@@ -25,6 +27,10 @@ type SystemConfig struct {
 	PublicHTTPS bool
 	// TrustedProxies 只有来自这些网段的 X-Forwarded-Proto 才被采信。
 	TrustedProxies []*net.IPNet
+	// TLSCertFile 部署证书路径，用于自签 / 到期提示（D-34 第 3 点）。
+	TLSCertFile string
+	// Now 测试用时钟，nil 时取 time.Now。
+	Now func() time.Time
 }
 
 type systemHandlers struct {
@@ -40,6 +46,33 @@ type SystemStatus struct {
 	DiskLowThreshold int      `json:"disk_low_threshold"`
 	DiskLow          bool     `json:"disk_low"`
 	HTTPS            bool     `json:"https"`
+	// TLS 部署证书信息；读取失败时为 nil（不影响其他提示）。
+	TLS *tlsinfo.Info `json:"tls"`
+}
+
+func (h *systemHandlers) now() time.Time {
+	if h.cfg.Now != nil {
+		return h.cfg.Now()
+	}
+	return time.Now()
+}
+
+func (h *systemHandlers) certInfo(c echo.Context) *tlsinfo.Info {
+	i, err := tlsinfo.Inspect(h.cfg.TLSCertFile, h.now())
+	if err != nil {
+		c.Logger().Warnf("tls cert inspect: %v", err)
+		return nil
+	}
+	return &i
+}
+
+// tls GET /admin/system/tls：证书主题、SAN、有效期、剩余天数、是否自签。
+func (h *systemHandlers) tls(c echo.Context) error {
+	i, err := tlsinfo.Inspect(h.cfg.TLSCertFile, h.now())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "证书读取失败")
+	}
+	return c.JSON(http.StatusOK, i)
 }
 
 func (h *systemHandlers) status(c echo.Context) error {
@@ -51,7 +84,7 @@ func (h *systemHandlers) status(c echo.Context) error {
 		return err
 	}
 	st := SystemStatus{AuditorAssigned: ok, BackupKeep: h.cfg.BackupKeep, DiskLowThreshold: h.cfg.DiskLowPercent,
-		HTTPS: h.cfg.PublicHTTPS || httpserver.IsHTTPS(c.Request(), h.cfg.TrustedProxies)}
+		HTTPS: h.cfg.PublicHTTPS || httpserver.IsHTTPS(c.Request(), h.cfg.TrustedProxies), TLS: h.certInfo(c)}
 	if h.cfg.BackupDir != "" {
 		if f, err := backup.FreePercent(h.cfg.BackupDir); err == nil {
 			st.DiskFreePercent = &f

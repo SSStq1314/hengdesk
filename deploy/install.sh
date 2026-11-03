@@ -4,7 +4,7 @@
 # 非交互：./install.sh --non-interactive --storage seaweedfs|minio|external \
 #   [--s3-endpoint URL --s3-region R --s3-access-key AK --s3-secret-key SK --s3-bucket B --s3-path-style true|false] \
 #   [--admin-email E] [--admin-password P] [--auditor-email E [--auditor-password P]] [--http-port 8080] \
-#   [--tls-cert 证书.pem --tls-key 私钥.pem [--https-port 443] [--redirect-port 80] [--no-http-redirect]] [--force] [--up]
+#   [--tls-cert 证书.pem --tls-key 私钥.pem | --self-signed [--san 域名或IP ...]] [--https-port 443] [--redirect-port 80] [--no-http-redirect] [--force] [--up]
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -13,6 +13,7 @@ S3_ENDPOINT="" S3_REGION="us-east-1" S3_AK="" S3_SK="" S3_BUCKET="hengdesk" S3_P
 ADMIN_EMAIL="admin@hengdesk.local" ADMIN_PASSWORD="" HTTP_PORT="8080"
 AUDITOR_EMAIL="" AUDITOR_PASSWORD=""
 TLS_CERT="" TLS_KEY=""
+SELF_SIGNED=0 SANS=() SAN_LIST=""
 HTTPS_PORT="443" REDIRECT_PORT="80" HTTP_REDIRECT="true"
 
 usage() { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
@@ -36,6 +37,8 @@ while [ $# -gt 0 ]; do
     --http-port) HTTP_PORT="$2"; shift ;;
     --tls-cert) TLS_CERT="$2"; shift ;;
     --tls-key) TLS_KEY="$2"; shift ;;
+    --self-signed) SELF_SIGNED=1 ;;
+    --san) SANS+=("$2"); shift ;;
     --https-port) HTTPS_PORT="$2"; shift ;;
     --redirect-port) REDIRECT_PORT="$2"; shift ;;
     --no-http-redirect) HTTP_REDIRECT="false" ;;
@@ -71,9 +74,14 @@ if [ "$INTERACTIVE" = 1 ]; then
   ask ADMIN_PASSWORD "管理员密码（留空自动生成，不回显）" "" secret
   ask AUDITOR_EMAIL "初始安全审计员邮箱（三员分立，留空跳过）" ""
   if [ -n "$AUDITOR_EMAIL" ]; then ask AUDITOR_PASSWORD "审计员密码（留空自动生成，不回显）" "" secret; fi
-  ask TLS_CERT "HTTPS 证书路径（PEM，含中间证书；留空则仅 HTTP，由前置负载均衡处理 TLS）" ""
-  if [ -n "$TLS_CERT" ]; then
-    ask TLS_KEY "私钥路径（PEM）" ""
+  ask TLS_CERT "HTTPS 证书路径（PEM，含中间证书；输入 self-signed 生成自签证书；留空则仅 HTTP，由前置负载均衡处理 TLS）" ""
+  if [ "$TLS_CERT" = self-signed ]; then
+    TLS_CERT="" SELF_SIGNED=1
+    ask SAN_LIST "证书域名或 IP（空格分隔，留空为 localhost 与本机主机名）" ""
+    [ -n "$SAN_LIST" ] && read -r -a SANS <<<"$SAN_LIST"
+  fi
+  if [ -n "$TLS_CERT" ] || [ "$SELF_SIGNED" = 1 ]; then
+    [ "$SELF_SIGNED" = 1 ] || ask TLS_KEY "私钥路径（PEM）" ""
     ask HTTPS_PORT "HTTPS 端口" "$HTTPS_PORT"
     ask HTTP_REDIRECT "HTTP 是否跳转 HTTPS（true/false）" "$HTTP_REDIRECT"
     if [ "$HTTP_REDIRECT" = true ]; then ask REDIRECT_PORT "跳转用的 HTTP 端口" "$REDIRECT_PORT"; fi
@@ -83,6 +91,25 @@ fi
 port_ok() { case "$2" in ''|*[!0-9]*) die "$1 必须是 1-65535 的数字：$2" ;; esac; [ "$2" -ge 1 ] && [ "$2" -le 65535 ] || die "$1 必须是 1-65535 的数字：$2"; }
 port_ok --http-port "$HTTP_PORT"; port_ok --https-port "$HTTPS_PORT"; port_ok --redirect-port "$REDIRECT_PORT"
 case "$HTTP_REDIRECT" in true|false) ;; *) die "HTTP 跳转只能是 true / false" ;; esac
+
+# 可选生成自签证书（D-34 第 3 点）：有效期 365 天，默认不生成；SAN 取 --san（可多次），缺省为 localhost 与本机主机名。
+if [ "$SELF_SIGNED" = 1 ]; then
+  [ -z "$TLS_CERT" ] && [ -z "$TLS_KEY" ] || die "--self-signed 不能与 --tls-cert / --tls-key 同时使用"
+  command -v openssl >/dev/null 2>&1 || die "生成自签证书需要 openssl"
+  if [ "${#SANS[@]}" -eq 0 ]; then SANS=(localhost); h="$(hostname -f 2>/dev/null || hostname)"; [ -n "$h" ] && [ "$h" != localhost ] && SANS+=("$h"); fi
+  SAN_EXT=""
+  for s in "${SANS[@]}"; do
+    case "$s" in ''|*[!A-Za-z0-9.:*-]*) die "--san 只能是域名或 IP：$s" ;; esac
+    if printf '%s' "$s" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$|:'; then SAN_EXT+="${SAN_EXT:+,}IP:$s"; else SAN_EXT+="${SAN_EXT:+,}DNS:$s"; fi
+  done
+  SS_DIR="$(mktemp -d)"; trap 'rm -rf "$SS_DIR"' EXIT
+  ( umask 077; openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 365 -subj "/CN=${SANS[0]}/O=HengDesk self-signed" \
+      -addext "subjectAltName=$SAN_EXT" -addext "basicConstraints=critical,CA:FALSE" \
+      -addext "keyUsage=critical,digitalSignature,keyEncipherment" -addext "extendedKeyUsage=serverAuth" \
+      -keyout "$SS_DIR/tls.key" -out "$SS_DIR/tls.crt" >/dev/null 2>&1 ) || die "自签证书生成失败"
+  TLS_CERT="$SS_DIR/tls.crt" TLS_KEY="$SS_DIR/tls.key"
+  echo "已生成自签证书（365 天）：$SAN_EXT"
+fi
 
 # 可选导入 TLS 证书（D-30）：校验后复制到 ./tls，nginx 启用 443，80/8080 跳转 443，会话 cookie 打开 Secure。
 TLS=0
@@ -145,6 +172,7 @@ HENGDESK_HTTP_PORT=$HTTP_PORT
 HENGDESK_HTTPS_PORT=$HTTPS_PORT
 HENGDESK_REDIRECT_PORT=$REDIRECT_PORT
 HENGDESK_HTTP_REDIRECT=$HTTP_REDIRECT
+HENGDESK_TLS_SELF_SIGNED=$([ "$SELF_SIGNED" = 1 ] && echo true || echo false)
 HENGDESK_ENV=prod
 HENGDESK_COOKIE_SECURE=$COOKIE_SECURE
 HENGDESK_PUBLIC_HTTPS=$PUBLIC_HTTPS
@@ -166,6 +194,7 @@ ENV
 echo "已生成 $(pwd)/.env（权限 600），compose 文件：$COMPOSE_FILE"
 if [ "$TLS" = 1 ]; then
   echo "HTTPS 已启用：证书已导入 $(pwd)/tls，访问 https://<主机>:$HTTPS_PORT/"
+  if [ "$SELF_SIGNED" = 1 ]; then echo "注意：自签证书浏览器不信任，管理后台会常驻提示；客户端可导入 $(pwd)/tls/tls.crt 以信任。"; fi
   if [ "$HTTP_REDIRECT" = true ]; then echo "HTTP 端口 $REDIRECT_PORT 与 $HTTP_PORT 自动跳转 HTTPS"
   else echo "HTTP 跳转已关闭：不占用 $REDIRECT_PORT，$HTTP_PORT 只保留 /healthz"; fi
 else echo "提示：未导入证书，仅 HTTP；请在前置负载均衡终止 TLS 并设置 HENGDESK_PUBLIC_HTTPS=true，否则管理后台会常驻提示。"; fi

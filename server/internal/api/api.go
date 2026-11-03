@@ -60,6 +60,7 @@ func Mount(e *echo.Echo, d Deps) {
 
 	sh := &systemHandlers{db: d.DB, cfg: d.System}
 	admin.GET("/system/status", sh.status, authz.Require(rbac.SettingsManage))
+	admin.GET("/system/tls", sh.tls, authz.Require(rbac.SettingsManage))
 
 	mh := &memberHandlers{db: d.DB, az: az, auth: d.Auth}
 	admin.GET("/users", mh.list, authz.Require(rbac.MemberRead))
