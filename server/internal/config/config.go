@@ -16,9 +16,11 @@ type Config struct {
 	DatabaseURL   string
 	RedisAddr     string
 	S3Endpoint    string
+	S3Region      string
 	S3Bucket      string
 	S3AccessKey   string
 	S3SecretKey   string
+	S3PathStyle   bool
 	JWTSecret     string
 	SessionTTL    time.Duration
 	AdminEmail    string
@@ -40,14 +42,17 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("HENGDESK_SESSION_TTL: %w", err)
 	}
 	secure, _ := strconv.ParseBool(get("COOKIE_SECURE", "false"))
+	pathStyle, _ := strconv.ParseBool(get("S3_PATH_STYLE", "true"))
 	c := &Config{
 		Env:           get("ENV", "dev"),
 		HTTPAddr:      get("HTTP_ADDR", ":8080"),
 		LogLevel:      get("LOG_LEVEL", "info"),
 		DatabaseURL:   get("DATABASE_URL", "postgres://hengdesk:hengdesk@localhost:5432/hengdesk?sslmode=disable"),
 		RedisAddr:     get("REDIS_ADDR", "localhost:6379"),
-		S3Endpoint:    get("S3_ENDPOINT", "http://localhost:9000"),
+		S3Endpoint:    get("S3_ENDPOINT", "http://localhost:8333"),
+		S3Region:      get("S3_REGION", "us-east-1"),
 		S3Bucket:      get("S3_BUCKET", "hengdesk"),
+		S3PathStyle:   pathStyle,
 		S3AccessKey:   get("S3_ACCESS_KEY", ""),
 		S3SecretKey:   get("S3_SECRET_KEY", ""),
 		JWTSecret:     get("JWT_SECRET", ""),

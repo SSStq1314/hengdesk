@@ -5,12 +5,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/hibiken/asynq"
 	"github.com/spf13/cobra"
 
 	"github.com/SSStq1314/hengdesk/server/internal/api"
@@ -19,6 +21,8 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/config"
 	"github.com/SSStq1314/hengdesk/server/internal/httpserver"
 	hlog "github.com/SSStq1314/hengdesk/server/internal/log"
+	"github.com/SSStq1314/hengdesk/server/internal/objstore"
+	"github.com/SSStq1314/hengdesk/server/internal/queue"
 	"github.com/SSStq1314/hengdesk/server/internal/store"
 )
 
@@ -73,10 +77,15 @@ func workerCmd() *cobra.Command {
 			return err
 		}
 		lg := hlog.New(cfg.LogLevel)
-		lg.Info("worker started (placeholder)")
+		srv := asynq.NewServer(queue.RedisOpt(cfg.RedisAddr), asynq.Config{Concurrency: 10, Logger: nil})
 		ctx, stop := signalCtx()
 		defer stop()
+		if err := srv.Start(queue.Mux(lg)); err != nil {
+			return err
+		}
+		lg.Info("worker started", "redis", cfg.RedisAddr)
 		<-ctx.Done()
+		srv.Shutdown()
 		return nil
 	}}
 }
@@ -120,6 +129,31 @@ func migrateCmd() *cobra.Command {
 			return err
 		}
 		lg.Info("migrate done", "admin_email", cfg.AdminEmail, "admin_created", created)
+		if cfg.S3AccessKey != "" {
+			if err := ensureBucket(ctx, cfg); err != nil {
+				return err
+			}
+			lg.Info("bucket ready", "bucket", cfg.S3Bucket)
+		}
 		return nil
 	}}
+}
+
+// ensureBucket 创建默认桶，对象存储启动较慢时重试。
+func ensureBucket(ctx context.Context, cfg *config.Config) error {
+	st, err := objstore.New(objstore.Config{Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, AccessKey: cfg.S3AccessKey,
+		SecretKey: cfg.S3SecretKey, Bucket: cfg.S3Bucket, PathStyle: cfg.S3PathStyle})
+	if err != nil {
+		return err
+	}
+	for {
+		if err = st.EnsureBucket(ctx); err == nil {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("对象存储不可用: %w", err)
+		case <-time.After(2 * time.Second):
+		}
+	}
 }
