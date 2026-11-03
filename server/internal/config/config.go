@@ -33,7 +33,9 @@ type Config struct {
 	AuditorEmail    string
 	AuditorPassword string
 	CookieSecure    bool
-	BackupDir       string
+	// PublicHTTPS 对外访问已是 HTTPS（默认跟随 CookieSecure）。
+	PublicHTTPS bool
+	BackupDir   string
 	// PasswordMinLen 本地密码最小长度（默认 8，范围 8~72）。
 	PasswordMinLen int
 	// LoginIPLimit / LoginIPWindow 按 IP 的登录尝试滑动窗口限速（0 表示关闭）。
@@ -140,6 +142,10 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	secure, _ := strconv.ParseBool(get("COOKIE_SECURE", "false"))
+	publicHTTPS, err := strconv.ParseBool(get("PUBLIC_HTTPS", strconv.FormatBool(secure)))
+	if err != nil {
+		return nil, fmt.Errorf("HENGDESK_PUBLIC_HTTPS 必须是 true / false")
+	}
 	pathStyle, _ := strconv.ParseBool(get("S3_PATH_STYLE", "true"))
 	autoCreate, _ := strconv.ParseBool(get("OIDC_AUTO_CREATE", "false"))
 	scopes := strings.Fields(strings.ReplaceAll(get("OIDC_SCOPES", "openid email profile"), ",", " "))
@@ -164,6 +170,7 @@ func Load() (*Config, error) {
 		AuditorEmail:     get("AUDITOR_EMAIL", ""),
 		AuditorPassword:  get("AUDITOR_PASSWORD", ""),
 		CookieSecure:     secure,
+		PublicHTTPS:      publicHTTPS,
 		BackupDir:        get("BACKUP_DIR", "/backups"),
 		PasswordMinLen:   minLen,
 		LoginIPLimit:     ipLimit,

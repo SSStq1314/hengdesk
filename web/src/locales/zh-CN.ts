@@ -190,6 +190,9 @@ export const zh = {
     noAuditorTitle: '尚未指派安全审计员',
     noAuditorDesc:
       '三员分立要求由独立的安全审计员查看审计日志。请在「角色」中为一名非超级管理员的成员授予安全审计员角色。',
+    noHttpsTitle: '当前未启用 HTTPS',
+    noHttpsDesc:
+      '会话与单点登录（OIDC）在生产环境必须走 HTTPS。请用 install.sh 导入证书启用 443，或在前置负载均衡终止 TLS 后设置 HENGDESK_PUBLIC_HTTPS=true。',
     backupLowTitle: '备份盘空间不足',
     backupLowDesc: (free: string, threshold: number, keep: number) =>
       `备份目录剩余空间 ${free}%，低于 ${threshold}% 阈值。升级前备份失败会中止升级，请尽快清理或扩容（系统自动保留最近 ${keep} 份备份）。`,

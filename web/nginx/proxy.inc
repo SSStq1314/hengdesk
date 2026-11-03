@@ -1,6 +1,3 @@
-server {
-  listen 80;
-  server_name _;
   root /usr/share/nginx/html;
   client_max_body_size 100m;
 
@@ -19,4 +16,3 @@ server {
   location = /healthz { proxy_pass http://server:8080/healthz; }
   location /assets/ { expires 30d; add_header Cache-Control "public, immutable"; try_files $uri =404; }
   location / { try_files $uri $uri/ /index.html; }
-}
