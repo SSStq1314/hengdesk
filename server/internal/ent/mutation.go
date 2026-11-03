@@ -981,6 +981,8 @@ type AuditLogMutation struct {
 	request_id    *string
 	trace_id      *string
 	detail        *map[string]interface{}
+	prev_hash     *string
+	hash          *string
 	clearedFields map[string]struct{}
 	done          bool
 	oldValue      func(context.Context) (*AuditLog, error)
@@ -1670,6 +1672,78 @@ func (m *AuditLogMutation) ResetDetail() {
 	delete(m.clearedFields, auditlog.FieldDetail)
 }
 
+// SetPrevHash sets the "prev_hash" field.
+func (m *AuditLogMutation) SetPrevHash(s string) {
+	m.prev_hash = &s
+}
+
+// PrevHash returns the value of the "prev_hash" field in the mutation.
+func (m *AuditLogMutation) PrevHash() (r string, exists bool) {
+	v := m.prev_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrevHash returns the old "prev_hash" field's value of the AuditLog entity.
+// If the AuditLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AuditLogMutation) OldPrevHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrevHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrevHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrevHash: %w", err)
+	}
+	return oldValue.PrevHash, nil
+}
+
+// ResetPrevHash resets all changes to the "prev_hash" field.
+func (m *AuditLogMutation) ResetPrevHash() {
+	m.prev_hash = nil
+}
+
+// SetHash sets the "hash" field.
+func (m *AuditLogMutation) SetHash(s string) {
+	m.hash = &s
+}
+
+// Hash returns the value of the "hash" field in the mutation.
+func (m *AuditLogMutation) Hash() (r string, exists bool) {
+	v := m.hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHash returns the old "hash" field's value of the AuditLog entity.
+// If the AuditLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AuditLogMutation) OldHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHash: %w", err)
+	}
+	return oldValue.Hash, nil
+}
+
+// ResetHash resets all changes to the "hash" field.
+func (m *AuditLogMutation) ResetHash() {
+	m.hash = nil
+}
+
 // Where appends a list predicates to the AuditLogMutation builder.
 func (m *AuditLogMutation) Where(ps ...predicate.AuditLog) {
 	m.predicates = append(m.predicates, ps...)
@@ -1704,7 +1778,7 @@ func (m *AuditLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AuditLogMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 16)
 	if m.ts != nil {
 		fields = append(fields, auditlog.FieldTs)
 	}
@@ -1747,6 +1821,12 @@ func (m *AuditLogMutation) Fields() []string {
 	if m.detail != nil {
 		fields = append(fields, auditlog.FieldDetail)
 	}
+	if m.prev_hash != nil {
+		fields = append(fields, auditlog.FieldPrevHash)
+	}
+	if m.hash != nil {
+		fields = append(fields, auditlog.FieldHash)
+	}
 	return fields
 }
 
@@ -1783,6 +1863,10 @@ func (m *AuditLogMutation) Field(name string) (ent.Value, bool) {
 		return m.TraceID()
 	case auditlog.FieldDetail:
 		return m.Detail()
+	case auditlog.FieldPrevHash:
+		return m.PrevHash()
+	case auditlog.FieldHash:
+		return m.Hash()
 	}
 	return nil, false
 }
@@ -1820,6 +1904,10 @@ func (m *AuditLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldTraceID(ctx)
 	case auditlog.FieldDetail:
 		return m.OldDetail(ctx)
+	case auditlog.FieldPrevHash:
+		return m.OldPrevHash(ctx)
+	case auditlog.FieldHash:
+		return m.OldHash(ctx)
 	}
 	return nil, fmt.Errorf("unknown AuditLog field %s", name)
 }
@@ -1926,6 +2014,20 @@ func (m *AuditLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDetail(v)
+		return nil
+	case auditlog.FieldPrevHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrevHash(v)
+		return nil
+	case auditlog.FieldHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHash(v)
 		return nil
 	}
 	return fmt.Errorf("unknown AuditLog field %s", name)
@@ -2065,6 +2167,12 @@ func (m *AuditLogMutation) ResetField(name string) error {
 		return nil
 	case auditlog.FieldDetail:
 		m.ResetDetail()
+		return nil
+	case auditlog.FieldPrevHash:
+		m.ResetPrevHash()
+		return nil
+	case auditlog.FieldHash:
+		m.ResetHash()
 		return nil
 	}
 	return fmt.Errorf("unknown AuditLog field %s", name)

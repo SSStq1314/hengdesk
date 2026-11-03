@@ -45,7 +45,11 @@ type AuditLog struct {
 	// TraceID holds the value of the "trace_id" field.
 	TraceID string `json:"trace_id,omitempty"`
 	// Detail holds the value of the "detail" field.
-	Detail       map[string]interface{} `json:"detail,omitempty"`
+	Detail map[string]interface{} `json:"detail,omitempty"`
+	// 上一条的 hash；链首为空
+	PrevHash string `json:"prev_hash,omitempty"`
+	// sha256(prev_hash + 规范化内容)；M1 之前的旧行为空
+	Hash         string `json:"hash,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -58,7 +62,7 @@ func (*AuditLog) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case auditlog.FieldID, auditlog.FieldOrgID, auditlog.FieldActorID:
 			values[i] = new(sql.NullInt64)
-		case auditlog.FieldActorEmail, auditlog.FieldAction, auditlog.FieldResourceType, auditlog.FieldResourceID, auditlog.FieldPhase, auditlog.FieldOutcome, auditlog.FieldIP, auditlog.FieldUserAgent, auditlog.FieldRequestID, auditlog.FieldTraceID:
+		case auditlog.FieldActorEmail, auditlog.FieldAction, auditlog.FieldResourceType, auditlog.FieldResourceID, auditlog.FieldPhase, auditlog.FieldOutcome, auditlog.FieldIP, auditlog.FieldUserAgent, auditlog.FieldRequestID, auditlog.FieldTraceID, auditlog.FieldPrevHash, auditlog.FieldHash:
 			values[i] = new(sql.NullString)
 		case auditlog.FieldTs:
 			values[i] = new(sql.NullTime)
@@ -169,6 +173,18 @@ func (_m *AuditLog) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field detail: %w", err)
 				}
 			}
+		case auditlog.FieldPrevHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field prev_hash", values[i])
+			} else if value.Valid {
+				_m.PrevHash = value.String
+			}
+		case auditlog.FieldHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field hash", values[i])
+			} else if value.Valid {
+				_m.Hash = value.String
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -246,6 +262,12 @@ func (_m *AuditLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("detail=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Detail))
+	builder.WriteString(", ")
+	builder.WriteString("prev_hash=")
+	builder.WriteString(_m.PrevHash)
+	builder.WriteString(", ")
+	builder.WriteString("hash=")
+	builder.WriteString(_m.Hash)
 	builder.WriteByte(')')
 	return builder.String()
 }

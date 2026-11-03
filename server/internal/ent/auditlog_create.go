@@ -202,6 +202,34 @@ func (_c *AuditLogCreate) SetDetail(v map[string]interface{}) *AuditLogCreate {
 	return _c
 }
 
+// SetPrevHash sets the "prev_hash" field.
+func (_c *AuditLogCreate) SetPrevHash(v string) *AuditLogCreate {
+	_c.mutation.SetPrevHash(v)
+	return _c
+}
+
+// SetNillablePrevHash sets the "prev_hash" field if the given value is not nil.
+func (_c *AuditLogCreate) SetNillablePrevHash(v *string) *AuditLogCreate {
+	if v != nil {
+		_c.SetPrevHash(*v)
+	}
+	return _c
+}
+
+// SetHash sets the "hash" field.
+func (_c *AuditLogCreate) SetHash(v string) *AuditLogCreate {
+	_c.mutation.SetHash(v)
+	return _c
+}
+
+// SetNillableHash sets the "hash" field if the given value is not nil.
+func (_c *AuditLogCreate) SetNillableHash(v *string) *AuditLogCreate {
+	if v != nil {
+		_c.SetHash(*v)
+	}
+	return _c
+}
+
 // Mutation returns the AuditLogMutation object of the builder.
 func (_c *AuditLogCreate) Mutation() *AuditLogMutation {
 	return _c.mutation
@@ -282,6 +310,14 @@ func (_c *AuditLogCreate) defaults() error {
 		v := auditlog.DefaultTraceID
 		_c.mutation.SetTraceID(v)
 	}
+	if _, ok := _c.mutation.PrevHash(); !ok {
+		v := auditlog.DefaultPrevHash
+		_c.mutation.SetPrevHash(v)
+	}
+	if _, ok := _c.mutation.Hash(); !ok {
+		v := auditlog.DefaultHash
+		_c.mutation.SetHash(v)
+	}
 	return nil
 }
 
@@ -329,6 +365,12 @@ func (_c *AuditLogCreate) check() error {
 	}
 	if _, ok := _c.mutation.TraceID(); !ok {
 		return &ValidationError{Name: "trace_id", err: errors.New(`ent: missing required field "AuditLog.trace_id"`)}
+	}
+	if _, ok := _c.mutation.PrevHash(); !ok {
+		return &ValidationError{Name: "prev_hash", err: errors.New(`ent: missing required field "AuditLog.prev_hash"`)}
+	}
+	if _, ok := _c.mutation.Hash(); !ok {
+		return &ValidationError{Name: "hash", err: errors.New(`ent: missing required field "AuditLog.hash"`)}
 	}
 	return nil
 }
@@ -412,6 +454,14 @@ func (_c *AuditLogCreate) createSpec() (*AuditLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Detail(); ok {
 		_spec.SetField(auditlog.FieldDetail, field.TypeJSON, value)
 		_node.Detail = value
+	}
+	if value, ok := _c.mutation.PrevHash(); ok {
+		_spec.SetField(auditlog.FieldPrevHash, field.TypeString, value)
+		_node.PrevHash = value
+	}
+	if value, ok := _c.mutation.Hash(); ok {
+		_spec.SetField(auditlog.FieldHash, field.TypeString, value)
+		_node.Hash = value
 	}
 	return _node, _spec
 }
@@ -517,6 +567,12 @@ func (u *AuditLogUpsertOne) UpdateNewValues() *AuditLogUpsertOne {
 		}
 		if _, exists := u.create.mutation.Detail(); exists {
 			s.SetIgnore(auditlog.FieldDetail)
+		}
+		if _, exists := u.create.mutation.PrevHash(); exists {
+			s.SetIgnore(auditlog.FieldPrevHash)
+		}
+		if _, exists := u.create.mutation.Hash(); exists {
+			s.SetIgnore(auditlog.FieldHash)
 		}
 	}))
 	return u
@@ -766,6 +822,12 @@ func (u *AuditLogUpsertBulk) UpdateNewValues() *AuditLogUpsertBulk {
 			}
 			if _, exists := b.mutation.Detail(); exists {
 				s.SetIgnore(auditlog.FieldDetail)
+			}
+			if _, exists := b.mutation.PrevHash(); exists {
+				s.SetIgnore(auditlog.FieldPrevHash)
+			}
+			if _, exists := b.mutation.Hash(); exists {
+				s.SetIgnore(auditlog.FieldHash)
 			}
 		}
 	}))

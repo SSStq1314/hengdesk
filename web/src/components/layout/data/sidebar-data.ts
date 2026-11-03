@@ -1,4 +1,4 @@
-import { LayoutDashboard } from 'lucide-react'
+import { LayoutDashboard, ScrollText } from 'lucide-react'
 import { type SidebarData } from '../types'
 
 // 侧边栏导航。M0 仅保留「工作台」，后续模块（对话、知识库、智能体、审计中心…）按里程碑加入。
@@ -7,6 +7,17 @@ export const sidebarData: SidebarData = {
     {
       title: '通用',
       items: [{ title: '工作台', url: '/', icon: LayoutDashboard }],
+    },
+    {
+      title: '安全',
+      items: [
+        {
+          title: '审计日志',
+          url: '/audit',
+          icon: ScrollText,
+          perm: 'audit.read',
+        },
+      ],
     },
   ],
 }

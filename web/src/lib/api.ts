@@ -70,3 +70,44 @@ export const authApi = {
       body: JSON.stringify({ current_password, new_password }),
     }),
 }
+
+export interface AuditLog {
+  id: number
+  ts: string
+  actor_email: string
+  action: string
+  phase: string
+  outcome: string
+  resource_type: string
+  resource_id: string
+  ip: string
+  request_id: string
+  hash: string
+  detail?: Record<string, unknown>
+}
+
+export interface AuditFilter {
+  actor?: string
+  action?: string
+  outcome?: string
+  before_id?: number
+}
+
+function qs(f: object): string {
+  const p = new URLSearchParams()
+  for (const [k, v] of Object.entries(f)) if (v) p.set(k, String(v))
+  const s = p.toString()
+  return s ? `?${s}` : ''
+}
+
+export const auditApi = {
+  list: (f: AuditFilter) =>
+    api<{ items: AuditLog[]; next_before_id: number }>(
+      `/admin/audit-logs${qs(f)}`
+    ),
+  verify: () =>
+    api<{ ok: boolean; checked: number; legacy: number; broken_at?: number }>(
+      '/admin/audit-logs/verify'
+    ),
+  exportUrl: (f: AuditFilter) => `/api/v1/admin/audit-logs/export${qs(f)}`,
+}

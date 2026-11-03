@@ -3,7 +3,6 @@ package api
 
 import (
 	"log/slog"
-	"net/http"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
@@ -12,7 +11,6 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
 	"github.com/SSStq1314/hengdesk/server/internal/authz"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
-	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 )
 
@@ -43,21 +41,14 @@ func Mount(e *echo.Echo, d Deps) {
 	}
 	d.Auth.GuardDisable = guardDisable(d.DB)
 
-	g := e.Group("/api/v1", d.Auth.Optional, audit.Middleware(d.Audit, auth.Actor, d.Log), auth.CSRF)
+	g := e.Group("/api/v1", d.Auth.Optional, audit.WithWriter(d.Audit, auth.Actor), audit.Middleware(d.Audit, auth.Actor, d.Log), auth.CSRF)
 	d.Auth.Register(g)
 	admin := g.Group("/admin")
 
-	admin.GET("/audit-logs", func(c echo.Context) error {
-		limit, _ := strconv.Atoi(c.QueryParam("limit"))
-		if limit <= 0 || limit > 200 {
-			limit = 50
-		}
-		rows, err := d.DB.AuditLog.Query().Order(ent.Desc(auditlog.FieldID)).Limit(limit).All(c.Request().Context())
-		if err != nil {
-			return err
-		}
-		return c.JSON(http.StatusOK, map[string]any{"items": rows})
-	}, authz.Require(rbac.AuditRead))
+	ah := &auditHandlers{db: d.DB}
+	admin.GET("/audit-logs", ah.list, authz.Require(rbac.AuditRead), audit.Sensitive("audit.view"))
+	admin.GET("/audit-logs/verify", ah.verify, authz.Require(rbac.AuditRead), audit.Sensitive("audit.verify"))
+	admin.GET("/audit-logs/export", ah.export, authz.Require(rbac.AuditExport), audit.Sensitive("audit.export"))
 
 	// 账号安全（强制下线、停用、重置密码、解锁）：组织范围 MemberManage，目标为特权角色时还需 RoleAssignPriv。
 	d.Auth.RegisterAdmin(admin.Group("", authz.Require(rbac.MemberManage)))

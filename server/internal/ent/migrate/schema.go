@@ -57,6 +57,8 @@ var (
 		{Name: "request_id", Type: field.TypeString, Default: ""},
 		{Name: "trace_id", Type: field.TypeString, Default: ""},
 		{Name: "detail", Type: field.TypeJSON, Nullable: true},
+		{Name: "prev_hash", Type: field.TypeString, Default: ""},
+		{Name: "hash", Type: field.TypeString, Default: ""},
 	}
 	// AuditLogsTable holds the schema information for the "audit_logs" table.
 	AuditLogsTable = &schema.Table{
@@ -78,6 +80,14 @@ var (
 				Name:    "auditlog_trace_id",
 				Unique:  false,
 				Columns: []*schema.Column{AuditLogsColumns[13]},
+			},
+			{
+				Name:    "auditlog_prev_hash",
+				Unique:  true,
+				Columns: []*schema.Column{AuditLogsColumns[15]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "hash <> ''",
+				},
 			},
 		},
 	}

@@ -4,6 +4,8 @@ type BaseNavItem = {
   title: string
   badge?: string
   icon?: React.ElementType
+  /** 需要的权限点；无该权限时不显示（后端仍会 404） */
+  perm?: string
 }
 
 type NavLink = BaseNavItem & {

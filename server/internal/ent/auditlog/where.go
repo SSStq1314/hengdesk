@@ -114,6 +114,16 @@ func TraceID(v string) predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldEQ(FieldTraceID, v))
 }
 
+// PrevHash applies equality check predicate on the "prev_hash" field. It's identical to PrevHashEQ.
+func PrevHash(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEQ(FieldPrevHash, v))
+}
+
+// Hash applies equality check predicate on the "hash" field. It's identical to HashEQ.
+func Hash(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEQ(FieldHash, v))
+}
+
 // TsEQ applies the EQ predicate on the "ts" field.
 func TsEQ(v time.Time) predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldEQ(FieldTs, v))
@@ -867,6 +877,136 @@ func DetailIsNil() predicate.AuditLog {
 // DetailNotNil applies the NotNil predicate on the "detail" field.
 func DetailNotNil() predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldNotNull(FieldDetail))
+}
+
+// PrevHashEQ applies the EQ predicate on the "prev_hash" field.
+func PrevHashEQ(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEQ(FieldPrevHash, v))
+}
+
+// PrevHashNEQ applies the NEQ predicate on the "prev_hash" field.
+func PrevHashNEQ(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNEQ(FieldPrevHash, v))
+}
+
+// PrevHashIn applies the In predicate on the "prev_hash" field.
+func PrevHashIn(vs ...string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldIn(FieldPrevHash, vs...))
+}
+
+// PrevHashNotIn applies the NotIn predicate on the "prev_hash" field.
+func PrevHashNotIn(vs ...string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNotIn(FieldPrevHash, vs...))
+}
+
+// PrevHashGT applies the GT predicate on the "prev_hash" field.
+func PrevHashGT(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldGT(FieldPrevHash, v))
+}
+
+// PrevHashGTE applies the GTE predicate on the "prev_hash" field.
+func PrevHashGTE(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldGTE(FieldPrevHash, v))
+}
+
+// PrevHashLT applies the LT predicate on the "prev_hash" field.
+func PrevHashLT(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldLT(FieldPrevHash, v))
+}
+
+// PrevHashLTE applies the LTE predicate on the "prev_hash" field.
+func PrevHashLTE(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldLTE(FieldPrevHash, v))
+}
+
+// PrevHashContains applies the Contains predicate on the "prev_hash" field.
+func PrevHashContains(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldContains(FieldPrevHash, v))
+}
+
+// PrevHashHasPrefix applies the HasPrefix predicate on the "prev_hash" field.
+func PrevHashHasPrefix(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldHasPrefix(FieldPrevHash, v))
+}
+
+// PrevHashHasSuffix applies the HasSuffix predicate on the "prev_hash" field.
+func PrevHashHasSuffix(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldHasSuffix(FieldPrevHash, v))
+}
+
+// PrevHashEqualFold applies the EqualFold predicate on the "prev_hash" field.
+func PrevHashEqualFold(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEqualFold(FieldPrevHash, v))
+}
+
+// PrevHashContainsFold applies the ContainsFold predicate on the "prev_hash" field.
+func PrevHashContainsFold(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldContainsFold(FieldPrevHash, v))
+}
+
+// HashEQ applies the EQ predicate on the "hash" field.
+func HashEQ(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEQ(FieldHash, v))
+}
+
+// HashNEQ applies the NEQ predicate on the "hash" field.
+func HashNEQ(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNEQ(FieldHash, v))
+}
+
+// HashIn applies the In predicate on the "hash" field.
+func HashIn(vs ...string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldIn(FieldHash, vs...))
+}
+
+// HashNotIn applies the NotIn predicate on the "hash" field.
+func HashNotIn(vs ...string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNotIn(FieldHash, vs...))
+}
+
+// HashGT applies the GT predicate on the "hash" field.
+func HashGT(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldGT(FieldHash, v))
+}
+
+// HashGTE applies the GTE predicate on the "hash" field.
+func HashGTE(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldGTE(FieldHash, v))
+}
+
+// HashLT applies the LT predicate on the "hash" field.
+func HashLT(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldLT(FieldHash, v))
+}
+
+// HashLTE applies the LTE predicate on the "hash" field.
+func HashLTE(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldLTE(FieldHash, v))
+}
+
+// HashContains applies the Contains predicate on the "hash" field.
+func HashContains(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldContains(FieldHash, v))
+}
+
+// HashHasPrefix applies the HasPrefix predicate on the "hash" field.
+func HashHasPrefix(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldHasPrefix(FieldHash, v))
+}
+
+// HashHasSuffix applies the HasSuffix predicate on the "hash" field.
+func HashHasSuffix(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldHasSuffix(FieldHash, v))
+}
+
+// HashEqualFold applies the EqualFold predicate on the "hash" field.
+func HashEqualFold(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEqualFold(FieldHash, v))
+}
+
+// HashContainsFold applies the ContainsFold predicate on the "hash" field.
+func HashContainsFold(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldContainsFold(FieldHash, v))
 }
 
 // And groups predicates with the AND operator between them.

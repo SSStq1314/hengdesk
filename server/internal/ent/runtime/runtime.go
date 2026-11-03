@@ -87,6 +87,14 @@ func init() {
 	auditlogDescTraceID := auditlogFields[12].Descriptor()
 	// auditlog.DefaultTraceID holds the default value on creation for the trace_id field.
 	auditlog.DefaultTraceID = auditlogDescTraceID.Default.(string)
+	// auditlogDescPrevHash is the schema descriptor for prev_hash field.
+	auditlogDescPrevHash := auditlogFields[14].Descriptor()
+	// auditlog.DefaultPrevHash holds the default value on creation for the prev_hash field.
+	auditlog.DefaultPrevHash = auditlogDescPrevHash.Default.(string)
+	// auditlogDescHash is the schema descriptor for hash field.
+	auditlogDescHash := auditlogFields[15].Descriptor()
+	// auditlog.DefaultHash holds the default value on creation for the hash field.
+	auditlog.DefaultHash = auditlogDescHash.Default.(string)
 	departmentMixin := schema.Department{}.Mixin()
 	departmentMixinFields0 := departmentMixin[0].Fields()
 	_ = departmentMixinFields0
