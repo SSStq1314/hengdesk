@@ -11011,6 +11011,7 @@ type MessageMutation struct {
 	completion_tokens    *int
 	addcompletion_tokens *int
 	request_id           *string
+	superseded_at        *time.Time
 	clearedFields        map[string]struct{}
 	conversation         *int
 	clearedconversation  bool
@@ -11625,6 +11626,55 @@ func (m *MessageMutation) ResetRequestID() {
 	m.request_id = nil
 }
 
+// SetSupersededAt sets the "superseded_at" field.
+func (m *MessageMutation) SetSupersededAt(t time.Time) {
+	m.superseded_at = &t
+}
+
+// SupersededAt returns the value of the "superseded_at" field in the mutation.
+func (m *MessageMutation) SupersededAt() (r time.Time, exists bool) {
+	v := m.superseded_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSupersededAt returns the old "superseded_at" field's value of the Message entity.
+// If the Message object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageMutation) OldSupersededAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSupersededAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSupersededAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSupersededAt: %w", err)
+	}
+	return oldValue.SupersededAt, nil
+}
+
+// ClearSupersededAt clears the value of the "superseded_at" field.
+func (m *MessageMutation) ClearSupersededAt() {
+	m.superseded_at = nil
+	m.clearedFields[message.FieldSupersededAt] = struct{}{}
+}
+
+// SupersededAtCleared returns if the "superseded_at" field was cleared in this mutation.
+func (m *MessageMutation) SupersededAtCleared() bool {
+	_, ok := m.clearedFields[message.FieldSupersededAt]
+	return ok
+}
+
+// ResetSupersededAt resets all changes to the "superseded_at" field.
+func (m *MessageMutation) ResetSupersededAt() {
+	m.superseded_at = nil
+	delete(m.clearedFields, message.FieldSupersededAt)
+}
+
 // ClearConversation clears the "conversation" edge to the Conversation entity.
 func (m *MessageMutation) ClearConversation() {
 	m.clearedconversation = true
@@ -11686,7 +11736,7 @@ func (m *MessageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MessageMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.created_at != nil {
 		fields = append(fields, message.FieldCreatedAt)
 	}
@@ -11726,6 +11776,9 @@ func (m *MessageMutation) Fields() []string {
 	if m.request_id != nil {
 		fields = append(fields, message.FieldRequestID)
 	}
+	if m.superseded_at != nil {
+		fields = append(fields, message.FieldSupersededAt)
+	}
 	return fields
 }
 
@@ -11760,6 +11813,8 @@ func (m *MessageMutation) Field(name string) (ent.Value, bool) {
 		return m.CompletionTokens()
 	case message.FieldRequestID:
 		return m.RequestID()
+	case message.FieldSupersededAt:
+		return m.SupersededAt()
 	}
 	return nil, false
 }
@@ -11795,6 +11850,8 @@ func (m *MessageMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldCompletionTokens(ctx)
 	case message.FieldRequestID:
 		return m.OldRequestID(ctx)
+	case message.FieldSupersededAt:
+		return m.OldSupersededAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown Message field %s", name)
 }
@@ -11895,6 +11952,13 @@ func (m *MessageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRequestID(v)
 		return nil
+	case message.FieldSupersededAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSupersededAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Message field %s", name)
 }
@@ -11951,7 +12015,11 @@ func (m *MessageMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *MessageMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(message.FieldSupersededAt) {
+		fields = append(fields, message.FieldSupersededAt)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -11964,6 +12032,11 @@ func (m *MessageMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *MessageMutation) ClearField(name string) error {
+	switch name {
+	case message.FieldSupersededAt:
+		m.ClearSupersededAt()
+		return nil
+	}
 	return fmt.Errorf("unknown Message nullable field %s", name)
 }
 
@@ -12009,6 +12082,9 @@ func (m *MessageMutation) ResetField(name string) error {
 		return nil
 	case message.FieldRequestID:
 		m.ResetRequestID()
+		return nil
+	case message.FieldSupersededAt:
+		m.ResetSupersededAt()
 		return nil
 	}
 	return fmt.Errorf("unknown Message field %s", name)

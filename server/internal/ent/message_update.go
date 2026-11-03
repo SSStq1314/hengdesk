@@ -203,6 +203,26 @@ func (_u *MessageUpdate) SetNillableRequestID(v *string) *MessageUpdate {
 	return _u
 }
 
+// SetSupersededAt sets the "superseded_at" field.
+func (_u *MessageUpdate) SetSupersededAt(v time.Time) *MessageUpdate {
+	_u.mutation.SetSupersededAt(v)
+	return _u
+}
+
+// SetNillableSupersededAt sets the "superseded_at" field if the given value is not nil.
+func (_u *MessageUpdate) SetNillableSupersededAt(v *time.Time) *MessageUpdate {
+	if v != nil {
+		_u.SetSupersededAt(*v)
+	}
+	return _u
+}
+
+// ClearSupersededAt clears the value of the "superseded_at" field.
+func (_u *MessageUpdate) ClearSupersededAt() *MessageUpdate {
+	_u.mutation.ClearSupersededAt()
+	return _u
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_u *MessageUpdate) SetConversation(v *Conversation) *MessageUpdate {
 	return _u.SetConversationID(v.ID)
@@ -328,6 +348,12 @@ func (_u *MessageUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.RequestID(); ok {
 		_spec.SetField(message.FieldRequestID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SupersededAt(); ok {
+		_spec.SetField(message.FieldSupersededAt, field.TypeTime, value)
+	}
+	if _u.mutation.SupersededAtCleared() {
+		_spec.ClearField(message.FieldSupersededAt, field.TypeTime)
 	}
 	if _u.mutation.ConversationCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -552,6 +578,26 @@ func (_u *MessageUpdateOne) SetNillableRequestID(v *string) *MessageUpdateOne {
 	return _u
 }
 
+// SetSupersededAt sets the "superseded_at" field.
+func (_u *MessageUpdateOne) SetSupersededAt(v time.Time) *MessageUpdateOne {
+	_u.mutation.SetSupersededAt(v)
+	return _u
+}
+
+// SetNillableSupersededAt sets the "superseded_at" field if the given value is not nil.
+func (_u *MessageUpdateOne) SetNillableSupersededAt(v *time.Time) *MessageUpdateOne {
+	if v != nil {
+		_u.SetSupersededAt(*v)
+	}
+	return _u
+}
+
+// ClearSupersededAt clears the value of the "superseded_at" field.
+func (_u *MessageUpdateOne) ClearSupersededAt() *MessageUpdateOne {
+	_u.mutation.ClearSupersededAt()
+	return _u
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_u *MessageUpdateOne) SetConversation(v *Conversation) *MessageUpdateOne {
 	return _u.SetConversationID(v.ID)
@@ -707,6 +753,12 @@ func (_u *MessageUpdateOne) sqlSave(ctx context.Context) (_node *Message, err er
 	}
 	if value, ok := _u.mutation.RequestID(); ok {
 		_spec.SetField(message.FieldRequestID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SupersededAt(); ok {
+		_spec.SetField(message.FieldSupersededAt, field.TypeTime, value)
+	}
+	if _u.mutation.SupersededAtCleared() {
+		_spec.ClearField(message.FieldSupersededAt, field.TypeTime)
 	}
 	if _u.mutation.ConversationCleared() {
 		edge := &sqlgraph.EdgeSpec{

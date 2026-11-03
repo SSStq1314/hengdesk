@@ -189,6 +189,20 @@ func (_c *MessageCreate) SetNillableRequestID(v *string) *MessageCreate {
 	return _c
 }
 
+// SetSupersededAt sets the "superseded_at" field.
+func (_c *MessageCreate) SetSupersededAt(v time.Time) *MessageCreate {
+	_c.mutation.SetSupersededAt(v)
+	return _c
+}
+
+// SetNillableSupersededAt sets the "superseded_at" field if the given value is not nil.
+func (_c *MessageCreate) SetNillableSupersededAt(v *time.Time) *MessageCreate {
+	if v != nil {
+		_c.SetSupersededAt(*v)
+	}
+	return _c
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_c *MessageCreate) SetConversation(v *Conversation) *MessageCreate {
 	return _c.SetConversationID(v.ID)
@@ -408,6 +422,10 @@ func (_c *MessageCreate) createSpec() (*Message, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RequestID(); ok {
 		_spec.SetField(message.FieldRequestID, field.TypeString, value)
 		_node.RequestID = value
+	}
+	if value, ok := _c.mutation.SupersededAt(); ok {
+		_spec.SetField(message.FieldSupersededAt, field.TypeTime, value)
+		_node.SupersededAt = &value
 	}
 	if nodes := _c.mutation.ConversationIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -631,6 +649,24 @@ func (u *MessageUpsert) SetRequestID(v string) *MessageUpsert {
 // UpdateRequestID sets the "request_id" field to the value that was provided on create.
 func (u *MessageUpsert) UpdateRequestID() *MessageUpsert {
 	u.SetExcluded(message.FieldRequestID)
+	return u
+}
+
+// SetSupersededAt sets the "superseded_at" field.
+func (u *MessageUpsert) SetSupersededAt(v time.Time) *MessageUpsert {
+	u.Set(message.FieldSupersededAt, v)
+	return u
+}
+
+// UpdateSupersededAt sets the "superseded_at" field to the value that was provided on create.
+func (u *MessageUpsert) UpdateSupersededAt() *MessageUpsert {
+	u.SetExcluded(message.FieldSupersededAt)
+	return u
+}
+
+// ClearSupersededAt clears the value of the "superseded_at" field.
+func (u *MessageUpsert) ClearSupersededAt() *MessageUpsert {
+	u.SetNull(message.FieldSupersededAt)
 	return u
 }
 
@@ -858,6 +894,27 @@ func (u *MessageUpsertOne) SetRequestID(v string) *MessageUpsertOne {
 func (u *MessageUpsertOne) UpdateRequestID() *MessageUpsertOne {
 	return u.Update(func(s *MessageUpsert) {
 		s.UpdateRequestID()
+	})
+}
+
+// SetSupersededAt sets the "superseded_at" field.
+func (u *MessageUpsertOne) SetSupersededAt(v time.Time) *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.SetSupersededAt(v)
+	})
+}
+
+// UpdateSupersededAt sets the "superseded_at" field to the value that was provided on create.
+func (u *MessageUpsertOne) UpdateSupersededAt() *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.UpdateSupersededAt()
+	})
+}
+
+// ClearSupersededAt clears the value of the "superseded_at" field.
+func (u *MessageUpsertOne) ClearSupersededAt() *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.ClearSupersededAt()
 	})
 }
 
@@ -1251,6 +1308,27 @@ func (u *MessageUpsertBulk) SetRequestID(v string) *MessageUpsertBulk {
 func (u *MessageUpsertBulk) UpdateRequestID() *MessageUpsertBulk {
 	return u.Update(func(s *MessageUpsert) {
 		s.UpdateRequestID()
+	})
+}
+
+// SetSupersededAt sets the "superseded_at" field.
+func (u *MessageUpsertBulk) SetSupersededAt(v time.Time) *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.SetSupersededAt(v)
+	})
+}
+
+// UpdateSupersededAt sets the "superseded_at" field to the value that was provided on create.
+func (u *MessageUpsertBulk) UpdateSupersededAt() *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.UpdateSupersededAt()
+	})
+}
+
+// ClearSupersededAt clears the value of the "superseded_at" field.
+func (u *MessageUpsertBulk) ClearSupersededAt() *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.ClearSupersededAt()
 	})
 }
 

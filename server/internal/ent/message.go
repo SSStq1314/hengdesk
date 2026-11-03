@@ -44,6 +44,8 @@ type Message struct {
 	CompletionTokens int `json:"completion_tokens,omitempty"`
 	// RequestID holds the value of the "request_id" field.
 	RequestID string `json:"request_id,omitempty"`
+	// SupersededAt holds the value of the "superseded_at" field.
+	SupersededAt *time.Time `json:"superseded_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the MessageQuery when eager-loading is set.
 	Edges        MessageEdges `json:"edges"`
@@ -79,7 +81,7 @@ func (*Message) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case message.FieldRole, message.FieldContent, message.FieldStatus, message.FieldModelName, message.FieldFallbackFrom, message.FieldErrorCode, message.FieldError, message.FieldRequestID:
 			values[i] = new(sql.NullString)
-		case message.FieldCreatedAt, message.FieldUpdatedAt:
+		case message.FieldCreatedAt, message.FieldUpdatedAt, message.FieldSupersededAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -180,6 +182,13 @@ func (_m *Message) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.RequestID = value.String
 			}
+		case message.FieldSupersededAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field superseded_at", values[i])
+			} else if value.Valid {
+				_m.SupersededAt = new(time.Time)
+				*_m.SupersededAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -259,6 +268,11 @@ func (_m *Message) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("request_id=")
 	builder.WriteString(_m.RequestID)
+	builder.WriteString(", ")
+	if v := _m.SupersededAt; v != nil {
+		builder.WriteString("superseded_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

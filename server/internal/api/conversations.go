@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -11,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/labstack/echo/v4"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
@@ -39,6 +42,7 @@ type convHandlers struct {
 	fs     FileStore
 	lim    FileLimits
 	parser *docparse.Extractor
+	r      redis.UniversalClient
 }
 
 type convView struct {
@@ -63,6 +67,8 @@ type msgView struct {
 	CreatedAt        time.Time `json:"created_at"`
 	// ContextTruncated 仅出现在 done 事件：本轮会话文件内容因过长被截断（UI 提示用户）。
 	ContextTruncated bool `json:"context_truncated,omitempty"`
+	// Notice 仅出现在 done 事件：记住的模型已不可用、已回退默认模型等需要告知用户的提示（D-40 第 8 条）。
+	Notice string `json:"notice,omitempty"`
 }
 
 func toConv(c *ent.Conversation) convView {
@@ -163,7 +169,7 @@ func (h *convHandlers) get(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ms, err := h.db.Message.Query().Where(message.ConversationID(cv.ID)).Order(ent.Asc(message.FieldID)).All(c.Request().Context())
+	ms, err := h.db.Message.Query().Where(message.ConversationID(cv.ID), message.SupersededAtIsNil()).Order(ent.Asc(message.FieldID)).All(c.Request().Context())
 	if err != nil {
 		return err
 	}
@@ -243,6 +249,7 @@ type sendInput struct {
 
 // send POST /conversations/:id/messages：SSE 流式返回。事件：token（增量）、done（最终消息）、error（流开始后出错）。
 // 流开始前失败返回 JSON 错误（与内部 Chat API 一致）。停止生成 = 客户端断开连接：已生成部分以 status=stopped 落库并照常计量。
+// 同一会话同时只允许一条在生成（D-40 第 7 条）：锁在 Valkey，其它请求 409。
 func (h *convHandlers) send(c echo.Context) error {
 	p, err := principal(c)
 	if err != nil {
@@ -266,13 +273,12 @@ func (h *convHandlers) send(c echo.Context) error {
 		return bad("消息过长（上限 " + strconv.Itoa(maxMessageChars) + " 字）")
 	}
 	ctx := r.Context()
-	name := in.Model
-	if name == "" && cv.ModelID != nil {
-		if m, err := h.db.Model.Get(ctx, *cv.ModelID); err == nil {
-			name = m.Name
-		}
+	unlock, err := h.lock(ctx, cv.ID)
+	if err != nil {
+		return err
 	}
-	tgt, err := h.ch.allowed(c, p, name)
+	defer unlock()
+	tgt, notice, err := h.pickModel(c, p, cv, in.Model)
 	if err != nil {
 		return err
 	}
@@ -280,18 +286,9 @@ func (h *convHandlers) send(c echo.Context) error {
 		return err
 	}
 	if err := audit.Record(c, audit.Entry{Action: "chat.message.send", Phase: "attempt", ResourceType: "conversation",
-		ResourceID: strconv.Itoa(cv.ID), Detail: map[string]any{"model": tgt.Model.Name, "chars": utf8.RuneCountInString(in.Content)}}); err != nil {
+		ResourceID: strconv.Itoa(cv.ID), Detail: map[string]any{"model": tgt.Model.Name, "chars": utf8.RuneCountInString(in.Content),
+			"model_reset": notice != ""}}); err != nil {
 		return err // fail-closed
-	}
-
-	files, err := h.files(ctx, cv.ID)
-	if err != nil {
-		return err
-	}
-	hist, err := h.db.Message.Query().Where(message.ConversationID(cv.ID), message.ContentNEQ("")).
-		Order(ent.Desc(message.FieldID)).Limit(historyLimit - 1).All(ctx)
-	if err != nil {
-		return err
 	}
 	reqID := c.Response().Header().Get(echo.HeaderXRequestID)
 	var asst *ent.Message
@@ -314,8 +311,185 @@ func (h *convHandlers) send(c echo.Context) error {
 	}); err != nil {
 		return err
 	}
+	return h.generate(c, p, cv, tgt, asst, "chat.message.send", notice, nil)
+}
 
-	msgs := make([]gateway.Message, 0, len(hist)+2)
+type regenInput struct {
+	MessageID int `json:"message_id"`
+}
+
+// regenerate POST /conversations/:id/regenerate：重新生成 / 重试最后一条回复（D-40 第 6 条）。
+// 只允许针对会话最后一条（未被替换的）assistant 消息；旧回复软保留（superseded_at），UI 与后续上下文只用最新一条。
+// 与发送相同：会话锁 → 模型权限（含记忆模型失效回退）→ 预算 → 审计 attempt（fail-closed）。失败消息的「重试」走同一接口。
+func (h *convHandlers) regenerate(c echo.Context) error {
+	p, err := principal(c)
+	if err != nil {
+		return err
+	}
+	cv, err := h.own(c, p)
+	if err != nil {
+		return err
+	}
+	var in regenInput
+	if err := c.Bind(&in); err != nil || in.MessageID <= 0 {
+		return bad("请求格式错误")
+	}
+	ctx := c.Request().Context()
+	unlock, err := h.lock(ctx, cv.ID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	last, err := h.db.Message.Query().Where(message.ConversationID(cv.ID), message.SupersededAtIsNil()).
+		Order(ent.Desc(message.FieldID)).First(ctx)
+	if ent.IsNotFound(err) {
+		return authz.Deny(c, "message:not_found")
+	}
+	if err != nil {
+		return err
+	}
+	if last.ID != in.MessageID {
+		old, err := h.db.Message.Query().Where(message.ID(in.MessageID), message.ConversationID(cv.ID)).Exist(ctx)
+		if err != nil {
+			return err
+		}
+		if !old {
+			return authz.Deny(c, "message:not_found")
+		}
+		return echo.NewHTTPError(http.StatusConflict, "只能重新生成最后一条回复")
+	}
+	if last.Role != message.RoleAssistant || last.Status == message.StatusStreaming {
+		return echo.NewHTTPError(http.StatusConflict, "只能重新生成最后一条已结束的回复")
+	}
+	tgt, notice, err := h.pickModel(c, p, cv, "")
+	if err != nil {
+		return err
+	}
+	if err := budgetGate(c, h.ch.bs, h.db, tgt.Model.ID, tgt.Model.Name); err != nil || c.Response().Committed {
+		return err
+	}
+	kind := "regenerate"
+	if last.Status == message.StatusError {
+		kind = "retry"
+	}
+	if err := audit.Record(c, audit.Entry{Action: "chat.message.regenerate", Phase: "attempt", ResourceType: "conversation",
+		ResourceID: strconv.Itoa(cv.ID), Detail: map[string]any{"model": tgt.Model.Name, "kind": kind,
+			"replaces_message_id": last.ID, "model_reset": notice != ""}}); err != nil {
+		return err // fail-closed
+	}
+	reqID := c.Response().Header().Get(echo.HeaderXRequestID)
+	var asst *ent.Message
+	if err := withTx(ctx, h.db, func(tx *ent.Tx) error {
+		n, err := tx.Message.Update().Where(message.ID(last.ID), message.SupersededAtIsNil()).SetSupersededAt(time.Now()).Save(ctx)
+		if err != nil {
+			return err
+		}
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusConflict, "该回复已被替换")
+		}
+		asst, err = tx.Message.Create().SetConversationID(cv.ID).SetRole(message.RoleAssistant).SetStatus(message.StatusStreaming).
+			SetModelName(tgt.Model.Name).SetRequestID(reqID).Save(ctx)
+		if err != nil {
+			return err
+		}
+		return tx.Conversation.UpdateOne(cv).SetModelID(tgt.Model.ID).Exec(ctx)
+	}); err != nil {
+		return err
+	}
+	return h.generate(c, p, cv, tgt, asst, "chat.message.regenerate", notice, map[string]any{"kind": kind, "replaces_message_id": last.ID})
+}
+
+// pickModel 选本轮模型。显式指定的模型按权限校验（无权限 404）。未指定时用会话记住的模型；
+// 若它已不可用（被删 / 停用 / 收回权限），回退到默认模型并返回提示（D-40 第 8 条）；默认模型也不可用时返回明确错误。
+func (h *convHandlers) pickModel(c echo.Context, p *auth.Principal, cv *ent.Conversation, explicit string) (*gateway.Target, string, error) {
+	if explicit != "" {
+		tgt, err := h.ch.allowed(c, p, explicit)
+		return tgt, "", err
+	}
+	if cv.ModelID == nil {
+		tgt, err := h.ch.allowed(c, p, "")
+		if errors.Is(err, authz.ErrNotFound) {
+			return nil, "", errNoModel
+		}
+		return tgt, "", err
+	}
+	if m, err := h.db.Model.Get(c.Request().Context(), *cv.ModelID); err == nil {
+		tgt, err := h.ch.allowed(c, p, m.Name)
+		if err == nil || !errors.Is(err, authz.ErrNotFound) {
+			return tgt, "", err
+		}
+	} else if !ent.IsNotFound(err) {
+		return nil, "", err
+	}
+	tgt, err := h.ch.allowed(c, p, "")
+	if errors.Is(err, authz.ErrNotFound) {
+		return nil, "", errNoModel
+	}
+	if err != nil {
+		return nil, "", err
+	}
+	return tgt, "此前使用的模型已不可用，已改用默认模型「" + tgt.Model.Name + "」", nil
+}
+
+var errNoModel = echo.NewHTTPError(http.StatusUnprocessableEntity, "此前使用的模型已不可用，且没有可用的默认模型，请联系管理员开通模型权限")
+
+const genLockTTL = 60 * time.Second
+
+var unlockScript = redis.NewScript(`if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("DEL", KEYS[1]) end return 0`)
+
+// lock 会话生成锁（D-40 第 7 条）：Valkey SET NX + 过期时间，生成期间定时续期；进程崩溃时锁自动过期。
+// Valkey 不可用时 fail-closed（503），不在无锁状态下生成。
+func (h *convHandlers) lock(ctx context.Context, convID int) (func(), error) {
+	if h.r == nil {
+		return nil, echo.NewHTTPError(http.StatusServiceUnavailable, "会话锁不可用")
+	}
+	key := "hengdesk:chat:gen:" + strconv.Itoa(convID)
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return nil, err
+	}
+	tok := hex.EncodeToString(b)
+	ok, err := h.r.SetNX(ctx, key, tok, genLockTTL).Result()
+	if err != nil {
+		h.ch.log.Error("conversation lock failed", "conversation", convID, "err", err)
+		return nil, echo.NewHTTPError(http.StatusServiceUnavailable, "会话锁不可用，请稍后重试")
+	}
+	if !ok {
+		return nil, echo.NewHTTPError(http.StatusConflict, "该会话正在生成回复，请等待完成或先停止")
+	}
+	stop := make(chan struct{})
+	go func() {
+		t := time.NewTicker(genLockTTL / 3)
+		defer t.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-t.C:
+				_ = h.r.Expire(context.Background(), key, genLockTTL).Err()
+			}
+		}
+	}()
+	return func() {
+		close(stop)
+		_ = unlockScript.Run(context.Background(), h.r, []string{key}, tok).Err()
+	}, nil
+}
+
+// generate 组上下文、流式调用模型并落库最终状态；写 result 审计。上下文只用未被替换的消息。
+func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conversation, tgt *gateway.Target, asst *ent.Message,
+	action, notice string, extra map[string]any) error {
+	ctx := c.Request().Context()
+	files, err := h.files(ctx, cv.ID)
+	if err != nil {
+		return err
+	}
+	hist, err := h.db.Message.Query().Where(message.ConversationID(cv.ID), message.SupersededAtIsNil(), message.ContentNEQ(""),
+		message.IDLT(asst.ID)).Order(ent.Desc(message.FieldID)).Limit(historyLimit).All(ctx)
+	if err != nil {
+		return err
+	}
+	msgs := make([]gateway.Message, 0, len(hist)+1)
 	fctx, ctxCut := fileContext(files, h.lim.TotalChars)
 	if fctx != "" {
 		msgs = append(msgs, textMessage("system", fctx))
@@ -323,16 +497,14 @@ func (h *convHandlers) send(c echo.Context) error {
 	for i := len(hist) - 1; i >= 0; i-- {
 		msgs = append(msgs, textMessage(string(hist[i].Role), hist[i].Content))
 	}
-	msgs = append(msgs, textMessage("user", in.Content))
 	req := gateway.ChatRequest{Model: tgt.Model.Name, Messages: msgs, Stream: true}
 
 	var buf strings.Builder
 	hk := streamHooks{delta: "token", tap: func(d gateway.Delta) { buf.WriteString(d.Content) },
 		done: func(res *gateway.ChatResponse, used, primary *gateway.Target) any {
-			v := msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: "done", ModelName: used.Model.Name,
+			return msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: "done", ModelName: used.Model.Name,
 				FallbackFrom: fallbackFrom(used, primary), PromptTokens: res.Usage.PromptTokens,
-				CompletionTokens: res.Usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut}
-			return v
+				CompletionTokens: res.Usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut, Notice: notice}
 		}}
 	res, ge, started, used, rerr := h.ch.run(c, p, &req, tgt, hk)
 
@@ -367,10 +539,14 @@ func (h *convHandlers) send(c echo.Context) error {
 	if stopped {
 		outcome = "stopped"
 	}
-	if err := audit.Record(c, audit.Entry{Action: "chat.message.send", Phase: "result", Outcome: outcome, ResourceType: "conversation",
-		ResourceID: strconv.Itoa(cv.ID), Detail: map[string]any{"message_id": asst.ID, "model": used.Model.Name,
-			"fallback_from": fallbackFrom(used, tgt), "chars": utf8.RuneCountInString(buf.String()),
-			"files": len(files), "context_truncated": ctxCut}}); err != nil {
+	detail := map[string]any{"message_id": asst.ID, "model": used.Model.Name,
+		"fallback_from": fallbackFrom(used, tgt), "chars": utf8.RuneCountInString(buf.String()),
+		"files": len(files), "context_truncated": ctxCut}
+	for k, v := range extra {
+		detail[k] = v
+	}
+	if err := audit.Record(c, audit.Entry{Action: action, Phase: "result", Outcome: outcome, ResourceType: "conversation",
+		ResourceID: strconv.Itoa(cv.ID), Detail: detail}); err != nil {
 		h.ch.log.Error("chat result audit write failed", "conversation", cv.ID)
 	}
 	if rerr != nil {
