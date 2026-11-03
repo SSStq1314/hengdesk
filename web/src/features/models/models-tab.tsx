@@ -44,6 +44,7 @@ const toForm = (m: Model): Form => ({
   context_window: m.context_window,
   max_output_tokens: m.max_output_tokens,
   enabled: m.enabled,
+  fallback_model_ids: m.fallback_model_ids ?? [],
   pin: yuan(m.price_input_micros),
   pcached: yuan(m.price_cached_micros),
   pout: yuan(m.price_output_micros),
@@ -284,6 +285,44 @@ export function ModelsTab() {
                   />
                 </Field>
               </div>
+              <Field label={zh.models.fallbacks}>
+                <div className='grid gap-1'>
+                  {(models.data?.items ?? [])
+                    .filter((m) => m.id !== edit.id)
+                    .map((m) => {
+                      const cur = edit.v.fallback_model_ids ?? []
+                      const pos = cur.indexOf(m.id)
+                      return (
+                        <label
+                          key={m.id}
+                          className='flex items-center gap-2 text-sm'
+                        >
+                          <input
+                            type='checkbox'
+                            checked={pos >= 0}
+                            disabled={pos < 0 && cur.length >= 3}
+                            onChange={(e) =>
+                              set({
+                                fallback_model_ids: e.target.checked
+                                  ? [...cur, m.id]
+                                  : cur.filter((x) => x !== m.id),
+                              })
+                            }
+                          />
+                          {m.name}
+                          {pos >= 0 && (
+                            <span className='text-xs text-muted-foreground'>
+                              {zh.models.fallbackOrder(pos + 1)}
+                            </span>
+                          )}
+                        </label>
+                      )
+                    })}
+                  <p className='text-xs text-muted-foreground'>
+                    {zh.models.fallbackHint}
+                  </p>
+                </div>
+              </Field>
               <label className='flex items-center gap-2 text-sm'>
                 <Switch
                   checked={!!edit.v.enabled}

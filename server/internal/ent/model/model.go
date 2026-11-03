@@ -45,6 +45,8 @@ const (
 	FieldPriceOutputMicros = "price_output_micros"
 	// FieldCurrency holds the string denoting the currency field in the database.
 	FieldCurrency = "currency"
+	// FieldFallbackModelIds holds the string denoting the fallback_model_ids field in the database.
+	FieldFallbackModelIds = "fallback_model_ids"
 	// EdgeProvider holds the string denoting the provider edge name in mutations.
 	EdgeProvider = "provider"
 	// Table holds the table name of the model in the database.
@@ -76,6 +78,7 @@ var Columns = []string{
 	FieldPriceCachedMicros,
 	FieldPriceOutputMicros,
 	FieldCurrency,
+	FieldFallbackModelIds,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

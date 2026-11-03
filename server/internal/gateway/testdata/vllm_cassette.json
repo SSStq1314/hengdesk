@@ -1,0 +1,334 @@
+{
+  "_note": "文档构造，待真实录制替换",
+  "_source": "按公开文档构造，非真实录制",
+  "cases": {
+    "chat-thinking": {
+      "source_case": "vllm-openai-server-docs#chat-thinking",
+      "status": 200,
+      "request_body": {
+        "model": "Qwen/Qwen3-8B",
+        "messages": [
+          {
+            "role": "user",
+            "content": "用一句话介绍你自己。"
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": true
+        }
+      },
+      "body": {
+        "id": "chatcmpl-doc-1",
+        "object": "chat.completion",
+        "created": 1793600000,
+        "model": "Qwen/Qwen3-8B",
+        "choices": [
+          {
+            "index": 0,
+            "finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "我是一个 AI 助手。",
+              "reasoning": "用户要一句话自我介绍。"
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 14,
+          "completion_tokens": 30,
+          "total_tokens": 44
+        }
+      }
+    },
+    "chat-no-thinking": {
+      "source_case": "vllm-openai-server-docs#chat-no-thinking",
+      "status": 200,
+      "request_body": {
+        "model": "Qwen/Qwen3-8B",
+        "messages": [
+          {
+            "role": "user",
+            "content": "用一句话介绍你自己。"
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "body": {
+        "id": "chatcmpl-doc-2",
+        "object": "chat.completion",
+        "created": 1793600000,
+        "model": "Qwen/Qwen3-8B",
+        "choices": [
+          {
+            "index": 0,
+            "finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "我是一个 AI 助手。"
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 14,
+          "completion_tokens": 30,
+          "total_tokens": 44
+        }
+      }
+    },
+    "stream-thinking": {
+      "source_case": "vllm-openai-server-docs#stream-thinking",
+      "status": 200,
+      "request_body": {
+        "model": "Qwen/Qwen3-8B",
+        "stream": true,
+        "messages": [
+          {
+            "role": "user",
+            "content": "用一句话介绍你自己。"
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": true
+        }
+      },
+      "chunks": [
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "Qwen/Qwen3-8B",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": ""
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "Qwen/Qwen3-8B",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning": "用户要"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "Qwen/Qwen3-8B",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning": "一句话自我介绍。"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "Qwen/Qwen3-8B",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "我是一个"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "Qwen/Qwen3-8B",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " AI 助手。"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "Qwen/Qwen3-8B",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {},
+              "finish_reason": "stop"
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "Qwen/Qwen3-8B",
+          "choices": [],
+          "usage": {
+            "prompt_tokens": 14,
+            "completion_tokens": 30,
+            "total_tokens": 44
+          }
+        }
+      ],
+      "done_marker": true,
+      "finish_reason": "stop",
+      "usage": {
+        "total_tokens": 44
+      }
+    },
+    "stream-no-thinking": {
+      "source_case": "vllm-openai-server-docs#stream-no-thinking",
+      "status": 200,
+      "request_body": {
+        "model": "Qwen/Qwen3-8B",
+        "stream": true,
+        "messages": [
+          {
+            "role": "user",
+            "content": "用一句话介绍你自己。"
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "chunks": [
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "Qwen/Qwen3-8B",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": ""
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "Qwen/Qwen3-8B",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "我是一个"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "Qwen/Qwen3-8B",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " AI 助手。"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "Qwen/Qwen3-8B",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {},
+              "finish_reason": "stop"
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "Qwen/Qwen3-8B",
+          "choices": [],
+          "usage": {
+            "prompt_tokens": 14,
+            "completion_tokens": 30,
+            "total_tokens": 44
+          }
+        }
+      ],
+      "done_marker": true,
+      "finish_reason": "stop",
+      "usage": {
+        "total_tokens": 44
+      }
+    },
+    "err-invalid-key": {
+      "source_case": "vllm-openai-server-docs#err-invalid-key",
+      "status": 401,
+      "body": {
+        "error": {
+          "message": "Unauthorized",
+          "type": "Unauthorized",
+          "code": 401
+        }
+      }
+    },
+    "err-invalid-model": {
+      "source_case": "vllm-openai-server-docs#err-invalid-model",
+      "status": 404,
+      "body": {
+        "object": "error",
+        "message": "The model `nope` does not exist.",
+        "type": "NotFoundError",
+        "param": null,
+        "code": 404
+      }
+    },
+    "err-context-too-long": {
+      "source_case": "vllm-openai-server-docs#err-context-too-long",
+      "status": 400,
+      "body": {
+        "object": "error",
+        "message": "This model's maximum context length is 32768 tokens. However, you requested 40000 tokens.",
+        "type": "BadRequestError",
+        "param": null,
+        "code": 400
+      }
+    }
+  }
+}

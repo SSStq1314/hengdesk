@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -48,6 +49,8 @@ type Model struct {
 	PriceOutputMicros int64 `json:"price_output_micros,omitempty"`
 	// Currency holds the value of the "currency" field.
 	Currency string `json:"currency,omitempty"`
+	// FallbackModelIds holds the value of the "fallback_model_ids" field.
+	FallbackModelIds []int `json:"fallback_model_ids,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ModelQuery when eager-loading is set.
 	Edges        ModelEdges `json:"edges"`
@@ -79,6 +82,8 @@ func (*Model) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case model.FieldFallbackModelIds:
+			values[i] = new([]byte)
 		case model.FieldEnabled, model.FieldIsDefault:
 			values[i] = new(sql.NullBool)
 		case model.FieldID, model.FieldProviderID, model.FieldContextWindow, model.FieldMaxOutputTokens, model.FieldPriceInputMicros, model.FieldPriceCachedMicros, model.FieldPriceOutputMicros:
@@ -198,6 +203,14 @@ func (_m *Model) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Currency = value.String
 			}
+		case model.FieldFallbackModelIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field fallback_model_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.FallbackModelIds); err != nil {
+					return fmt.Errorf("unmarshal field fallback_model_ids: %w", err)
+				}
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -283,6 +296,9 @@ func (_m *Model) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("currency=")
 	builder.WriteString(_m.Currency)
+	builder.WriteString(", ")
+	builder.WriteString("fallback_model_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FallbackModelIds))
 	builder.WriteByte(')')
 	return builder.String()
 }

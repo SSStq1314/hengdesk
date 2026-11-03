@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -66,13 +68,15 @@ type modelView struct {
 	MaxOutputTokens  int    `json:"max_output_tokens"`
 	Enabled          bool   `json:"enabled"`
 	IsDefault        bool   `json:"is_default"`
+	FallbackModelIDs []int  `json:"fallback_model_ids"`
 	usage.Price
 }
 
 func toModelView(m *ent.Model) modelView {
 	return modelView{ID: m.ID, Name: m.Name, ProviderID: m.ProviderID, UpstreamModel: m.UpstreamModel,
 		Thinking: string(m.Thinking), ToolChoicePolicy: string(m.ToolChoicePolicy), ContextWindow: m.ContextWindow,
-		MaxOutputTokens: m.MaxOutputTokens, Enabled: m.Enabled, IsDefault: m.IsDefault, Price: usage.PriceOf(m)}
+		MaxOutputTokens: m.MaxOutputTokens, Enabled: m.Enabled, IsDefault: m.IsDefault, Price: usage.PriceOf(m),
+		FallbackModelIDs: append([]int{}, m.FallbackModelIds...)}
 }
 
 func bad(msg string) error { return echo.NewHTTPError(http.StatusBadRequest, msg) }
@@ -129,6 +133,7 @@ func (h *modelHandlers) listProviders(c echo.Context) error {
 
 type providerInput struct {
 	Name           *string `json:"name"`
+	Kind           *string `json:"kind"`
 	Dialect        *string `json:"dialect"`
 	BaseURL        *string `json:"base_url"`
 	APIKey         *string `json:"api_key"`
@@ -149,7 +154,10 @@ func (in *providerInput) validate() error {
 		}
 	}
 	if in.Dialect != nil && modelprovider.DialectValidator(modelprovider.Dialect(*in.Dialect)) != nil {
-		return bad("dialect 只能是 generic 或 deepseek")
+		return bad("dialect 只能是 generic / deepseek / dashscope / vllm")
+	}
+	if in.Kind != nil && modelprovider.KindValidator(modelprovider.Kind(*in.Kind)) != nil {
+		return bad("kind 只能是 openai_compat 或 anthropic")
 	}
 	if in.TimeoutSeconds != nil && (*in.TimeoutSeconds < 1 || *in.TimeoutSeconds > 3600) {
 		return bad("timeout_seconds 范围 1~3600")
@@ -180,6 +188,9 @@ func (h *modelHandlers) createProvider(c echo.Context) error {
 		return err
 	}
 	q := h.db.ModelProvider.Create().SetName(*in.Name).SetBaseURL(*in.BaseURL)
+	if in.Kind != nil {
+		q.SetKind(modelprovider.Kind(*in.Kind))
+	}
 	if in.Dialect != nil {
 		q.SetDialect(modelprovider.Dialect(*in.Dialect))
 	}
@@ -201,7 +212,7 @@ func (h *modelHandlers) createProvider(c echo.Context) error {
 		return notFoundOr(err)
 	}
 	if err := h.record(c, "model.provider.create", "model_provider", p.ID, map[string]any{
-		"name": p.Name, "base_url": p.BaseURL, "dialect": string(p.Dialect), "api_key_set": len(p.APIKeyEnc) > 0}); err != nil {
+		"name": p.Name, "kind": string(p.Kind), "base_url": p.BaseURL, "dialect": string(p.Dialect), "api_key_set": len(p.APIKeyEnc) > 0}); err != nil {
 		return err
 	}
 	v := toProviderView(p)
@@ -234,6 +245,9 @@ func (h *modelHandlers) updateProvider(c echo.Context) error {
 	}
 	if in.BaseURL != nil {
 		u.SetBaseURL(*in.BaseURL)
+	}
+	if in.Kind != nil {
+		u.SetKind(modelprovider.Kind(*in.Kind))
 	}
 	if in.Dialect != nil {
 		u.SetDialect(modelprovider.Dialect(*in.Dialect))
@@ -328,6 +342,7 @@ type modelInput struct {
 	PriceCached      *int64  `json:"price_cached_micros"`
 	PriceOutput      *int64  `json:"price_output_micros"`
 	Currency         *string `json:"currency"`
+	FallbackModelIDs *[]int  `json:"fallback_model_ids"`
 }
 
 const maxPriceMicros = 1_000_000_000_000 // 每百万 token 100 万元，防止误填溢出
@@ -354,6 +369,9 @@ func (in *modelInput) validate() error {
 	}
 	if in.ToolChoicePolicy != nil && model.ToolChoicePolicyValidator(model.ToolChoicePolicy(*in.ToolChoicePolicy)) != nil {
 		return bad("tool_choice_policy 只能是 downgrade / reject")
+	}
+	if in.FallbackModelIDs != nil && len(*in.FallbackModelIDs) > gateway.MaxFallbacks {
+		return bad(fmt.Sprintf("备用模型最多 %d 个", gateway.MaxFallbacks))
 	}
 	if (in.ContextWindow != nil && *in.ContextWindow < 0) || (in.MaxOutputTokens != nil && *in.MaxOutputTokens < 0) {
 		return bad("context_window / max_output_tokens 不能为负")
@@ -403,6 +421,13 @@ func (h *modelHandlers) createModel(c echo.Context) error {
 	}
 	if in.Currency != nil {
 		q.SetCurrency(*in.Currency)
+	}
+	if in.FallbackModelIDs != nil {
+		ids, err := h.checkFallbacks(ctx, 0, *in.FallbackModelIDs)
+		if err != nil {
+			return err
+		}
+		q.SetFallbackModelIds(ids)
 	}
 	m, err := q.Save(ctx)
 	if err != nil {
@@ -472,15 +497,40 @@ func (h *modelHandlers) updateModel(c echo.Context) error {
 	if in.Currency != nil {
 		u.SetCurrency(*in.Currency)
 	}
+	if in.FallbackModelIDs != nil {
+		ids, err := h.checkFallbacks(ctx, m.ID, *in.FallbackModelIDs)
+		if err != nil {
+			return err
+		}
+		u.SetFallbackModelIds(ids)
+	}
 	m, err = u.Save(ctx)
 	if err != nil {
 		return notFoundOr(err)
 	}
 	if err := h.record(c, "model.update", "model", m.ID, map[string]any{"name": m.Name, "enabled": m.Enabled,
-		"upstream_model": m.UpstreamModel, "thinking": string(m.Thinking), "price": usage.PriceOf(m)}); err != nil {
+		"upstream_model": m.UpstreamModel, "thinking": string(m.Thinking), "price": usage.PriceOf(m),
+		"fallback_model_ids": m.FallbackModelIds}); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, toModelView(m))
+}
+
+// checkFallbacks 备用模型必须存在、不能是自身、不能重复。
+func (h *modelHandlers) checkFallbacks(ctx context.Context, self int, ids []int) ([]int, error) {
+	seen := map[int]bool{}
+	out := make([]int, 0, len(ids))
+	for _, id := range ids {
+		if id == self || seen[id] {
+			return nil, bad("备用模型不能包含自身或重复")
+		}
+		seen[id] = true
+		if ok, _ := h.db.Model.Query().Where(model.ID(id)).Exist(ctx); !ok {
+			return nil, bad(fmt.Sprintf("备用模型 %d 不存在", id))
+		}
+		out = append(out, id)
+	}
+	return out, nil
 }
 
 func (h *modelHandlers) deleteModel(c echo.Context) error {

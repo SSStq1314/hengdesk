@@ -15,10 +15,11 @@ func (ModelProvider) Mixin() []ent.Mixin { return []ent.Mixin{TimeMixin{}} }
 func (ModelProvider) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("name").NotEmpty().Unique(),
-		// kind 适配器类型；Anthropic 适配器在后续 PR 加入。
-		field.Enum("kind").Values("openai_compat").Default("openai_compat"),
-		// dialect 方言：deepseek 会显式发送 thinking 开关、回传 reasoning_content。
-		field.Enum("dialect").Values("generic", "deepseek").Default("generic"),
+		// kind 适配器类型：openai_compat（DeepSeek / 通义 / vLLM / Ollama 等）或 anthropic（Messages 协议）。
+		field.Enum("kind").Values("openai_compat", "anthropic").Default("openai_compat"),
+		// dialect 方言（只对 openai_compat 生效）：deepseek 显式发送 thinking 开关、回传 reasoning_content；
+		// dashscope（通义）发送 enable_thinking；vllm 通过 chat_template_kwargs.enable_thinking 开关思考。
+		field.Enum("dialect").Values("generic", "deepseek", "dashscope", "vllm").Default("generic"),
 		field.String("base_url").NotEmpty(),
 		field.Bytes("api_key_enc").Optional().Sensitive(),
 		field.Bool("enabled").Default(true),

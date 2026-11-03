@@ -38,6 +38,8 @@ func (UsageRecord) Fields() []ent.Field {
 		field.Bool("estimated").Default(false),
 		field.Bool("usage_unknown").Default(false).Comment("上游未返回用量（超时 / 5xx 等），按 0 记账；对账时需关注"),
 		field.Int("latency_ms").Default(0),
+		// attempt 同一请求内的第几次尝试（重试 / 故障转移，从 1 开始）；同一 request_id 可有多条。
+		field.Int("attempt").Default(1),
 		field.Time("created_at").Default(time.Now).Immutable(),
 	}
 }

@@ -75,7 +75,12 @@ export function ProvidersTab() {
           onClick={() =>
             setEdit({
               id: null,
-              v: { dialect: 'deepseek', enabled: true, timeout_seconds: 120 },
+              v: {
+                kind: 'openai_compat',
+                dialect: 'deepseek',
+                enabled: true,
+                timeout_seconds: 120,
+              },
             })
           }
         >
@@ -97,7 +102,9 @@ export function ProvidersTab() {
           {(list.data?.items ?? []).map((p) => (
             <TableRow key={p.id}>
               <TableCell className='font-medium'>{p.name}</TableCell>
-              <TableCell>{p.dialect}</TableCell>
+              <TableCell>
+                {p.kind === 'anthropic' ? 'Anthropic' : p.dialect}
+              </TableCell>
               <TableCell className='max-w-64 truncate'>{p.base_url}</TableCell>
               <TableCell>
                 <Badge variant={p.has_api_key ? 'secondary' : 'outline'}>
@@ -117,6 +124,7 @@ export function ProvidersTab() {
                       id: p.id,
                       v: {
                         name: p.name,
+                        kind: p.kind,
                         dialect: p.dialect,
                         base_url: p.base_url,
                         enabled: p.enabled,
@@ -151,16 +159,36 @@ export function ProvidersTab() {
                   onChange={(e) => set({ name: e.target.value })}
                 />
               </Field>
-              <Field label={zh.models.dialect}>
+              <Field label={zh.models.kind}>
                 <NativeSelect
-                  value={edit.v.dialect ?? 'generic'}
-                  onChange={(v) => set({ dialect: v })}
+                  value={edit.v.kind ?? 'openai_compat'}
+                  onChange={(v) => set({ kind: v })}
                   options={[
-                    { value: 'deepseek', label: 'DeepSeek' },
-                    { value: 'generic', label: 'OpenAI Compatible' },
+                    { value: 'openai_compat', label: zh.models.kindOpenAI },
+                    { value: 'anthropic', label: zh.models.kindAnthropic },
                   ]}
                 />
               </Field>
+              {edit.v.kind !== 'anthropic' && (
+                <Field label={zh.models.dialect}>
+                  <NativeSelect
+                    value={edit.v.dialect ?? 'generic'}
+                    onChange={(v) => set({ dialect: v })}
+                    options={[
+                      { value: 'deepseek', label: 'DeepSeek' },
+                      { value: 'dashscope', label: zh.models.dialectDashscope },
+                      { value: 'vllm', label: 'vLLM' },
+                      { value: 'generic', label: zh.models.dialectGeneric },
+                    ]}
+                  />
+                </Field>
+              )}
+              {edit.v.kind !== 'anthropic' &&
+                (edit.v.dialect === 'vllm' || edit.v.dialect === 'generic') && (
+                  <p className='rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200'>
+                    {zh.models.internalHint}
+                  </p>
+                )}
               <Field label={zh.models.baseURL}>
                 <Input
                   placeholder='https://api.deepseek.com'

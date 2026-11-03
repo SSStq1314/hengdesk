@@ -56,6 +56,8 @@ const (
 	FieldUsageUnknown = "usage_unknown"
 	// FieldLatencyMs holds the string denoting the latency_ms field in the database.
 	FieldLatencyMs = "latency_ms"
+	// FieldAttempt holds the string denoting the attempt field in the database.
+	FieldAttempt = "attempt"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// Table holds the table name of the usagerecord in the database.
@@ -86,6 +88,7 @@ var Columns = []string{
 	FieldEstimated,
 	FieldUsageUnknown,
 	FieldLatencyMs,
+	FieldAttempt,
 	FieldCreatedAt,
 }
 
@@ -126,6 +129,8 @@ var (
 	DefaultUsageUnknown bool
 	// DefaultLatencyMs holds the default value on creation for the "latency_ms" field.
 	DefaultLatencyMs int
+	// DefaultAttempt holds the default value on creation for the "attempt" field.
+	DefaultAttempt int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 )
@@ -293,6 +298,11 @@ func ByUsageUnknown(opts ...sql.OrderTermOption) OrderOption {
 // ByLatencyMs orders the results by the latency_ms field.
 func ByLatencyMs(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLatencyMs, opts...).ToFunc()
+}
+
+// ByAttempt orders the results by the attempt field.
+func ByAttempt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAttempt, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

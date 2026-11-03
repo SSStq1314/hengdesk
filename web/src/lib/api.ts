@@ -330,6 +330,7 @@ export type Provider = {
 }
 export type ProviderInput = Partial<{
   name: string
+  kind: string
   dialect: string
   base_url: string
   api_key: string
@@ -351,6 +352,8 @@ export type Model = {
   price_cached_micros: number
   price_output_micros: number
   currency: string
+  // 备用模型（按顺序）：首字节前遇到连接错误 / 429 / 5xx 且重试用尽时依次切换
+  fallback_model_ids: number[] | null
 }
 export type ModelInput = Partial<Omit<Model, 'id' | 'is_default'>>
 export type ModelACL = {

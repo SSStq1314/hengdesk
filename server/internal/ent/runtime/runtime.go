@@ -607,8 +607,12 @@ func init() {
 	usagerecordDescLatencyMs := usagerecordFields[20].Descriptor()
 	// usagerecord.DefaultLatencyMs holds the default value on creation for the latency_ms field.
 	usagerecord.DefaultLatencyMs = usagerecordDescLatencyMs.Default.(int)
+	// usagerecordDescAttempt is the schema descriptor for attempt field.
+	usagerecordDescAttempt := usagerecordFields[21].Descriptor()
+	// usagerecord.DefaultAttempt holds the default value on creation for the attempt field.
+	usagerecord.DefaultAttempt = usagerecordDescAttempt.Default.(int)
 	// usagerecordDescCreatedAt is the schema descriptor for created_at field.
-	usagerecordDescCreatedAt := usagerecordFields[21].Descriptor()
+	usagerecordDescCreatedAt := usagerecordFields[22].Descriptor()
 	// usagerecord.DefaultCreatedAt holds the default value on creation for the created_at field.
 	usagerecord.DefaultCreatedAt = usagerecordDescCreatedAt.Default.(func() time.Time)
 	userMixin := schema.User{}.Mixin()

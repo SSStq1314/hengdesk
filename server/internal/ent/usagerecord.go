@@ -59,6 +59,8 @@ type UsageRecord struct {
 	UsageUnknown bool `json:"usage_unknown,omitempty"`
 	// LatencyMs holds the value of the "latency_ms" field.
 	LatencyMs int `json:"latency_ms,omitempty"`
+	// Attempt holds the value of the "attempt" field.
+	Attempt int `json:"attempt,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt    time.Time `json:"created_at,omitempty"`
 	selectValues sql.SelectValues
@@ -71,7 +73,7 @@ func (*UsageRecord) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case usagerecord.FieldStream, usagerecord.FieldEstimated, usagerecord.FieldUsageUnknown:
 			values[i] = new(sql.NullBool)
-		case usagerecord.FieldID, usagerecord.FieldOrgID, usagerecord.FieldUserID, usagerecord.FieldDepartmentID, usagerecord.FieldModelID, usagerecord.FieldProviderID, usagerecord.FieldPromptTokens, usagerecord.FieldCachedTokens, usagerecord.FieldCompletionTokens, usagerecord.FieldReasoningTokens, usagerecord.FieldTotalTokens, usagerecord.FieldCostMicros, usagerecord.FieldLatencyMs:
+		case usagerecord.FieldID, usagerecord.FieldOrgID, usagerecord.FieldUserID, usagerecord.FieldDepartmentID, usagerecord.FieldModelID, usagerecord.FieldProviderID, usagerecord.FieldPromptTokens, usagerecord.FieldCachedTokens, usagerecord.FieldCompletionTokens, usagerecord.FieldReasoningTokens, usagerecord.FieldTotalTokens, usagerecord.FieldCostMicros, usagerecord.FieldLatencyMs, usagerecord.FieldAttempt:
 			values[i] = new(sql.NullInt64)
 		case usagerecord.FieldModelName, usagerecord.FieldRequestID, usagerecord.FieldPurpose, usagerecord.FieldStatus, usagerecord.FieldErrorCode, usagerecord.FieldCurrency:
 			values[i] = new(sql.NullString)
@@ -225,6 +227,12 @@ func (_m *UsageRecord) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.LatencyMs = int(value.Int64)
 			}
+		case usagerecord.FieldAttempt:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field attempt", values[i])
+			} else if value.Valid {
+				_m.Attempt = int(value.Int64)
+			}
 		case usagerecord.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -331,6 +339,9 @@ func (_m *UsageRecord) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("latency_ms=")
 	builder.WriteString(fmt.Sprintf("%v", _m.LatencyMs))
+	builder.WriteString(", ")
+	builder.WriteString("attempt=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Attempt))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
