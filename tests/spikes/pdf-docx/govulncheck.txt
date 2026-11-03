@@ -1,0 +1,220 @@
+Fetching vulnerabilities from the database...
+
+Checking the code against the vulnerabilities...
+
+The package pattern matched the following 2 root packages:
+  hengdesk-spikes/pdfdocx/parser
+  hengdesk-spikes/pdfdocx/cmd/bench
+Govulncheck scanned the following 16 modules and the go1.25.14 standard library:
+  hengdesk-spikes/pdfdocx
+  github.com/google/uuid@v1.6.0
+  github.com/jolestar/go-commons-pool/v2@v2.1.2
+  github.com/klippa-app/go-pdfium@v1.19.8
+  github.com/ledongthuc/pdf@v0.0.0-20261020125853-5e46805f718e
+  github.com/richardlehane/mscfb@v1.0.8
+  github.com/richardlehane/msoleps@v1.0.6
+  github.com/tetratelabs/wazero@v1.12.0
+  github.com/tiendc/go-deepcopy@v1.7.2
+  github.com/xuri/efp@v0.0.1
+  github.com/xuri/excelize/v2@v2.11.1-0.20260915055537-22f76f9acb94
+  github.com/xuri/nfp@v0.0.2-0.20250530014748-2ddeb826f9a9
+  golang.org/x/crypto@v0.55.0
+  golang.org/x/net@v0.58.0
+  golang.org/x/sys@v0.47.0
+  golang.org/x/text@v0.41.0
+
+=== Symbol Results ===
+
+Vulnerability #1: GO-2026-6685
+    Excelize: Unbounded row number in Rows.Columns makes GetRows and the Rows
+    iterator loop for days in github.com/xuri/excelize
+  More info: https://pkg.go.dev/vuln/GO-2026-6685
+  Module: github.com/xuri/excelize/v2
+    Found in: github.com/xuri/excelize/v2@v2.11.1-0.20260915055537-22f76f9acb94
+    Fixed in: github.com/xuri/excelize/v2@v2.11.1-0.20260930021559-01a9ff32fb3c
+    Example traces found:
+      #1: parser/others.go:31:25: parser.XlsxParser.Parse calls excelize.File.GetRows
+
+=== Package Results ===
+
+Vulnerability #1: GO-2026-6866
+    Check all ancestor namespace transitions when rendering raw text in html in
+    golang.org/x/net
+  More info: https://pkg.go.dev/vuln/GO-2026-6866
+  Module: golang.org/x/net
+    Found in: golang.org/x/net@v0.58.0
+    Fixed in: golang.org/x/net@v0.62.0
+
+Vulnerability #2: GO-2026-6860
+    Avoid quadratic complexity when coalescing text nodes in html in
+    golang.org/x/net
+  More info: https://pkg.go.dev/vuln/GO-2026-6860
+  Module: golang.org/x/net
+    Found in: golang.org/x/net@v0.58.0
+    Fixed in: golang.org/x/net@v0.62.0
+
+Vulnerability #3: GO-2026-6695
+    Panic via unchecked pivot-cache field index in github.com/xuri/excelize/v2
+  More info: https://pkg.go.dev/vuln/GO-2026-6695
+  Module: github.com/xuri/excelize/v2
+    Found in: github.com/xuri/excelize/v2@v2.11.1-0.20260915055537-22f76f9acb94
+    Fixed in: github.com/xuri/excelize/v2@v2.11.1-0.20261003002531-6258dcebc4e2
+
+Vulnerability #4: GO-2026-6687
+    Nil-pointer dereference in GetSlicers when a worksheet has extLst present
+    but no drawing element in github.com/xuri/excelize
+  More info: https://pkg.go.dev/vuln/GO-2026-6687
+  Module: github.com/xuri/excelize/v2
+    Found in: github.com/xuri/excelize/v2@v2.11.1-0.20260915055537-22f76f9acb94
+    Fixed in: github.com/xuri/excelize/v2@v2.11.1-0.20260929015830-8ffeb07ec9a3
+
+Vulnerability #5: GO-2026-6604
+    Root.Mkdir(All) can follow junctions out of the root on Windows in os
+  More info: https://pkg.go.dev/vuln/GO-2026-6604
+  Standard library
+    Found in: os@go1.25.14
+    Fixed in: os@go1.26.9
+    Platforms: windows
+
+=== Module Results ===
+
+Vulnerability #1: GO-2026-6809
+    Distrust compromised intermediate certificates in crypto/x509
+  More info: https://pkg.go.dev/vuln/GO-2026-6809
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.10
+
+Vulnerability #2: GO-2026-6617
+    HTTP/2 server crash due to HPACK encoder race in net/http
+  More info: https://pkg.go.dev/vuln/GO-2026-6617
+  Module: golang.org/x/net
+    Found in: golang.org/x/net@v0.58.0
+    Fixed in: golang.org/x/net@v0.60.0
+
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.9
+
+Vulnerability #3: GO-2026-6613
+    HTTP/1 server connection desynchronization after 2xx CONNECT response in
+    net/http
+  More info: https://pkg.go.dev/vuln/GO-2026-6613
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.9
+
+Vulnerability #4: GO-2026-6612
+    Double flow control refund on HTTP/2 server streams in net/http
+  More info: https://pkg.go.dev/vuln/GO-2026-6612
+  Module: golang.org/x/net
+    Found in: golang.org/x/net@v0.58.0
+    Fixed in: golang.org/x/net@v0.60.0
+
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.9
+
+Vulnerability #5: GO-2026-6611
+    Excessive CPU consumption from repeated initial window changes in net/http
+  More info: https://pkg.go.dev/vuln/GO-2026-6611
+  Module: golang.org/x/net
+    Found in: golang.org/x/net@v0.58.0
+    Fixed in: golang.org/x/net@v0.60.0
+
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.9
+
+Vulnerability #6: GO-2026-6610
+    HTTP/2 transport accepts malformed framing-related headers in net/http
+  More info: https://pkg.go.dev/vuln/GO-2026-6610
+  Module: golang.org/x/net
+    Found in: golang.org/x/net@v0.58.0
+    Fixed in: golang.org/x/net@v0.60.0
+
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.9
+
+Vulnerability #7: GO-2026-6609
+    Lack of limit on size of parsed Range headers in net/http
+  More info: https://pkg.go.dev/vuln/GO-2026-6609
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.9
+
+Vulnerability #8: GO-2026-6608
+    Memory limit bypass when parsing MIME headers in net/textproto,
+    mime/multipart
+  More info: https://pkg.go.dev/vuln/GO-2026-6608
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.9
+
+Vulnerability #9: GO-2026-6607
+    Reject malformed ECH outer extension references in crypto/tls
+  More info: https://pkg.go.dev/vuln/GO-2026-6607
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.9
+
+Vulnerability #10: GO-2026-6605
+    HTTP/1 client connection desynchronization after CONNECT rejection in
+    net/http
+  More info: https://pkg.go.dev/vuln/GO-2026-6605
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.9
+
+Vulnerability #11: GO-2026-6603
+    HTTP/2 server memory exhaustion due to Trailer headers in net/http
+  More info: https://pkg.go.dev/vuln/GO-2026-6603
+  Module: golang.org/x/net
+    Found in: golang.org/x/net@v0.58.0
+    Fixed in: golang.org/x/net@v0.60.0
+
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.9
+
+Vulnerability #12: GO-2026-6600
+    Recognize yield as regexp preceder keyword in html/template
+  More info: https://pkg.go.dev/vuln/GO-2026-6600
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.9
+
+Vulnerability #13: GO-2026-6599
+    Reset context tracking on consecutive template expressions in html/template
+  More info: https://pkg.go.dev/vuln/GO-2026-6599
+  Standard library
+    Found in: stdlib@go1.25.14
+    Fixed in: stdlib@go1.26.9
+
+Vulnerability #14: GO-2026-6355
+    Prevent DoS on deadlocked established channel in golang.org/x/crypto/ssh
+  More info: https://pkg.go.dev/vuln/GO-2026-6355
+  Module: golang.org/x/crypto
+    Found in: golang.org/x/crypto@v0.55.0
+    Fixed in: golang.org/x/crypto@v0.56.0
+
+Vulnerability #15: GO-2026-6354
+    Prevent DoS on deadlocked undecided channel in golang.org/x/crypto/ssh
+  More info: https://pkg.go.dev/vuln/GO-2026-6354
+  Module: golang.org/x/crypto
+    Found in: golang.org/x/crypto@v0.55.0
+    Fixed in: golang.org/x/crypto@v0.56.0
+
+Vulnerability #16: GO-2026-5932
+    The golang.org/x/crypto/openpgp package is unmaintained, unsafe by design,
+    and has known security issues
+  More info: https://pkg.go.dev/vuln/GO-2026-5932
+  Module: golang.org/x/crypto
+    Found in: golang.org/x/crypto@v0.55.0
+    Fixed in: golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2
+
+Your code is affected by 1 vulnerability from 1 module.
+This scan also found 5 vulnerabilities in packages you import and 16
+vulnerabilities in modules you require, but your code doesn't appear to call
+these vulnerabilities.

@@ -1,0 +1,42 @@
+file               parser                 ok    recall  prec    cols   table  struct        ms  ms/page
+(wordRecall 见 results.json)
+en_big.pdf         pdf-ledongthuc-plain   true  0.000   0.000   false         false      52.44     1.50 
+en_big.pdf         pdf-ledongthuc-rows    true  0.000   0.000   false         false      48.56     1.39 
+en_big.pdf         pdf-pdfium-wasm        true  0.000   0.000   false         false     209.38     5.98 
+en_report.docx     docx-stdlib            true  1.000   1.000   true   4/4    true        0.26     0.00 
+                                         wordRecall=1.000
+en_report.md       text                   true  1.000   0.981   true   4/4    false       0.00     0.00 
+                                         wordRecall=1.000
+en_report.pdf      pdf-ledongthuc-plain   true  1.000   1.000   true   0/4    false       0.46     0.46 
+                                         wordRecall=1.000
+en_report.pdf      pdf-ledongthuc-rows    true  1.000   1.000   true   4/4    false       0.47     0.47 
+                                         wordRecall=0.238
+en_report.pdf      pdf-pdfium-wasm        true  1.000   1.000   true   4/4    false       4.17     4.17 
+                                         wordRecall=1.000
+en_report.txt      text                   true  1.000   0.982   true   4/4    false       0.00     0.00 
+                                         wordRecall=1.000
+en_slides.pdf      pdf-ledongthuc-plain   true  1.000   1.000   false         false       0.40     0.20 
+                                         wordRecall=1.000
+en_slides.pdf      pdf-ledongthuc-rows    true  1.000   1.000   false         false       0.36     0.18 
+                                         wordRecall=0.516
+en_slides.pdf      pdf-pdfium-wasm        true  1.000   1.000   false         false       1.89     0.95 
+                                         wordRecall=1.000
+en_slides.pptx     pptx-stdlib            true  1.000   1.000   false         false       0.18     0.09 
+                                         wordRecall=1.000
+en_table.xlsx      xlsx-excelize          true  1.000   0.947   false  4/4    true        0.63     0.63 
+                                         wordRecall=0.333
+zh_big.docx        docx-stdlib            true  0.000   0.000   false         true       23.72     0.00 
+zh_big.pdf         pdf-ledongthuc-plain   true  0.000   0.000   false         false      33.99     0.92 
+zh_big.pdf         pdf-ledongthuc-rows    true  0.000   0.000   false         false      33.97     0.92 
+zh_big.pdf         pdf-pdfium-wasm        true  0.000   0.000   false         false     108.64     2.94 
+zh_report.docx     docx-stdlib            true  1.000   1.000   true   4/4    true        0.28     0.00 
+zh_report.md       text                   true  1.000   0.958   true   4/4    false       0.01     0.00 
+zh_report.pdf      pdf-ledongthuc-plain   true  1.000   1.000   true   0/4    false       0.42     0.42 
+zh_report.pdf      pdf-ledongthuc-rows    true  1.000   1.000   true   4/4    false       0.36     0.36 
+zh_report.pdf      pdf-pdfium-wasm        true  1.000   1.000   true   4/4    false       6.02     6.02 
+zh_report.txt      text                   true  1.000   0.961   true   4/4    false       0.01     0.00 
+zh_slides.pdf      pdf-ledongthuc-plain   true  1.000   1.000   false         false       0.38     0.19 
+zh_slides.pdf      pdf-ledongthuc-rows    true  1.000   1.000   false         false       0.36     0.18 
+zh_slides.pdf      pdf-pdfium-wasm        true  1.000   1.000   false         false       3.55     1.78 
+zh_slides.pptx     pptx-stdlib            true  1.000   1.000   false         false       0.19     0.10 
+zh_table.xlsx      xlsx-excelize          true  1.000   0.969   false  4/4    true        0.73     0.73 

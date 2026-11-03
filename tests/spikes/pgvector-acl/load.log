@@ -1,0 +1,18 @@
+2026/11/03 10:58:59 DROP TABLE IF EXISTS chunks, chunks_kb, docs, doc_acl, user_visible_docs CASCADE           4ms
+2026/11/03 10:58:59 CREATE TABLE docs(id int PRIMARY KEY, kb_id int NOT NULL, bucket float8 NOT NULL)          2ms
+2026/11/03 10:58:59 CREATE TABLE doc_acl(doc_id int NOT NULL, principal int NOT NULL, PRIMARY KEY(principal, d 1ms
+2026/11/03 10:58:59 CREATE TABLE chunks(id bigint PRIMARY KEY, doc_id int NOT NULL, kb_id int NOT NULL, acl in 2ms
+2026/11/03 10:58:59 ALTER TABLE chunks ALTER COLUMN emb SET STORAGE PLAIN                                      0s
+2026/11/03 10:59:00   50000/300000
+2026/11/03 10:59:02   100000/300000
+2026/11/03 10:59:03   150000/300000
+2026/11/03 10:59:05   200000/300000
+2026/11/03 10:59:06   250000/300000
+2026/11/03 10:59:08   300000/300000
+2026/11/03 10:59:08 copied 300000 chunks in 8.881527537s
+2026/11/03 10:59:08 CREATE TABLE user_visible_docs(user_id int NOT NULL, doc_id int NOT NULL, PRIMARY KEY(user 1ms
+2026/11/03 10:59:08 INSERT INTO user_visible_docs SELECT principal, doc_id FROM doc_acl WHERE principal IN (1, 44ms
+2026/11/03 10:59:09 CREATE INDEX ON chunks(doc_id)                                                             517ms
+2026/11/03 10:59:09 CREATE INDEX ON chunks USING gin(acl)                                                      877ms
+2026/11/03 10:59:10 CREATE INDEX ON chunks(kb_id)                                                              99ms
+2026/11/03 10:59:10 ANALYZE                                                                                    405ms

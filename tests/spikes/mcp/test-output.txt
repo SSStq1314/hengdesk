@@ -1,0 +1,53 @@
+=== RUN   TestStreamableHTTP
+    spike_test.go:91: [streamable] initialize ok: server=mock-ticket proto=2026-07-28 (1.339619ms)
+    spike_test.go:97:   tool create_ticket destructive=true
+    spike_test.go:97:   tool query_ticket destructive=true
+    spike_test.go:97:   tool slow_op destructive=true
+    spike_test.go:108:   query_ticket -> T-1: 打印机故障
+    spike_test.go:120:   unknown tool (raw client) -> err: invalid params: tool 'no_such_tool' not found: tool not found
+    spike_test.go:149:   slow_op timeout after 301ms: transport error: failed to send request: failed to send request: Post "http://127.0.0.1:33523": context deadline exceeded
+    spike_test.go:169:   audit events=14, create_ticket server-side executions=1
+    spike_test.go:171:     tr1 query_ticket pre-exec allowed
+    spike_test.go:171:     tr1 query_ticket exec    ok
+    spike_test.go:171:     tr1 query_ticket pre-exec allowed
+    spike_test.go:171:     tr1 query_ticket exec    tool-error
+    spike_test.go:171:     tr1 no_such_tool policy  deny
+    spike_test.go:171:     tr2 create_ticket approval timeout
+    spike_test.go:171:     tr2 create_ticket approval rejected
+    spike_test.go:171:     tr2 create_ticket pre-exec allowed
+    spike_test.go:171:     tr2 create_ticket exec    ok
+    spike_test.go:171:     tr3 slow_op pre-exec allowed
+    spike_test.go:171:     tr3 slow_op exec    transport-error:transport error: failed to send request: failed to send request: Post "http://127.0.0.1:33523": context deadline exceeded
+    spike_test.go:171:     tr3 query_ticket pre-exec allowed
+    spike_test.go:171:     tr3 query_ticket exec    ok
+    spike_test.go:171:     tr4 query_ticket policy  error
+--- PASS: TestStreamableHTTP (0.51s)
+=== RUN   TestSSE
+    spike_test.go:91: [sse] initialize ok: server=mock-ticket proto=2026-07-28 (780.832µs)
+    spike_test.go:97:   tool create_ticket destructive=true
+    spike_test.go:97:   tool query_ticket destructive=true
+    spike_test.go:97:   tool slow_op destructive=true
+    spike_test.go:108:   query_ticket -> T-1: 打印机故障
+    spike_test.go:120:   unknown tool (raw client) -> err: invalid params: tool 'no_such_tool' not found: tool not found
+    spike_test.go:149:   slow_op timeout after 301ms: transport error: context deadline exceeded
+    spike_test.go:169:   audit events=14, create_ticket server-side executions=1
+    spike_test.go:171:     tr1 query_ticket pre-exec allowed
+    spike_test.go:171:     tr1 query_ticket exec    ok
+    spike_test.go:171:     tr1 query_ticket pre-exec allowed
+    spike_test.go:171:     tr1 query_ticket exec    tool-error
+    spike_test.go:171:     tr1 no_such_tool policy  deny
+    spike_test.go:171:     tr2 create_ticket approval timeout
+    spike_test.go:171:     tr2 create_ticket approval rejected
+    spike_test.go:171:     tr2 create_ticket pre-exec allowed
+    spike_test.go:171:     tr2 create_ticket exec    ok
+    spike_test.go:171:     tr3 slow_op pre-exec allowed
+    spike_test.go:171:     tr3 slow_op exec    transport-error:transport error: context deadline exceeded
+    spike_test.go:171:     tr3 query_ticket pre-exec allowed
+    spike_test.go:171:     tr3 query_ticket exec    ok
+    spike_test.go:171:     tr4 query_ticket policy  error
+--- PASS: TestSSE (0.51s)
+PASS
+ok  	hengdesk-spikes/mcp	1.025s
+?   	hengdesk-spikes/mcp/cmd/mockserver	[no test files]
+?   	hengdesk-spikes/mcp/gateway	[no test files]
+?   	hengdesk-spikes/mcp/mock	[no test files]

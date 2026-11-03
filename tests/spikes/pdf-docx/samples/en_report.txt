@@ -1,0 +1,17 @@
+HengDesk Knowledge Base Quarterly Report
+
+This report summarizes knowledge base usage in the third quarter, including ingested documents, retrieval hit rate and user satisfaction.
+
+For access control the system applies a pre-filter so that users can only retrieve chunks from documents they are allowed to read.
+
+Next quarter we plan to add incremental indexing and automatic expiry to reduce the cost of rebuilding indexes.
+
+  Department   Docs   Queries   Hit rate  
+ --- --- --- --- 
+  Finance   1204   35210   92.4%  
+  Legal   876   12045   88.1%  
+  R&D Center   5310   98022   95.7%  
+
+Left column: multi-column layouts are common in journals and official documents, and a parser must emit text in reading order.
+
+Right column: if a parser merges the same line of both columns, chunk semantics break and vector retrieval recall suffers.
