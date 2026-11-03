@@ -71,6 +71,8 @@ func Mount(e *echo.Echo, d Deps) {
 	admin.PATCH("/departments/:id", dh.rename, authz.Require(rbac.DeptManage))
 	admin.DELETE("/departments/:id", dh.remove, authz.Require(rbac.DeptManage))
 
+	mountEdition(g, d.Auth)
+
 	rh := &roleHandlers{db: d.DB, az: az}
 	admin.GET("/roles", rh.matrix, authz.Require(rbac.RoleRead))
 	admin.POST("/users/:id/roles", rh.assign, authz.Require(rbac.RoleAssign))
