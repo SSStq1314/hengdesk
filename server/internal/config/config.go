@@ -50,6 +50,9 @@ type Config struct {
 	ChatFileMaxMB int
 	// TrustedProxies 允许读取 X-Forwarded-For 的上游代理网段；为空时只用 TCP 对端地址。
 	TrustedProxies []*net.IPNet
+	// TraceTrustedProxies 受信代理 IP 列表（D-41 第 1 条）：只有来源 IP 在其中的请求才接受传入的 traceparent，
+	// 存为 upstream_trace_id 仅供关联排查。默认为空（一律忽略）。
+	TraceTrustedProxies []*net.IPNet
 	// BackupKeep 保留最近 N 份备份；DiskLowPercent 备份盘剩余空间低于该百分比时告警。
 	BackupKeep int
 	// AuditRetentionDays 审计在线保留天数（FR-40，默认 365，最少 180）；超过的记录只能由审计员手动归档。
@@ -179,6 +182,10 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	traceProxies, err := ParseCIDRs(get("TRACE_TRUSTED_PROXIES", ""))
+	if err != nil {
+		return nil, fmt.Errorf("HENGDESK_TRACE_TRUSTED_PROXIES: %w", err)
+	}
 	keep, err := intEnv("BACKUP_KEEP", "5", 1, 1000)
 	if err != nil {
 		return nil, err
@@ -233,6 +240,7 @@ func Load() (*Config, error) {
 		ChatFileMaxMB:           chatFileMB,
 		LoginIPWindow:           ipWin,
 		TrustedProxies:          proxies,
+		TraceTrustedProxies:     traceProxies,
 		BackupKeep:              keep,
 		AuditRetentionDays:      retention,
 		AuditArchiveSignKeyFile: get("AUDIT_ARCHIVE_SIGN_KEY_FILE", ""),

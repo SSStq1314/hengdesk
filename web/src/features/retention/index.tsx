@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zh } from '@/locales/zh-CN'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import { retentionApi, type LegalHold } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -26,8 +27,15 @@ const t = zh.retention
 
 export function RetentionPage() {
   const qc = useQueryClient()
+  const perms = useAuthStore((s) => s.auth.user?.permissions) ?? []
+  const canSettings = perms.includes('system.settings')
+  const canRelease = perms.includes('audit.read')
   const onErr = (e: Error) => toast.error(e.message)
-  const cfg = useQuery({ queryKey: ['retention'], queryFn: retentionApi.get })
+  const cfg = useQuery({
+    queryKey: ['retention'],
+    queryFn: retentionApi.get,
+    enabled: canSettings,
+  })
   const holds = useQuery({
     queryKey: ['legal-holds'],
     queryFn: retentionApi.holds,
@@ -99,39 +107,42 @@ export function RetentionPage() {
       <Main>
         <h1 className='mb-2 text-2xl font-bold tracking-tight'>{t.title}</h1>
         <p className='mb-4 max-w-3xl text-sm text-muted-foreground'>{t.desc}</p>
-        <div className='mb-8 grid max-w-md gap-4'>
-          <label className='flex items-center gap-2 text-sm'>
-            <Switch checked={enabled} onCheckedChange={setEnabled} />
-            {t.enabled}
-          </label>
-          <Field label={t.days(minDays, defDays)}>
-            <Input
-              type='number'
-              min={minDays}
-              value={days}
-              onChange={(e) => setDays(e.target.value)}
-            />
-          </Field>
-          <div className='flex gap-2'>
-            <Button onClick={() => save.mutate()} disabled={save.isPending}>
-              {t.save}
-            </Button>
-            <Button
-              variant='destructive'
-              disabled={!cfg.data?.settings.enabled}
-              onClick={() => setRunOpen(true)}
-            >
-              {t.run}
-            </Button>
+        {canSettings && (
+          <div className='mb-8 grid max-w-md gap-4'>
+            <label className='flex items-center gap-2 text-sm'>
+              <Switch checked={enabled} onCheckedChange={setEnabled} />
+              {t.enabled}
+            </label>
+            <Field label={t.days(minDays, defDays)}>
+              <Input
+                type='number'
+                min={minDays}
+                value={days}
+                onChange={(e) => setDays(e.target.value)}
+              />
+            </Field>
+            <div className='flex gap-2'>
+              <Button onClick={() => save.mutate()} disabled={save.isPending}>
+                {t.save}
+              </Button>
+              <Button
+                variant='destructive'
+                disabled={!cfg.data?.settings.enabled}
+                onClick={() => setRunOpen(true)}
+              >
+                {t.run}
+              </Button>
+            </div>
+            {cfg.data && !cfg.data.settings.enabled && (
+              <p className='text-xs text-muted-foreground'>{t.disabledHint}</p>
+            )}
           </div>
-          {cfg.data && !cfg.data.settings.enabled && (
-            <p className='text-xs text-muted-foreground'>{t.disabledHint}</p>
-          )}
-        </div>
+        )}
 
         <h2 className='mb-2 text-lg font-semibold'>{t.holdsTitle}</h2>
         <p className='mb-4 max-w-3xl text-sm text-muted-foreground'>
           {t.holdsDesc}
+          {!canRelease && ` ${t.adminHoldHint}`}
         </p>
         <div className='mb-4 flex flex-wrap items-center gap-2'>
           <Input
@@ -188,7 +199,7 @@ export function RetentionPage() {
                   )}
                 </TableCell>
                 <TableCell className='text-right'>
-                  {!h.released_at && (
+                  {canRelease && !h.released_at && (
                     <Button
                       size='sm'
                       variant='outline'

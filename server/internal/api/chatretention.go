@@ -16,13 +16,16 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/legalhold"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
+	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 )
 
-// retentionHandlers 对话保留期与法律保留（FR-40，D-40 第 2 条）。仅系统设置权限（超级管理员）。
+// retentionHandlers 对话保留期与法律保全（FR-40，D-40 第 2 条，D-41 第 2、3 条）。
+// 保留期设置与手动清理：系统设置权限（超级管理员）。法律保全：审计员设置 / 解除，超级管理员只能设置。
 type retentionHandlers struct {
-	db  *ent.Client
-	fs  FileStore
-	now func() time.Time
+	db   *ent.Client
+	fs   FileStore
+	now  func() time.Time
+	auth *auth.Service
 }
 
 func (h *retentionHandlers) clock() time.Time {
@@ -162,22 +165,33 @@ func (h *retentionHandlers) createHold(c echo.Context) error {
 		}
 		req.UserID = &u.ID
 	}
+	target := ""
 	if req.UserID != nil {
-		ok, err := h.db.User.Query().Where(user.ID(*req.UserID), user.OrgID(p.OrgID)).Exist(ctx)
+		u, err := h.db.User.Query().Where(user.ID(*req.UserID), user.OrgID(p.OrgID)).Only(ctx)
+		if ent.IsNotFound(err) {
+			return authz.Deny(c, "legal_hold_user")
+		}
 		if err != nil {
 			return err
 		}
-		if !ok {
-			return authz.Deny(c, "legal_hold_user")
-		}
+		target = u.Email
 	}
 	scope := "org"
 	if req.UserID != nil {
 		scope = "user"
 	}
+	byAuditor := p.Perms.HasAny(rbac.AuditRead)
 	if err := audit.Record(c, audit.Entry{Action: "chat.legal_hold.create", Phase: "attempt", ResourceType: "legal_hold",
-		Detail: map[string]any{"scope": scope, "user_id": req.UserID, "reason": req.Reason}}); err != nil {
+		Detail: map[string]any{"scope": scope, "user_id": req.UserID, "reason": req.Reason, "by_auditor": byAuditor}}); err != nil {
 		return err
+	}
+	// 超级管理员设置时同时通知审计员（D-41 第 3 条），沿用高风险站内通知；通知写失败同样拒绝。
+	if !byAuditor {
+		if err := h.auth.RaiseAlertDetail(c, audit.Entry{OrgID: p.OrgID, ActorID: p.ID, ActorEmail: p.Email, IP: c.RealIP(),
+			UserAgent: c.Request().UserAgent()}, auth.AlertLegalHoldByAdmin,
+			map[string]any{"scope": scope, "user_id": req.UserID, "user_email": target, "reason": req.Reason}); err != nil {
+			return err
+		}
 	}
 	q := h.db.LegalHold.Create().SetOrgID(p.OrgID).SetReason(req.Reason).SetCreatedBy(p.ID)
 	if req.UserID != nil {

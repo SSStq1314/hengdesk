@@ -14,8 +14,9 @@ func TestEstimateTokens(t *testing.T) {
 	}
 }
 
+// D-41 第 4 条：截断预算 = 窗口 − 输出预留 − 窗口 10% 余量。
 func TestTokenBudget(t *testing.T) {
-	for _, c := range []struct{ win, out, want int }{{0, 100, 0}, {8000, 0, 8000 - outputReserveDefault}, {8000, 2000, 6000}, {1000, 1000, 250}} {
+	for _, c := range []struct{ win, out, want int }{{0, 100, 0}, {8000, 0, 8000 - outputReserveDefault - 800}, {8000, 2000, 5200}, {100000, 4000, 86000}, {1000, 1000, 250}} {
 		if got := tokenBudget(c.win, c.out); got != c.want {
 			t.Errorf("%+v got %d", c, got)
 		}

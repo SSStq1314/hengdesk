@@ -988,31 +988,32 @@ func (m *ACLMutation) ResetEdge(name string) error {
 // AuditLogMutation represents an operation that mutates the AuditLog nodes in the graph.
 type AuditLogMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	ts            *time.Time
-	org_id        *int
-	addorg_id     *int
-	actor_id      *int
-	addactor_id   *int
-	actor_email   *string
-	action        *string
-	resource_type *string
-	resource_id   *string
-	phase         *auditlog.Phase
-	outcome       *string
-	ip            *string
-	user_agent    *string
-	request_id    *string
-	trace_id      *string
-	detail        *map[string]interface{}
-	prev_hash     *string
-	hash          *string
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*AuditLog, error)
-	predicates    []predicate.AuditLog
+	op                Op
+	typ               string
+	id                *int
+	ts                *time.Time
+	org_id            *int
+	addorg_id         *int
+	actor_id          *int
+	addactor_id       *int
+	actor_email       *string
+	action            *string
+	resource_type     *string
+	resource_id       *string
+	phase             *auditlog.Phase
+	outcome           *string
+	ip                *string
+	user_agent        *string
+	request_id        *string
+	trace_id          *string
+	upstream_trace_id *string
+	detail            *map[string]interface{}
+	prev_hash         *string
+	hash              *string
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*AuditLog, error)
+	predicates        []predicate.AuditLog
 }
 
 var _ ent.Mutation = (*AuditLogMutation)(nil)
@@ -1649,6 +1650,42 @@ func (m *AuditLogMutation) ResetTraceID() {
 	m.trace_id = nil
 }
 
+// SetUpstreamTraceID sets the "upstream_trace_id" field.
+func (m *AuditLogMutation) SetUpstreamTraceID(s string) {
+	m.upstream_trace_id = &s
+}
+
+// UpstreamTraceID returns the value of the "upstream_trace_id" field in the mutation.
+func (m *AuditLogMutation) UpstreamTraceID() (r string, exists bool) {
+	v := m.upstream_trace_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpstreamTraceID returns the old "upstream_trace_id" field's value of the AuditLog entity.
+// If the AuditLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AuditLogMutation) OldUpstreamTraceID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpstreamTraceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpstreamTraceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpstreamTraceID: %w", err)
+	}
+	return oldValue.UpstreamTraceID, nil
+}
+
+// ResetUpstreamTraceID resets all changes to the "upstream_trace_id" field.
+func (m *AuditLogMutation) ResetUpstreamTraceID() {
+	m.upstream_trace_id = nil
+}
+
 // SetDetail sets the "detail" field.
 func (m *AuditLogMutation) SetDetail(value map[string]interface{}) {
 	m.detail = &value
@@ -1804,7 +1841,7 @@ func (m *AuditLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AuditLogMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.ts != nil {
 		fields = append(fields, auditlog.FieldTs)
 	}
@@ -1843,6 +1880,9 @@ func (m *AuditLogMutation) Fields() []string {
 	}
 	if m.trace_id != nil {
 		fields = append(fields, auditlog.FieldTraceID)
+	}
+	if m.upstream_trace_id != nil {
+		fields = append(fields, auditlog.FieldUpstreamTraceID)
 	}
 	if m.detail != nil {
 		fields = append(fields, auditlog.FieldDetail)
@@ -1887,6 +1927,8 @@ func (m *AuditLogMutation) Field(name string) (ent.Value, bool) {
 		return m.RequestID()
 	case auditlog.FieldTraceID:
 		return m.TraceID()
+	case auditlog.FieldUpstreamTraceID:
+		return m.UpstreamTraceID()
 	case auditlog.FieldDetail:
 		return m.Detail()
 	case auditlog.FieldPrevHash:
@@ -1928,6 +1970,8 @@ func (m *AuditLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldRequestID(ctx)
 	case auditlog.FieldTraceID:
 		return m.OldTraceID(ctx)
+	case auditlog.FieldUpstreamTraceID:
+		return m.OldUpstreamTraceID(ctx)
 	case auditlog.FieldDetail:
 		return m.OldDetail(ctx)
 	case auditlog.FieldPrevHash:
@@ -2033,6 +2077,13 @@ func (m *AuditLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTraceID(v)
+		return nil
+	case auditlog.FieldUpstreamTraceID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpstreamTraceID(v)
 		return nil
 	case auditlog.FieldDetail:
 		v, ok := value.(map[string]interface{})
@@ -2190,6 +2241,9 @@ func (m *AuditLogMutation) ResetField(name string) error {
 		return nil
 	case auditlog.FieldTraceID:
 		m.ResetTraceID()
+		return nil
+	case auditlog.FieldUpstreamTraceID:
+		m.ResetUpstreamTraceID()
 		return nil
 	case auditlog.FieldDetail:
 		m.ResetDetail()
@@ -11859,6 +11913,7 @@ type MessageMutation struct {
 	addprompt_tokens     *int
 	completion_tokens    *int
 	addcompletion_tokens *int
+	usage_estimated      *bool
 	request_id           *string
 	superseded_at        *time.Time
 	clearedFields        map[string]struct{}
@@ -12439,6 +12494,42 @@ func (m *MessageMutation) ResetCompletionTokens() {
 	m.addcompletion_tokens = nil
 }
 
+// SetUsageEstimated sets the "usage_estimated" field.
+func (m *MessageMutation) SetUsageEstimated(b bool) {
+	m.usage_estimated = &b
+}
+
+// UsageEstimated returns the value of the "usage_estimated" field in the mutation.
+func (m *MessageMutation) UsageEstimated() (r bool, exists bool) {
+	v := m.usage_estimated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsageEstimated returns the old "usage_estimated" field's value of the Message entity.
+// If the Message object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageMutation) OldUsageEstimated(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsageEstimated is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsageEstimated requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsageEstimated: %w", err)
+	}
+	return oldValue.UsageEstimated, nil
+}
+
+// ResetUsageEstimated resets all changes to the "usage_estimated" field.
+func (m *MessageMutation) ResetUsageEstimated() {
+	m.usage_estimated = nil
+}
+
 // SetRequestID sets the "request_id" field.
 func (m *MessageMutation) SetRequestID(s string) {
 	m.request_id = &s
@@ -12585,7 +12676,7 @@ func (m *MessageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MessageMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.created_at != nil {
 		fields = append(fields, message.FieldCreatedAt)
 	}
@@ -12621,6 +12712,9 @@ func (m *MessageMutation) Fields() []string {
 	}
 	if m.completion_tokens != nil {
 		fields = append(fields, message.FieldCompletionTokens)
+	}
+	if m.usage_estimated != nil {
+		fields = append(fields, message.FieldUsageEstimated)
 	}
 	if m.request_id != nil {
 		fields = append(fields, message.FieldRequestID)
@@ -12660,6 +12754,8 @@ func (m *MessageMutation) Field(name string) (ent.Value, bool) {
 		return m.PromptTokens()
 	case message.FieldCompletionTokens:
 		return m.CompletionTokens()
+	case message.FieldUsageEstimated:
+		return m.UsageEstimated()
 	case message.FieldRequestID:
 		return m.RequestID()
 	case message.FieldSupersededAt:
@@ -12697,6 +12793,8 @@ func (m *MessageMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldPromptTokens(ctx)
 	case message.FieldCompletionTokens:
 		return m.OldCompletionTokens(ctx)
+	case message.FieldUsageEstimated:
+		return m.OldUsageEstimated(ctx)
 	case message.FieldRequestID:
 		return m.OldRequestID(ctx)
 	case message.FieldSupersededAt:
@@ -12793,6 +12891,13 @@ func (m *MessageMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCompletionTokens(v)
+		return nil
+	case message.FieldUsageEstimated:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsageEstimated(v)
 		return nil
 	case message.FieldRequestID:
 		v, ok := value.(string)
@@ -12928,6 +13033,9 @@ func (m *MessageMutation) ResetField(name string) error {
 		return nil
 	case message.FieldCompletionTokens:
 		m.ResetCompletionTokens()
+		return nil
+	case message.FieldUsageEstimated:
+		m.ResetUsageEstimated()
 		return nil
 	case message.FieldRequestID:
 		m.ResetRequestID()

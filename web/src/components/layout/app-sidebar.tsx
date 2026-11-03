@@ -25,7 +25,11 @@ export function AppSidebar() {
           .map((g) => ({
             ...g,
             items: g.items.filter(
-              (i) => !i.perm || user?.permissions?.includes(i.perm)
+              (i) =>
+                !i.perm ||
+                (Array.isArray(i.perm) ? i.perm : [i.perm]).some((p) =>
+                  user?.permissions?.includes(p)
+                )
             ),
           }))
           .filter((g) => g.items.length > 0)

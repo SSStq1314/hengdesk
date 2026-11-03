@@ -33,37 +33,39 @@ const (
 
 // ArchiveRecord 归档中的一条审计记录。
 type ArchiveRecord struct {
-	ID           int            `json:"id"`
-	Ts           time.Time      `json:"ts"`
-	OrgID        int            `json:"org_id,omitempty"`
-	ActorID      int            `json:"actor_id,omitempty"`
-	ActorEmail   string         `json:"actor_email"`
-	Action       string         `json:"action"`
-	ResourceType string         `json:"resource_type"`
-	ResourceID   string         `json:"resource_id"`
-	Phase        string         `json:"phase"`
-	Outcome      string         `json:"outcome"`
-	IP           string         `json:"ip"`
-	UserAgent    string         `json:"user_agent"`
-	RequestID    string         `json:"request_id"`
-	TraceID      string         `json:"trace_id"`
-	Detail       map[string]any `json:"detail,omitempty"`
-	PrevHash     string         `json:"prev_hash"`
-	Hash         string         `json:"hash"`
+	ID           int       `json:"id"`
+	Ts           time.Time `json:"ts"`
+	OrgID        int       `json:"org_id,omitempty"`
+	ActorID      int       `json:"actor_id,omitempty"`
+	ActorEmail   string    `json:"actor_email"`
+	Action       string    `json:"action"`
+	ResourceType string    `json:"resource_type"`
+	ResourceID   string    `json:"resource_id"`
+	Phase        string    `json:"phase"`
+	Outcome      string    `json:"outcome"`
+	IP           string    `json:"ip"`
+	UserAgent    string    `json:"user_agent"`
+	RequestID    string    `json:"request_id"`
+	TraceID      string    `json:"trace_id"`
+	// UpstreamTraceID D-41：受信代理传入的外部 trace-id，仅关联排查；为空时不参与哈希。
+	UpstreamTraceID string         `json:"upstream_trace_id,omitempty"`
+	Detail          map[string]any `json:"detail,omitempty"`
+	PrevHash        string         `json:"prev_hash"`
+	Hash            string         `json:"hash"`
 }
 
 // RecordFromEnt 转换。
 func RecordFromEnt(r *ent.AuditLog) ArchiveRecord {
 	return ArchiveRecord{ID: r.ID, Ts: r.Ts.UTC(), OrgID: r.OrgID, ActorID: r.ActorID, ActorEmail: r.ActorEmail,
 		Action: r.Action, ResourceType: r.ResourceType, ResourceID: r.ResourceID, Phase: string(r.Phase),
-		Outcome: r.Outcome, IP: r.IP, UserAgent: r.UserAgent, RequestID: r.RequestID, TraceID: r.TraceID,
+		Outcome: r.Outcome, IP: r.IP, UserAgent: r.UserAgent, RequestID: r.RequestID, TraceID: r.TraceID, UpstreamTraceID: r.UpstreamTraceID,
 		Detail: r.Detail, PrevHash: r.PrevHash, Hash: r.Hash}
 }
 
 // ComputeHash 按与在线链相同的规则重算哈希。
 func (a ArchiveRecord) ComputeHash() string {
 	return canonical(a.PrevHash, a.Ts, a.OrgID, a.ActorID, a.ActorEmail, a.Action, a.ResourceType, a.ResourceID,
-		a.Phase, a.Outcome, a.IP, a.UserAgent, a.RequestID, a.TraceID, a.Detail)
+		a.Phase, a.Outcome, a.IP, a.UserAgent, a.RequestID, a.TraceID, a.UpstreamTraceID, a.Detail)
 }
 
 // Manifest 归档清单。

@@ -189,6 +189,20 @@ func (_u *MessageUpdate) AddCompletionTokens(v int) *MessageUpdate {
 	return _u
 }
 
+// SetUsageEstimated sets the "usage_estimated" field.
+func (_u *MessageUpdate) SetUsageEstimated(v bool) *MessageUpdate {
+	_u.mutation.SetUsageEstimated(v)
+	return _u
+}
+
+// SetNillableUsageEstimated sets the "usage_estimated" field if the given value is not nil.
+func (_u *MessageUpdate) SetNillableUsageEstimated(v *bool) *MessageUpdate {
+	if v != nil {
+		_u.SetUsageEstimated(*v)
+	}
+	return _u
+}
+
 // SetRequestID sets the "request_id" field.
 func (_u *MessageUpdate) SetRequestID(v string) *MessageUpdate {
 	_u.mutation.SetRequestID(v)
@@ -345,6 +359,9 @@ func (_u *MessageUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedCompletionTokens(); ok {
 		_spec.AddField(message.FieldCompletionTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UsageEstimated(); ok {
+		_spec.SetField(message.FieldUsageEstimated, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.RequestID(); ok {
 		_spec.SetField(message.FieldRequestID, field.TypeString, value)
@@ -564,6 +581,20 @@ func (_u *MessageUpdateOne) AddCompletionTokens(v int) *MessageUpdateOne {
 	return _u
 }
 
+// SetUsageEstimated sets the "usage_estimated" field.
+func (_u *MessageUpdateOne) SetUsageEstimated(v bool) *MessageUpdateOne {
+	_u.mutation.SetUsageEstimated(v)
+	return _u
+}
+
+// SetNillableUsageEstimated sets the "usage_estimated" field if the given value is not nil.
+func (_u *MessageUpdateOne) SetNillableUsageEstimated(v *bool) *MessageUpdateOne {
+	if v != nil {
+		_u.SetUsageEstimated(*v)
+	}
+	return _u
+}
+
 // SetRequestID sets the "request_id" field.
 func (_u *MessageUpdateOne) SetRequestID(v string) *MessageUpdateOne {
 	_u.mutation.SetRequestID(v)
@@ -750,6 +781,9 @@ func (_u *MessageUpdateOne) sqlSave(ctx context.Context) (_node *Message, err er
 	}
 	if value, ok := _u.mutation.AddedCompletionTokens(); ok {
 		_spec.AddField(message.FieldCompletionTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UsageEstimated(); ok {
+		_spec.SetField(message.FieldUsageEstimated, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.RequestID(); ok {
 		_spec.SetField(message.FieldRequestID, field.TypeString, value)

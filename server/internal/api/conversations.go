@@ -71,6 +71,8 @@ type msgView struct {
 	HistoryTruncated bool `json:"history_truncated,omitempty"`
 	// Notice 仅出现在 done 事件：记住的模型已不可用、已回退默认模型等需要告知用户的提示（D-40 第 8 条）。
 	Notice string `json:"notice,omitempty"`
+	// UsageEstimated 上游未返回 usage，token 为估算值（D-41 第 4 条，界面标「估算」）。
+	UsageEstimated bool `json:"usage_estimated,omitempty"`
 }
 
 func toConv(c *ent.Conversation) convView {
@@ -79,7 +81,7 @@ func toConv(c *ent.Conversation) convView {
 
 func toMsg(m *ent.Message) msgView {
 	return msgView{ID: m.ID, Role: string(m.Role), Content: m.Content, Status: string(m.Status), ModelName: m.ModelName,
-		FallbackFrom: m.FallbackFrom, ErrorCode: m.ErrorCode, Error: m.Error, PromptTokens: m.PromptTokens,
+		FallbackFrom: m.FallbackFrom, ErrorCode: m.ErrorCode, Error: m.Error, PromptTokens: m.PromptTokens, UsageEstimated: m.UsageEstimated,
 		CompletionTokens: m.CompletionTokens, CreatedAt: m.CreatedAt}
 }
 
@@ -512,7 +514,7 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 	hk := streamHooks{delta: "token", tap: func(d gateway.Delta) { buf.WriteString(d.Content) },
 		done: func(res *gateway.ChatResponse, used, primary *gateway.Target) any {
 			return msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: "done", ModelName: used.Model.Name,
-				FallbackFrom: fallbackFrom(used, primary), PromptTokens: res.Usage.PromptTokens,
+				FallbackFrom: fallbackFrom(used, primary), PromptTokens: res.Usage.PromptTokens, UsageEstimated: res.Usage.Estimated,
 				CompletionTokens: res.Usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut, HistoryTruncated: histCut, Notice: notice}
 		}}
 	res, ge, started, used, rerr := h.ch.run(c, p, &req, tgt, hk)
@@ -525,7 +527,7 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 	case rerr != nil:
 		u.SetStatus(message.StatusError).SetErrorCode("audit_failed").SetError("审计写入失败，未调用模型")
 	case ge == nil && res != nil:
-		u.SetStatus(message.StatusDone).SetPromptTokens(res.Usage.PromptTokens).SetCompletionTokens(res.Usage.CompletionTokens)
+		u.SetStatus(message.StatusDone).SetPromptTokens(res.Usage.PromptTokens).SetCompletionTokens(res.Usage.CompletionTokens).SetUsageEstimated(res.Usage.Estimated)
 		if buf.Len() == 0 {
 			u.SetContent(contentText(res.Message.Content))
 		}
@@ -535,7 +537,7 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 		u.SetStatus(message.StatusError).SetErrorCode(ge.Code).SetError(truncRunes(ge.Message, 500))
 	}
 	if ge != nil && ge.Usage != nil {
-		u.SetPromptTokens(ge.Usage.PromptTokens).SetCompletionTokens(ge.Usage.CompletionTokens)
+		u.SetPromptTokens(ge.Usage.PromptTokens).SetCompletionTokens(ge.Usage.CompletionTokens).SetUsageEstimated(ge.Usage.Estimated)
 	}
 	if err := u.Exec(bg); err != nil {
 		h.ch.log.Error("save assistant message failed", "conversation", cv.ID, "err", err)

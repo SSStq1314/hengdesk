@@ -39,6 +39,8 @@ const (
 	FieldPromptTokens = "prompt_tokens"
 	// FieldCompletionTokens holds the string denoting the completion_tokens field in the database.
 	FieldCompletionTokens = "completion_tokens"
+	// FieldUsageEstimated holds the string denoting the usage_estimated field in the database.
+	FieldUsageEstimated = "usage_estimated"
 	// FieldRequestID holds the string denoting the request_id field in the database.
 	FieldRequestID = "request_id"
 	// FieldSupersededAt holds the string denoting the superseded_at field in the database.
@@ -71,6 +73,7 @@ var Columns = []string{
 	FieldError,
 	FieldPromptTokens,
 	FieldCompletionTokens,
+	FieldUsageEstimated,
 	FieldRequestID,
 	FieldSupersededAt,
 }
@@ -108,6 +111,8 @@ var (
 	DefaultPromptTokens int
 	// DefaultCompletionTokens holds the default value on creation for the "completion_tokens" field.
 	DefaultCompletionTokens int
+	// DefaultUsageEstimated holds the default value on creation for the "usage_estimated" field.
+	DefaultUsageEstimated bool
 	// DefaultRequestID holds the default value on creation for the "request_id" field.
 	DefaultRequestID string
 )
@@ -229,6 +234,11 @@ func ByPromptTokens(opts ...sql.OrderTermOption) OrderOption {
 // ByCompletionTokens orders the results by the completion_tokens field.
 func ByCompletionTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCompletionTokens, opts...).ToFunc()
+}
+
+// ByUsageEstimated orders the results by the usage_estimated field.
+func ByUsageEstimated(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUsageEstimated, opts...).ToFunc()
 }
 
 // ByRequestID orders the results by the request_id field.

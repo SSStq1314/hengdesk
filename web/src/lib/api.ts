@@ -90,6 +90,8 @@ export interface AuditLog {
   ip: string
   request_id: string
   trace_id?: string
+  /** D-41：受信代理传入的上游 trace-id，仅作关联 */
+  upstream_trace_id?: string
   hash: string
   detail?: Record<string, unknown>
 }
@@ -225,6 +227,8 @@ export type HighRiskAlert = {
     severity?: string
     due_at?: string
     days_left?: number
+    user_email?: string
+    hold_id?: number
   }
 }
 
@@ -709,6 +713,8 @@ export type ChatMessage = {
   created_at: string
   context_truncated?: boolean
   history_truncated?: boolean
+  /** D-41：上游未返回 usage，token 为估算值 */
+  usage_estimated?: boolean
   notice?: string
 }
 export type ConvFile = {

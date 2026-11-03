@@ -7,6 +7,7 @@
 | `HENGDESK_LOGIN_MAX_FAILURES` / `HENGDESK_LOGIN_LOCKOUT_DURATION` | `5` / `15m` | 按账号锁定（0 关闭） |
 | `HENGDESK_LOGIN_IP_LIMIT` / `HENGDESK_LOGIN_IP_WINDOW` | `30` / `10m` | 按来源 IP 滑动窗口限速（0 关闭） |
 | `HENGDESK_TRUSTED_PROXIES` | 回环 + 私有网段 | 只有对端在这些网段内才读取 `X-Forwarded-For`；`none` 表示从不读取 |
+| `HENGDESK_TRACE_TRUSTED_PROXIES` | 空（不接受） | 只有 TCP 对端在这些 IP / CIDR 内时才接受 W3C `traceparent`，另存为审计 `upstream_trace_id`（D-41） |
 | `HENGDESK_PASSWORD_MIN_LENGTH` | `8` | 范围 8–72 |
 | `HENGDESK_BACKUP_KEEP` | `5` | 保留最近 N 份升级前备份 |
 | `HENGDESK_DISK_LOW_PERCENT` | `10` | 备份盘剩余空间低于该百分比时后台告警 |

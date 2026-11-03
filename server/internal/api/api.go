@@ -3,6 +3,7 @@ package api
 
 import (
 	"log/slog"
+	"net"
 	"strconv"
 	"time"
 
@@ -29,6 +30,8 @@ type Deps struct {
 	Log   *slog.Logger
 	// System 管理后台状态提示（审计员未指派、备份盘空间不足等）。
 	System SystemConfig
+	// TraceTrustedProxies 受信代理 IP 列表（D-41 第 1 条），只有其中的来源才接受 traceparent。
+	TraceTrustedProxies []*net.IPNet
 	// Gateway 模型网关；为 nil 时用默认 HTTP 客户端且不配置主密钥（不能保存或使用上游密钥）。
 	Gateway *gateway.Service
 	// Budget 预算服务；为 nil 时用 Auth.Sessions.R（Valkey）构造。
@@ -62,7 +65,7 @@ func Mount(e *echo.Echo, d Deps) {
 	}
 	d.Auth.GuardDisable = guardDisable(d.DB)
 
-	g := e.Group("/api/v1", audit.Trace(), d.Auth.Optional, audit.WithWriter(d.Audit, auth.Actor), audit.Middleware(d.Audit, auth.Actor, d.Log), auth.CSRF)
+	g := e.Group("/api/v1", audit.Trace(d.TraceTrustedProxies), d.Auth.Optional, audit.WithWriter(d.Audit, auth.Actor), audit.Middleware(d.Audit, auth.Actor, d.Log), auth.CSRF)
 	d.Auth.Register(g)
 	admin := g.Group("/admin")
 
@@ -84,13 +87,14 @@ func Mount(e *echo.Echo, d Deps) {
 	admin.GET("/system/tls", sh.tls, authz.Require(rbac.SettingsManage))
 	admin.POST("/system/master-key/ack", sh.ackMasterKey, authz.Require(rbac.SettingsManage))
 
-	rth := &retentionHandlers{db: d.DB, fs: d.Files, now: d.System.Now}
+	rth := &retentionHandlers{db: d.DB, fs: d.Files, now: d.System.Now, auth: d.Auth}
 	admin.GET("/chat-retention", rth.get, authz.Require(rbac.SettingsManage))
 	admin.PUT("/chat-retention", rth.put, authz.Require(rbac.SettingsManage))
 	admin.POST("/chat-retention/run", rth.run, authz.Require(rbac.SettingsManage))
-	admin.GET("/legal-holds", rth.listHolds, authz.Require(rbac.SettingsManage))
-	admin.POST("/legal-holds", rth.createHold, authz.Require(rbac.SettingsManage))
-	admin.DELETE("/legal-holds/:id", rth.releaseHold, authz.Require(rbac.SettingsManage))
+	// 法律保全（D-41 第 3 条）：安全审计员可设置与解除；超级管理员只能设置（同时通知审计员），解除越权 404。
+	admin.GET("/legal-holds", rth.listHolds, authz.RequireAny(rbac.AuditRead, rbac.SettingsManage))
+	admin.POST("/legal-holds", rth.createHold, authz.RequireAny(rbac.AuditRead, rbac.SettingsManage))
+	admin.DELETE("/legal-holds/:id", rth.releaseHold, authz.Require(rbac.AuditRead))
 
 	mh := &memberHandlers{db: d.DB, az: az, auth: d.Auth}
 	admin.GET("/users", mh.list, authz.Require(rbac.MemberRead))

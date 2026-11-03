@@ -21,7 +21,7 @@ P1 待办（不在 M1）：**按人物理删除**（D-40 第 1 条）——用�
 ## PR3 实现说明（保留期、trace_id 回放、token 截断、压测）
 
 - **保留期清理（D-40 第 2 条）**：见 [D-40 实现说明第 2 条](../decisions/D-40-chat-rules.md#实现说明工程)。迁移 `20261116000000_m1_chat_pr3.sql`（`legal_holds` 表）。定时任务注册在 worker 的 asynq Scheduler（`@every 24h`，`asynq.Unique` 1 小时防重）。
-- **trace_id 回放（FR-28，第 14 步）**：`/api/v1` 全部请求经 `audit.Trace()` 中间件，在服务端生成 32 位十六进制 trace_id（不信任客户端传入的 `traceparent`），放入请求上下文并回写 `X-Trace-Id` 响应头；同一请求里写的所有审计（`http.*`、`chat.message.send`、`model.call`、清理等）自动带上同一 trace_id。审计员查询：列表支持 `trace_id` 过滤（格式不对 400）；`GET /api/v1/admin/audit-logs/traces/:trace_id` 按时间顺序返回时间线（每条带 `offset_ms`，最多 2000 条，带 `truncated`），不存在或属于其他组织返回 404；仅 `audit.read`（安全审计员），超级管理员 404（三员分立），查看本身记 `audit.trace.view`。Web 审计页加 trace_id 过滤和「时间线」弹窗。
+- **trace_id 回放（FR-28，第 14 步）**：`/api/v1` 全部请求经 `audit.Trace()` 中间件，在服务端生成 32 位十六进制 trace_id（客户端传入的 `traceparent` 只在来自受信代理时另存为 `upstream_trace_id`，见 D-41），放入请求上下文并回写 `X-Trace-Id` 响应头；同一请求里写的所有审计（`http.*`、`chat.message.send`、`model.call`、清理等）自动带上同一 trace_id。审计员查询：列表支持 `trace_id` 过滤（格式不对 400）；`GET /api/v1/admin/audit-logs/traces/:trace_id` 按时间顺序返回时间线（每条带 `offset_ms`，最多 2000 条，带 `truncated`），不存在或属于其他组织返回 404；仅 `audit.read`（安全审计员），超级管理员 404（三员分立），查看本身记 `audit.trace.view`。Web 审计页加 trace_id 过滤和「时间线」弹窗。
 - **token 截断（D-40 第 4 条）**：见 [D-40 实现说明第 4 条](../decisions/D-40-chat-rules.md#实现说明工程)。
 - **测试**：`chatretention/retention_test.go`（默认关闭、天数下限、旧会话 / 软删除会话 / 晚删除但早活动的会话被清理，活跃与新会话保留，按用户与全组织法律保留跳过、解除后清理，他组织不受影响，审计写失败不清理）；`api/chatpr3_test.go`（管理接口权限与 422/409、他组织用户与保留 404、清理审计写失败 503、trace 回放与权限、token 截断保留最新用户消息）；`api/contexttrunc_test.go`（估算与截断边界）。
 - **压测**：见下文「压测结果」。
@@ -46,15 +46,17 @@ HENGDESK_LOADTEST=1 go test ./internal/api -run TestLoadChat -v -count=1
 
 结论：200 个并发会话全部成功，平台开销 p95 约 0.45 s，满足「首 token（不含上游）≤ 1s」。并发下的开销主要来自审计哈希链串行写入和 SQLite 单写者；PostgreSQL 环境需在部署验收时用同一命令复测（待确认）。
 
-## PR3 待确认（已按保守方案实现）
+## PR3 已决定（D-41）
 
-1. **trace_id 来源**：只在服务端生成，忽略客户端 `traceparent`（防止伪造把无关操作串进同一链路）。是否需要接受上游网关传入的 trace？
-2. **清理单位与计时**：以会话为单位、按最后活动时间（最后一条消息）计算；不会只删一个活跃会话里的旧消息。软删除会话按最后活动时间，不按删除时间。
-3. **法律保全由谁管理**：目前是超级管理员（`system.settings`）。是否改为或增加安全审计员？
-4. **OpenTelemetry 导出**：trace_id 目前只用于审计回放，未导出到 OTel / 链路追踪系统。
-5. **活跃会话中已删除的单个文件**：仍随会话整体清理，不单独提前清理。
-6. **token 估算**：启发式估算（中文按字、其他按 4 字符），未接各家 tokenizer；为此预算里留了余量。
-7. **压测环境**：上述数字在 SQLite 测试库上测得，生产 PostgreSQL 需复测。
+原「PR3 待确认」各项已由产品经理在 [D-41](../decisions/D-41-chat-pr3.md) 决定并已实现：
+
+1. **trace_id 来源**：已决定。仍以服务端生成为准；只接受「受信代理 IP 列表」（`HENGDESK_TRACE_TRUSTED_PROXIES`，默认为空）传来的 `traceparent`，单独存 `upstream_trace_id`，仅作关联。
+2. **清理单位与计时**：已决定。以会话为单位、按最后活动时间；处于法律保全的会话不清理。
+3. **法律保全由谁管理**：已决定。安全审计员可设置和解除；超级管理员只能设置（解除返回 404），设置时通知审计员；设置和解除都记审计。
+4. **OpenTelemetry 导出**：仍不导出；`upstream_trace_id` 可用于与外部链路关联。
+5. **活跃会话中已删除的单个文件**：已决定。随会话整体清理。
+6. **token 估算**：已决定。只用于预检和截断，截断额外预留 10% 余量；记账以上游 usage 为准，缺失时用估算并标「估算」；精确 tokenizer 列为 P2。
+7. **压测环境**：数字在 SQLite 测试库上测得，生产 PostgreSQL 需在部署验收时复测。
 
 ## PR2b 实现说明（D-40 第 5–8 条）
 

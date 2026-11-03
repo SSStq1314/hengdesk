@@ -8,6 +8,7 @@ package authz
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 
@@ -39,6 +40,28 @@ func Require(perm rbac.Perm) echo.MiddlewareFunc {
 				return Deny(c, "perm:"+string(perm))
 			}
 			return next(c)
+		}
+	}
+}
+
+// RequireAny 拥有任一权限点即可。未登录 401，都没有时 404。
+func RequireAny(perms ...rbac.Perm) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			p := auth.Current(c)
+			if p == nil {
+				return ErrUnauthenticated
+			}
+			for _, perm := range perms {
+				if p.Perms.HasAny(perm) {
+					return next(c)
+				}
+			}
+			names := make([]string, len(perms))
+			for i, perm := range perms {
+				names[i] = string(perm)
+			}
+			return Deny(c, "perm:"+strings.Join(names, "|"))
 		}
 	}
 }

@@ -33,6 +33,9 @@ func estimateTokens(s string) int {
 }
 
 // tokenBudget 返回可用于输入的 token 预算；0 表示不截断。
+// truncMarginPercent 截断时额外预留的余量（D-41 第 4 条）。
+const truncMarginPercent = 10
+
 func tokenBudget(contextWindow, maxOutput int) int {
 	if contextWindow <= 0 {
 		return 0
@@ -41,7 +44,8 @@ func tokenBudget(contextWindow, maxOutput int) int {
 	if reserve <= 0 {
 		reserve = outputReserveDefault
 	}
-	b := contextWindow - reserve
+	// D-41 第 4 条：估算只用于预检与截断，额外预留窗口的 10% 作为估算误差余量。
+	b := contextWindow - reserve - contextWindow*truncMarginPercent/100
 	if b < contextWindow/4 { // 配置异常（输出占满窗口）时至少留 1/4 给输入
 		b = contextWindow / 4
 	}
