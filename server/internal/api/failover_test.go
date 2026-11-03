@@ -103,14 +103,14 @@ func TestChatFailoverToBackupModel(t *testing.T) {
 	}
 	g.m.FailStatus = 503
 	rec = g.admin.do(http.MethodPost, "/api/v1/chat/completions", `{"model":"ds-flash","messages":[{"role":"user","content":"hi"}]}`, true)
-	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"model":"ds-flash"`) {
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"model":"ds-backup"`) || !strings.Contains(rec.Body.String(), `"fallback_from":"ds-flash"`) {
 		t.Fatalf("应切换到备用模型并成功：%d %s", rec.Code, rec.Body)
 	}
 	if g.m.Count() != gateway.Retry.PerTarget || backup.Count() != 1 {
 		t.Fatalf("主上游请求 %d 次、备用 %d 次", g.m.Count(), backup.Count())
 	}
 	rs := attempts(t, g)
-	if len(rs) != 3 || rs[2].ModelID != bm.ID || rs[2].Attempt != 3 || rs[2].Status != usagerecord.StatusOk {
+	if len(rs) != 3 || rs[2].ModelID != bm.ID || rs[2].ModelName != "ds-backup" || rs[2].FallbackFrom != "ds-flash" || rs[2].Attempt != 3 || rs[2].Status != usagerecord.StatusOk {
 		t.Fatalf("usage_records: %+v", rs)
 	}
 	var total, tokens int64
@@ -128,7 +128,7 @@ func TestChatFailoverToBackupModel(t *testing.T) {
 	}
 	var fb int
 	for _, a := range g.c.AuditLog.Query().Where(auditlog.Action("model.call"), auditlog.PhaseEQ(auditlog.PhaseAttempt)).AllX(ctx) {
-		if a.Detail["fallback_model"] == "ds-backup" {
+		if a.ResourceID == "ds-backup" && a.Detail["fallback_from"] == "ds-flash" && a.Detail["note"] == "由 ds-flash 切换" {
 			fb++
 		}
 	}

@@ -62,6 +62,8 @@ type Record struct {
 	Attempt    int    // 同一请求内的第几次尝试（0 视为 1）
 	Usage      gateway.Usage
 	Latency    time.Duration
+	// FallbackFrom 切换到备用模型时的原模型名（D-39 第 7 条）；Model 是实际使用的模型。
+	FallbackFrom string
 }
 
 // PrimaryDept 用户的主部门（没有主部门时取任意一个所属部门；都没有返回 nil）。记录时快照，之后调岗不影响历史归属。
@@ -98,7 +100,7 @@ func Write(ctx context.Context, db *ent.Client, r Record) (*ent.UsageRecord, err
 		SetPromptTokens(u.PromptTokens).SetCachedTokens(u.CachedTokens).SetCompletionTokens(u.CompletionTokens).
 		SetReasoningTokens(u.ReasoningTokens).SetTotalTokens(u.TotalTokens).
 		SetCostMicros(Cost(u, p)).SetCurrency(p.Currency).SetEstimated(u.Estimated).SetUsageUnknown(Unknown(r.ErrorCode, u)).
-		SetLatencyMs(int(r.Latency.Milliseconds())).SetAttempt(max(r.Attempt, 1)).Save(ctx)
+		SetLatencyMs(int(r.Latency.Milliseconds())).SetAttempt(max(r.Attempt, 1)).SetFallbackFrom(r.FallbackFrom).Save(ctx)
 }
 
 // Unknown 失败且拿不到任何用量（超时 / 上游 5xx 等）：按 0 记账，但标记「用量未知」以便对账（D-37 第 5 条）。

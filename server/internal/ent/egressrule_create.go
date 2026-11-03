@@ -160,6 +160,20 @@ func (_c *EgressRuleCreate) SetNillableReviewedBy(v *int) *EgressRuleCreate {
 	return _c
 }
 
+// SetReviewRequired sets the "review_required" field.
+func (_c *EgressRuleCreate) SetReviewRequired(v bool) *EgressRuleCreate {
+	_c.mutation.SetReviewRequired(v)
+	return _c
+}
+
+// SetNillableReviewRequired sets the "review_required" field if the given value is not nil.
+func (_c *EgressRuleCreate) SetNillableReviewRequired(v *bool) *EgressRuleCreate {
+	if v != nil {
+		_c.SetReviewRequired(*v)
+	}
+	return _c
+}
+
 // Mutation returns the EgressRuleMutation object of the builder.
 func (_c *EgressRuleCreate) Mutation() *EgressRuleMutation {
 	return _c.mutation
@@ -219,6 +233,10 @@ func (_c *EgressRuleCreate) defaults() {
 		v := egressrule.DefaultPrivate
 		_c.mutation.SetPrivate(v)
 	}
+	if _, ok := _c.mutation.ReviewRequired(); !ok {
+		v := egressrule.DefaultReviewRequired
+		_c.mutation.SetReviewRequired(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -271,6 +289,9 @@ func (_c *EgressRuleCreate) check() error {
 	}
 	if _, ok := _c.mutation.Private(); !ok {
 		return &ValidationError{Name: "private", err: errors.New(`ent: missing required field "EgressRule.private"`)}
+	}
+	if _, ok := _c.mutation.ReviewRequired(); !ok {
+		return &ValidationError{Name: "review_required", err: errors.New(`ent: missing required field "EgressRule.review_required"`)}
 	}
 	return nil
 }
@@ -342,6 +363,10 @@ func (_c *EgressRuleCreate) createSpec() (*EgressRule, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ReviewedBy(); ok {
 		_spec.SetField(egressrule.FieldReviewedBy, field.TypeInt, value)
 		_node.ReviewedBy = value
+	}
+	if value, ok := _c.mutation.ReviewRequired(); ok {
+		_spec.SetField(egressrule.FieldReviewRequired, field.TypeBool, value)
+		_node.ReviewRequired = value
 	}
 	return _node, _spec
 }
@@ -542,6 +567,18 @@ func (u *EgressRuleUpsert) AddReviewedBy(v int) *EgressRuleUpsert {
 // ClearReviewedBy clears the value of the "reviewed_by" field.
 func (u *EgressRuleUpsert) ClearReviewedBy() *EgressRuleUpsert {
 	u.SetNull(egressrule.FieldReviewedBy)
+	return u
+}
+
+// SetReviewRequired sets the "review_required" field.
+func (u *EgressRuleUpsert) SetReviewRequired(v bool) *EgressRuleUpsert {
+	u.Set(egressrule.FieldReviewRequired, v)
+	return u
+}
+
+// UpdateReviewRequired sets the "review_required" field to the value that was provided on create.
+func (u *EgressRuleUpsert) UpdateReviewRequired() *EgressRuleUpsert {
+	u.SetExcluded(egressrule.FieldReviewRequired)
 	return u
 }
 
@@ -762,6 +799,20 @@ func (u *EgressRuleUpsertOne) UpdateReviewedBy() *EgressRuleUpsertOne {
 func (u *EgressRuleUpsertOne) ClearReviewedBy() *EgressRuleUpsertOne {
 	return u.Update(func(s *EgressRuleUpsert) {
 		s.ClearReviewedBy()
+	})
+}
+
+// SetReviewRequired sets the "review_required" field.
+func (u *EgressRuleUpsertOne) SetReviewRequired(v bool) *EgressRuleUpsertOne {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.SetReviewRequired(v)
+	})
+}
+
+// UpdateReviewRequired sets the "review_required" field to the value that was provided on create.
+func (u *EgressRuleUpsertOne) UpdateReviewRequired() *EgressRuleUpsertOne {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.UpdateReviewRequired()
 	})
 }
 
@@ -1148,6 +1199,20 @@ func (u *EgressRuleUpsertBulk) UpdateReviewedBy() *EgressRuleUpsertBulk {
 func (u *EgressRuleUpsertBulk) ClearReviewedBy() *EgressRuleUpsertBulk {
 	return u.Update(func(s *EgressRuleUpsert) {
 		s.ClearReviewedBy()
+	})
+}
+
+// SetReviewRequired sets the "review_required" field.
+func (u *EgressRuleUpsertBulk) SetReviewRequired(v bool) *EgressRuleUpsertBulk {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.SetReviewRequired(v)
+	})
+}
+
+// UpdateReviewRequired sets the "review_required" field to the value that was provided on create.
+func (u *EgressRuleUpsertBulk) UpdateReviewRequired() *EgressRuleUpsertBulk {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.UpdateReviewRequired()
 	})
 }
 

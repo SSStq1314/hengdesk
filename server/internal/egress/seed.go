@@ -12,6 +12,7 @@ import (
 
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/systemsetting"
 )
@@ -209,6 +210,118 @@ func MigratePorts(ctx context.Context, db *ent.Client, w audit.Writer, res Resol
 	if err := tx.SystemSetting.Create().SetKey(PortsSettingKey).SetValue(map[string]any{"rules": n, "at": time.Now().UTC().Format(time.RFC3339)}).Exec(ctx); err != nil {
 		_ = tx.Rollback()
 		return 0, err
+	}
+	return n, tx.Commit()
+}
+
+// D39PortsSettingKey D-39 第 1 条数据修正只执行一次的标记。
+const D39PortsSettingKey = "egress.d39_ports"
+
+// MigrateD39Ports D-39 第 1 条：#31（D-38）把空端口的手工条目改成了「*」（任意端口），范围比原来的「仅 443」大。
+// 本迁移按 #31 写下的 egress.rule.ports_migrate 审计找到这些条目，收窄为 443（被模型上游 / OIDC 引用的主机用实际端口），
+// 并标记「待复核」（review_required）。迁移之后管理员改过的条目（有 egress.rule.update 审计，或端口已不是 *）不动。
+// 每改一条写一条审计；审计写失败整体回滚、启动失败（fail-closed）。只执行一次（标记 egress.d39_ports）。
+func MigrateD39Ports(ctx context.Context, db *ent.Client, w audit.Writer, res Resolver, oidcIssuer string) (int, error) {
+	if n, err := db.SystemSetting.Query().Where(systemsetting.Key(D39PortsSettingKey)).Count(ctx); err != nil || n > 0 {
+		return 0, err
+	}
+	logs, err := db.AuditLog.Query().Where(auditlog.Action("egress.rule.ports_migrate"), auditlog.ResourceType("egress_rule")).
+		Order(ent.Asc(auditlog.FieldID)).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	type cand struct {
+		rule *ent.EgressRule
+		at   time.Time
+	}
+	var cands []cand
+	for _, l := range logs {
+		if l.Detail["source"] != string(egressrule.SourceManual) || l.Detail["after"] != "*" || l.Detail["before"] != "" {
+			continue
+		}
+		id, err := strconv.Atoi(l.ResourceID)
+		if err != nil {
+			continue
+		}
+		r, err := db.EgressRule.Get(ctx, id)
+		if ent.IsNotFound(err) {
+			continue // 已删除
+		} else if err != nil {
+			return 0, err
+		}
+		if r.Ports != "*" {
+			continue
+		}
+		edited, err := db.AuditLog.Query().Where(auditlog.ResourceType("egress_rule"), auditlog.ResourceID(l.ResourceID),
+			auditlog.ActionIn("egress.rule.update", "egress.rule.review"), auditlog.TsGT(l.Ts)).Exist(ctx)
+		if err != nil {
+			return 0, err
+		}
+		if edited {
+			continue // 管理员在 #31 之后改过或确认过，尊重管理员的选择
+		}
+		cands = append(cands, cand{r, l.Ts})
+	}
+	actual := map[string]string{}
+	if len(cands) > 0 {
+		urls := map[string]string{}
+		ps, err := db.ModelProvider.Query().All(ctx)
+		if err != nil {
+			return 0, err
+		}
+		for _, p := range ps {
+			urls[p.BaseURL] = p.Name
+		}
+		if oidcIssuer != "" {
+			urls[oidcIssuer] = "oidc"
+		}
+		for _, r := range PlanSeed(ctx, res, urls) {
+			if _, ok := actual[r.Kind+"|"+r.Value]; !ok {
+				actual[r.Kind+"|"+r.Value] = r.Ports
+			}
+		}
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	fail := func(err error) (int, error) {
+		_ = tx.Rollback()
+		return 0, err
+	}
+	n := 0
+	for _, c := range cands {
+		r := c.rule
+		to := strconv.Itoa(DefaultPort)
+		if p := actual[string(r.Kind)+"|"+r.Value]; p != "" {
+			to = p
+		}
+		detail := map[string]any{"kind": string(r.Kind), "value": r.Value, "source": string(r.Source), "before": "*", "after": to,
+			"decision": "D-39-1", "review_required": true}
+		dup, err := tx.EgressRule.Query().Where(egressrule.KindEQ(r.Kind), egressrule.Value(r.Value), egressrule.Ports(to)).Only(ctx)
+		if err != nil && !ent.IsNotFound(err) {
+			return fail(err)
+		}
+		if dup != nil {
+			// 已有收窄后的同样条目：删除这条 * 条目，并把已有条目标为待复核。
+			if err := tx.EgressRule.DeleteOneID(r.ID).Exec(ctx); err != nil {
+				return fail(err)
+			}
+			if err := tx.EgressRule.UpdateOneID(dup.ID).SetReviewRequired(true).ClearReviewedAt().Exec(ctx); err != nil {
+				return fail(err)
+			}
+			detail["merged_into"] = dup.ID
+		} else if err := tx.EgressRule.UpdateOneID(r.ID).SetPorts(to).SetReviewRequired(true).ClearReviewedAt().Exec(ctx); err != nil {
+			return fail(err)
+		}
+		if err := writerFor(w, tx).Write(ctx, audit.Entry{ActorEmail: "system", Action: "egress.rule.ports_migrate", ResourceType: "egress_rule",
+			ResourceID: strconv.Itoa(r.ID), Phase: "result", Outcome: "success", Detail: detail}); err != nil {
+			return fail(fmt.Errorf("egress d39 ports migrate audit: %w", err))
+		}
+		n++
+	}
+	if err := tx.SystemSetting.Create().SetKey(D39PortsSettingKey).SetValue(map[string]any{"rules": n, "at": time.Now().UTC().Format(time.RFC3339)}).Exec(ctx); err != nil {
+		return fail(err)
 	}
 	return n, tx.Commit()
 }

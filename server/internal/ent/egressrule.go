@@ -38,8 +38,10 @@ type EgressRule struct {
 	// ReviewedAt holds the value of the "reviewed_at" field.
 	ReviewedAt *time.Time `json:"reviewed_at,omitempty"`
 	// ReviewedBy holds the value of the "reviewed_by" field.
-	ReviewedBy   int `json:"reviewed_by,omitempty"`
-	selectValues sql.SelectValues
+	ReviewedBy int `json:"reviewed_by,omitempty"`
+	// ReviewRequired holds the value of the "review_required" field.
+	ReviewRequired bool `json:"review_required,omitempty"`
+	selectValues   sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -47,7 +49,7 @@ func (*EgressRule) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case egressrule.FieldPrivate:
+		case egressrule.FieldPrivate, egressrule.FieldReviewRequired:
 			values[i] = new(sql.NullBool)
 		case egressrule.FieldID, egressrule.FieldCreatedBy, egressrule.FieldReviewedBy:
 			values[i] = new(sql.NullInt64)
@@ -143,6 +145,12 @@ func (_m *EgressRule) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ReviewedBy = int(value.Int64)
 			}
+		case egressrule.FieldReviewRequired:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field review_required", values[i])
+			} else if value.Valid {
+				_m.ReviewRequired = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -213,6 +221,9 @@ func (_m *EgressRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("reviewed_by=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ReviewedBy))
+	builder.WriteString(", ")
+	builder.WriteString("review_required=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReviewRequired))
 	builder.WriteByte(')')
 	return builder.String()
 }

@@ -265,6 +265,7 @@ var (
 		{Name: "created_by", Type: field.TypeInt, Nullable: true},
 		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "reviewed_by", Type: field.TypeInt, Nullable: true},
+		{Name: "review_required", Type: field.TypeBool, Default: false},
 	}
 	// EgressRulesTable holds the schema information for the "egress_rules" table.
 	EgressRulesTable = &schema.Table{
@@ -491,6 +492,7 @@ var (
 		{Name: "usage_unknown", Type: field.TypeBool, Default: false},
 		{Name: "latency_ms", Type: field.TypeInt, Default: 0},
 		{Name: "attempt", Type: field.TypeInt, Default: 1},
+		{Name: "fallback_from", Type: field.TypeString, Default: ""},
 		{Name: "created_at", Type: field.TypeTime},
 	}
 	// UsageRecordsTable holds the schema information for the "usage_records" table.
@@ -502,22 +504,22 @@ var (
 			{
 				Name:    "usagerecord_org_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[1], UsageRecordsColumns[23]},
+				Columns: []*schema.Column{UsageRecordsColumns[1], UsageRecordsColumns[24]},
 			},
 			{
 				Name:    "usagerecord_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[2], UsageRecordsColumns[23]},
+				Columns: []*schema.Column{UsageRecordsColumns[2], UsageRecordsColumns[24]},
 			},
 			{
 				Name:    "usagerecord_department_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[3], UsageRecordsColumns[23]},
+				Columns: []*schema.Column{UsageRecordsColumns[3], UsageRecordsColumns[24]},
 			},
 			{
 				Name:    "usagerecord_model_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[4], UsageRecordsColumns[23]},
+				Columns: []*schema.Column{UsageRecordsColumns[4], UsageRecordsColumns[24]},
 			},
 		},
 	}

@@ -36,6 +36,8 @@ const (
 	FieldReviewedAt = "reviewed_at"
 	// FieldReviewedBy holds the string denoting the reviewed_by field in the database.
 	FieldReviewedBy = "reviewed_by"
+	// FieldReviewRequired holds the string denoting the review_required field in the database.
+	FieldReviewRequired = "review_required"
 	// Table holds the table name of the egressrule in the database.
 	Table = "egress_rules"
 )
@@ -54,6 +56,7 @@ var Columns = []string{
 	FieldCreatedBy,
 	FieldReviewedAt,
 	FieldReviewedBy,
+	FieldReviewRequired,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -85,6 +88,8 @@ var (
 	NoteValidator func(string) error
 	// DefaultPrivate holds the default value on creation for the "private" field.
 	DefaultPrivate bool
+	// DefaultReviewRequired holds the default value on creation for the "review_required" field.
+	DefaultReviewRequired bool
 )
 
 // Kind defines the type for the "kind" enum field.
@@ -200,4 +205,9 @@ func ByReviewedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByReviewedBy orders the results by the reviewed_by field.
 func ByReviewedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldReviewedBy, opts...).ToFunc()
+}
+
+// ByReviewRequired orders the results by the review_required field.
+func ByReviewRequired(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReviewRequired, opts...).ToFunc()
 }

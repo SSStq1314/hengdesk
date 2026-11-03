@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { BlockedTab } from './blocked-tab'
 import { LogsTab } from './logs-tab'
 import { RulesTab } from './rules-tab'
 
@@ -29,6 +30,7 @@ export function EgressPage() {
             {canManage && (
               <TabsTrigger value='rules'>{zh.egress.tabRules}</TabsTrigger>
             )}
+            <TabsTrigger value='blocked'>{zh.egress.tabBlocked}</TabsTrigger>
             <TabsTrigger value='logs'>{zh.egress.tabLogs}</TabsTrigger>
           </TabsList>
           {canManage && (
@@ -36,6 +38,9 @@ export function EgressPage() {
               <RulesTab />
             </TabsContent>
           )}
+          <TabsContent value='blocked' className='pt-4'>
+            <BlockedTab canManage={canManage} />
+          </TabsContent>
           <TabsContent value='logs' className='pt-4'>
             <LogsTab readOnly={!canManage} />
           </TabsContent>

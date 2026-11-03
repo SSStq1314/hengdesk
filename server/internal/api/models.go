@@ -69,6 +69,9 @@ type modelView struct {
 	Enabled          bool   `json:"enabled"`
 	IsDefault        bool   `json:"is_default"`
 	FallbackModelIDs []int  `json:"fallback_model_ids"`
+	// FallbackACLMismatch 使用权限范围与本模型不一致的备用模型（D-39 第 6 条：配置界面提示；
+	// 调用时只会切换到调用人有权使用的备用模型）。
+	FallbackACLMismatch []int `json:"fallback_acl_mismatch"`
 	usage.Price
 }
 
@@ -76,7 +79,54 @@ func toModelView(m *ent.Model) modelView {
 	return modelView{ID: m.ID, Name: m.Name, ProviderID: m.ProviderID, UpstreamModel: m.UpstreamModel,
 		Thinking: string(m.Thinking), ToolChoicePolicy: string(m.ToolChoicePolicy), ContextWindow: m.ContextWindow,
 		MaxOutputTokens: m.MaxOutputTokens, Enabled: m.Enabled, IsDefault: m.IsDefault, Price: usage.PriceOf(m),
-		FallbackModelIDs: append([]int{}, m.FallbackModelIds...)}
+		FallbackModelIDs: append([]int{}, m.FallbackModelIds...), FallbackACLMismatch: []int{}}
+}
+
+// withACLMismatch 计算每个模型的备用模型中，使用权限（use 位授权集合）与主模型不同的条目。
+func (h *modelHandlers) withACLMismatch(ctx context.Context, vs []modelView) error {
+	rows, err := h.db.ACL.Query().Where(acl.ResourceType(rbac.ResModel)).All(ctx)
+	if err != nil {
+		return err
+	}
+	grants := map[string]map[string]bool{}
+	for _, r := range rows {
+		if r.Perms&rbac.BitUse == 0 {
+			continue
+		}
+		if grants[r.ResourceID] == nil {
+			grants[r.ResourceID] = map[string]bool{}
+		}
+		grants[r.ResourceID][fmt.Sprintf("%d|%s|%d|%t", r.OrgID, r.SubjectType, r.SubjectID, r.IncludeChildren)] = true
+	}
+	same := func(a, b map[string]bool) bool {
+		if len(a) != len(b) {
+			return false
+		}
+		for k := range a {
+			if !b[k] {
+				return false
+			}
+		}
+		return true
+	}
+	for i := range vs {
+		mine := grants[strconv.Itoa(vs[i].ID)]
+		vs[i].FallbackACLMismatch = []int{}
+		for _, f := range vs[i].FallbackModelIDs {
+			if !same(mine, grants[strconv.Itoa(f)]) {
+				vs[i].FallbackACLMismatch = append(vs[i].FallbackACLMismatch, f)
+			}
+		}
+	}
+	return nil
+}
+
+func (h *modelHandlers) viewOne(c echo.Context, code int, m *ent.Model) error {
+	vs := []modelView{toModelView(m)}
+	if err := h.withACLMismatch(c.Request().Context(), vs); err != nil {
+		return err
+	}
+	return c.JSON(code, vs[0])
 }
 
 func bad(msg string) error { return echo.NewHTTPError(http.StatusBadRequest, msg) }
@@ -326,6 +376,9 @@ func (h *modelHandlers) listModels(c echo.Context) error {
 	for i, m := range ms {
 		out[i] = toModelView(m)
 	}
+	if err := h.withACLMismatch(c.Request().Context(), out); err != nil {
+		return err
+	}
 	return c.JSON(http.StatusOK, map[string]any{"items": out})
 }
 
@@ -437,7 +490,7 @@ func (h *modelHandlers) createModel(c echo.Context) error {
 		"upstream_model": m.UpstreamModel, "thinking": string(m.Thinking)}); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusCreated, toModelView(m))
+	return h.viewOne(c, http.StatusCreated, m)
 }
 
 func (h *modelHandlers) updateModel(c echo.Context) error {
@@ -513,7 +566,7 @@ func (h *modelHandlers) updateModel(c echo.Context) error {
 		"fallback_model_ids": m.FallbackModelIds}); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, toModelView(m))
+	return h.viewOne(c, http.StatusOK, m)
 }
 
 // checkFallbacks 备用模型必须存在、不能是自身、不能重复。

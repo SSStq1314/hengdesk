@@ -99,6 +99,11 @@ func ReviewedBy(v int) predicate.EgressRule {
 	return predicate.EgressRule(sql.FieldEQ(FieldReviewedBy, v))
 }
 
+// ReviewRequired applies equality check predicate on the "review_required" field. It's identical to ReviewRequiredEQ.
+func ReviewRequired(v bool) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldEQ(FieldReviewRequired, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.EgressRule {
 	return predicate.EgressRule(sql.FieldEQ(FieldCreatedAt, v))
@@ -572,6 +577,16 @@ func ReviewedByIsNil() predicate.EgressRule {
 // ReviewedByNotNil applies the NotNil predicate on the "reviewed_by" field.
 func ReviewedByNotNil() predicate.EgressRule {
 	return predicate.EgressRule(sql.FieldNotNull(FieldReviewedBy))
+}
+
+// ReviewRequiredEQ applies the EQ predicate on the "review_required" field.
+func ReviewRequiredEQ(v bool) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldEQ(FieldReviewRequired, v))
+}
+
+// ReviewRequiredNEQ applies the NEQ predicate on the "review_required" field.
+func ReviewRequiredNEQ(v bool) predicate.EgressRule {
+	return predicate.EgressRule(sql.FieldNEQ(FieldReviewRequired, v))
 }
 
 // And groups predicates with the AND operator between them.

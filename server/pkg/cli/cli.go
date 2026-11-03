@@ -79,6 +79,12 @@ func serverCmd() *cobra.Command {
 		} else if n > 0 {
 			lg.Warn("egress allowlist ports migrated for D-38 (empty now means 443 only); review entries marked * in 出站控制", "rules", n)
 		}
+		// D-39 第 1 条：#31 改成 * 的手工条目收窄为 443 / 实际端口，标记待复核（仅一次，逐条审计）。
+		if n, err := egress.MigrateD39Ports(context.Background(), client, w, nil, cfg.OIDCIssuer); err != nil {
+			return fmt.Errorf("egress d39 ports migrate: %w", err)
+		} else if n > 0 {
+			lg.Warn("egress allowlist: manual entries widened to * by D-38 were narrowed to 443 (D-39); review entries marked 待复核 and check 被拦截的出站请求 in 出站控制", "rules", n)
+		}
 		var oidcSvc *auth.OIDC
 		if cfg.OIDCIssuer != "" {
 			oidcSvc = &auth.OIDC{R: rdb, Cfg: auth.OIDCConfig{Issuer: cfg.OIDCIssuer, ClientID: cfg.OIDCClientID,

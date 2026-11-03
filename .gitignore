@@ -6,3 +6,4 @@ bin/
 coverage/
 deploy/tls/
 deploy/secrets/
+server/cassette-record-egress.jsonl

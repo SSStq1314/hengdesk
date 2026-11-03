@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"regexp"
 	"sort"
@@ -160,12 +161,21 @@ func (c *Client) do(ctx context.Context, r *http.Request, key string) (*http.Res
 		if errors.As(err, &de) {
 			return nil, newErr(http.StatusForbidden, CodeEgressDenied, "%s", de.Message())
 		}
+		// D-39 第 5 条：TCP 连接阶段失败（连接超时、连接被拒绝等）时请求尚未发出，可以重试 / 切换备用模型；
+		// 连接建立后的读超时不重试（上游可能已开始处理并计费）。
+		if isDialErr(err) && !errors.Is(ctx.Err(), context.Canceled) {
+			msg := "无法连接上游：%s"
+			if isTimeout(err) {
+				msg = "连接上游超时：%s"
+			}
+			e := newErr(http.StatusBadGateway, CodeUpstreamUnavailable, msg, Redact(err.Error(), key))
+			e.Retryable = true
+			return nil, e
+		}
 		if ctx.Err() != nil || isTimeout(err) {
 			return nil, newErr(http.StatusGatewayTimeout, CodeUpstreamTimeout, "上游响应超时")
 		}
-		e := newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "无法连接上游：%s", Redact(err.Error(), key))
-		e.Retryable = true
-		return nil, e
+		return nil, newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "上游连接中断：%s", Redact(err.Error(), key))
 	}
 	return resp, nil
 }
@@ -199,6 +209,12 @@ func (c *Client) post(ctx context.Context, up Upstream, body map[string]any) (*h
 		return nil, upstreamError(resp.StatusCode, raw, up.APIKey)
 	}
 	return resp, nil
+}
+
+// isDialErr 错误发生在建立 TCP 连接阶段（请求一个字节都还没发出）。
+func isDialErr(err error) bool {
+	var op *net.OpError
+	return errors.As(err, &op) && op.Op == "dial"
 }
 
 func isTimeout(err error) bool {
