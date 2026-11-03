@@ -1,5 +1,5 @@
 # 衡台 HengDesk 默认部署：PostgreSQL 17 + pgvector、Valkey、SeaweedFS（S3 网关）。
-# MinIO：叠加 docker-compose.minio.yml；外部 S3：叠加 docker-compose.external-s3.yml。推荐用 install.sh 生成 .env。
+# HTTPS：叠加 docker-compose.tls.yml（install.sh --tls-cert/--tls-key 自动处理）。MinIO：叠加 docker-compose.minio.yml；外部 S3：叠加 docker-compose.external-s3.yml。推荐用 install.sh 生成 .env。
 name: hengdesk
 
 x-hengdesk-env: &hd-env
@@ -18,6 +18,7 @@ x-hengdesk-env: &hd-env
   HENGDESK_LOGIN_MAX_FAILURES: ${HENGDESK_LOGIN_MAX_FAILURES:-5}
   HENGDESK_LOGIN_LOCKOUT_DURATION: ${HENGDESK_LOGIN_LOCKOUT_DURATION:-15m}
   HENGDESK_COOKIE_SECURE: ${HENGDESK_COOKIE_SECURE:-false}
+  HENGDESK_PUBLIC_HTTPS: ${HENGDESK_PUBLIC_HTTPS:-}
   HENGDESK_ADMIN_EMAIL: ${HENGDESK_ADMIN_EMAIL:-admin@hengdesk.local}
   HENGDESK_ADMIN_PASSWORD: ${HENGDESK_ADMIN_PASSWORD:?请在 .env 设置 HENGDESK_ADMIN_PASSWORD}
   HENGDESK_AUDITOR_EMAIL: ${HENGDESK_AUDITOR_EMAIL:-}
@@ -70,7 +71,8 @@ services:
         JSON
         exec weed server -dir=/data -ip.bind=0.0.0.0 -master.volumeSizeLimitMB=1024 -volume.max=0 -s3 -s3.port=8333 -s3.config=/tmp/s3.json
     volumes: [seaweeddata:/data]
-    ports: ["${HENGDESK_S3_PUBLISH:-127.0.0.1:8333}:8333"]
+    # 对象存储只绑本机回环（D-30），不对外暴露
+    ports: ["127.0.0.1:${HENGDESK_S3_PORT:-8333}:8333"]
 
   migrate:
     build: {context: ../server}

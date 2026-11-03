@@ -39,4 +39,4 @@ cd deploy
 docker compose up -d --build
 ```
 
-浏览器访问 `http://<主机>:8080`，管理员邮箱默认 `admin@hengdesk.local`，密码见 `deploy/.env` 中的 `HENGDESK_ADMIN_PASSWORD`（install.sh 随机生成）。
+浏览器访问 `http://<主机>:8080`（导入证书后为 `https://<主机>/`，见 [docs/ops/tls.md](docs/ops/tls.md)），管理员邮箱默认 `admin@hengdesk.local`，密码见 `deploy/.env` 中的 `HENGDESK_ADMIN_PASSWORD`（install.sh 随机生成）。

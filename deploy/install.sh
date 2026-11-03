@@ -3,7 +3,8 @@
 # 交互模式：./install.sh
 # 非交互：./install.sh --non-interactive --storage seaweedfs|minio|external \
 #   [--s3-endpoint URL --s3-region R --s3-access-key AK --s3-secret-key SK --s3-bucket B --s3-path-style true|false] \
-#   [--admin-email E] [--admin-password P] [--auditor-email E [--auditor-password P]] [--http-port 8080] [--force] [--up]
+#   [--admin-email E] [--admin-password P] [--auditor-email E [--auditor-password P]] [--http-port 8080] \
+#   [--tls-cert 证书.pem --tls-key 私钥.pem] [--force] [--up]
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -11,8 +12,9 @@ STORAGE="" INTERACTIVE=1 FORCE=0 UP=0
 S3_ENDPOINT="" S3_REGION="us-east-1" S3_AK="" S3_SK="" S3_BUCKET="hengdesk" S3_PATH_STYLE="true"
 ADMIN_EMAIL="admin@hengdesk.local" ADMIN_PASSWORD="" HTTP_PORT="8080"
 AUDITOR_EMAIL="" AUDITOR_PASSWORD=""
+TLS_CERT="" TLS_KEY=""
 
-usage() { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 die() { echo "错误：$*" >&2; exit 1; }
 rand() { local s=""; while [ "${#s}" -lt "$1" ]; do s+=$(head -c 64 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9'); done; printf '%s' "${s:0:$1}"; }
 
@@ -31,6 +33,8 @@ while [ $# -gt 0 ]; do
     --auditor-email) AUDITOR_EMAIL="$2"; shift ;;
     --auditor-password) AUDITOR_PASSWORD="$2"; shift ;;
     --http-port) HTTP_PORT="$2"; shift ;;
+    --tls-cert) TLS_CERT="$2"; shift ;;
+    --tls-key) TLS_KEY="$2"; shift ;;
     --force) FORCE=1 ;;
     --up) UP=1 ;;
     -h|--help) usage 0 ;;
@@ -63,6 +67,23 @@ if [ "$INTERACTIVE" = 1 ]; then
   ask ADMIN_PASSWORD "管理员密码（留空自动生成，不回显）" "" secret
   ask AUDITOR_EMAIL "初始安全审计员邮箱（三员分立，留空跳过）" ""
   if [ -n "$AUDITOR_EMAIL" ]; then ask AUDITOR_PASSWORD "审计员密码（留空自动生成，不回显）" "" secret; fi
+  ask TLS_CERT "HTTPS 证书路径（PEM，含中间证书；留空则仅 HTTP，由前置负载均衡处理 TLS）" ""
+  if [ -n "$TLS_CERT" ]; then ask TLS_KEY "私钥路径（PEM）" ""; fi
+fi
+
+# 可选导入 TLS 证书（D-30）：校验后复制到 ./tls，nginx 启用 443，80/8080 跳转 443，会话 cookie 打开 Secure。
+TLS=0
+if [ -n "$TLS_CERT" ] || [ -n "$TLS_KEY" ]; then
+  [ -n "$TLS_CERT" ] && [ -n "$TLS_KEY" ] || die "--tls-cert 与 --tls-key 必须同时提供"
+  [ -r "$TLS_CERT" ] || die "证书不可读：$TLS_CERT"
+  [ -r "$TLS_KEY" ] || die "私钥不可读：$TLS_KEY"
+  if command -v openssl >/dev/null 2>&1; then
+    openssl x509 -in "$TLS_CERT" -noout 2>/dev/null || die "证书不是有效的 PEM：$TLS_CERT"
+    [ "$(openssl x509 -in "$TLS_CERT" -noout -pubkey 2>/dev/null | openssl sha256)" = \
+      "$(openssl pkey -in "$TLS_KEY" -pubout 2>/dev/null | openssl sha256)" ] || die "证书与私钥不匹配"
+    openssl x509 -in "$TLS_CERT" -noout -checkend 0 >/dev/null || echo "警告：证书已过期" >&2
+  fi
+  TLS=1
 fi
 
 STORAGE="${STORAGE:-seaweedfs}"
@@ -90,13 +111,22 @@ if [ -f .env ] && [ "$FORCE" != 1 ]; then
 fi
 
 umask 077
+COOKIE_SECURE=false PUBLIC_HTTPS=false
+if [ "$TLS" = 1 ]; then
+  mkdir -p tls && chmod 700 tls
+  cp "$TLS_CERT" tls/tls.crt.new && cp "$TLS_KEY" tls/tls.key.new
+  mv tls/tls.crt.new tls/tls.crt && mv tls/tls.key.new tls/tls.key
+  chmod 644 tls/tls.crt && chmod 600 tls/tls.key
+  COMPOSE_FILE="$COMPOSE_FILE:docker-compose.tls.yml"; COOKIE_SECURE=true; PUBLIC_HTTPS=true
+fi
 cat > .env <<ENV
 # 由 install.sh 于 $(date '+%Y-%m-%d %H:%M:%S %z') 生成，存储：$STORAGE
 COMPOSE_FILE=$COMPOSE_FILE
 HENGDESK_VERSION=dev
 HENGDESK_HTTP_PORT=$HTTP_PORT
 HENGDESK_ENV=prod
-HENGDESK_COOKIE_SECURE=false
+HENGDESK_COOKIE_SECURE=$COOKIE_SECURE
+HENGDESK_PUBLIC_HTTPS=$PUBLIC_HTTPS
 POSTGRES_USER=hengdesk
 POSTGRES_PASSWORD=$(rand 32)
 POSTGRES_DB=hengdesk
@@ -113,6 +143,8 @@ HENGDESK_S3_PATH_STYLE=$S3_PATH_STYLE
 ENV
 
 echo "已生成 $(pwd)/.env（权限 600），compose 文件：$COMPOSE_FILE"
+if [ "$TLS" = 1 ]; then echo "HTTPS 已启用：证书已导入 $(pwd)/tls，访问 https://<主机>/（80 与 $HTTP_PORT 自动跳转）"
+else echo "提示：未导入证书，仅 HTTP；请在前置负载均衡终止 TLS 并设置 HENGDESK_PUBLIC_HTTPS=true，否则管理后台会常驻提示。"; fi
 echo "管理员账号：$ADMIN_EMAIL"
 if [ "$GENERATED_PW" = 1 ]; then echo "管理员密码已随机生成，查看：grep HENGDESK_ADMIN_PASSWORD $(pwd)/.env"; fi
 if [ -n "$AUDITOR_EMAIL" ]; then

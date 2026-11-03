@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -11,6 +12,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
+	"github.com/SSStq1314/hengdesk/server/internal/httpserver"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 )
 
@@ -19,6 +21,10 @@ type SystemConfig struct {
 	BackupDir      string
 	BackupKeep     int
 	DiskLowPercent int
+	// PublicHTTPS 部署声明对外已是 HTTPS（install.sh 导入证书，或前置负载均衡终止 TLS）。
+	PublicHTTPS bool
+	// TrustedProxies 只有来自这些网段的 X-Forwarded-Proto 才被采信。
+	TrustedProxies []*net.IPNet
 }
 
 type systemHandlers struct {
@@ -45,7 +51,7 @@ func (h *systemHandlers) status(c echo.Context) error {
 		return err
 	}
 	st := SystemStatus{AuditorAssigned: ok, BackupKeep: h.cfg.BackupKeep, DiskLowThreshold: h.cfg.DiskLowPercent,
-		HTTPS: c.Scheme() == "https"}
+		HTTPS: h.cfg.PublicHTTPS || httpserver.IsHTTPS(c.Request(), h.cfg.TrustedProxies)}
 	if h.cfg.BackupDir != "" {
 		if f, err := backup.FreePercent(h.cfg.BackupDir); err == nil {
 			st.DiskFreePercent = &f

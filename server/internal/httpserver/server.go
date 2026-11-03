@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -41,4 +42,29 @@ func IPExtractor(trusted []*net.IPNet) echo.IPExtractor {
 		opts = append(opts, echo.TrustIPRange(n))
 	}
 	return echo.ExtractIPFromXFFHeader(opts...)
+}
+
+// IsHTTPS 判断当前请求对用户而言是否走 HTTPS：本身是 TLS 连接，或 TCP 对端属于可信代理且 X-Forwarded-Proto 为 https。
+// 不可信来源带的 X-Forwarded-Proto 一律忽略，防止伪造。
+func IsHTTPS(r *http.Request, trusted []*net.IPNet) bool {
+	if r.TLS != nil {
+		return true
+	}
+	if !strings.EqualFold(strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Proto"), ",")[0]), "https") {
+		return false
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	for _, n := range trusted {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }

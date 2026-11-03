@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { systemApi } from '@/lib/api'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
-// 管理后台常驻提示（D-33）：未指派安全审计员、备份盘空间不足。只对有系统设置权限的管理员显示。
+// 管理后台常驻提示（D-33）：未指派安全审计员、未启用 HTTPS（D-30）、备份盘空间不足。只对有系统设置权限的管理员显示。
 export function SystemBanners() {
   const user = useAuthStore((s) => s.auth.user)
   const allowed = !!user?.permissions?.includes('system.settings')
@@ -22,6 +22,9 @@ export function SystemBanners() {
       title: zh.banners.noAuditorTitle,
       desc: zh.banners.noAuditorDesc,
     })
+  }
+  if (!data.https) {
+    items.push({ title: zh.banners.noHttpsTitle, desc: zh.banners.noHttpsDesc })
   }
   if (data.disk_low && data.disk_free_percent != null) {
     items.push({

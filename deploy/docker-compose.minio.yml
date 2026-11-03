@@ -12,7 +12,8 @@ services:
       MINIO_ROOT_USER: ${HENGDESK_S3_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${HENGDESK_S3_SECRET_KEY}
     volumes: [miniodata:/data]
-    ports: ["${HENGDESK_S3_PUBLISH:-127.0.0.1:9000}:9000"]
+    # 只绑本机回环（D-30）
+    ports: ["127.0.0.1:${HENGDESK_S3_PORT:-9000}:9000"]
   migrate:
     environment: {HENGDESK_S3_ENDPOINT: "http://minio:9000"}
   server:
