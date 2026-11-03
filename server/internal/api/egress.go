@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/csv"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,11 +36,19 @@ type egressRuleView struct {
 	CreatedBy int       `json:"created_by,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	// AnyPort 端口为 "*"（任意端口），管理端显示风险提示。
+	AnyPort bool `json:"any_port"`
+	// NeedsReview 升级 / OIDC 自动添加、尚未复核（D-38 第 1 条）。
+	NeedsReview bool       `json:"needs_review"`
+	ReviewedAt  *time.Time `json:"reviewed_at,omitempty"`
+	ReviewedBy  int        `json:"reviewed_by,omitempty"`
 }
 
 func toRuleView(r *ent.EgressRule) egressRuleView {
 	return egressRuleView{ID: r.ID, Kind: string(r.Kind), Value: r.Value, Ports: r.Ports, Note: r.Note, Source: string(r.Source),
-		Private: r.Private, CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+		Private: r.Private, CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+		AnyPort: strings.TrimSpace(r.Ports) == "*", NeedsReview: r.Source != egressrule.SourceManual && r.ReviewedAt == nil,
+		ReviewedAt: r.ReviewedAt, ReviewedBy: r.ReviewedBy}
 }
 
 func (h *egressHandlers) listRules(c echo.Context) error {
@@ -48,10 +57,15 @@ func (h *egressHandlers) listRules(c echo.Context) error {
 		return err
 	}
 	out := make([]egressRuleView, 0, len(rs))
+	pending := 0
 	for _, r := range rs {
-		out = append(out, toRuleView(r))
+		v := toRuleView(r)
+		if v.NeedsReview {
+			pending++
+		}
+		out = append(out, v)
 	}
-	return c.JSON(http.StatusOK, map[string]any{"items": out, "default_deny": true})
+	return c.JSON(http.StatusOK, map[string]any{"items": out, "default_deny": true, "default_port": egress.DefaultPort, "pending_review": pending})
 }
 
 type egressRuleReq struct {
@@ -109,8 +123,10 @@ func (h *egressHandlers) save(c echo.Context, id int) error {
 		row, err = tx.EgressRule.Create().SetKind(egressrule.Kind(r.Kind)).SetValue(r.Value).SetPorts(r.PortsString()).
 			SetNote(strings.TrimSpace(in.Note)).SetPrivate(r.CoversInternal()).SetCreatedBy(auth.Current(c).ID).Save(ctx)
 	} else {
+		// 管理员修改过自动添加的条目，视为已复核。
 		row, err = tx.EgressRule.UpdateOneID(id).SetKind(egressrule.Kind(r.Kind)).SetValue(r.Value).SetPorts(r.PortsString()).
-			SetNote(strings.TrimSpace(in.Note)).SetPrivate(r.CoversInternal()).Save(ctx)
+			SetNote(strings.TrimSpace(in.Note)).SetPrivate(r.CoversInternal()).
+			SetReviewedAt(time.Now()).SetReviewedBy(auth.Current(c).ID).Save(ctx)
 	}
 	if err != nil {
 		_ = tx.Rollback()
@@ -147,6 +163,43 @@ func (h *egressHandlers) save(c echo.Context, id int) error {
 }
 
 func (h *egressHandlers) createRule(c echo.Context) error { return h.save(c, 0) }
+
+// reviewRule POST /admin/egress/rules/:id/review：管理员确认一条升级 / OIDC 自动添加的条目（D-38 第 1 条）。
+func (h *egressHandlers) reviewRule(c echo.Context) error {
+	id, err := idParam(c)
+	if err != nil {
+		return err
+	}
+	ctx := c.Request().Context()
+	old, err := h.db.EgressRule.Get(ctx, id)
+	if err != nil {
+		return notFoundOr(err)
+	}
+	if old.Source == egressrule.SourceManual {
+		return bad("手工添加的条目不需要复核")
+	}
+	if old.ReviewedAt != nil {
+		return c.JSON(http.StatusOK, toRuleView(old))
+	}
+	tx, err := h.db.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	row, err := tx.EgressRule.UpdateOneID(id).SetReviewedAt(time.Now()).SetReviewedBy(auth.Current(c).ID).Save(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		return notFoundOr(err)
+	}
+	if err := egressAudit(c, tx, "egress.rule.review", id, map[string]any{"kind": string(row.Kind), "value": row.Value,
+		"ports": row.Ports, "source": string(row.Source), "private": row.Private}); err != nil {
+		_ = tx.Rollback()
+		return audit.ErrRejected
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, toRuleView(row))
+}
 
 func (h *egressHandlers) updateRule(c echo.Context) error {
 	id, err := idParam(c)
@@ -228,31 +281,36 @@ type egressLogView struct {
 	Error      string    `json:"error"`
 }
 
-// logs GET /admin/egress/logs?decision=&host=&module=&user_id=&from=&to=&before_id=&limit=
-func (h *egressHandlers) logs(c echo.Context) error {
-	ctx := c.Request().Context()
+// logQuery 解析出站日志的筛选条件；filters 是规范化后的条件，写入敏感读取审计。
+func (h *egressHandlers) logQuery(c echo.Context) (*ent.EgressLogQuery, map[string]any, error) {
 	q := h.db.EgressLog.Query()
+	filters := map[string]any{}
 	if d := c.QueryParam("decision"); d != "" {
 		if egresslog.DecisionValidator(egresslog.Decision(d)) != nil {
-			return bad("decision 无效")
+			return nil, nil, bad("decision 无效")
 		}
 		q.Where(egresslog.DecisionEQ(egresslog.Decision(d)))
+		filters["decision"] = d
 	}
 	if v := strings.ToLower(strings.TrimSpace(c.QueryParam("host"))); v != "" {
 		q.Where(egresslog.HostContains(v))
+		filters["host"] = v
 	}
 	if v := c.QueryParam("module"); v != "" {
 		q.Where(egresslog.Module(v))
+		filters["module"] = v
 	}
 	if v := c.QueryParam("reason"); v != "" {
 		q.Where(egresslog.Reason(v))
+		filters["reason"] = v
 	}
 	if v := c.QueryParam("user_id"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
-			return bad("user_id 无效")
+			return nil, nil, bad("user_id 无效")
 		}
 		q.Where(egresslog.UserID(n))
+		filters["user_id"] = n
 	}
 	for _, f := range []struct {
 		k  string
@@ -264,17 +322,50 @@ func (h *egressHandlers) logs(c echo.Context) error {
 		if v := c.QueryParam(f.k); v != "" {
 			t, err := time.Parse(time.RFC3339, v)
 			if err != nil {
-				return bad(f.k + " 需为 RFC3339 时间")
+				return nil, nil, bad(f.k + " 需为 RFC3339 时间")
 			}
 			f.fn(t)
+			filters[f.k] = t.UTC().Format(time.RFC3339)
 		}
 	}
+	return q, filters, nil
+}
+
+// logReadAudit 出站日志的查看 / 筛选 / 导出按敏感读取记审计（D-38 第 10 条，与 D-30 一致）：
+// 操作者、时间由审计自动补齐，另记筛选条件与返回 / 导出行数；写不进去就拒绝（不返回数据）。
+func logReadAudit(c echo.Context, action string, filters map[string]any, rows int, extra map[string]any) error {
+	d := map[string]any{"filters": filters, "rows": rows}
+	for k, v := range extra {
+		d[k] = v
+	}
+	return audit.Record(c, audit.Entry{Action: action, Phase: "result", Outcome: "ok", ResourceType: "egress_logs", ResourceID: "query", Detail: d})
+}
+
+func toLogView(r *ent.EgressLog) egressLogView {
+	v := egressLogView{ID: r.ID, TS: r.Ts, UserID: r.UserID, ActorEmail: r.ActorEmail, Module: r.Module, Method: r.Method,
+		Scheme: r.Scheme, Host: r.Host, Port: r.Port, Path: r.Path, IP: r.IP, Decision: string(r.Decision), Reason: r.Reason,
+		Status: r.Status, DurationMS: r.DurationMs, BytesOut: r.BytesOut, BytesIn: r.BytesIn, Error: r.Error}
+	if r.Reason != "" {
+		v.ReasonText = egress.ReasonText(r.Reason)
+	}
+	return v
+}
+
+// logs GET /admin/egress/logs?decision=&host=&module=&reason=&user_id=&from=&to=&before_id=&limit=
+func (h *egressHandlers) logs(c echo.Context) error {
+	ctx := c.Request().Context()
+	q, filters, err := h.logQuery(c)
+	if err != nil {
+		return err
+	}
+	beforeID := 0
 	if v := c.QueryParam("before_id"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
 			return bad("before_id 无效")
 		}
 		q.Where(egresslog.IDLT(n))
+		beforeID = n
 	}
 	limit := 100
 	if v, err := strconv.Atoi(c.QueryParam("limit")); err == nil && v > 0 && v <= 500 {
@@ -288,21 +379,66 @@ func (h *egressHandlers) logs(c echo.Context) error {
 	if more {
 		rows = rows[:limit]
 	}
+	action := "egress.log.view"
+	if len(filters) > 0 {
+		action = "egress.log.filter"
+	}
+	if err := logReadAudit(c, action, filters, len(rows), map[string]any{"before_id": beforeID, "limit": limit}); err != nil {
+		return err
+	}
 	out := make([]egressLogView, 0, len(rows))
 	for _, r := range rows {
-		v := egressLogView{ID: r.ID, TS: r.Ts, UserID: r.UserID, ActorEmail: r.ActorEmail, Module: r.Module, Method: r.Method,
-			Scheme: r.Scheme, Host: r.Host, Port: r.Port, Path: r.Path, IP: r.IP, Decision: string(r.Decision), Reason: r.Reason,
-			Status: r.Status, DurationMS: r.DurationMs, BytesOut: r.BytesOut, BytesIn: r.BytesIn, Error: r.Error}
-		if r.Reason != "" {
-			v.ReasonText = egress.ReasonText(r.Reason)
-		}
-		out = append(out, v)
+		out = append(out, toLogView(r))
 	}
 	res := map[string]any{"items": out, "has_more": more}
 	if more {
 		res["next_before_id"] = rows[len(rows)-1].ID
 	}
 	return c.JSON(http.StatusOK, res)
+}
+
+// egressExportMax 单次导出上限，超过请缩小时间范围。
+const egressExportMax = 10000
+
+// exportLogs GET /admin/egress/logs/export：按当前筛选条件导出 CSV（最多 10000 行）。
+// 先查出数据、写好审计（含导出行数）再开始输出；审计写不进去返回 503，不输出任何数据。
+func (h *egressHandlers) exportLogs(c echo.Context) error {
+	q, filters, err := h.logQuery(c)
+	if err != nil {
+		return err
+	}
+	rows, err := q.Order(ent.Desc(egresslog.FieldID)).Limit(egressExportMax + 1).All(c.Request().Context())
+	if err != nil {
+		return err
+	}
+	truncated := len(rows) > egressExportMax
+	if truncated {
+		rows = rows[:egressExportMax]
+	}
+	if err := logReadAudit(c, "egress.log.export", filters, len(rows), map[string]any{"truncated": truncated, "format": "csv"}); err != nil {
+		return err
+	}
+	c.Response().Header().Set(echo.HeaderContentType, "text/csv; charset=utf-8")
+	c.Response().Header().Set(echo.HeaderContentDisposition, `attachment; filename="egress-logs.csv"`)
+	if truncated {
+		c.Response().Header().Set("X-Export-Truncated", "true")
+	}
+	c.Response().WriteHeader(http.StatusOK)
+	_, _ = c.Response().Write([]byte("\xEF\xBB\xBF"))
+	w := csv.NewWriter(c.Response())
+	_ = w.Write([]string{"id", "ts", "user_id", "actor_email", "module", "method", "scheme", "host", "port", "path", "ip",
+		"decision", "reason", "status", "duration_ms", "bytes_out", "bytes_in", "error"})
+	for _, r := range rows {
+		uid := ""
+		if r.UserID != nil {
+			uid = strconv.Itoa(*r.UserID)
+		}
+		_ = w.Write([]string{strconv.Itoa(r.ID), r.Ts.Format(time.RFC3339), uid, csvSafe(r.ActorEmail), csvSafe(r.Module),
+			r.Method, r.Scheme, csvSafe(r.Host), strconv.Itoa(r.Port), csvSafe(r.Path), r.IP, string(r.Decision), r.Reason,
+			strconv.Itoa(r.Status), strconv.FormatInt(r.DurationMs, 10), strconv.FormatInt(r.BytesOut, 10), strconv.FormatInt(r.BytesIn, 10), r.Error})
+	}
+	w.Flush()
+	return w.Error()
 }
 
 // providerEgressHint 新建 / 修改模型上游时提示是否已在白名单（只提示，不自动添加）。

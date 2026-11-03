@@ -137,3 +137,78 @@ func writerFor(w audit.Writer, tx *ent.Tx) audit.Writer {
 	}
 	return w
 }
+
+// PortsSettingKey D-38 第 3 条端口语义迁移的执行标记。
+const PortsSettingKey = "egress.d38_ports"
+
+// MigratePorts D-38 第 3 条：端口留空从「任意端口」改为「仅 443」。升级时执行一次，修正已有的空端口条目：
+//   - 升级 / OIDC 自动添加的条目：改为上游 URL 的实际端口（按当前模型上游与 OIDC issuer 重新计算；找不到时为 443）；
+//   - 管理员手工添加的条目：改为「*」，保持升级前的放行范围不变，管理端显示任意端口风险提示，由管理员自行收紧。
+//
+// 每条改动写一条 egress.rule.ports_migrate 审计，与改动同事务（审计写不进去整体回滚）。
+func MigratePorts(ctx context.Context, db *ent.Client, w audit.Writer, res Resolver, oidcIssuer string) (int, error) {
+	if n, err := db.SystemSetting.Query().Where(systemsetting.Key(PortsSettingKey)).Count(ctx); err != nil || n > 0 {
+		return 0, err
+	}
+	rows, err := db.EgressRule.Query().Where(egressrule.Ports("")).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	actual := map[string]string{} // kind|value -> 实际端口
+	if len(rows) > 0 {
+		urls := map[string]string{}
+		ps, err := db.ModelProvider.Query().All(ctx)
+		if err != nil {
+			return 0, err
+		}
+		for _, p := range ps {
+			urls[p.BaseURL] = p.Name
+		}
+		if oidcIssuer != "" {
+			urls[oidcIssuer] = "oidc"
+		}
+		for _, r := range PlanSeed(ctx, res, urls) {
+			if _, ok := actual[r.Kind+"|"+r.Value]; !ok {
+				actual[r.Kind+"|"+r.Value] = r.Ports
+			}
+		}
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, r := range rows {
+		to := "*"
+		if r.Source != egressrule.SourceManual {
+			to = strconv.Itoa(DefaultPort)
+			if p := actual[string(r.Kind)+"|"+r.Value]; p != "" {
+				to = p
+			}
+		}
+		dup, err := tx.EgressRule.Query().Where(egressrule.KindEQ(r.Kind), egressrule.Value(r.Value), egressrule.Ports(to)).Exist(ctx)
+		if err != nil {
+			_ = tx.Rollback()
+			return 0, err
+		}
+		if dup {
+			continue // 已有同样的条目；空端口条目按新语义只放行 443，范围不会变大
+		}
+		if err := tx.EgressRule.UpdateOneID(r.ID).SetPorts(to).Exec(ctx); err != nil {
+			_ = tx.Rollback()
+			return 0, err
+		}
+		if err := writerFor(w, tx).Write(ctx, audit.Entry{ActorEmail: "system", Action: "egress.rule.ports_migrate", ResourceType: "egress_rule",
+			ResourceID: strconv.Itoa(r.ID), Phase: "result", Outcome: "success",
+			Detail: map[string]any{"kind": string(r.Kind), "value": r.Value, "source": string(r.Source), "before": "", "after": to, "decision": "D-38-3"}}); err != nil {
+			_ = tx.Rollback()
+			return 0, fmt.Errorf("egress ports migrate audit: %w", err)
+		}
+		n++
+	}
+	if err := tx.SystemSetting.Create().SetKey(PortsSettingKey).SetValue(map[string]any{"rules": n, "at": time.Now().UTC().Format(time.RFC3339)}).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return 0, err
+	}
+	return n, tx.Commit()
+}

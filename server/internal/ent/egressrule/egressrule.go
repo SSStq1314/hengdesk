@@ -32,6 +32,10 @@ const (
 	FieldPrivate = "private"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
 	FieldCreatedBy = "created_by"
+	// FieldReviewedAt holds the string denoting the reviewed_at field in the database.
+	FieldReviewedAt = "reviewed_at"
+	// FieldReviewedBy holds the string denoting the reviewed_by field in the database.
+	FieldReviewedBy = "reviewed_by"
 	// Table holds the table name of the egressrule in the database.
 	Table = "egress_rules"
 )
@@ -48,6 +52,8 @@ var Columns = []string{
 	FieldSource,
 	FieldPrivate,
 	FieldCreatedBy,
+	FieldReviewedAt,
+	FieldReviewedBy,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -184,4 +190,14 @@ func ByPrivate(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedBy orders the results by the created_by field.
 func ByCreatedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedBy, opts...).ToFunc()
+}
+
+// ByReviewedAt orders the results by the reviewed_at field.
+func ByReviewedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReviewedAt, opts...).ToFunc()
+}
+
+// ByReviewedBy orders the results by the reviewed_by field.
+func ByReviewedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReviewedBy, opts...).ToFunc()
 }

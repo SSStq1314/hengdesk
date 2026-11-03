@@ -34,7 +34,11 @@ type EgressRule struct {
 	// Private holds the value of the "private" field.
 	Private bool `json:"private,omitempty"`
 	// CreatedBy holds the value of the "created_by" field.
-	CreatedBy    int `json:"created_by,omitempty"`
+	CreatedBy int `json:"created_by,omitempty"`
+	// ReviewedAt holds the value of the "reviewed_at" field.
+	ReviewedAt *time.Time `json:"reviewed_at,omitempty"`
+	// ReviewedBy holds the value of the "reviewed_by" field.
+	ReviewedBy   int `json:"reviewed_by,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -45,11 +49,11 @@ func (*EgressRule) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case egressrule.FieldPrivate:
 			values[i] = new(sql.NullBool)
-		case egressrule.FieldID, egressrule.FieldCreatedBy:
+		case egressrule.FieldID, egressrule.FieldCreatedBy, egressrule.FieldReviewedBy:
 			values[i] = new(sql.NullInt64)
 		case egressrule.FieldKind, egressrule.FieldValue, egressrule.FieldPorts, egressrule.FieldNote, egressrule.FieldSource:
 			values[i] = new(sql.NullString)
-		case egressrule.FieldCreatedAt, egressrule.FieldUpdatedAt:
+		case egressrule.FieldCreatedAt, egressrule.FieldUpdatedAt, egressrule.FieldReviewedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -126,6 +130,19 @@ func (_m *EgressRule) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CreatedBy = int(value.Int64)
 			}
+		case egressrule.FieldReviewedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field reviewed_at", values[i])
+			} else if value.Valid {
+				_m.ReviewedAt = new(time.Time)
+				*_m.ReviewedAt = value.Time
+			}
+		case egressrule.FieldReviewedBy:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reviewed_by", values[i])
+			} else if value.Valid {
+				_m.ReviewedBy = int(value.Int64)
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -188,6 +205,14 @@ func (_m *EgressRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("created_by=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CreatedBy))
+	builder.WriteString(", ")
+	if v := _m.ReviewedAt; v != nil {
+		builder.WriteString("reviewed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("reviewed_by=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReviewedBy))
 	builder.WriteByte(')')
 	return builder.String()
 }

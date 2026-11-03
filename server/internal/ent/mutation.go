@@ -7065,23 +7065,26 @@ func (m *EgressLogMutation) ResetEdge(name string) error {
 // EgressRuleMutation represents an operation that mutates the EgressRule nodes in the graph.
 type EgressRuleMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	created_at    *time.Time
-	updated_at    *time.Time
-	kind          *egressrule.Kind
-	value         *string
-	ports         *string
-	note          *string
-	source        *egressrule.Source
-	private       *bool
-	created_by    *int
-	addcreated_by *int
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*EgressRule, error)
-	predicates    []predicate.EgressRule
+	op             Op
+	typ            string
+	id             *int
+	created_at     *time.Time
+	updated_at     *time.Time
+	kind           *egressrule.Kind
+	value          *string
+	ports          *string
+	note           *string
+	source         *egressrule.Source
+	private        *bool
+	created_by     *int
+	addcreated_by  *int
+	reviewed_at    *time.Time
+	reviewed_by    *int
+	addreviewed_by *int
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*EgressRule, error)
+	predicates     []predicate.EgressRule
 }
 
 var _ ent.Mutation = (*EgressRuleMutation)(nil)
@@ -7540,6 +7543,125 @@ func (m *EgressRuleMutation) ResetCreatedBy() {
 	delete(m.clearedFields, egressrule.FieldCreatedBy)
 }
 
+// SetReviewedAt sets the "reviewed_at" field.
+func (m *EgressRuleMutation) SetReviewedAt(t time.Time) {
+	m.reviewed_at = &t
+}
+
+// ReviewedAt returns the value of the "reviewed_at" field in the mutation.
+func (m *EgressRuleMutation) ReviewedAt() (r time.Time, exists bool) {
+	v := m.reviewed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewedAt returns the old "reviewed_at" field's value of the EgressRule entity.
+// If the EgressRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EgressRuleMutation) OldReviewedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewedAt: %w", err)
+	}
+	return oldValue.ReviewedAt, nil
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (m *EgressRuleMutation) ClearReviewedAt() {
+	m.reviewed_at = nil
+	m.clearedFields[egressrule.FieldReviewedAt] = struct{}{}
+}
+
+// ReviewedAtCleared returns if the "reviewed_at" field was cleared in this mutation.
+func (m *EgressRuleMutation) ReviewedAtCleared() bool {
+	_, ok := m.clearedFields[egressrule.FieldReviewedAt]
+	return ok
+}
+
+// ResetReviewedAt resets all changes to the "reviewed_at" field.
+func (m *EgressRuleMutation) ResetReviewedAt() {
+	m.reviewed_at = nil
+	delete(m.clearedFields, egressrule.FieldReviewedAt)
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (m *EgressRuleMutation) SetReviewedBy(i int) {
+	m.reviewed_by = &i
+	m.addreviewed_by = nil
+}
+
+// ReviewedBy returns the value of the "reviewed_by" field in the mutation.
+func (m *EgressRuleMutation) ReviewedBy() (r int, exists bool) {
+	v := m.reviewed_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewedBy returns the old "reviewed_by" field's value of the EgressRule entity.
+// If the EgressRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EgressRuleMutation) OldReviewedBy(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewedBy: %w", err)
+	}
+	return oldValue.ReviewedBy, nil
+}
+
+// AddReviewedBy adds i to the "reviewed_by" field.
+func (m *EgressRuleMutation) AddReviewedBy(i int) {
+	if m.addreviewed_by != nil {
+		*m.addreviewed_by += i
+	} else {
+		m.addreviewed_by = &i
+	}
+}
+
+// AddedReviewedBy returns the value that was added to the "reviewed_by" field in this mutation.
+func (m *EgressRuleMutation) AddedReviewedBy() (r int, exists bool) {
+	v := m.addreviewed_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearReviewedBy clears the value of the "reviewed_by" field.
+func (m *EgressRuleMutation) ClearReviewedBy() {
+	m.reviewed_by = nil
+	m.addreviewed_by = nil
+	m.clearedFields[egressrule.FieldReviewedBy] = struct{}{}
+}
+
+// ReviewedByCleared returns if the "reviewed_by" field was cleared in this mutation.
+func (m *EgressRuleMutation) ReviewedByCleared() bool {
+	_, ok := m.clearedFields[egressrule.FieldReviewedBy]
+	return ok
+}
+
+// ResetReviewedBy resets all changes to the "reviewed_by" field.
+func (m *EgressRuleMutation) ResetReviewedBy() {
+	m.reviewed_by = nil
+	m.addreviewed_by = nil
+	delete(m.clearedFields, egressrule.FieldReviewedBy)
+}
+
 // Where appends a list predicates to the EgressRuleMutation builder.
 func (m *EgressRuleMutation) Where(ps ...predicate.EgressRule) {
 	m.predicates = append(m.predicates, ps...)
@@ -7574,7 +7696,7 @@ func (m *EgressRuleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EgressRuleMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 11)
 	if m.created_at != nil {
 		fields = append(fields, egressrule.FieldCreatedAt)
 	}
@@ -7602,6 +7724,12 @@ func (m *EgressRuleMutation) Fields() []string {
 	if m.created_by != nil {
 		fields = append(fields, egressrule.FieldCreatedBy)
 	}
+	if m.reviewed_at != nil {
+		fields = append(fields, egressrule.FieldReviewedAt)
+	}
+	if m.reviewed_by != nil {
+		fields = append(fields, egressrule.FieldReviewedBy)
+	}
 	return fields
 }
 
@@ -7628,6 +7756,10 @@ func (m *EgressRuleMutation) Field(name string) (ent.Value, bool) {
 		return m.Private()
 	case egressrule.FieldCreatedBy:
 		return m.CreatedBy()
+	case egressrule.FieldReviewedAt:
+		return m.ReviewedAt()
+	case egressrule.FieldReviewedBy:
+		return m.ReviewedBy()
 	}
 	return nil, false
 }
@@ -7655,6 +7787,10 @@ func (m *EgressRuleMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldPrivate(ctx)
 	case egressrule.FieldCreatedBy:
 		return m.OldCreatedBy(ctx)
+	case egressrule.FieldReviewedAt:
+		return m.OldReviewedAt(ctx)
+	case egressrule.FieldReviewedBy:
+		return m.OldReviewedBy(ctx)
 	}
 	return nil, fmt.Errorf("unknown EgressRule field %s", name)
 }
@@ -7727,6 +7863,20 @@ func (m *EgressRuleMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCreatedBy(v)
 		return nil
+	case egressrule.FieldReviewedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewedAt(v)
+		return nil
+	case egressrule.FieldReviewedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewedBy(v)
+		return nil
 	}
 	return fmt.Errorf("unknown EgressRule field %s", name)
 }
@@ -7738,6 +7888,9 @@ func (m *EgressRuleMutation) AddedFields() []string {
 	if m.addcreated_by != nil {
 		fields = append(fields, egressrule.FieldCreatedBy)
 	}
+	if m.addreviewed_by != nil {
+		fields = append(fields, egressrule.FieldReviewedBy)
+	}
 	return fields
 }
 
@@ -7748,6 +7901,8 @@ func (m *EgressRuleMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case egressrule.FieldCreatedBy:
 		return m.AddedCreatedBy()
+	case egressrule.FieldReviewedBy:
+		return m.AddedReviewedBy()
 	}
 	return nil, false
 }
@@ -7764,6 +7919,13 @@ func (m *EgressRuleMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddCreatedBy(v)
 		return nil
+	case egressrule.FieldReviewedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReviewedBy(v)
+		return nil
 	}
 	return fmt.Errorf("unknown EgressRule numeric field %s", name)
 }
@@ -7774,6 +7936,12 @@ func (m *EgressRuleMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(egressrule.FieldCreatedBy) {
 		fields = append(fields, egressrule.FieldCreatedBy)
+	}
+	if m.FieldCleared(egressrule.FieldReviewedAt) {
+		fields = append(fields, egressrule.FieldReviewedAt)
+	}
+	if m.FieldCleared(egressrule.FieldReviewedBy) {
+		fields = append(fields, egressrule.FieldReviewedBy)
 	}
 	return fields
 }
@@ -7791,6 +7959,12 @@ func (m *EgressRuleMutation) ClearField(name string) error {
 	switch name {
 	case egressrule.FieldCreatedBy:
 		m.ClearCreatedBy()
+		return nil
+	case egressrule.FieldReviewedAt:
+		m.ClearReviewedAt()
+		return nil
+	case egressrule.FieldReviewedBy:
+		m.ClearReviewedBy()
 		return nil
 	}
 	return fmt.Errorf("unknown EgressRule nullable field %s", name)
@@ -7826,6 +8000,12 @@ func (m *EgressRuleMutation) ResetField(name string) error {
 		return nil
 	case egressrule.FieldCreatedBy:
 		m.ResetCreatedBy()
+		return nil
+	case egressrule.FieldReviewedAt:
+		m.ResetReviewedAt()
+		return nil
+	case egressrule.FieldReviewedBy:
+		m.ResetReviewedBy()
 		return nil
 	}
 	return fmt.Errorf("unknown EgressRule field %s", name)

@@ -132,6 +132,34 @@ func (_c *EgressRuleCreate) SetNillableCreatedBy(v *int) *EgressRuleCreate {
 	return _c
 }
 
+// SetReviewedAt sets the "reviewed_at" field.
+func (_c *EgressRuleCreate) SetReviewedAt(v time.Time) *EgressRuleCreate {
+	_c.mutation.SetReviewedAt(v)
+	return _c
+}
+
+// SetNillableReviewedAt sets the "reviewed_at" field if the given value is not nil.
+func (_c *EgressRuleCreate) SetNillableReviewedAt(v *time.Time) *EgressRuleCreate {
+	if v != nil {
+		_c.SetReviewedAt(*v)
+	}
+	return _c
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (_c *EgressRuleCreate) SetReviewedBy(v int) *EgressRuleCreate {
+	_c.mutation.SetReviewedBy(v)
+	return _c
+}
+
+// SetNillableReviewedBy sets the "reviewed_by" field if the given value is not nil.
+func (_c *EgressRuleCreate) SetNillableReviewedBy(v *int) *EgressRuleCreate {
+	if v != nil {
+		_c.SetReviewedBy(*v)
+	}
+	return _c
+}
+
 // Mutation returns the EgressRuleMutation object of the builder.
 func (_c *EgressRuleCreate) Mutation() *EgressRuleMutation {
 	return _c.mutation
@@ -307,6 +335,14 @@ func (_c *EgressRuleCreate) createSpec() (*EgressRule, *sqlgraph.CreateSpec) {
 		_spec.SetField(egressrule.FieldCreatedBy, field.TypeInt, value)
 		_node.CreatedBy = value
 	}
+	if value, ok := _c.mutation.ReviewedAt(); ok {
+		_spec.SetField(egressrule.FieldReviewedAt, field.TypeTime, value)
+		_node.ReviewedAt = &value
+	}
+	if value, ok := _c.mutation.ReviewedBy(); ok {
+		_spec.SetField(egressrule.FieldReviewedBy, field.TypeInt, value)
+		_node.ReviewedBy = value
+	}
 	return _node, _spec
 }
 
@@ -464,6 +500,48 @@ func (u *EgressRuleUpsert) AddCreatedBy(v int) *EgressRuleUpsert {
 // ClearCreatedBy clears the value of the "created_by" field.
 func (u *EgressRuleUpsert) ClearCreatedBy() *EgressRuleUpsert {
 	u.SetNull(egressrule.FieldCreatedBy)
+	return u
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (u *EgressRuleUpsert) SetReviewedAt(v time.Time) *EgressRuleUpsert {
+	u.Set(egressrule.FieldReviewedAt, v)
+	return u
+}
+
+// UpdateReviewedAt sets the "reviewed_at" field to the value that was provided on create.
+func (u *EgressRuleUpsert) UpdateReviewedAt() *EgressRuleUpsert {
+	u.SetExcluded(egressrule.FieldReviewedAt)
+	return u
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (u *EgressRuleUpsert) ClearReviewedAt() *EgressRuleUpsert {
+	u.SetNull(egressrule.FieldReviewedAt)
+	return u
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (u *EgressRuleUpsert) SetReviewedBy(v int) *EgressRuleUpsert {
+	u.Set(egressrule.FieldReviewedBy, v)
+	return u
+}
+
+// UpdateReviewedBy sets the "reviewed_by" field to the value that was provided on create.
+func (u *EgressRuleUpsert) UpdateReviewedBy() *EgressRuleUpsert {
+	u.SetExcluded(egressrule.FieldReviewedBy)
+	return u
+}
+
+// AddReviewedBy adds v to the "reviewed_by" field.
+func (u *EgressRuleUpsert) AddReviewedBy(v int) *EgressRuleUpsert {
+	u.Add(egressrule.FieldReviewedBy, v)
+	return u
+}
+
+// ClearReviewedBy clears the value of the "reviewed_by" field.
+func (u *EgressRuleUpsert) ClearReviewedBy() *EgressRuleUpsert {
+	u.SetNull(egressrule.FieldReviewedBy)
 	return u
 }
 
@@ -635,6 +713,55 @@ func (u *EgressRuleUpsertOne) UpdateCreatedBy() *EgressRuleUpsertOne {
 func (u *EgressRuleUpsertOne) ClearCreatedBy() *EgressRuleUpsertOne {
 	return u.Update(func(s *EgressRuleUpsert) {
 		s.ClearCreatedBy()
+	})
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (u *EgressRuleUpsertOne) SetReviewedAt(v time.Time) *EgressRuleUpsertOne {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.SetReviewedAt(v)
+	})
+}
+
+// UpdateReviewedAt sets the "reviewed_at" field to the value that was provided on create.
+func (u *EgressRuleUpsertOne) UpdateReviewedAt() *EgressRuleUpsertOne {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.UpdateReviewedAt()
+	})
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (u *EgressRuleUpsertOne) ClearReviewedAt() *EgressRuleUpsertOne {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.ClearReviewedAt()
+	})
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (u *EgressRuleUpsertOne) SetReviewedBy(v int) *EgressRuleUpsertOne {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.SetReviewedBy(v)
+	})
+}
+
+// AddReviewedBy adds v to the "reviewed_by" field.
+func (u *EgressRuleUpsertOne) AddReviewedBy(v int) *EgressRuleUpsertOne {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.AddReviewedBy(v)
+	})
+}
+
+// UpdateReviewedBy sets the "reviewed_by" field to the value that was provided on create.
+func (u *EgressRuleUpsertOne) UpdateReviewedBy() *EgressRuleUpsertOne {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.UpdateReviewedBy()
+	})
+}
+
+// ClearReviewedBy clears the value of the "reviewed_by" field.
+func (u *EgressRuleUpsertOne) ClearReviewedBy() *EgressRuleUpsertOne {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.ClearReviewedBy()
 	})
 }
 
@@ -972,6 +1099,55 @@ func (u *EgressRuleUpsertBulk) UpdateCreatedBy() *EgressRuleUpsertBulk {
 func (u *EgressRuleUpsertBulk) ClearCreatedBy() *EgressRuleUpsertBulk {
 	return u.Update(func(s *EgressRuleUpsert) {
 		s.ClearCreatedBy()
+	})
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (u *EgressRuleUpsertBulk) SetReviewedAt(v time.Time) *EgressRuleUpsertBulk {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.SetReviewedAt(v)
+	})
+}
+
+// UpdateReviewedAt sets the "reviewed_at" field to the value that was provided on create.
+func (u *EgressRuleUpsertBulk) UpdateReviewedAt() *EgressRuleUpsertBulk {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.UpdateReviewedAt()
+	})
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (u *EgressRuleUpsertBulk) ClearReviewedAt() *EgressRuleUpsertBulk {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.ClearReviewedAt()
+	})
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (u *EgressRuleUpsertBulk) SetReviewedBy(v int) *EgressRuleUpsertBulk {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.SetReviewedBy(v)
+	})
+}
+
+// AddReviewedBy adds v to the "reviewed_by" field.
+func (u *EgressRuleUpsertBulk) AddReviewedBy(v int) *EgressRuleUpsertBulk {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.AddReviewedBy(v)
+	})
+}
+
+// UpdateReviewedBy sets the "reviewed_by" field to the value that was provided on create.
+func (u *EgressRuleUpsertBulk) UpdateReviewedBy() *EgressRuleUpsertBulk {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.UpdateReviewedBy()
+	})
+}
+
+// ClearReviewedBy clears the value of the "reviewed_by" field.
+func (u *EgressRuleUpsertBulk) ClearReviewedBy() *EgressRuleUpsertBulk {
+	return u.Update(func(s *EgressRuleUpsert) {
+		s.ClearReviewedBy()
 	})
 }
 

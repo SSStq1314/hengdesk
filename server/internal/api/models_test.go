@@ -51,7 +51,7 @@ func newGW(t *testing.T, failAudit bool, opts ...func(*api.Deps)) *gwEnv {
 		// 网关端到端同样经过出站控制：真实 DB 白名单，只放行 mock 上游所在的 127.0.0.1。
 		d.Egress, d.EgressPolicy = egress.New(d.DB, d.Audit, slog.Default())
 		d.EgressPolicy.TTL = time.Nanosecond
-		d.DB.EgressRule.Create().SetKind(egressrule.KindIP).SetValue("127.0.0.1").SetPrivate(true).SetNote("test").ExecX(context.Background())
+		d.DB.EgressRule.Create().SetKind(egressrule.KindIP).SetValue("127.0.0.1").SetPorts("*").SetPrivate(true).SetNote("test").ExecX(context.Background())
 		d.Gateway = &gateway.Service{DB: d.DB, Keys: keys, Client: &gateway.Client{HTTP: d.Egress.HTTP()}}
 		for _, o := range opts {
 			o(d)

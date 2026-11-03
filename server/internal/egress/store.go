@@ -63,10 +63,29 @@ func (p *DBPolicy) Invalidate() {
 // DBSink 写 egress_logs。
 type DBSink struct{ DB *ent.Client }
 
+// Start 请求发出前写入「进行中」的放行记录。
+func (s DBSink) Start(ctx context.Context, r Record) (int, error) {
+	q := s.DB.EgressLog.Create().SetTs(r.TS).SetActorEmail(r.Caller.Email).SetModule(r.Caller.Module).
+		SetMethod(r.Method).SetScheme(r.Scheme).SetHost(r.Host).SetPort(r.Port).SetPath(r.Path).
+		SetDecision(egresslog.DecisionAllow).SetBytesOut(r.BytesOut).SetError(r.Error)
+	if r.Caller.UserID != 0 {
+		q.SetUserID(r.Caller.UserID)
+	}
+	row, err := q.Save(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return row.ID, nil
+}
+
 func (s DBSink) Write(ctx context.Context, r Record) error {
 	decision := "deny"
 	if r.Allowed {
 		decision = "allow"
+	}
+	if r.ID > 0 {
+		return s.DB.EgressLog.UpdateOneID(r.ID).SetIP(r.IP).SetDecision(egresslog.Decision(decision)).SetReason(r.Reason).
+			SetStatus(r.Status).SetDurationMs(r.DurationMS).SetBytesOut(r.BytesOut).SetBytesIn(r.BytesIn).SetError(r.Error).Exec(ctx)
 	}
 	q := s.DB.EgressLog.Create().SetTs(r.TS).SetActorEmail(r.Caller.Email).SetModule(r.Caller.Module).
 		SetMethod(r.Method).SetScheme(r.Scheme).SetHost(r.Host).SetPort(r.Port).SetPath(r.Path).SetIP(r.IP).
