@@ -199,6 +199,7 @@ jobs:
   compose-tls:
     name: compose 冒烟（HTTPS 自签证书）
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: 生成自签证书并以 TLS 模式安装
@@ -234,6 +235,8 @@ jobs:
       - name: 改跳转端口（--redirect-port 8880）
         working-directory: deploy
         run: |
+          # 重新安装会生成新的数据库密码，先清掉旧数据卷（只在 CI 里这样做）
+          docker compose down -v
           ./install.sh --non-interactive --storage seaweedfs --admin-password ci-only-password-123 \
             --tls-cert /tmp/ci.crt --tls-key /tmp/ci.key --redirect-port 8880 --force
           grep -q '^HENGDESK_REDIRECT_PORT=8880' .env
@@ -245,6 +248,8 @@ jobs:
       - name: 关闭 HTTP 跳转（--no-http-redirect）
         working-directory: deploy
         run: |
+          # 重新安装会生成新的数据库密码，先清掉旧数据卷（只在 CI 里这样做）
+          docker compose down -v
           ./install.sh --non-interactive --storage seaweedfs --admin-password ci-only-password-123 \
             --tls-cert /tmp/ci.crt --tls-key /tmp/ci.key --no-http-redirect --force
           grep -q '^HENGDESK_HTTP_REDIRECT=false' .env
