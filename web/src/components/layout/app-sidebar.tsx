@@ -21,9 +21,17 @@ export function AppSidebar() {
         <AppTitle />
       </SidebarHeader>
       <SidebarContent>
-        {sidebarData.navGroups.map((props) => (
-          <NavGroup key={props.title} {...props} />
-        ))}
+        {sidebarData.navGroups
+          .map((g) => ({
+            ...g,
+            items: g.items.filter(
+              (i) => !i.perm || user?.permissions?.includes(i.perm)
+            ),
+          }))
+          .filter((g) => g.items.length > 0)
+          .map((props) => (
+            <NavGroup key={props.title} {...props} />
+          ))}
       </SidebarContent>
       <SidebarFooter>
         <NavUser

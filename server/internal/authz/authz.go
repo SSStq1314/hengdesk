@@ -9,6 +9,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/SSStq1314/hengdesk/server/internal/audit"
+
 	"github.com/labstack/echo/v4"
 
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
@@ -41,15 +43,12 @@ func Require(perm rbac.Perm) echo.MiddlewareFunc {
 	}
 }
 
-// DenyHook 越权拒绝时回调（审计 PR 用于记录越权尝试）。返回非 nil 时以该错误响应（如审计失败 503）。
-var DenyHook func(c echo.Context, reason string) error
-
-// Deny 返回 404 并触发 DenyHook。
+// Deny 记录越权尝试审计后返回 404。审计写失败返回 503（同样不暴露资源是否存在）。
 func Deny(c echo.Context, reason string) error {
-	if DenyHook != nil {
-		if err := DenyHook(c, reason); err != nil {
-			return err
-		}
+	if err := audit.Record(c, audit.Entry{Action: "authz.denied", Outcome: "denied",
+		ResourceType: "route", ResourceID: c.Request().Method + " " + c.Path(),
+		Detail: map[string]any{"reason": reason}}); err != nil {
+		return err
 	}
 	return ErrNotFound
 }

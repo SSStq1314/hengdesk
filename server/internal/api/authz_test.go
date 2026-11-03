@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"testing"
@@ -200,4 +201,9 @@ func TestACLIncludeChildrenAndToolDefaultDisabled(t *testing.T) {
 	if ok, _ := az.ToolUsable(ctx, sales, tool); ok {
 		t.Fatal("no grant must not be usable")
 	}
+}
+
+func jsonStr(m map[string]any) string {
+	b, _ := json.Marshal(m)
+	return string(b)
 }

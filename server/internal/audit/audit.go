@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -54,20 +55,38 @@ func (w EntWriter) Write(ctx context.Context, e Entry) error {
 	if e.Phase == "attempt" {
 		phase = auditlog.PhaseAttempt
 	}
-	q := w.C.AuditLog.Create().SetAction(e.Action).SetPhase(phase).
-		SetActorEmail(e.ActorEmail).SetResourceType(e.ResourceType).SetResourceID(e.ResourceID).
-		SetOutcome(e.Outcome).SetIP(e.IP).SetUserAgent(e.UserAgent).
-		SetRequestID(e.RequestID).SetTraceID(e.TraceID)
-	if e.OrgID != 0 {
-		q.SetOrgID(e.OrgID)
+	chainMu.Lock()
+	defer chainMu.Unlock()
+	for i := 0; i < chainRetries; i++ {
+		prev, err := w.tip(ctx)
+		if err != nil {
+			return err
+		}
+		ts := time.Now().UTC().Truncate(time.Microsecond)
+		h := canonical(prev, ts, e.OrgID, e.ActorID, e.ActorEmail, e.Action, e.ResourceType, e.ResourceID,
+			string(phase), e.Outcome, e.IP, e.UserAgent, e.RequestID, e.TraceID, e.Detail)
+		q := w.C.AuditLog.Create().SetTs(ts).SetAction(e.Action).SetPhase(phase).
+			SetActorEmail(e.ActorEmail).SetResourceType(e.ResourceType).SetResourceID(e.ResourceID).
+			SetOutcome(e.Outcome).SetIP(e.IP).SetUserAgent(e.UserAgent).
+			SetRequestID(e.RequestID).SetTraceID(e.TraceID).SetPrevHash(prev).SetHash(h)
+		if e.OrgID != 0 {
+			q.SetOrgID(e.OrgID)
+		}
+		if e.ActorID != 0 {
+			q.SetActorID(e.ActorID)
+		}
+		if e.Detail != nil {
+			q.SetDetail(e.Detail)
+		}
+		err = q.Exec(ctx)
+		if err == nil {
+			return nil
+		}
+		if !ent.IsConstraintError(err) {
+			return err
+		}
 	}
-	if e.ActorID != 0 {
-		q.SetActorID(e.ActorID)
-	}
-	if e.Detail != nil {
-		q.SetDetail(e.Detail)
-	}
-	return q.Exec(ctx)
+	return errors.New("audit: chain contention")
 }
 
 // ActorFunc 从请求上下文取当前操作者（未登录返回 0, ""）。
@@ -109,6 +128,51 @@ func Middleware(w Writer, actor ActorFunc, lg *slog.Logger) echo.MiddlewareFunc 
 				lg.Error("audit result write failed", "err", err, "path", c.Path())
 			}
 			return herr
+		}
+	}
+}
+
+const ctxWriter = "hd.audit.writer"
+
+// WithWriter 把审计写入器放进请求上下文，供授权层等记录拒绝事件。
+func WithWriter(w Writer, actor ActorFunc) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set(ctxWriter, w)
+			c.Set(ctxWriter+".actor", actor)
+			return next(c)
+		}
+	}
+}
+
+// Record 用上下文中的写入器同步写一条审计，自动补齐操作者与请求信息。
+// 没有写入器或写入失败都返回 ErrRejected（fail-closed，调用方应直接返回该错误）。
+func Record(c echo.Context, e Entry) error {
+	w, _ := c.Get(ctxWriter).(Writer)
+	if w == nil {
+		return ErrRejected
+	}
+	if a, _ := c.Get(ctxWriter + ".actor").(ActorFunc); a != nil && e.ActorID == 0 {
+		e.OrgID, e.ActorID, e.ActorEmail = a(c)
+	}
+	r := c.Request()
+	e.IP, e.UserAgent = c.RealIP(), r.UserAgent()
+	e.RequestID = c.Response().Header().Get(echo.HeaderXRequestID)
+	if err := w.Write(r.Context(), e); err != nil {
+		return ErrRejected
+	}
+	return nil
+}
+
+// Sensitive 敏感读取（导出、查看审计、下载原件）：GET 也先写 attempt 审计，写失败 503。
+func Sensitive(action string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if err := Record(c, Entry{Action: action, Phase: "attempt", ResourceType: "route", ResourceID: c.Path(),
+				Detail: map[string]any{"query": c.QueryString()}}); err != nil {
+				return err
+			}
+			return next(c)
 		}
 	}
 }

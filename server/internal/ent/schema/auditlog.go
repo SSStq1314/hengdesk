@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 )
@@ -33,11 +34,16 @@ func (AuditLog) Fields() []ent.Field {
 		field.String("request_id").Default("").Immutable(),
 		field.String("trace_id").Default("").Immutable(),
 		field.JSON("detail", map[string]any{}).Optional().Immutable(),
+		field.String("prev_hash").Default("").Immutable().Comment("上一条的 hash；链首为空"),
+		field.String("hash").Default("").Immutable().Comment("sha256(prev_hash + 规范化内容)；M1 之前的旧行为空"),
 	}
 }
 
 func (AuditLog) Indexes() []ent.Index {
-	return []ent.Index{index.Fields("ts"), index.Fields("actor_id", "ts"), index.Fields("trace_id")}
+	return []ent.Index{index.Fields("ts"), index.Fields("actor_id", "ts"), index.Fields("trace_id"),
+		// 哈希链不分叉：同一 prev_hash 只能被一条记录引用。
+		index.Fields("prev_hash").Unique().Annotations(entsql.IndexWhere("hash <> ''")),
+	}
 }
 
 func (AuditLog) Hooks() []ent.Hook {

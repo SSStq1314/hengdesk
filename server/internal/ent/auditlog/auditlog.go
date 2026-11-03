@@ -43,6 +43,10 @@ const (
 	FieldTraceID = "trace_id"
 	// FieldDetail holds the string denoting the detail field in the database.
 	FieldDetail = "detail"
+	// FieldPrevHash holds the string denoting the prev_hash field in the database.
+	FieldPrevHash = "prev_hash"
+	// FieldHash holds the string denoting the hash field in the database.
+	FieldHash = "hash"
 	// Table holds the table name of the auditlog in the database.
 	Table = "audit_logs"
 )
@@ -64,6 +68,8 @@ var Columns = []string{
 	FieldRequestID,
 	FieldTraceID,
 	FieldDetail,
+	FieldPrevHash,
+	FieldHash,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -103,6 +109,10 @@ var (
 	DefaultRequestID string
 	// DefaultTraceID holds the default value on creation for the "trace_id" field.
 	DefaultTraceID string
+	// DefaultPrevHash holds the default value on creation for the "prev_hash" field.
+	DefaultPrevHash string
+	// DefaultHash holds the default value on creation for the "hash" field.
+	DefaultHash string
 )
 
 // Phase defines the type for the "phase" enum field.
@@ -202,4 +212,14 @@ func ByRequestID(opts ...sql.OrderTermOption) OrderOption {
 // ByTraceID orders the results by the trace_id field.
 func ByTraceID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTraceID, opts...).ToFunc()
+}
+
+// ByPrevHash orders the results by the prev_hash field.
+func ByPrevHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPrevHash, opts...).ToFunc()
+}
+
+// ByHash orders the results by the hash field.
+func ByHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHash, opts...).ToFunc()
 }
