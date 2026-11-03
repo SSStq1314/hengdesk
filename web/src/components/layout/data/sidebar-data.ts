@@ -3,6 +3,7 @@ import {
   Bot,
   Building2,
   LayoutDashboard,
+  MessagesSquare,
   ScrollText,
   Globe,
   ShieldCheck,
@@ -16,7 +17,10 @@ export const sidebarData: SidebarData = {
   navGroups: [
     {
       title: zh.nav.general,
-      items: [{ title: zh.nav.dashboard, url: '/', icon: LayoutDashboard }],
+      items: [
+        { title: zh.nav.dashboard, url: '/', icon: LayoutDashboard },
+        { title: zh.nav.chat, url: '/chat', icon: MessagesSquare },
+      ],
     },
     {
       title: zh.nav.org,

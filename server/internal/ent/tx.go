@@ -20,6 +20,8 @@ type Tx struct {
 	Budget *BudgetClient
 	// BudgetAlertState is the client for interacting with the BudgetAlertState builders.
 	BudgetAlertState *BudgetAlertStateClient
+	// Conversation is the client for interacting with the Conversation builders.
+	Conversation *ConversationClient
 	// Department is the client for interacting with the Department builders.
 	Department *DepartmentClient
 	// DeptClosure is the client for interacting with the DeptClosure builders.
@@ -30,6 +32,8 @@ type Tx struct {
 	EgressRule *EgressRuleClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
+	// Message is the client for interacting with the Message builders.
+	Message *MessageClient
 	// Model is the client for interacting with the Model builders.
 	Model *ModelClient
 	// ModelProvider is the client for interacting with the ModelProvider builders.
@@ -183,11 +187,13 @@ func (tx *Tx) init() {
 	tx.AuditLog = NewAuditLogClient(tx.config)
 	tx.Budget = NewBudgetClient(tx.config)
 	tx.BudgetAlertState = NewBudgetAlertStateClient(tx.config)
+	tx.Conversation = NewConversationClient(tx.config)
 	tx.Department = NewDepartmentClient(tx.config)
 	tx.DeptClosure = NewDeptClosureClient(tx.config)
 	tx.EgressLog = NewEgressLogClient(tx.config)
 	tx.EgressRule = NewEgressRuleClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
+	tx.Message = NewMessageClient(tx.config)
 	tx.Model = NewModelClient(tx.config)
 	tx.ModelProvider = NewModelProviderClient(tx.config)
 	tx.Notification = NewNotificationClient(tx.config)

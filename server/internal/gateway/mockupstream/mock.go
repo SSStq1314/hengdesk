@@ -31,6 +31,8 @@ type Server struct {
 	FailStatus int
 	// FailTimes 非 0 时只有前 FailTimes 次 chat 请求返回 FailStatus，之后正常（用于重试测试）。
 	FailTimes int
+	// StallAfter 流式输出 N 个内容字符后挂起，直到客户端断开（用于停止生成测试）。
+	StallAfter int
 	// Delay 返回前等待（用于超时测试）。
 	Delay time.Duration
 	// OmitUsage 不返回 usage（用于估算测试）。
@@ -167,7 +169,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	id := "mock-cmpl-1"
 	if stream, _ := body["stream"].(bool); stream {
-		s.stream(w, id, model, reasoning, content, callTool, usage, omit)
+		s.stream(w, r, id, model, reasoning, content, callTool, usage, omit)
 		return
 	}
 	msg := map[string]any{"role": "assistant", "content": content}
@@ -190,7 +192,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-func (s *Server) stream(w http.ResponseWriter, id, model, reasoning, content string, callTool bool, usage map[string]any, omit bool) {
+func (s *Server) stream(w http.ResponseWriter, r *http.Request, id, model, reasoning, content string, callTool bool, usage map[string]any, omit bool) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	fl, _ := w.(http.Flusher)
 	send := func(delta map[string]any, finish any, u any) {
@@ -220,14 +222,18 @@ func (s *Server) stream(w http.ResponseWriter, id, model, reasoning, content str
 		finish = "tool_calls"
 	} else {
 		s.mu.Lock()
-		cut := s.CutAfter
+		cut, stall := s.CutAfter, s.StallAfter
 		s.mu.Unlock()
 		n := 0
-		for _, r := range content {
+		for _, ch := range content {
 			if cut > 0 && n == cut {
 				panic(http.ErrAbortHandler) // 模拟上游中途断开
 			}
-			send(map[string]any{"content": string(r), "reasoning_content": nil}, nil, nil)
+			if stall > 0 && n == stall {
+				<-r.Context().Done()
+				return
+			}
+			send(map[string]any{"content": string(ch), "reasoning_content": nil}, nil, nil)
 			n++
 		}
 	}

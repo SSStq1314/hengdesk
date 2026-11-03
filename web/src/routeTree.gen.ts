@@ -16,6 +16,7 @@ import { Route as AuthenticatedModelsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedMembersRouteImport } from './routes/_authenticated/members'
 import { Route as AuthenticatedEgressRouteImport } from './routes/_authenticated/egress'
 import { Route as AuthenticatedDepartmentsRouteImport } from './routes/_authenticated/departments'
+import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedBudgetsRouteImport } from './routes/_authenticated/budgets'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
@@ -61,6 +62,11 @@ const AuthenticatedDepartmentsRoute =
     path: '/departments',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBudgetsRoute = AuthenticatedBudgetsRouteImport.update({
   id: '/budgets',
   path: '/budgets',
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/503': typeof errors503Route
   '/audit': typeof AuthenticatedAuditRoute
   '/budgets': typeof AuthenticatedBudgetsRoute
+  '/chat': typeof AuthenticatedChatRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/egress': typeof AuthenticatedEgressRoute
   '/members': typeof AuthenticatedMembersRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/audit': typeof AuthenticatedAuditRoute
   '/budgets': typeof AuthenticatedBudgetsRoute
+  '/chat': typeof AuthenticatedChatRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/egress': typeof AuthenticatedEgressRoute
   '/members': typeof AuthenticatedMembersRoute
@@ -153,6 +161,7 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
   '/_authenticated/budgets': typeof AuthenticatedBudgetsRoute
+  '/_authenticated/chat': typeof AuthenticatedChatRoute
   '/_authenticated/departments': typeof AuthenticatedDepartmentsRoute
   '/_authenticated/egress': typeof AuthenticatedEgressRoute
   '/_authenticated/members': typeof AuthenticatedMembersRoute
@@ -173,6 +182,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/audit'
     | '/budgets'
+    | '/chat'
     | '/departments'
     | '/egress'
     | '/members'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/audit'
     | '/budgets'
+    | '/chat'
     | '/departments'
     | '/egress'
     | '/members'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/audit'
     | '/_authenticated/budgets'
+    | '/_authenticated/chat'
     | '/_authenticated/departments'
     | '/_authenticated/egress'
     | '/_authenticated/members'
@@ -275,6 +287,13 @@ declare module '@tanstack/react-router' {
       path: '/departments'
       fullPath: '/departments'
       preLoaderRoute: typeof AuthenticatedDepartmentsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/chat': {
+      id: '/_authenticated/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof AuthenticatedChatRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/budgets': {
@@ -346,6 +365,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedBudgetsRoute: typeof AuthenticatedBudgetsRoute
+  AuthenticatedChatRoute: typeof AuthenticatedChatRoute
   AuthenticatedDepartmentsRoute: typeof AuthenticatedDepartmentsRoute
   AuthenticatedEgressRoute: typeof AuthenticatedEgressRoute
   AuthenticatedMembersRoute: typeof AuthenticatedMembersRoute
@@ -358,6 +378,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedBudgetsRoute: AuthenticatedBudgetsRoute,
+  AuthenticatedChatRoute: AuthenticatedChatRoute,
   AuthenticatedDepartmentsRoute: AuthenticatedDepartmentsRoute,
   AuthenticatedEgressRoute: AuthenticatedEgressRoute,
   AuthenticatedMembersRoute: AuthenticatedMembersRoute,

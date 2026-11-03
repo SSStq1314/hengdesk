@@ -144,6 +144,30 @@ var (
 			},
 		},
 	}
+	// ConversationsColumns holds the columns for the "conversations" table.
+	ConversationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "title", Type: field.TypeString, Size: 200, Default: ""},
+		{Name: "model_id", Type: field.TypeInt, Nullable: true},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+	}
+	// ConversationsTable holds the schema information for the "conversations" table.
+	ConversationsTable = &schema.Table{
+		Name:       "conversations",
+		Columns:    ConversationsColumns,
+		PrimaryKey: []*schema.Column{ConversationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "conversation_user_id_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{ConversationsColumns[4], ConversationsColumns[2]},
+			},
+		},
+	}
 	// DepartmentsColumns holds the columns for the "departments" table.
 	DepartmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -320,6 +344,44 @@ var (
 				Name:    "membership_user_id_role_id_department_id",
 				Unique:  true,
 				Columns: []*schema.Column{MembershipsColumns[6], MembershipsColumns[5], MembershipsColumns[4]},
+			},
+		},
+	}
+	// MessagesColumns holds the columns for the "messages" table.
+	MessagesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "role", Type: field.TypeEnum, Enums: []string{"user", "assistant"}},
+		{Name: "content", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"streaming", "done", "stopped", "error"}, Default: "done"},
+		{Name: "model_name", Type: field.TypeString, Default: ""},
+		{Name: "fallback_from", Type: field.TypeString, Default: ""},
+		{Name: "error_code", Type: field.TypeString, Default: ""},
+		{Name: "error", Type: field.TypeString, Size: 500, Default: ""},
+		{Name: "prompt_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "completion_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "request_id", Type: field.TypeString, Default: ""},
+		{Name: "conversation_id", Type: field.TypeInt},
+	}
+	// MessagesTable holds the schema information for the "messages" table.
+	MessagesTable = &schema.Table{
+		Name:       "messages",
+		Columns:    MessagesColumns,
+		PrimaryKey: []*schema.Column{MessagesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "messages_conversations_messages",
+				Columns:    []*schema.Column{MessagesColumns[13]},
+				RefColumns: []*schema.Column{ConversationsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "message_conversation_id_id",
+				Unique:  false,
+				Columns: []*schema.Column{MessagesColumns[13], MessagesColumns[0]},
 			},
 		},
 	}
@@ -576,11 +638,13 @@ var (
 		AuditLogsTable,
 		BudgetsTable,
 		BudgetAlertStatesTable,
+		ConversationsTable,
 		DepartmentsTable,
 		DeptClosureTable,
 		EgressLogsTable,
 		EgressRulesTable,
 		MembershipsTable,
+		MessagesTable,
 		ModelsTable,
 		ModelProvidersTable,
 		NotificationsTable,
@@ -605,6 +669,7 @@ func init() {
 	MembershipsTable.ForeignKeys[0].RefTable = DepartmentsTable
 	MembershipsTable.ForeignKeys[1].RefTable = RolesTable
 	MembershipsTable.ForeignKeys[2].RefTable = UsersTable
+	MessagesTable.ForeignKeys[0].RefTable = ConversationsTable
 	ModelsTable.ForeignKeys[0].RefTable = ModelProvidersTable
 	UsersTable.ForeignKeys[0].RefTable = OrganizationsTable
 }

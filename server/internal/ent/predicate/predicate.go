@@ -18,6 +18,9 @@ type Budget func(*sql.Selector)
 // BudgetAlertState is the predicate function for budgetalertstate builders.
 type BudgetAlertState func(*sql.Selector)
 
+// Conversation is the predicate function for conversation builders.
+type Conversation func(*sql.Selector)
+
 // Department is the predicate function for department builders.
 type Department func(*sql.Selector)
 
@@ -32,6 +35,9 @@ type EgressRule func(*sql.Selector)
 
 // Membership is the predicate function for membership builders.
 type Membership func(*sql.Selector)
+
+// Message is the predicate function for message builders.
+type Message func(*sql.Selector)
 
 // Model is the predicate function for model builders.
 type Model func(*sql.Selector)

@@ -9,11 +9,13 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budgetalertstate"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/notification"
@@ -171,6 +173,27 @@ func init() {
 	budgetalertstateDescCreatedAt := budgetalertstateFields[5].Descriptor()
 	// budgetalertstate.DefaultCreatedAt holds the default value on creation for the created_at field.
 	budgetalertstate.DefaultCreatedAt = budgetalertstateDescCreatedAt.Default.(func() time.Time)
+	conversationMixin := schema.Conversation{}.Mixin()
+	conversationMixinFields0 := conversationMixin[0].Fields()
+	_ = conversationMixinFields0
+	conversationFields := schema.Conversation{}.Fields()
+	_ = conversationFields
+	// conversationDescCreatedAt is the schema descriptor for created_at field.
+	conversationDescCreatedAt := conversationMixinFields0[0].Descriptor()
+	// conversation.DefaultCreatedAt holds the default value on creation for the created_at field.
+	conversation.DefaultCreatedAt = conversationDescCreatedAt.Default.(func() time.Time)
+	// conversationDescUpdatedAt is the schema descriptor for updated_at field.
+	conversationDescUpdatedAt := conversationMixinFields0[1].Descriptor()
+	// conversation.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	conversation.DefaultUpdatedAt = conversationDescUpdatedAt.Default.(func() time.Time)
+	// conversation.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	conversation.UpdateDefaultUpdatedAt = conversationDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// conversationDescTitle is the schema descriptor for title field.
+	conversationDescTitle := conversationFields[2].Descriptor()
+	// conversation.DefaultTitle holds the default value on creation for the title field.
+	conversation.DefaultTitle = conversationDescTitle.Default.(string)
+	// conversation.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	conversation.TitleValidator = conversationDescTitle.Validators[0].(func(string) error)
 	departmentMixin := schema.Department{}.Mixin()
 	departmentMixinFields0 := departmentMixin[0].Fields()
 	_ = departmentMixinFields0
@@ -332,6 +355,55 @@ func init() {
 	membershipDescIsPrimary := membershipFields[3].Descriptor()
 	// membership.DefaultIsPrimary holds the default value on creation for the is_primary field.
 	membership.DefaultIsPrimary = membershipDescIsPrimary.Default.(bool)
+	messageMixin := schema.Message{}.Mixin()
+	messageMixinFields0 := messageMixin[0].Fields()
+	_ = messageMixinFields0
+	messageFields := schema.Message{}.Fields()
+	_ = messageFields
+	// messageDescCreatedAt is the schema descriptor for created_at field.
+	messageDescCreatedAt := messageMixinFields0[0].Descriptor()
+	// message.DefaultCreatedAt holds the default value on creation for the created_at field.
+	message.DefaultCreatedAt = messageDescCreatedAt.Default.(func() time.Time)
+	// messageDescUpdatedAt is the schema descriptor for updated_at field.
+	messageDescUpdatedAt := messageMixinFields0[1].Descriptor()
+	// message.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	message.DefaultUpdatedAt = messageDescUpdatedAt.Default.(func() time.Time)
+	// message.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	message.UpdateDefaultUpdatedAt = messageDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// messageDescContent is the schema descriptor for content field.
+	messageDescContent := messageFields[2].Descriptor()
+	// message.DefaultContent holds the default value on creation for the content field.
+	message.DefaultContent = messageDescContent.Default.(string)
+	// messageDescModelName is the schema descriptor for model_name field.
+	messageDescModelName := messageFields[4].Descriptor()
+	// message.DefaultModelName holds the default value on creation for the model_name field.
+	message.DefaultModelName = messageDescModelName.Default.(string)
+	// messageDescFallbackFrom is the schema descriptor for fallback_from field.
+	messageDescFallbackFrom := messageFields[5].Descriptor()
+	// message.DefaultFallbackFrom holds the default value on creation for the fallback_from field.
+	message.DefaultFallbackFrom = messageDescFallbackFrom.Default.(string)
+	// messageDescErrorCode is the schema descriptor for error_code field.
+	messageDescErrorCode := messageFields[6].Descriptor()
+	// message.DefaultErrorCode holds the default value on creation for the error_code field.
+	message.DefaultErrorCode = messageDescErrorCode.Default.(string)
+	// messageDescError is the schema descriptor for error field.
+	messageDescError := messageFields[7].Descriptor()
+	// message.DefaultError holds the default value on creation for the error field.
+	message.DefaultError = messageDescError.Default.(string)
+	// message.ErrorValidator is a validator for the "error" field. It is called by the builders before save.
+	message.ErrorValidator = messageDescError.Validators[0].(func(string) error)
+	// messageDescPromptTokens is the schema descriptor for prompt_tokens field.
+	messageDescPromptTokens := messageFields[8].Descriptor()
+	// message.DefaultPromptTokens holds the default value on creation for the prompt_tokens field.
+	message.DefaultPromptTokens = messageDescPromptTokens.Default.(int)
+	// messageDescCompletionTokens is the schema descriptor for completion_tokens field.
+	messageDescCompletionTokens := messageFields[9].Descriptor()
+	// message.DefaultCompletionTokens holds the default value on creation for the completion_tokens field.
+	message.DefaultCompletionTokens = messageDescCompletionTokens.Default.(int)
+	// messageDescRequestID is the schema descriptor for request_id field.
+	messageDescRequestID := messageFields[10].Descriptor()
+	// message.DefaultRequestID holds the default value on creation for the request_id field.
+	message.DefaultRequestID = messageDescRequestID.Default.(string)
 	modelMixin := schema.Model{}.Mixin()
 	modelMixinFields0 := modelMixin[0].Fields()
 	_ = modelMixinFields0

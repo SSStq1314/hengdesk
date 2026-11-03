@@ -57,6 +57,18 @@ func (f BudgetAlertStateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BudgetAlertStateMutation", m)
 }
 
+// The ConversationFunc type is an adapter to allow the use of ordinary
+// function as Conversation mutator.
+type ConversationFunc func(context.Context, *ent.ConversationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ConversationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ConversationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ConversationMutation", m)
+}
+
 // The DepartmentFunc type is an adapter to allow the use of ordinary
 // function as Department mutator.
 type DepartmentFunc func(context.Context, *ent.DepartmentMutation) (ent.Value, error)
@@ -115,6 +127,18 @@ func (f MembershipFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MembershipMutation", m)
+}
+
+// The MessageFunc type is an adapter to allow the use of ordinary
+// function as Message mutator.
+type MessageFunc func(context.Context, *ent.MessageMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MessageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MessageMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MessageMutation", m)
 }
 
 // The ModelFunc type is an adapter to allow the use of ordinary
