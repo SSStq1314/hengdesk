@@ -13,8 +13,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/SSStq1314/hengdesk/server/internal/config"
-	hlog "github.com/SSStq1314/hengdesk/server/internal/log"
 	"github.com/SSStq1314/hengdesk/server/internal/httpserver"
+	hlog "github.com/SSStq1314/hengdesk/server/internal/log"
 )
 
 func main() {

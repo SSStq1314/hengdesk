@@ -3,13 +3,75 @@ on:
   pull_request:
   push:
     branches: [main]
+permissions:
+  contents: read
 jobs:
   go:
+    name: go (lint + test)
     runs-on: ubuntu-latest
     defaults: {run: {working-directory: server}}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with: {go-version: '1.25.x', cache-dependency-path: server/go.sum}
+      - uses: golangci/golangci-lint-action@v8
+        with: {version: latest, working-directory: server}
       - run: go vet ./...
       - run: go test -race ./...
+      - run: CGO_ENABLED=0 go build -o /tmp/hengdesk ./cmd/hengdesk
+
+  web:
+    name: web (lint + typecheck + build)
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: web}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        if: hashFiles('web/package.json') != ''
+        with: {package_json_file: web/package.json}
+      - uses: actions/setup-node@v4
+        if: hashFiles('web/package.json') != ''
+        with: {node-version: 22, cache: pnpm, cache-dependency-path: web/pnpm-lock.yaml}
+      - if: hashFiles('web/package.json') != ''
+        run: pnpm install --frozen-lockfile && pnpm lint && pnpm exec tsc -b && pnpm build
+      - if: hashFiles('web/package.json') == ''
+        run: echo "web/ 尚未引入，跳过"
+        working-directory: .
+
+  license:
+    name: license scan + SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: {go-version: '1.25.x', cache-dependency-path: server/go.sum}
+      - name: Go 依赖许可（拒绝 AGPL/GPL/LGPL 等 forbidden/restricted 类）
+        working-directory: server
+        run: |
+          go install github.com/google/go-licenses/v2@latest
+          go-licenses check ./... --disallowed_types=forbidden,restricted,unknown --ignore github.com/SSStq1314/hengdesk
+          go-licenses report ./... --ignore github.com/SSStq1314/hengdesk > ../go-licenses.csv
+      - uses: pnpm/action-setup@v4
+        if: hashFiles('web/package.json') != ''
+        with: {package_json_file: web/package.json}
+      - uses: actions/setup-node@v4
+        if: hashFiles('web/package.json') != ''
+        with: {node-version: 22}
+      - name: npm 依赖许可（拒绝 GPL/AGPL/LGPL/SSPL）
+        if: hashFiles('web/package.json') != ''
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm licenses list --prod --json > ../npm-licenses.json
+          node ../.github/scripts/check-npm-licenses.mjs ../npm-licenses.json
+      - name: 生成 SBOM（syft, SPDX JSON）
+        uses: anchore/sbom-action@v0
+        with: {path: ., format: spdx-json, output-file: sbom.spdx.json, upload-artifact: false}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-and-licenses
+          path: |
+            sbom.spdx.json
+            go-licenses.csv
+            npm-licenses.json
+          if-no-files-found: warn
