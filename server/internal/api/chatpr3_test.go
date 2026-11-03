@@ -27,6 +27,9 @@ func TestChatRetentionAdminAndLegalHold(t *testing.T) {
 		cl := g.loginAs(t, who, "password123")
 		for _, rq := range [][3]string{{"GET", "/api/v1/admin/chat-retention", ""}, {"PUT", "/api/v1/admin/chat-retention", `{"enabled":true,"days":365}`},
 			{"POST", "/api/v1/admin/chat-retention/run", ""}, {"GET", "/api/v1/admin/legal-holds", ""}, {"POST", "/api/v1/admin/legal-holds", `{"reason":"x"}`}} {
+			if who == "auditor@x.local" && strings.Contains(rq[1], "legal-holds") {
+				continue // D-41：安全审计员可查看、设置、解除法律保全
+			}
 			if got := cl.do(rq[0], rq[1], rq[2], true).Code; got != 404 {
 				t.Errorf("%s %s %s = %d，越权应 404", who, rq[0], rq[1], got)
 			}
@@ -90,10 +93,15 @@ func TestChatRetentionAdminAndLegalHold(t *testing.T) {
 	if rec := a.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/legal-holds/%d", foreign.ID), "", true); rec.Code != 404 {
 		t.Fatalf("他组织保留应 404：%d", rec.Code)
 	}
-	if rec := a.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/legal-holds/%d", hv.ID), "", true); rec.Code != 204 {
-		t.Fatalf("release %d", rec.Code)
+	// D-41：超级管理员只能设置不能解除（404）；由安全审计员解除
+	if rec := a.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/legal-holds/%d", hv.ID), "", true); rec.Code != 404 {
+		t.Fatalf("超管解除应 404：%d", rec.Code)
 	}
-	if rec := a.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/legal-holds/%d", hv.ID), "", true); rec.Code != 409 {
+	aud := g.loginAs(t, "auditor@x.local", "password123")
+	if rec := aud.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/legal-holds/%d", hv.ID), "", true); rec.Code != 204 {
+		t.Fatalf("审计员 release %d %s", rec.Code, rec.Body)
+	}
+	if rec := aud.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/legal-holds/%d", hv.ID), "", true); rec.Code != 409 {
 		t.Fatalf("重复解除应 409：%d", rec.Code)
 	}
 	for _, act := range []string{"chat.legal_hold.create", "chat.legal_hold.release"} {
@@ -223,5 +231,93 @@ func TestTokenTruncationKeepsNewestUser(t *testing.T) {
 		Order(auditlog.ByID()).AllX(ctx)
 	if d := r[len(r)-1].Detail; d["history_truncated"] != true || d["history_dropped"].(float64) < 1 {
 		t.Fatalf("审计应记录截断 %v", d)
+	}
+}
+
+// D-41 第 3 条：审计员设置不告警；超管设置写审计并通过既有告警机制通知审计员；成员 404。
+func TestLegalHoldPermissionsD41(t *testing.T) {
+	g := newGW(t, false)
+	ctx := context.Background()
+	org := g.c.Organization.Query().FirstX(ctx)
+	g.addUser(t, "auditor@x.local", org, rbac.SecurityAuditor, nil)
+	aud := g.loginAs(t, "auditor@x.local", "password123")
+	alerts := func() int {
+		n := 0
+		for _, r := range g.c.AuditLog.Query().Where(auditlog.Action("alert.high_risk")).AllX(ctx) {
+			if b, _ := json.Marshal(r.Detail); strings.Contains(string(b), "legal_hold_set_by_admin") {
+				n++
+			}
+		}
+		return n
+	}
+	rec := aud.do(http.MethodPost, "/api/v1/admin/legal-holds", `{"reason":"审计员设置"}`, true)
+	if rec.Code != 201 || alerts() != 0 {
+		t.Fatalf("审计员设置 %d alerts=%d", rec.Code, alerts())
+	}
+	var h1 struct{ ID int }
+	_ = json.Unmarshal(rec.Body.Bytes(), &h1)
+	rec = g.admin.do(http.MethodPost, "/api/v1/admin/legal-holds", `{"reason":"超管设置"}`, true)
+	if rec.Code != 201 || alerts() != 1 {
+		t.Fatalf("超管设置 %d alerts=%d", rec.Code, alerts())
+	}
+	var h2 struct{ ID int }
+	_ = json.Unmarshal(rec.Body.Bytes(), &h2)
+	if rec := g.admin.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/legal-holds/%d", h2.ID), "", true); rec.Code != 404 {
+		t.Fatalf("超管解除应 404：%d", rec.Code)
+	}
+	if g.c.LegalHold.GetX(ctx, h2.ID).ReleasedAt != nil {
+		t.Fatal("超管不应解除成功")
+	}
+	for _, id := range []int{h1.ID, h2.ID} {
+		if rec := aud.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/legal-holds/%d", id), "", true); rec.Code != 204 {
+			t.Fatalf("审计员解除 %d", rec.Code)
+		}
+	}
+	if n := g.c.AuditLog.Query().Where(auditlog.Action("chat.legal_hold.create")).CountX(ctx); n < 2 {
+		t.Fatalf("设置审计 %d", n)
+	}
+	if n := g.c.AuditLog.Query().Where(auditlog.Action("chat.legal_hold.release")).CountX(ctx); n < 2 {
+		t.Fatalf("解除审计 %d", n)
+	}
+	mem := g.loginAs(t, "member@x.local", "password123")
+	if rec := mem.do(http.MethodPost, "/api/v1/admin/legal-holds", `{"reason":"x"}`, true); rec.Code != 404 {
+		t.Fatalf("成员应 404：%d", rec.Code)
+	}
+}
+
+// D-41 第 4 条：上游返回 usage 时按上游记账；未返回时用估算值并在消息上标记 usage_estimated。
+func TestMessageUsageEstimatedD41(t *testing.T) {
+	g := newGW(t, false)
+	id := newConv(t, g.admin, `{}`)
+	path := fmt.Sprintf("/api/v1/conversations/%d/messages", id)
+	if rec := g.admin.do(http.MethodPost, path, `{"content":"有 usage","model":"ds-flash"}`, true); rec.Code != 200 {
+		t.Fatalf("send %d", rec.Code)
+	}
+	g.m.OmitUsage = true
+	if rec := g.admin.do(http.MethodPost, path, `{"content":"无 usage","model":"ds-flash"}`, true); rec.Code != 200 {
+		t.Fatalf("send %d", rec.Code)
+	}
+	g.m.OmitUsage = false
+	msgs := g.c.Message.Query().AllX(context.Background())
+	var est, exact int
+	for _, m := range msgs {
+		if m.Role != "assistant" {
+			continue
+		}
+		if m.UsageEstimated {
+			est++
+			if m.PromptTokens == 0 {
+				t.Fatal("估算值不应为 0")
+			}
+		} else {
+			exact++
+		}
+	}
+	if est != 1 || exact != 1 {
+		t.Fatalf("est=%d exact=%d", est, exact)
+	}
+	rec := g.admin.do(http.MethodGet, fmt.Sprintf("/api/v1/conversations/%d", id), "", false)
+	if n := strings.Count(rec.Body.String(), `"usage_estimated":true`); n != 1 {
+		t.Fatalf("响应中 usage_estimated=%d：%s", n, rec.Body)
 	}
 }

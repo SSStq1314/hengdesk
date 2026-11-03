@@ -49,6 +49,8 @@ func (Message) Fields() []ent.Field {
 		field.String("error").Default("").MaxLen(500),
 		field.Int("prompt_tokens").Default(0),
 		field.Int("completion_tokens").Default(0),
+		// usage_estimated 上游未返回 usage、token 为网关估算值（D-41 第 4 条，界面标「估算」）。
+		field.Bool("usage_estimated").Default(false),
 		// request_id 关联审计与 usage_records（同一次请求的所有尝试）。
 		field.String("request_id").Default(""),
 		// superseded_at 被「重新生成 / 重试」替换的旧回复（D-40 第 6 条）：软保留供审计，UI 与后续上下文不再使用。

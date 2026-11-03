@@ -126,7 +126,7 @@ func serverCmd() *cobra.Command {
 			Lockout:   &session.Lockout{R: rdb, MaxFailures: cfg.LockoutMax, Duration: cfg.LockoutFor},
 			IPLimit:   &session.RateLimiter{R: rdb, Limit: cfg.LoginIPLimit, Window: cfg.LoginIPWindow},
 			Passwords: auth.PasswordPolicy{MinLen: cfg.PasswordMinLen},
-		}, System: api.SystemConfig{BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, DiskLowPercent: cfg.DiskLowPercent,
+		}, TraceTrustedProxies: cfg.TraceTrustedProxies, System: api.SystemConfig{BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, DiskLowPercent: cfg.DiskLowPercent,
 			PublicHTTPS: cfg.PublicHTTPS, TrustedProxies: cfg.TrustedProxies, TLSCertFile: cfg.TLSCertFile,
 			AuditRetentionDays: cfg.AuditRetentionDays, MasterKeyPath: masterKeyHostPath(cfg), MasterKeyFingerprint: keys.Fingerprint()}})
 		ctx, stop := signalCtx()

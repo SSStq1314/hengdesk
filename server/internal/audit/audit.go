@@ -30,7 +30,9 @@ type Entry struct {
 	UserAgent    string
 	RequestID    string
 	TraceID      string
-	Detail       map[string]any
+	// UpstreamTraceID 为空时取 context 中受信代理传入的值（D-41 第 1 条）。
+	UpstreamTraceID string
+	Detail          map[string]any
 }
 
 // Writer 审计写入接口。实现必须同步落盘，返回 nil 才表示已持久化。
@@ -54,6 +56,9 @@ func (w EntWriter) Write(ctx context.Context, e Entry) error {
 	if e.TraceID == "" {
 		e.TraceID = TraceFrom(ctx)
 	}
+	if e.UpstreamTraceID == "" {
+		e.UpstreamTraceID = UpstreamTraceFrom(ctx)
+	}
 	phase := auditlog.PhaseResult
 	if e.Phase == "attempt" {
 		phase = auditlog.PhaseAttempt
@@ -67,11 +72,11 @@ func (w EntWriter) Write(ctx context.Context, e Entry) error {
 		}
 		ts := time.Now().UTC().Truncate(time.Microsecond)
 		h := canonical(prev, ts, e.OrgID, e.ActorID, e.ActorEmail, e.Action, e.ResourceType, e.ResourceID,
-			string(phase), e.Outcome, e.IP, e.UserAgent, e.RequestID, e.TraceID, e.Detail)
+			string(phase), e.Outcome, e.IP, e.UserAgent, e.RequestID, e.TraceID, e.UpstreamTraceID, e.Detail)
 		q := w.C.AuditLog.Create().SetTs(ts).SetAction(e.Action).SetPhase(phase).
 			SetActorEmail(e.ActorEmail).SetResourceType(e.ResourceType).SetResourceID(e.ResourceID).
 			SetOutcome(e.Outcome).SetIP(e.IP).SetUserAgent(e.UserAgent).
-			SetRequestID(e.RequestID).SetTraceID(e.TraceID).SetPrevHash(prev).SetHash(h)
+			SetRequestID(e.RequestID).SetTraceID(e.TraceID).SetUpstreamTraceID(e.UpstreamTraceID).SetPrevHash(prev).SetHash(h)
 		if e.OrgID != 0 {
 			q.SetOrgID(e.OrgID)
 		}

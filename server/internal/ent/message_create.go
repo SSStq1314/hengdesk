@@ -175,6 +175,20 @@ func (_c *MessageCreate) SetNillableCompletionTokens(v *int) *MessageCreate {
 	return _c
 }
 
+// SetUsageEstimated sets the "usage_estimated" field.
+func (_c *MessageCreate) SetUsageEstimated(v bool) *MessageCreate {
+	_c.mutation.SetUsageEstimated(v)
+	return _c
+}
+
+// SetNillableUsageEstimated sets the "usage_estimated" field if the given value is not nil.
+func (_c *MessageCreate) SetNillableUsageEstimated(v *bool) *MessageCreate {
+	if v != nil {
+		_c.SetUsageEstimated(*v)
+	}
+	return _c
+}
+
 // SetRequestID sets the "request_id" field.
 func (_c *MessageCreate) SetRequestID(v string) *MessageCreate {
 	_c.mutation.SetRequestID(v)
@@ -283,6 +297,10 @@ func (_c *MessageCreate) defaults() {
 		v := message.DefaultCompletionTokens
 		_c.mutation.SetCompletionTokens(v)
 	}
+	if _, ok := _c.mutation.UsageEstimated(); !ok {
+		v := message.DefaultUsageEstimated
+		_c.mutation.SetUsageEstimated(v)
+	}
 	if _, ok := _c.mutation.RequestID(); !ok {
 		v := message.DefaultRequestID
 		_c.mutation.SetRequestID(v)
@@ -341,6 +359,9 @@ func (_c *MessageCreate) check() error {
 	}
 	if _, ok := _c.mutation.CompletionTokens(); !ok {
 		return &ValidationError{Name: "completion_tokens", err: errors.New(`ent: missing required field "Message.completion_tokens"`)}
+	}
+	if _, ok := _c.mutation.UsageEstimated(); !ok {
+		return &ValidationError{Name: "usage_estimated", err: errors.New(`ent: missing required field "Message.usage_estimated"`)}
 	}
 	if _, ok := _c.mutation.RequestID(); !ok {
 		return &ValidationError{Name: "request_id", err: errors.New(`ent: missing required field "Message.request_id"`)}
@@ -418,6 +439,10 @@ func (_c *MessageCreate) createSpec() (*Message, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CompletionTokens(); ok {
 		_spec.SetField(message.FieldCompletionTokens, field.TypeInt, value)
 		_node.CompletionTokens = value
+	}
+	if value, ok := _c.mutation.UsageEstimated(); ok {
+		_spec.SetField(message.FieldUsageEstimated, field.TypeBool, value)
+		_node.UsageEstimated = value
 	}
 	if value, ok := _c.mutation.RequestID(); ok {
 		_spec.SetField(message.FieldRequestID, field.TypeString, value)
@@ -637,6 +662,18 @@ func (u *MessageUpsert) UpdateCompletionTokens() *MessageUpsert {
 // AddCompletionTokens adds v to the "completion_tokens" field.
 func (u *MessageUpsert) AddCompletionTokens(v int) *MessageUpsert {
 	u.Add(message.FieldCompletionTokens, v)
+	return u
+}
+
+// SetUsageEstimated sets the "usage_estimated" field.
+func (u *MessageUpsert) SetUsageEstimated(v bool) *MessageUpsert {
+	u.Set(message.FieldUsageEstimated, v)
+	return u
+}
+
+// UpdateUsageEstimated sets the "usage_estimated" field to the value that was provided on create.
+func (u *MessageUpsert) UpdateUsageEstimated() *MessageUpsert {
+	u.SetExcluded(message.FieldUsageEstimated)
 	return u
 }
 
@@ -880,6 +917,20 @@ func (u *MessageUpsertOne) AddCompletionTokens(v int) *MessageUpsertOne {
 func (u *MessageUpsertOne) UpdateCompletionTokens() *MessageUpsertOne {
 	return u.Update(func(s *MessageUpsert) {
 		s.UpdateCompletionTokens()
+	})
+}
+
+// SetUsageEstimated sets the "usage_estimated" field.
+func (u *MessageUpsertOne) SetUsageEstimated(v bool) *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.SetUsageEstimated(v)
+	})
+}
+
+// UpdateUsageEstimated sets the "usage_estimated" field to the value that was provided on create.
+func (u *MessageUpsertOne) UpdateUsageEstimated() *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.UpdateUsageEstimated()
 	})
 }
 
@@ -1294,6 +1345,20 @@ func (u *MessageUpsertBulk) AddCompletionTokens(v int) *MessageUpsertBulk {
 func (u *MessageUpsertBulk) UpdateCompletionTokens() *MessageUpsertBulk {
 	return u.Update(func(s *MessageUpsert) {
 		s.UpdateCompletionTokens()
+	})
+}
+
+// SetUsageEstimated sets the "usage_estimated" field.
+func (u *MessageUpsertBulk) SetUsageEstimated(v bool) *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.SetUsageEstimated(v)
+	})
+}
+
+// UpdateUsageEstimated sets the "usage_estimated" field to the value that was provided on create.
+func (u *MessageUpsertBulk) UpdateUsageEstimated() *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.UpdateUsageEstimated()
 	})
 }
 

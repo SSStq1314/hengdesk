@@ -82,7 +82,8 @@ export const sidebarData: SidebarData = {
           title: zh.nav.retention,
           url: '/retention',
           icon: Archive,
-          perm: 'system.settings',
+          // D-41：超级管理员管理保留期并可设置保全；安全审计员查看、设置、解除保全
+          perm: ['system.settings', 'audit.read'],
         },
       ],
     },

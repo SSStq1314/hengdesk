@@ -20,17 +20,22 @@ var chainMu sync.Mutex
 const chainRetries = 8
 
 // canonical 计算哈希的规范化内容。时间截断到微秒并转 UTC，与 PostgreSQL timestamptz 精度一致。
-func canonical(prev string, ts time.Time, orgID, actorID int, email, action, rtype, rid, phase, outcome, ip, ua, reqID, traceID string, detail map[string]any) string {
+// upstream（D-41 upstream_trace_id）为空时不参与哈希，旧记录与旧归档包的哈希保持不变。
+func canonical(prev string, ts time.Time, orgID, actorID int, email, action, rtype, rid, phase, outcome, ip, ua, reqID, traceID, upstream string, detail map[string]any) string {
 	d, _ := json.Marshal(detail)
-	b, _ := json.Marshal([]any{prev, ts.UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano),
-		orgID, actorID, email, action, rtype, rid, phase, outcome, ip, ua, reqID, traceID, string(d)})
+	parts := []any{prev, ts.UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano),
+		orgID, actorID, email, action, rtype, rid, phase, outcome, ip, ua, reqID, traceID, string(d)}
+	if upstream != "" {
+		parts = append(parts, map[string]string{"upstream_trace_id": upstream})
+	}
+	b, _ := json.Marshal(parts)
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
 }
 
 func rowHash(r *ent.AuditLog) string {
 	return canonical(r.PrevHash, r.Ts, r.OrgID, r.ActorID, r.ActorEmail, r.Action, r.ResourceType, r.ResourceID,
-		string(r.Phase), r.Outcome, r.IP, r.UserAgent, r.RequestID, r.TraceID, r.Detail)
+		string(r.Phase), r.Outcome, r.IP, r.UserAgent, r.RequestID, r.TraceID, r.UpstreamTraceID, r.Detail)
 }
 
 func (w EntWriter) tip(ctx context.Context) (string, error) {

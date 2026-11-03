@@ -100,12 +100,16 @@ func init() {
 	auditlogDescTraceID := auditlogFields[12].Descriptor()
 	// auditlog.DefaultTraceID holds the default value on creation for the trace_id field.
 	auditlog.DefaultTraceID = auditlogDescTraceID.Default.(string)
+	// auditlogDescUpstreamTraceID is the schema descriptor for upstream_trace_id field.
+	auditlogDescUpstreamTraceID := auditlogFields[13].Descriptor()
+	// auditlog.DefaultUpstreamTraceID holds the default value on creation for the upstream_trace_id field.
+	auditlog.DefaultUpstreamTraceID = auditlogDescUpstreamTraceID.Default.(string)
 	// auditlogDescPrevHash is the schema descriptor for prev_hash field.
-	auditlogDescPrevHash := auditlogFields[14].Descriptor()
+	auditlogDescPrevHash := auditlogFields[15].Descriptor()
 	// auditlog.DefaultPrevHash holds the default value on creation for the prev_hash field.
 	auditlog.DefaultPrevHash = auditlogDescPrevHash.Default.(string)
 	// auditlogDescHash is the schema descriptor for hash field.
-	auditlogDescHash := auditlogFields[15].Descriptor()
+	auditlogDescHash := auditlogFields[16].Descriptor()
 	// auditlog.DefaultHash holds the default value on creation for the hash field.
 	auditlog.DefaultHash = auditlogDescHash.Default.(string)
 	budgetMixin := schema.Budget{}.Mixin()
@@ -457,8 +461,12 @@ func init() {
 	messageDescCompletionTokens := messageFields[9].Descriptor()
 	// message.DefaultCompletionTokens holds the default value on creation for the completion_tokens field.
 	message.DefaultCompletionTokens = messageDescCompletionTokens.Default.(int)
+	// messageDescUsageEstimated is the schema descriptor for usage_estimated field.
+	messageDescUsageEstimated := messageFields[10].Descriptor()
+	// message.DefaultUsageEstimated holds the default value on creation for the usage_estimated field.
+	message.DefaultUsageEstimated = messageDescUsageEstimated.Default.(bool)
 	// messageDescRequestID is the schema descriptor for request_id field.
-	messageDescRequestID := messageFields[10].Descriptor()
+	messageDescRequestID := messageFields[11].Descriptor()
 	// message.DefaultRequestID holds the default value on creation for the request_id field.
 	message.DefaultRequestID = messageDescRequestID.Default.(string)
 	modelMixin := schema.Model{}.Mixin()

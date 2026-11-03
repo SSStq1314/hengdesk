@@ -105,6 +105,11 @@ func CompletionTokens(v int) predicate.Message {
 	return predicate.Message(sql.FieldEQ(FieldCompletionTokens, v))
 }
 
+// UsageEstimated applies equality check predicate on the "usage_estimated" field. It's identical to UsageEstimatedEQ.
+func UsageEstimated(v bool) predicate.Message {
+	return predicate.Message(sql.FieldEQ(FieldUsageEstimated, v))
+}
+
 // RequestID applies equality check predicate on the "request_id" field. It's identical to RequestIDEQ.
 func RequestID(v string) predicate.Message {
 	return predicate.Message(sql.FieldEQ(FieldRequestID, v))
@@ -658,6 +663,16 @@ func CompletionTokensLT(v int) predicate.Message {
 // CompletionTokensLTE applies the LTE predicate on the "completion_tokens" field.
 func CompletionTokensLTE(v int) predicate.Message {
 	return predicate.Message(sql.FieldLTE(FieldCompletionTokens, v))
+}
+
+// UsageEstimatedEQ applies the EQ predicate on the "usage_estimated" field.
+func UsageEstimatedEQ(v bool) predicate.Message {
+	return predicate.Message(sql.FieldEQ(FieldUsageEstimated, v))
+}
+
+// UsageEstimatedNEQ applies the NEQ predicate on the "usage_estimated" field.
+func UsageEstimatedNEQ(v bool) predicate.Message {
+	return predicate.Message(sql.FieldNEQ(FieldUsageEstimated, v))
 }
 
 // RequestIDEQ applies the EQ predicate on the "request_id" field.

@@ -44,6 +44,8 @@ type AuditLog struct {
 	RequestID string `json:"request_id,omitempty"`
 	// TraceID holds the value of the "trace_id" field.
 	TraceID string `json:"trace_id,omitempty"`
+	// UpstreamTraceID holds the value of the "upstream_trace_id" field.
+	UpstreamTraceID string `json:"upstream_trace_id,omitempty"`
 	// Detail holds the value of the "detail" field.
 	Detail map[string]interface{} `json:"detail,omitempty"`
 	// 上一条的 hash；链首为空
@@ -62,7 +64,7 @@ func (*AuditLog) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case auditlog.FieldID, auditlog.FieldOrgID, auditlog.FieldActorID:
 			values[i] = new(sql.NullInt64)
-		case auditlog.FieldActorEmail, auditlog.FieldAction, auditlog.FieldResourceType, auditlog.FieldResourceID, auditlog.FieldPhase, auditlog.FieldOutcome, auditlog.FieldIP, auditlog.FieldUserAgent, auditlog.FieldRequestID, auditlog.FieldTraceID, auditlog.FieldPrevHash, auditlog.FieldHash:
+		case auditlog.FieldActorEmail, auditlog.FieldAction, auditlog.FieldResourceType, auditlog.FieldResourceID, auditlog.FieldPhase, auditlog.FieldOutcome, auditlog.FieldIP, auditlog.FieldUserAgent, auditlog.FieldRequestID, auditlog.FieldTraceID, auditlog.FieldUpstreamTraceID, auditlog.FieldPrevHash, auditlog.FieldHash:
 			values[i] = new(sql.NullString)
 		case auditlog.FieldTs:
 			values[i] = new(sql.NullTime)
@@ -165,6 +167,12 @@ func (_m *AuditLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.TraceID = value.String
 			}
+		case auditlog.FieldUpstreamTraceID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field upstream_trace_id", values[i])
+			} else if value.Valid {
+				_m.UpstreamTraceID = value.String
+			}
 		case auditlog.FieldDetail:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field detail", values[i])
@@ -259,6 +267,9 @@ func (_m *AuditLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("trace_id=")
 	builder.WriteString(_m.TraceID)
+	builder.WriteString(", ")
+	builder.WriteString("upstream_trace_id=")
+	builder.WriteString(_m.UpstreamTraceID)
 	builder.WriteString(", ")
 	builder.WriteString("detail=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Detail))

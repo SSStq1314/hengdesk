@@ -114,6 +114,11 @@ func TraceID(v string) predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldEQ(FieldTraceID, v))
 }
 
+// UpstreamTraceID applies equality check predicate on the "upstream_trace_id" field. It's identical to UpstreamTraceIDEQ.
+func UpstreamTraceID(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEQ(FieldUpstreamTraceID, v))
+}
+
 // PrevHash applies equality check predicate on the "prev_hash" field. It's identical to PrevHashEQ.
 func PrevHash(v string) predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldEQ(FieldPrevHash, v))
@@ -867,6 +872,71 @@ func TraceIDEqualFold(v string) predicate.AuditLog {
 // TraceIDContainsFold applies the ContainsFold predicate on the "trace_id" field.
 func TraceIDContainsFold(v string) predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldContainsFold(FieldTraceID, v))
+}
+
+// UpstreamTraceIDEQ applies the EQ predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDEQ(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEQ(FieldUpstreamTraceID, v))
+}
+
+// UpstreamTraceIDNEQ applies the NEQ predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDNEQ(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNEQ(FieldUpstreamTraceID, v))
+}
+
+// UpstreamTraceIDIn applies the In predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDIn(vs ...string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldIn(FieldUpstreamTraceID, vs...))
+}
+
+// UpstreamTraceIDNotIn applies the NotIn predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDNotIn(vs ...string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNotIn(FieldUpstreamTraceID, vs...))
+}
+
+// UpstreamTraceIDGT applies the GT predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDGT(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldGT(FieldUpstreamTraceID, v))
+}
+
+// UpstreamTraceIDGTE applies the GTE predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDGTE(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldGTE(FieldUpstreamTraceID, v))
+}
+
+// UpstreamTraceIDLT applies the LT predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDLT(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldLT(FieldUpstreamTraceID, v))
+}
+
+// UpstreamTraceIDLTE applies the LTE predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDLTE(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldLTE(FieldUpstreamTraceID, v))
+}
+
+// UpstreamTraceIDContains applies the Contains predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDContains(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldContains(FieldUpstreamTraceID, v))
+}
+
+// UpstreamTraceIDHasPrefix applies the HasPrefix predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDHasPrefix(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldHasPrefix(FieldUpstreamTraceID, v))
+}
+
+// UpstreamTraceIDHasSuffix applies the HasSuffix predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDHasSuffix(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldHasSuffix(FieldUpstreamTraceID, v))
+}
+
+// UpstreamTraceIDEqualFold applies the EqualFold predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDEqualFold(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEqualFold(FieldUpstreamTraceID, v))
+}
+
+// UpstreamTraceIDContainsFold applies the ContainsFold predicate on the "upstream_trace_id" field.
+func UpstreamTraceIDContainsFold(v string) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldContainsFold(FieldUpstreamTraceID, v))
 }
 
 // DetailIsNil applies the IsNil predicate on the "detail" field.

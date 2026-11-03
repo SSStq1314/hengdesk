@@ -56,6 +56,7 @@ var (
 		{Name: "user_agent", Type: field.TypeString, Default: ""},
 		{Name: "request_id", Type: field.TypeString, Default: ""},
 		{Name: "trace_id", Type: field.TypeString, Default: ""},
+		{Name: "upstream_trace_id", Type: field.TypeString, Default: ""},
 		{Name: "detail", Type: field.TypeJSON, Nullable: true},
 		{Name: "prev_hash", Type: field.TypeString, Default: ""},
 		{Name: "hash", Type: field.TypeString, Default: ""},
@@ -84,7 +85,7 @@ var (
 			{
 				Name:    "auditlog_prev_hash",
 				Unique:  true,
-				Columns: []*schema.Column{AuditLogsColumns[15]},
+				Columns: []*schema.Column{AuditLogsColumns[16]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "hash <> ''",
 				},
@@ -416,6 +417,7 @@ var (
 		{Name: "error", Type: field.TypeString, Size: 500, Default: ""},
 		{Name: "prompt_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "completion_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "usage_estimated", Type: field.TypeBool, Default: false},
 		{Name: "request_id", Type: field.TypeString, Default: ""},
 		{Name: "superseded_at", Type: field.TypeTime, Nullable: true},
 		{Name: "conversation_id", Type: field.TypeInt},
@@ -428,7 +430,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "messages_conversations_messages",
-				Columns:    []*schema.Column{MessagesColumns[14]},
+				Columns:    []*schema.Column{MessagesColumns[15]},
 				RefColumns: []*schema.Column{ConversationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -437,7 +439,7 @@ var (
 			{
 				Name:    "message_conversation_id_id",
 				Unique:  false,
-				Columns: []*schema.Column{MessagesColumns[14], MessagesColumns[0]},
+				Columns: []*schema.Column{MessagesColumns[15], MessagesColumns[0]},
 			},
 		},
 	}

@@ -42,7 +42,7 @@ export const zh = {
     models: '模型网关',
     budgets: '预算与配额',
     egress: '出站控制',
-    retention: '对话保留期',
+    retention: '保留期与法律保全',
   },
   signIn: {
     title: '登录',
@@ -118,6 +118,8 @@ export const zh = {
     colCreated: '创建时间',
     colStatus: '状态',
     empty: '暂无保全',
+    adminHoldHint:
+      '超级管理员设置保全后会通知安全审计员；解除保全只能由安全审计员操作。',
   },
   errors: {
     forbiddenTitle: '无权访问',
@@ -266,6 +268,8 @@ export const zh = {
       `${ts} ${email}：${kind}`,
     more: (n: number) =>
       `另有 ${n} 条，请在审计日志中按动作「alert.high_risk」查看。`,
+    legalHoldByAdmin: (email: string, ts: string, target: string) =>
+      `超级管理员 ${email} 于 ${ts} 设置了法律保全（${target || '整个组织'}），请核实；解除需由审计员操作。`,
     markRead: '标记为已读',
   },
   a11y: {
@@ -551,5 +555,6 @@ export const zh = {
     truncatedBadge: '已截断',
     contextTruncated: '文件内容过长，本轮只使用了部分内容',
     historyTruncated: '对话较长，较早的消息未发送给模型',
+    usageEstimated: '用量为估算（上游未返回 usage）',
   },
 } as const

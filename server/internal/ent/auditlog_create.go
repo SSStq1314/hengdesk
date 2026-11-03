@@ -196,6 +196,20 @@ func (_c *AuditLogCreate) SetNillableTraceID(v *string) *AuditLogCreate {
 	return _c
 }
 
+// SetUpstreamTraceID sets the "upstream_trace_id" field.
+func (_c *AuditLogCreate) SetUpstreamTraceID(v string) *AuditLogCreate {
+	_c.mutation.SetUpstreamTraceID(v)
+	return _c
+}
+
+// SetNillableUpstreamTraceID sets the "upstream_trace_id" field if the given value is not nil.
+func (_c *AuditLogCreate) SetNillableUpstreamTraceID(v *string) *AuditLogCreate {
+	if v != nil {
+		_c.SetUpstreamTraceID(*v)
+	}
+	return _c
+}
+
 // SetDetail sets the "detail" field.
 func (_c *AuditLogCreate) SetDetail(v map[string]interface{}) *AuditLogCreate {
 	_c.mutation.SetDetail(v)
@@ -310,6 +324,10 @@ func (_c *AuditLogCreate) defaults() error {
 		v := auditlog.DefaultTraceID
 		_c.mutation.SetTraceID(v)
 	}
+	if _, ok := _c.mutation.UpstreamTraceID(); !ok {
+		v := auditlog.DefaultUpstreamTraceID
+		_c.mutation.SetUpstreamTraceID(v)
+	}
 	if _, ok := _c.mutation.PrevHash(); !ok {
 		v := auditlog.DefaultPrevHash
 		_c.mutation.SetPrevHash(v)
@@ -365,6 +383,9 @@ func (_c *AuditLogCreate) check() error {
 	}
 	if _, ok := _c.mutation.TraceID(); !ok {
 		return &ValidationError{Name: "trace_id", err: errors.New(`ent: missing required field "AuditLog.trace_id"`)}
+	}
+	if _, ok := _c.mutation.UpstreamTraceID(); !ok {
+		return &ValidationError{Name: "upstream_trace_id", err: errors.New(`ent: missing required field "AuditLog.upstream_trace_id"`)}
 	}
 	if _, ok := _c.mutation.PrevHash(); !ok {
 		return &ValidationError{Name: "prev_hash", err: errors.New(`ent: missing required field "AuditLog.prev_hash"`)}
@@ -450,6 +471,10 @@ func (_c *AuditLogCreate) createSpec() (*AuditLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.TraceID(); ok {
 		_spec.SetField(auditlog.FieldTraceID, field.TypeString, value)
 		_node.TraceID = value
+	}
+	if value, ok := _c.mutation.UpstreamTraceID(); ok {
+		_spec.SetField(auditlog.FieldUpstreamTraceID, field.TypeString, value)
+		_node.UpstreamTraceID = value
 	}
 	if value, ok := _c.mutation.Detail(); ok {
 		_spec.SetField(auditlog.FieldDetail, field.TypeJSON, value)
@@ -564,6 +589,9 @@ func (u *AuditLogUpsertOne) UpdateNewValues() *AuditLogUpsertOne {
 		}
 		if _, exists := u.create.mutation.TraceID(); exists {
 			s.SetIgnore(auditlog.FieldTraceID)
+		}
+		if _, exists := u.create.mutation.UpstreamTraceID(); exists {
+			s.SetIgnore(auditlog.FieldUpstreamTraceID)
 		}
 		if _, exists := u.create.mutation.Detail(); exists {
 			s.SetIgnore(auditlog.FieldDetail)
@@ -819,6 +847,9 @@ func (u *AuditLogUpsertBulk) UpdateNewValues() *AuditLogUpsertBulk {
 			}
 			if _, exists := b.mutation.TraceID(); exists {
 				s.SetIgnore(auditlog.FieldTraceID)
+			}
+			if _, exists := b.mutation.UpstreamTraceID(); exists {
+				s.SetIgnore(auditlog.FieldUpstreamTraceID)
 			}
 			if _, exists := b.mutation.Detail(); exists {
 				s.SetIgnore(auditlog.FieldDetail)
