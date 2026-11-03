@@ -54,14 +54,17 @@ func serverCmd() *cobra.Command {
 		}
 		defer func() { _ = client.Close() }()
 		e := httpserver.New(lg)
+		e.IPExtractor = httpserver.IPExtractor(cfg.TrustedProxies)
 		w := audit.EntWriter{C: client}
 		rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 		defer func() { _ = rdb.Close() }()
 		api.Mount(e, api.Deps{DB: client, Audit: w, Log: lg, Auth: &auth.Service{
 			DB: client, Audit: w, Secure: cfg.CookieSecure,
-			Sessions: &session.Store{R: rdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle},
-			Lockout:  &session.Lockout{R: rdb, MaxFailures: cfg.LockoutMax, Duration: cfg.LockoutFor},
-		}})
+			Sessions:  &session.Store{R: rdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle},
+			Lockout:   &session.Lockout{R: rdb, MaxFailures: cfg.LockoutMax, Duration: cfg.LockoutFor},
+			IPLimit:   &session.RateLimiter{R: rdb, Limit: cfg.LoginIPLimit, Window: cfg.LoginIPWindow},
+			Passwords: auth.PasswordPolicy{MinLen: cfg.PasswordMinLen},
+		}, System: api.SystemConfig{BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, DiskLowPercent: cfg.DiskLowPercent}})
 		ctx, stop := signalCtx()
 		defer stop()
 		go func() {
@@ -145,6 +148,11 @@ func migrateCmd() *cobra.Command {
 				return fmt.Errorf("升级前备份失败，已中止升级: %w", err)
 			}
 			lg.Info("升级前备份完成", "file", file)
+			removed, err := backup.Prune(cfg.BackupDir, cfg.BackupKeep)
+			if err != nil {
+				lg.Warn("清理旧备份失败", "err", err)
+			}
+			lg.Info("旧备份清理", "keep", cfg.BackupKeep, "removed", len(removed))
 		}
 		applied, err := store.ApplyMigrations(ctx, db)
 		if err != nil {

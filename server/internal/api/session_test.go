@@ -3,12 +3,15 @@ package api_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/labstack/echo/v4"
 
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
@@ -86,16 +89,23 @@ func TestLockoutAfterFiveFailures(t *testing.T) {
 			t.Fatalf("attempt %d: %d", i, rec.Code)
 		}
 	}
-	rec := login(t, e.h, "member@x.local", "password123")
-	if rec.Code != http.StatusTooManyRequests {
-		t.Fatalf("want 429 while locked, got %d", rec.Code)
+	// 已锁定：即使密码正确也返回与「密码错误」「账号不存在」完全相同的 401 和提示，不再单独 429。
+	locked := login(t, e.h, "member@x.local", "password123")
+	wrong := login(t, e.h, "admin@x.local", "wrong-password")
+	ghost := login(t, e.h, "nobody@x.local", "wrong-password")
+	for name, r := range map[string]*httptest.ResponseRecorder{"locked": locked, "wrong": wrong, "ghost": ghost} {
+		if r.Code != http.StatusUnauthorized || r.Body.String() != wrong.Body.String() {
+			t.Fatalf("%s: %d %s (want same as wrong: %s)", name, r.Code, r.Body, wrong.Body)
+		}
+		if r.Header().Get("Retry-After") != "" {
+			t.Fatalf("%s leaks Retry-After", name)
+		}
 	}
-	// 不存在的账号同样锁定，不暴露账号是否存在
-	for i := 0; i < 5; i++ {
-		login(t, e.h, "ghost@x.local", "wrong-password")
-	}
-	if rec := login(t, e.h, "ghost@x.local", "x"); rec.Code != http.StatusTooManyRequests {
-		t.Fatalf("ghost not locked: %d", rec.Code)
+	// 不存在的账号同样计数锁定，不暴露账号是否存在
+	for i := 0; i < 6; i++ {
+		if rec := login(t, e.h, "ghost@x.local", "wrong-password"); rec.Code != http.StatusUnauthorized {
+			t.Fatalf("ghost %d: %d", i, rec.Code)
+		}
 	}
 	e.mr.FastForward(15*time.Minute + time.Second)
 	e.loginAs(t, "member@x.local", "password123")
@@ -103,7 +113,7 @@ func TestLockoutAfterFiveFailures(t *testing.T) {
 	// 审计：失败登录记账号、不记密码
 	ctx := context.Background()
 	rows := e.c.AuditLog.Query().Where(auditlog.Action("auth.login"), auditlog.ActorEmail("member@x.local")).AllX(ctx)
-	if len(rows) < 7 {
+	if len(rows) < 6 {
 		t.Fatalf("login audit rows %d", len(rows))
 	}
 	for _, r := range rows {
@@ -221,5 +231,76 @@ func TestValkeyDownIsFailClosed(t *testing.T) {
 	}
 	if rec := login(t, e.h, "member@x.local", "password123"); rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("login with store down: %d", rec.Code)
+	}
+}
+
+func TestLoginIPRateLimit(t *testing.T) {
+	e := newEnv(t)
+	for i := 0; i < testIPLimit; i++ {
+		// 不同账号，避免账号锁定干扰；同一来源 IP
+		if rec := loginFrom(t, e.h, "203.0.113.9", fmt.Sprintf("u%d@x.local", i), "wrong-password"); rec.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: %d", i, rec.Code)
+		}
+	}
+	rec := loginFrom(t, e.h, "203.0.113.9", "member@x.local", "password123")
+	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") == "" {
+		t.Fatalf("want 429 with Retry-After, got %d", rec.Code)
+	}
+	// 其他来源不受影响
+	if rec := loginFrom(t, e.h, "203.0.113.10", "member@x.local", "password123"); rec.Code != http.StatusOK {
+		t.Fatalf("other ip: %d", rec.Code)
+	}
+	// 窗口滑过后恢复
+	e.mr.FastForward(10*time.Minute + time.Second)
+	if rec := loginFrom(t, e.h, "203.0.113.9", "member@x.local", "password123"); rec.Code != http.StatusOK {
+		t.Fatalf("after window: %d", rec.Code)
+	}
+	n := e.c.AuditLog.Query().Where(auditlog.Action("auth.login"), auditlog.IP("203.0.113.9")).CountX(context.Background())
+	if n < testIPLimit+1 {
+		t.Fatalf("ip audit rows %d", n)
+	}
+}
+
+func TestUntrustedPeerCannotSpoofXFF(t *testing.T) {
+	e := newEnv(t)
+	for i := 0; i < testIPLimit+1; i++ {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"email":"a@x.local","password":"wrong-password"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(echo.HeaderXForwardedFor, fmt.Sprintf("198.51.100.%d", i))
+		req.RemoteAddr = "198.18.0.1:5555" // 不在可信代理网段：XFF 被忽略，全部算作同一来源
+		e.h.ServeHTTP(rec, req)
+		if i == testIPLimit && rec.Code != http.StatusTooManyRequests {
+			t.Fatalf("spoofed XFF bypassed limit: %d", rec.Code)
+		}
+	}
+}
+
+func TestLoginTimingUnknownAccount(t *testing.T) {
+	e := newEnv(t)
+	// 未知账号也做一次 bcrypt（DefaultCost 的 dummyHash），耗时不应显著短于真实账号（测试用户为 MinCost，只校验下限）。
+	start := time.Now()
+	login(t, e.h, "nobody@x.local", "wrong-password")
+	if d := time.Since(start); d < 20*time.Millisecond {
+		t.Fatalf("unknown account answered in %v: dummy bcrypt skipped?", d)
+	}
+}
+
+func TestAdminUnlockAudited(t *testing.T) {
+	e := newEnv(t)
+	for i := 0; i < 5; i++ {
+		login(t, e.h, "member@x.local", "wrong-password")
+	}
+	if rec := login(t, e.h, "member@x.local", "password123"); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("should be locked: %d", rec.Code)
+	}
+	admin := e.loginAs(t, "admin@x.local", "password123")
+	if rec := admin.do(http.MethodPost, "/api/v1/admin/users/"+e.uid(t, "member@x.local")+"/unlock", "", true); rec.Code != http.StatusNoContent {
+		t.Fatalf("unlock: %d %s", rec.Code, rec.Body)
+	}
+	e.loginAs(t, "member@x.local", "password123")
+	n := e.c.AuditLog.Query().Where(auditlog.Action("auth.unlock"), auditlog.ResourceID(e.uid(t, "member@x.local"))).CountX(context.Background())
+	if n != 1 {
+		t.Fatalf("unlock audit rows %d", n)
 	}
 }

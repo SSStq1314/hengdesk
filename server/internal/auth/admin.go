@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/SSStq1314/hengdesk/server/internal/audit"
+
 	"github.com/labstack/echo/v4"
 
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
@@ -100,7 +102,7 @@ func (s *Service) adminResetPassword(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "请求格式错误")
 	}
-	if err := ValidatePassword(req.Password); err != nil {
+	if err := s.Passwords.Validate(req.Password, u.Email); err != nil {
 		return err
 	}
 	if err := s.SetPassword(c, u.ID, req.Password); err != nil {
@@ -113,6 +115,10 @@ func (s *Service) adminResetPassword(c echo.Context) error {
 func (s *Service) adminUnlock(c echo.Context) error {
 	u, err := s.target(c)
 	if err != nil {
+		return err
+	}
+	if err := audit.Record(c, audit.Entry{Action: "auth.unlock", Outcome: "success",
+		ResourceType: "user", ResourceID: strconv.Itoa(u.ID), Detail: map[string]any{"account": u.Email}}); err != nil {
 		return err
 	}
 	if err := s.Lockout.Reset(c.Request().Context(), u.Email); err != nil {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
 	"github.com/SSStq1314/hengdesk/server/internal/authz"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
@@ -136,6 +137,9 @@ func (h *roleHandlers) assign(c echo.Context) error {
 	} else if exists {
 		return c.NoContent(http.StatusNoContent)
 	}
+	if err := recordRole(c, "role.assign", u, r.Key, dept); err != nil {
+		return err
+	}
 	if err := h.db.Membership.Create().SetUserID(u.ID).SetRoleID(ro.ID).SetNillableDepartmentID(dept).Exec(ctx); err != nil {
 		return err
 	}
@@ -156,6 +160,14 @@ func (h *roleHandlers) revoke(c echo.Context) error {
 	if !authz.CanManageTarget(auth.Current(c), u) {
 		return authz.Deny(c, "target_priv")
 	}
+	var dept *int
+	if d, _ := strconv.Atoi(c.QueryParam("department_id")); d > 0 {
+		dept = &d
+	}
+	// 审计先于变更（fail-closed）：审计写失败则不撤销。结果（成功 / 被拒）另由审计中间件记 result。
+	if err := recordRole(c, "role.revoke", u, r.Key, dept); err != nil {
+		return err
+	}
 	ctx := c.Request().Context()
 	tx, err := h.db.Tx(ctx)
 	if err != nil {
@@ -168,8 +180,8 @@ func (h *roleHandlers) revoke(c echo.Context) error {
 		}
 	}
 	del := tx.Membership.Delete().Where(membership.UserID(u.ID), membership.HasRoleWith(role.Key(r.Key)))
-	if d, _ := strconv.Atoi(c.QueryParam("department_id")); d > 0 {
-		del.Where(membership.DepartmentID(d))
+	if dept != nil {
+		del.Where(membership.DepartmentID(*dept))
 	}
 	if _, err := del.Exec(ctx); err != nil {
 		return err
@@ -187,6 +199,19 @@ func (h *roleHandlers) revoke(c echo.Context) error {
 		return err
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+// recordRole 记录角色授予/撤销（含安全审计员指派），审计员可在审计日志中查看。
+func recordRole(c echo.Context, action string, u *ent.User, key string, dept *int) error {
+	d := map[string]any{"role": key, "target_email": u.Email}
+	if dept != nil {
+		d["department_id"] = *dept
+	}
+	if key == rbac.SecurityAuditor {
+		d["auditor"] = true
+	}
+	return audit.Record(c, audit.Entry{Action: action, Phase: "attempt",
+		ResourceType: "user", ResourceID: strconv.Itoa(u.ID), Detail: d})
 }
 
 // guardDisable 停用账号前：若目标是最后一名启用的超级管理员则拒绝。

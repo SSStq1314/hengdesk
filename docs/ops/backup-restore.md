@@ -4,6 +4,7 @@
 
 ## 自动备份
 - `hengdesk migrate` 发现有待执行的迁移，且数据库已有数据时，会先用 `pg_dump --format=custom` 备份到 `HENGDESK_BACKUP_DIR`（compose 中是 `backups` 卷，挂载在 `/backups`）。
+- 备份成功后只保留最近 `HENGDESK_BACKUP_KEEP` 份（默认 5），更早的自动删除。备份盘剩余空间低于 `HENGDESK_DISK_LOW_PERCENT`（默认 10%）时，管理后台显示常驻告警（server 以只读方式挂载 `backups` 卷读取剩余空间）。
 - 备份先写成 `*.partial`，经 `pg_restore --list` 校验可读后才改为正式文件名 `hengdesk-<UTC 时间>-pre-upgrade.dump`。
 - **备份失败时直接中止升级，数据库不做任何改动**，服务仍可用旧版本启动。
 - 全新安装（空库）不备份。

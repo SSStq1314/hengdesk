@@ -26,3 +26,24 @@ func TestSessionDefaults(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestLoginHardeningConfig(t *testing.T) {
+	t.Setenv("HENGDESK_TRUSTED_PROXIES", "10.0.0.0/8, 192.168.1.5")
+	t.Setenv("HENGDESK_PASSWORD_MIN_LENGTH", "12")
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.TrustedProxies) != 2 || c.PasswordMinLen != 12 || c.LoginIPLimit != 30 || c.LoginIPWindow.Minutes() != 10 || c.BackupKeep != 5 || c.DiskLowPercent != 10 {
+		t.Fatalf("%+v", c)
+	}
+	t.Setenv("HENGDESK_PASSWORD_MIN_LENGTH", "6")
+	if _, err := Load(); err == nil {
+		t.Fatal("min length < 8 must be rejected")
+	}
+	t.Setenv("HENGDESK_PASSWORD_MIN_LENGTH", "8")
+	t.Setenv("HENGDESK_TRUSTED_PROXIES", "none")
+	if c, _ := Load(); len(c.TrustedProxies) != 0 {
+		t.Fatal("none should disable XFF")
+	}
+}

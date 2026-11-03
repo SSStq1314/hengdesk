@@ -1,0 +1,28 @@
+衡台 HengDesk
+Copyright (c) 2026 HengDesk contributors
+
+本产品包含以下第三方数据：
+
+- server/internal/auth/passwordlist/common.txt
+  来源：SecLists — Passwords/Common-Credentials/10k-most-common.txt
+  https://github.com/danielmiessler/SecLists （提交 68bcd12457978649d41ae4f56e3b5d2db2b72560）
+  许可：MIT License, Copyright (c) 2018 Daniel Miessler
+  处理：转小写、去重，用作常见弱密码黑名单。
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
