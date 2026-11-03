@@ -8,10 +8,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata"
 )
 
 // Config 是全局配置。
 type Config struct {
+	// Timezone 系统时区（预算日 / 月周期的切分依据，D-37 第 6 条）；HENGDESK_TIMEZONE，默认 Asia/Shanghai，不依赖容器 TZ。
+	Timezone      *time.Location
 	Env           string // dev / prod
 	HTTPAddr      string
 	LogLevel      string
@@ -121,6 +124,21 @@ func get(k, def string) string {
 	return def
 }
 
+// DefaultTimezone 默认系统时区。
+const DefaultTimezone = "Asia/Shanghai"
+
+// LoadTimezone 解析 IANA 时区名（内置 tzdata，容器里没有 zoneinfo 也能用）。
+func LoadTimezone(name string) (*time.Location, error) {
+	if name == "" {
+		name = DefaultTimezone
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		return nil, fmt.Errorf("HENGDESK_TIMEZONE 不是有效的 IANA 时区（如 Asia/Shanghai）：%w", err)
+	}
+	return loc, nil
+}
+
 // Load 读取环境变量。
 func Load() (*Config, error) {
 	ttl, err := time.ParseDuration(get("SESSION_TTL", "12h"))
@@ -173,6 +191,10 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("HENGDESK_PUBLIC_HTTPS 必须是 true / false")
 	}
 	pathStyle, _ := strconv.ParseBool(get("S3_PATH_STYLE", "true"))
+	tz, err := LoadTimezone(get("TIMEZONE", DefaultTimezone))
+	if err != nil {
+		return nil, err
+	}
 	autoCreate, _ := strconv.ParseBool(get("OIDC_AUTO_CREATE", "true"))
 	scopes := strings.Fields(strings.ReplaceAll(get("OIDC_SCOPES", "openid email profile"), ",", " "))
 	c := &Config{
@@ -185,6 +207,7 @@ func Load() (*Config, error) {
 		S3Region:                get("S3_REGION", "us-east-1"),
 		S3Bucket:                get("S3_BUCKET", "hengdesk"),
 		S3PathStyle:             pathStyle,
+		Timezone:                tz,
 		S3AccessKey:             get("S3_ACCESS_KEY", ""),
 		S3SecretKey:             get("S3_SECRET_KEY", ""),
 		SessionTTL:              ttl,

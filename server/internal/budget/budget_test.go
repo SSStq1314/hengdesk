@@ -34,3 +34,14 @@ func TestLevel(t *testing.T) {
 		}
 	}
 }
+
+// D-37 第 6 条：未配置时默认 Asia/Shanghai，不跟随容器 TZ。
+func TestDefaultLoc(t *testing.T) {
+	if got := (&Service{}).loc().String(); got != "Asia/Shanghai" {
+		t.Fatalf("default loc %s", got)
+	}
+	ny, _ := time.LoadLocation("America/New_York")
+	if (&Service{Loc: ny}).loc() != ny {
+		t.Fatal("配置的时区应生效")
+	}
+}

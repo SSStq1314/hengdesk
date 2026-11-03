@@ -96,7 +96,7 @@ func serverCmd() *cobra.Command {
 			lg.Info("model gateway master key loaded", "file", cfg.MasterKeyFile, "fingerprint", keys.Fingerprint())
 		}
 		gw := &gateway.Service{DB: client, Keys: keys, Client: &gateway.Client{HTTP: eg.HTTP()}}
-		api.Mount(e, api.Deps{Gateway: gw, Egress: eg, EgressPolicy: egPolicy, DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc, EnforceSSO: cfg.OIDCEnforce, BreakGlass: cfg.OIDCBreakGlass,
+		api.Mount(e, api.Deps{Timezone: cfg.Timezone, Gateway: gw, Egress: eg, EgressPolicy: egPolicy, DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc, EnforceSSO: cfg.OIDCEnforce, BreakGlass: cfg.OIDCBreakGlass,
 			DB: client, Audit: w, Secure: cfg.CookieSecure,
 			Sessions:  &session.Store{R: rdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle},
 			Lockout:   &session.Lockout{R: rdb, MaxFailures: cfg.LockoutMax, Duration: cfg.LockoutFor},

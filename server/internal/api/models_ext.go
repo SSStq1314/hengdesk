@@ -242,9 +242,7 @@ func (h *modelHandlers) testModel(c echo.Context) error {
 	if err != nil {
 		return notFoundOr(err)
 	}
-	if err := budgetGate(c, h.bs, h.db, m.ID, m.Name); err != nil || c.Response().Committed {
-		return err
-	}
+	// D-37 第 4 条：测试连接计入用量（下面照常写 usage_record 并结算），但不受超额拦截，超额时仍可排查连通性。
 	res := testResult{}
 	start := time.Now()
 	tgt, ge := h.gw.Target(m, false)

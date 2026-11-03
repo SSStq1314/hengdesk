@@ -4,6 +4,7 @@ package api
 import (
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/SSStq1314/hengdesk/server/internal/egress"
 
@@ -31,6 +32,8 @@ type Deps struct {
 	Gateway *gateway.Service
 	// Budget 预算服务；为 nil 时用 Auth.Sessions.R（Valkey）构造。
 	Budget *budget.Service
+	// Timezone 系统时区（预算周期）；为 nil 时用 Asia/Shanghai。
+	Timezone *time.Location
 	// Egress 统一出站客户端（FR-27）；为 nil 时按 DB 白名单构造。所有对外 HTTP 必须经过它。
 	Egress       *egress.Client
 	EgressPolicy *egress.DBPolicy
@@ -98,7 +101,7 @@ func Mount(e *echo.Echo, d Deps) {
 	}
 	bs := d.Budget
 	if bs == nil {
-		bs = &budget.Service{DB: d.DB, R: d.Auth.Sessions.R, Log: d.Log}
+		bs = &budget.Service{DB: d.DB, R: d.Auth.Sessions.R, Log: d.Log, Loc: d.Timezone}
 	}
 	mdh := &modelHandlers{db: d.DB, gw: gw, bs: bs, eg: d.Egress}
 	eh := &egressHandlers{db: d.DB, client: d.Egress, policy: d.EgressPolicy}
@@ -129,8 +132,9 @@ func Mount(e *echo.Echo, d Deps) {
 	ch := &chatHandlers{gw: gw, az: az, log: d.Log, bs: bs}
 	g.POST("/chat/completions", ch.complete)
 
-	bh := &budgetHandlers{db: d.DB, bs: bs}
-	admin.GET("/budgets", bh.list, authz.Require(rbac.BudgetManage))
+	bh := &budgetHandlers{db: d.DB, bs: bs, az: az}
+	admin.GET("/budgets", bh.list, authz.Require(rbac.BudgetRead))
+	admin.GET("/budgets/:id", bh.get, authz.Require(rbac.BudgetRead))
 	admin.POST("/budgets", bh.create, authz.Require(rbac.BudgetManage))
 	admin.PUT("/budgets/:id", bh.update, authz.Require(rbac.BudgetManage))
 	admin.DELETE("/budgets/:id", bh.remove, authz.Require(rbac.BudgetManage))

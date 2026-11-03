@@ -17,9 +17,12 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/notification"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/predicate"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
+	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 	"github.com/SSStq1314/hengdesk/server/internal/usage"
 )
 
@@ -84,6 +87,77 @@ func settle(ctx context.Context, bs *bgt.Service, rec *ent.UsageRecord) {
 type budgetHandlers struct {
 	db *ent.Client
 	bs *bgt.Service
+	az *authz.Service
+}
+
+// scope 当前用户可见的预算范围（D-37 第 9 条）：
+//   - 持有 budget.manage（超级管理员、组织管理员）或全组织范围的 budget.read：全部；
+//   - 部门管理员（部门范围的 budget.read）：本部门及下级部门的部门预算，以及这些部门成员的个人预算，只读；
+//   - 组织 / 模型维度预算不对部门管理员开放。范围外一律 404。
+func (h *budgetHandlers) scope(c echo.Context) ([]predicate.Budget, error) {
+	p := auth.Current(c)
+	if p.Perms.Has(rbac.BudgetManage) {
+		return nil, nil
+	}
+	roots, orgWide := p.Perms.DeptRoots(rbac.BudgetRead)
+	if orgWide {
+		return nil, nil
+	}
+	if len(roots) == 0 {
+		return nil, authz.Deny(c, "scope:"+string(rbac.BudgetRead))
+	}
+	ctx := c.Request().Context()
+	ids, err := h.az.Subtree(ctx, p.OrgID, roots)
+	if err != nil {
+		return nil, err
+	}
+	ids = append(ids, roots...)
+	uids, err := h.db.Membership.Query().Where(membership.DepartmentIDIn(ids...), membership.HasUserWith(user.OrgID(p.OrgID))).
+		Unique(true).Select(membership.FieldUserID).Ints(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return []predicate.Budget{budget.Or(
+		budget.And(budget.ScopeEQ(budget.ScopeDept), budget.ScopeIDIn(ids...)),
+		budget.And(budget.ScopeEQ(budget.ScopeUser), budget.ScopeIDIn(uids...)),
+	)}, nil
+}
+
+// get GET /admin/budgets/:id：单条预算与当期用量；范围外 404。
+func (h *budgetHandlers) get(c echo.Context) error {
+	ps, err := h.scope(c)
+	if err != nil {
+		return err
+	}
+	id, err := idParam(c)
+	if err != nil {
+		return err
+	}
+	ctx := c.Request().Context()
+	b, err := h.db.Budget.Query().Where(append(ps, budget.ID(id), budget.OrgID(auth.Current(c).OrgID))...).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return authz.Deny(c, "budget_scope")
+		}
+		return err
+	}
+	return c.JSON(http.StatusOK, h.view(ctx, b))
+}
+
+// refresh 预算新建或修改后立即以 usage_records 重建当期计数（D-37 第 13 条），并按新的级别重新判断告警（第 11 条）。
+// 失败只记日志：预算本身已保存，计数在下次结算或对账时也会重建。
+func (h *budgetHandlers) refresh(ctx context.Context, b *ent.Budget) {
+	r, err := h.bs.Reconcile(ctx, b)
+	if err != nil {
+		h.bs.Logger().Warn("budget rebuild after edit failed", "budget", b.ID, "err", err)
+		return
+	}
+	if !b.Enabled {
+		return
+	}
+	if err := h.bs.ResetAlerts(ctx, b, r.DB); err != nil {
+		h.bs.Logger().Warn("budget alert re-evaluate failed", "budget", b.ID, "err", err)
+	}
 }
 
 type budgetView struct {
@@ -125,7 +199,11 @@ func (h *budgetHandlers) view(ctx context.Context, b *ent.Budget) budgetView {
 func (h *budgetHandlers) list(c echo.Context) error {
 	p := auth.Current(c)
 	ctx := c.Request().Context()
-	bs, err := h.db.Budget.Query().Where(budget.OrgID(p.OrgID)).Order(ent.Asc(budget.FieldScope), ent.Asc(budget.FieldID)).All(ctx)
+	ps, err := h.scope(c)
+	if err != nil {
+		return err
+	}
+	bs, err := h.db.Budget.Query().Where(append(ps, budget.OrgID(p.OrgID))...).Order(ent.Asc(budget.FieldScope), ent.Asc(budget.FieldID)).All(ctx)
 	if err != nil {
 		return err
 	}
@@ -261,6 +339,7 @@ func (h *budgetHandlers) create(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return dupErr(err)
 	}
+	h.refresh(ctx, b)
 	return c.JSON(http.StatusCreated, h.view(ctx, b))
 }
 
@@ -313,6 +392,7 @@ func (h *budgetHandlers) update(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return dupErr(err)
 	}
+	h.refresh(ctx, nb)
 	return c.JSON(http.StatusOK, h.view(ctx, nb))
 }
 
@@ -336,6 +416,9 @@ func (h *budgetHandlers) remove(c echo.Context) error {
 	}
 	if err := tx.Commit(); err != nil {
 		return err
+	}
+	if err := h.bs.ForgetAlerts(ctx, b.ID); err != nil {
+		h.bs.Logger().Warn("budget alert state cleanup failed", "budget", b.ID, "err", err)
 	}
 	return c.NoContent(http.StatusNoContent)
 }

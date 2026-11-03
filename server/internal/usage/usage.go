@@ -96,8 +96,14 @@ func Write(ctx context.Context, db *ent.Client, r Record) (*ent.UsageRecord, err
 		SetPurpose(purpose).SetStream(r.Stream).SetStatus(status).SetErrorCode(r.ErrorCode).
 		SetPromptTokens(u.PromptTokens).SetCachedTokens(u.CachedTokens).SetCompletionTokens(u.CompletionTokens).
 		SetReasoningTokens(u.ReasoningTokens).SetTotalTokens(u.TotalTokens).
-		SetCostMicros(Cost(u, p)).SetCurrency(p.Currency).SetEstimated(u.Estimated).
+		SetCostMicros(Cost(u, p)).SetCurrency(p.Currency).SetEstimated(u.Estimated).SetUsageUnknown(Unknown(r.ErrorCode, u)).
 		SetLatencyMs(int(r.Latency.Milliseconds())).Save(ctx)
+}
+
+// Unknown 失败且拿不到任何用量（超时 / 上游 5xx 等）：按 0 记账，但标记「用量未知」以便对账（D-37 第 5 条）。
+// 流式中断时网关已附上部分用量（上游给过就用上游的，否则按已收到内容估算），按部分用量记账，不算未知。
+func Unknown(errorCode string, u gateway.Usage) bool {
+	return errorCode != "" && u.TotalTokens == 0 && u.PromptTokens == 0 && u.CompletionTokens == 0
 }
 
 // Filter 统计过滤条件。时间区间为 [From, To)；零值表示不限。
@@ -157,6 +163,8 @@ type Totals struct {
 	EstimatedCalls      int64 `json:"estimated_calls"`
 	EstimatedTokens     int64 `json:"estimated_tokens"`
 	EstimatedCostMicros int64 `json:"estimated_cost_micros"`
+	// UnknownCalls 用量未知（失败且上游未返回用量，按 0 记账）的调用数。
+	UnknownCalls int64 `json:"unknown_calls"`
 }
 
 // Row 汇总行。Key 为 user_id / department_id / model_id（部门为空时 Key=0 表示「无部门」）。
@@ -170,6 +178,7 @@ type aggRow struct {
 	DeptID     sql.NullInt64 `json:"department_id"`
 	ModelID    sql.NullInt64 `json:"model_id"`
 	Estimated  bool          `json:"estimated"`
+	Unknown    bool          `json:"usage_unknown"`
 	Status     string        `json:"status"`
 	Calls      int64         `json:"calls"`
 	Prompt     sql.NullInt64 `json:"prompt"`
@@ -194,7 +203,7 @@ func (r aggRow) key(by GroupBy) int {
 
 // Summary 按维度汇总。结果按金额降序、再按 token 降序。
 func Summary(ctx context.Context, db *ent.Client, by GroupBy, f Filter) ([]Row, Totals, error) {
-	fields := []string{usagerecord.FieldEstimated, usagerecord.FieldStatus}
+	fields := []string{usagerecord.FieldEstimated, usagerecord.FieldUsageUnknown, usagerecord.FieldStatus}
 	switch by {
 	case ByUser:
 		fields = append(fields, usagerecord.FieldUserID)
@@ -242,6 +251,9 @@ func Summary(ctx context.Context, db *ent.Client, by GroupBy, f Filter) ([]Row, 
 			t.ReasoningTokens += r.Reasoning.Int64
 			t.TotalTokens += r.Total.Int64
 			t.CostMicros += r.Cost.Int64
+			if r.Unknown {
+				t.UnknownCalls += r.Calls
+			}
 			if r.Estimated {
 				t.EstimatedCalls += r.Calls
 				t.EstimatedTokens += r.Total.Int64

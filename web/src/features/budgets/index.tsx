@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zh } from '@/locales/zh-CN'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import {
   budgetApi,
   deptApi,
@@ -90,8 +91,11 @@ const toInput = (f: Form): BudgetInput => ({
   note: f.note,
 })
 
-// 预算与配额管理（M1 第二块 PR3）。仅超级管理员（budget.manage）可见。
+// 预算与配额管理（M1 第二块 PR3 / PR3b）。超级管理员、组织管理员（budget.manage）可管理；
+// 部门管理员（budget.read）只读本部门及下级的预算与用量（D-37 第 9 条）。
 export function BudgetsPage() {
+  const perms = useAuthStore((s) => s.auth.user?.permissions ?? [])
+  const canManage = perms.includes('budget.manage')
   const qc = useQueryClient()
   const list = useQuery({ queryKey: ['budgets'], queryFn: budgetApi.list })
   const [edit, setEdit] = useState<Edit | null>(null)
@@ -186,7 +190,10 @@ export function BudgetsPage() {
           <h1 className='text-2xl font-bold tracking-tight'>
             {zh.budgets.title}
           </h1>
-          <div className='ms-auto flex gap-2'>
+          {!canManage && (
+            <Badge variant='secondary'>{zh.budgets.readOnly}</Badge>
+          )}
+          <div className='ms-auto flex gap-2' hidden={!canManage}>
             <Button
               variant='outline'
               disabled={recon.isPending}
@@ -199,7 +206,10 @@ export function BudgetsPage() {
             </Button>
           </div>
         </div>
-        <p className='mb-4 text-sm text-muted-foreground'>{zh.budgets.desc}</p>
+        <p className='mb-1 text-sm text-muted-foreground'>{zh.budgets.desc}</p>
+        <p className='mb-4 text-sm text-amber-600 dark:text-amber-500'>
+          {zh.budgets.overrunNotice}
+        </p>
         <Table>
           <TableHeader>
             <TableRow>
@@ -210,7 +220,9 @@ export function BudgetsPage() {
               <TableHead>{zh.budgets.threshold}</TableHead>
               <TableHead>{zh.budgets.action}</TableHead>
               <TableHead>{zh.budgets.resetAt}</TableHead>
-              <TableHead className='text-end'>{zh.common.actions}</TableHead>
+              {canManage && (
+                <TableHead className='text-end'>{zh.common.actions}</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -268,18 +280,20 @@ export function BudgetsPage() {
                 <TableCell className='text-xs'>
                   {new Date(b.reset_at).toLocaleString('zh-CN')}
                 </TableCell>
-                <TableCell className='text-end'>
-                  <Button
-                    size='sm'
-                    variant='ghost'
-                    onClick={() => setEdit({ id: b.id, v: toForm(b) })}
-                  >
-                    {zh.common.edit}
-                  </Button>
-                  <Button size='sm' variant='ghost' onClick={() => setDel(b)}>
-                    {zh.common.delete}
-                  </Button>
-                </TableCell>
+                {canManage && (
+                  <TableCell className='text-end'>
+                    <Button
+                      size='sm'
+                      variant='ghost'
+                      onClick={() => setEdit({ id: b.id, v: toForm(b) })}
+                    >
+                      {zh.common.edit}
+                    </Button>
+                    <Button size='sm' variant='ghost' onClick={() => setDel(b)}>
+                      {zh.common.delete}
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

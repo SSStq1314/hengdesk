@@ -18,6 +18,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/budgetalertstate"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
@@ -45,6 +46,8 @@ type Client struct {
 	AuditLog *AuditLogClient
 	// Budget is the client for interacting with the Budget builders.
 	Budget *BudgetClient
+	// BudgetAlertState is the client for interacting with the BudgetAlertState builders.
+	BudgetAlertState *BudgetAlertStateClient
 	// Department is the client for interacting with the Department builders.
 	Department *DepartmentClient
 	// DeptClosure is the client for interacting with the DeptClosure builders.
@@ -87,6 +90,7 @@ func (c *Client) init() {
 	c.ACL = NewACLClient(c.config)
 	c.AuditLog = NewAuditLogClient(c.config)
 	c.Budget = NewBudgetClient(c.config)
+	c.BudgetAlertState = NewBudgetAlertStateClient(c.config)
 	c.Department = NewDepartmentClient(c.config)
 	c.DeptClosure = NewDeptClosureClient(c.config)
 	c.EgressLog = NewEgressLogClient(c.config)
@@ -191,25 +195,26 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:           ctx,
-		config:        cfg,
-		ACL:           NewACLClient(cfg),
-		AuditLog:      NewAuditLogClient(cfg),
-		Budget:        NewBudgetClient(cfg),
-		Department:    NewDepartmentClient(cfg),
-		DeptClosure:   NewDeptClosureClient(cfg),
-		EgressLog:     NewEgressLogClient(cfg),
-		EgressRule:    NewEgressRuleClient(cfg),
-		Membership:    NewMembershipClient(cfg),
-		Model:         NewModelClient(cfg),
-		ModelProvider: NewModelProviderClient(cfg),
-		Notification:  NewNotificationClient(cfg),
-		Organization:  NewOrganizationClient(cfg),
-		Role:          NewRoleClient(cfg),
-		SystemSetting: NewSystemSettingClient(cfg),
-		Tool:          NewToolClient(cfg),
-		UsageRecord:   NewUsageRecordClient(cfg),
-		User:          NewUserClient(cfg),
+		ctx:              ctx,
+		config:           cfg,
+		ACL:              NewACLClient(cfg),
+		AuditLog:         NewAuditLogClient(cfg),
+		Budget:           NewBudgetClient(cfg),
+		BudgetAlertState: NewBudgetAlertStateClient(cfg),
+		Department:       NewDepartmentClient(cfg),
+		DeptClosure:      NewDeptClosureClient(cfg),
+		EgressLog:        NewEgressLogClient(cfg),
+		EgressRule:       NewEgressRuleClient(cfg),
+		Membership:       NewMembershipClient(cfg),
+		Model:            NewModelClient(cfg),
+		ModelProvider:    NewModelProviderClient(cfg),
+		Notification:     NewNotificationClient(cfg),
+		Organization:     NewOrganizationClient(cfg),
+		Role:             NewRoleClient(cfg),
+		SystemSetting:    NewSystemSettingClient(cfg),
+		Tool:             NewToolClient(cfg),
+		UsageRecord:      NewUsageRecordClient(cfg),
+		User:             NewUserClient(cfg),
 	}, nil
 }
 
@@ -227,25 +232,26 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:           ctx,
-		config:        cfg,
-		ACL:           NewACLClient(cfg),
-		AuditLog:      NewAuditLogClient(cfg),
-		Budget:        NewBudgetClient(cfg),
-		Department:    NewDepartmentClient(cfg),
-		DeptClosure:   NewDeptClosureClient(cfg),
-		EgressLog:     NewEgressLogClient(cfg),
-		EgressRule:    NewEgressRuleClient(cfg),
-		Membership:    NewMembershipClient(cfg),
-		Model:         NewModelClient(cfg),
-		ModelProvider: NewModelProviderClient(cfg),
-		Notification:  NewNotificationClient(cfg),
-		Organization:  NewOrganizationClient(cfg),
-		Role:          NewRoleClient(cfg),
-		SystemSetting: NewSystemSettingClient(cfg),
-		Tool:          NewToolClient(cfg),
-		UsageRecord:   NewUsageRecordClient(cfg),
-		User:          NewUserClient(cfg),
+		ctx:              ctx,
+		config:           cfg,
+		ACL:              NewACLClient(cfg),
+		AuditLog:         NewAuditLogClient(cfg),
+		Budget:           NewBudgetClient(cfg),
+		BudgetAlertState: NewBudgetAlertStateClient(cfg),
+		Department:       NewDepartmentClient(cfg),
+		DeptClosure:      NewDeptClosureClient(cfg),
+		EgressLog:        NewEgressLogClient(cfg),
+		EgressRule:       NewEgressRuleClient(cfg),
+		Membership:       NewMembershipClient(cfg),
+		Model:            NewModelClient(cfg),
+		ModelProvider:    NewModelProviderClient(cfg),
+		Notification:     NewNotificationClient(cfg),
+		Organization:     NewOrganizationClient(cfg),
+		Role:             NewRoleClient(cfg),
+		SystemSetting:    NewSystemSettingClient(cfg),
+		Tool:             NewToolClient(cfg),
+		UsageRecord:      NewUsageRecordClient(cfg),
+		User:             NewUserClient(cfg),
 	}, nil
 }
 
@@ -275,9 +281,10 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.ACL, c.AuditLog, c.Budget, c.Department, c.DeptClosure, c.EgressLog,
-		c.EgressRule, c.Membership, c.Model, c.ModelProvider, c.Notification,
-		c.Organization, c.Role, c.SystemSetting, c.Tool, c.UsageRecord, c.User,
+		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Department, c.DeptClosure,
+		c.EgressLog, c.EgressRule, c.Membership, c.Model, c.ModelProvider,
+		c.Notification, c.Organization, c.Role, c.SystemSetting, c.Tool, c.UsageRecord,
+		c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -287,9 +294,10 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.ACL, c.AuditLog, c.Budget, c.Department, c.DeptClosure, c.EgressLog,
-		c.EgressRule, c.Membership, c.Model, c.ModelProvider, c.Notification,
-		c.Organization, c.Role, c.SystemSetting, c.Tool, c.UsageRecord, c.User,
+		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Department, c.DeptClosure,
+		c.EgressLog, c.EgressRule, c.Membership, c.Model, c.ModelProvider,
+		c.Notification, c.Organization, c.Role, c.SystemSetting, c.Tool, c.UsageRecord,
+		c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -304,6 +312,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AuditLog.mutate(ctx, m)
 	case *BudgetMutation:
 		return c.Budget.mutate(ctx, m)
+	case *BudgetAlertStateMutation:
+		return c.BudgetAlertState.mutate(ctx, m)
 	case *DepartmentMutation:
 		return c.Department.mutate(ctx, m)
 	case *DeptClosureMutation:
@@ -734,6 +744,139 @@ func (c *BudgetClient) mutate(ctx context.Context, m *BudgetMutation) (Value, er
 		return (&BudgetDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Budget mutation op: %q", m.Op())
+	}
+}
+
+// BudgetAlertStateClient is a client for the BudgetAlertState schema.
+type BudgetAlertStateClient struct {
+	config
+}
+
+// NewBudgetAlertStateClient returns a client for the BudgetAlertState from the given config.
+func NewBudgetAlertStateClient(c config) *BudgetAlertStateClient {
+	return &BudgetAlertStateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `budgetalertstate.Hooks(f(g(h())))`.
+func (c *BudgetAlertStateClient) Use(hooks ...Hook) {
+	c.hooks.BudgetAlertState = append(c.hooks.BudgetAlertState, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `budgetalertstate.Intercept(f(g(h())))`.
+func (c *BudgetAlertStateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BudgetAlertState = append(c.inters.BudgetAlertState, interceptors...)
+}
+
+// Create returns a builder for creating a BudgetAlertState entity.
+func (c *BudgetAlertStateClient) Create() *BudgetAlertStateCreate {
+	mutation := newBudgetAlertStateMutation(c.config, OpCreate)
+	return &BudgetAlertStateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BudgetAlertState entities.
+func (c *BudgetAlertStateClient) CreateBulk(builders ...*BudgetAlertStateCreate) *BudgetAlertStateCreateBulk {
+	return &BudgetAlertStateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BudgetAlertStateClient) MapCreateBulk(slice any, setFunc func(*BudgetAlertStateCreate, int)) *BudgetAlertStateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BudgetAlertStateCreateBulk{err: fmt.Errorf("calling to BudgetAlertStateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BudgetAlertStateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BudgetAlertStateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BudgetAlertState.
+func (c *BudgetAlertStateClient) Update() *BudgetAlertStateUpdate {
+	mutation := newBudgetAlertStateMutation(c.config, OpUpdate)
+	return &BudgetAlertStateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BudgetAlertStateClient) UpdateOne(_m *BudgetAlertState) *BudgetAlertStateUpdateOne {
+	mutation := newBudgetAlertStateMutation(c.config, OpUpdateOne, withBudgetAlertState(_m))
+	return &BudgetAlertStateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BudgetAlertStateClient) UpdateOneID(id int) *BudgetAlertStateUpdateOne {
+	mutation := newBudgetAlertStateMutation(c.config, OpUpdateOne, withBudgetAlertStateID(id))
+	return &BudgetAlertStateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BudgetAlertState.
+func (c *BudgetAlertStateClient) Delete() *BudgetAlertStateDelete {
+	mutation := newBudgetAlertStateMutation(c.config, OpDelete)
+	return &BudgetAlertStateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BudgetAlertStateClient) DeleteOne(_m *BudgetAlertState) *BudgetAlertStateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BudgetAlertStateClient) DeleteOneID(id int) *BudgetAlertStateDeleteOne {
+	builder := c.Delete().Where(budgetalertstate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BudgetAlertStateDeleteOne{builder}
+}
+
+// Query returns a query builder for BudgetAlertState.
+func (c *BudgetAlertStateClient) Query() *BudgetAlertStateQuery {
+	return &BudgetAlertStateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBudgetAlertState},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BudgetAlertState entity by its id.
+func (c *BudgetAlertStateClient) Get(ctx context.Context, id int) (*BudgetAlertState, error) {
+	return c.Query().Where(budgetalertstate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BudgetAlertStateClient) GetX(ctx context.Context, id int) *BudgetAlertState {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *BudgetAlertStateClient) Hooks() []Hook {
+	return c.hooks.BudgetAlertState
+}
+
+// Interceptors returns the client interceptors.
+func (c *BudgetAlertStateClient) Interceptors() []Interceptor {
+	return c.inters.BudgetAlertState
+}
+
+func (c *BudgetAlertStateClient) mutate(ctx context.Context, m *BudgetAlertStateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BudgetAlertStateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BudgetAlertStateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BudgetAlertStateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BudgetAlertStateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BudgetAlertState mutation op: %q", m.Op())
 	}
 }
 
@@ -2826,13 +2969,13 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		ACL, AuditLog, Budget, Department, DeptClosure, EgressLog, EgressRule,
-		Membership, Model, ModelProvider, Notification, Organization, Role,
+		ACL, AuditLog, Budget, BudgetAlertState, Department, DeptClosure, EgressLog,
+		EgressRule, Membership, Model, ModelProvider, Notification, Organization, Role,
 		SystemSetting, Tool, UsageRecord, User []ent.Hook
 	}
 	inters struct {
-		ACL, AuditLog, Budget, Department, DeptClosure, EgressLog, EgressRule,
-		Membership, Model, ModelProvider, Notification, Organization, Role,
+		ACL, AuditLog, Budget, BudgetAlertState, Department, DeptClosure, EgressLog,
+		EgressRule, Membership, Model, ModelProvider, Notification, Organization, Role,
 		SystemSetting, Tool, UsageRecord, User []ent.Interceptor
 	}
 )

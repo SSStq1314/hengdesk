@@ -376,6 +376,20 @@ func (_u *UsageRecordUpdate) SetNillableEstimated(v *bool) *UsageRecordUpdate {
 	return _u
 }
 
+// SetUsageUnknown sets the "usage_unknown" field.
+func (_u *UsageRecordUpdate) SetUsageUnknown(v bool) *UsageRecordUpdate {
+	_u.mutation.SetUsageUnknown(v)
+	return _u
+}
+
+// SetNillableUsageUnknown sets the "usage_unknown" field if the given value is not nil.
+func (_u *UsageRecordUpdate) SetNillableUsageUnknown(v *bool) *UsageRecordUpdate {
+	if v != nil {
+		_u.SetUsageUnknown(*v)
+	}
+	return _u
+}
+
 // SetLatencyMs sets the "latency_ms" field.
 func (_u *UsageRecordUpdate) SetLatencyMs(v int) *UsageRecordUpdate {
 	_u.mutation.ResetLatencyMs()
@@ -548,6 +562,9 @@ func (_u *UsageRecordUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.Estimated(); ok {
 		_spec.SetField(usagerecord.FieldEstimated, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.UsageUnknown(); ok {
+		_spec.SetField(usagerecord.FieldUsageUnknown, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.LatencyMs(); ok {
 		_spec.SetField(usagerecord.FieldLatencyMs, field.TypeInt, value)
@@ -924,6 +941,20 @@ func (_u *UsageRecordUpdateOne) SetNillableEstimated(v *bool) *UsageRecordUpdate
 	return _u
 }
 
+// SetUsageUnknown sets the "usage_unknown" field.
+func (_u *UsageRecordUpdateOne) SetUsageUnknown(v bool) *UsageRecordUpdateOne {
+	_u.mutation.SetUsageUnknown(v)
+	return _u
+}
+
+// SetNillableUsageUnknown sets the "usage_unknown" field if the given value is not nil.
+func (_u *UsageRecordUpdateOne) SetNillableUsageUnknown(v *bool) *UsageRecordUpdateOne {
+	if v != nil {
+		_u.SetUsageUnknown(*v)
+	}
+	return _u
+}
+
 // SetLatencyMs sets the "latency_ms" field.
 func (_u *UsageRecordUpdateOne) SetLatencyMs(v int) *UsageRecordUpdateOne {
 	_u.mutation.ResetLatencyMs()
@@ -1126,6 +1157,9 @@ func (_u *UsageRecordUpdateOne) sqlSave(ctx context.Context) (_node *UsageRecord
 	}
 	if value, ok := _u.mutation.Estimated(); ok {
 		_spec.SetField(usagerecord.FieldEstimated, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.UsageUnknown(); ok {
+		_spec.SetField(usagerecord.FieldUsageUnknown, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.LatencyMs(); ok {
 		_spec.SetField(usagerecord.FieldLatencyMs, field.TypeInt, value)

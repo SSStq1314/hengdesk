@@ -54,7 +54,7 @@ export const sidebarData: SidebarData = {
           title: zh.nav.budgets,
           url: '/budgets',
           icon: Wallet,
-          perm: 'budget.manage',
+          perm: 'budget.read',
         },
       ],
     },

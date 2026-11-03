@@ -15,6 +15,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/budgetalertstate"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
@@ -89,23 +90,24 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			acl.Table:           acl.ValidColumn,
-			auditlog.Table:      auditlog.ValidColumn,
-			budget.Table:        budget.ValidColumn,
-			department.Table:    department.ValidColumn,
-			deptclosure.Table:   deptclosure.ValidColumn,
-			egresslog.Table:     egresslog.ValidColumn,
-			egressrule.Table:    egressrule.ValidColumn,
-			membership.Table:    membership.ValidColumn,
-			model.Table:         model.ValidColumn,
-			modelprovider.Table: modelprovider.ValidColumn,
-			notification.Table:  notification.ValidColumn,
-			organization.Table:  organization.ValidColumn,
-			role.Table:          role.ValidColumn,
-			systemsetting.Table: systemsetting.ValidColumn,
-			tool.Table:          tool.ValidColumn,
-			usagerecord.Table:   usagerecord.ValidColumn,
-			user.Table:          user.ValidColumn,
+			acl.Table:              acl.ValidColumn,
+			auditlog.Table:         auditlog.ValidColumn,
+			budget.Table:           budget.ValidColumn,
+			budgetalertstate.Table: budgetalertstate.ValidColumn,
+			department.Table:       department.ValidColumn,
+			deptclosure.Table:      deptclosure.ValidColumn,
+			egresslog.Table:        egresslog.ValidColumn,
+			egressrule.Table:       egressrule.ValidColumn,
+			membership.Table:       membership.ValidColumn,
+			model.Table:            model.ValidColumn,
+			modelprovider.Table:    modelprovider.ValidColumn,
+			notification.Table:     notification.ValidColumn,
+			organization.Table:     organization.ValidColumn,
+			role.Table:             role.ValidColumn,
+			systemsetting.Table:    systemsetting.ValidColumn,
+			tool.Table:             tool.ValidColumn,
+			usagerecord.Table:      usagerecord.ValidColumn,
+			user.Table:             user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)
