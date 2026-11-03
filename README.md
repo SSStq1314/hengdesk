@@ -29,3 +29,14 @@ make test
 ## 第三方代码
 
 - `web/` 基于 [satnaing/shadcn-admin](https://github.com/satnaing/shadcn-admin)（MIT，Copyright (c) 2024 Sat Naing），保留其 `web/LICENSE`，见 `web/NOTICE`。
+
+## 快速部署（Docker Compose）
+
+```bash
+cd deploy
+./install.sh                     # 交互：选择 SeaweedFS（默认）/ MinIO / 外部 S3
+# 或非交互：./install.sh -y --storage seaweedfs
+docker compose up -d --build
+```
+
+浏览器访问 `http://<主机>:8080`，管理员邮箱默认 `admin@hengdesk.local`，密码见 `deploy/.env` 中的 `HENGDESK_ADMIN_PASSWORD`（install.sh 随机生成）。

@@ -1,0 +1,99 @@
+# 衡台 HengDesk 默认部署：PostgreSQL 17 + pgvector、Valkey、SeaweedFS（S3 网关）。
+# MinIO：叠加 docker-compose.minio.yml；外部 S3：叠加 docker-compose.external-s3.yml。推荐用 install.sh 生成 .env。
+name: hengdesk
+
+x-hengdesk-env: &hd-env
+  HENGDESK_ENV: ${HENGDESK_ENV:-prod}
+  HENGDESK_LOG_LEVEL: ${HENGDESK_LOG_LEVEL:-info}
+  HENGDESK_DATABASE_URL: postgres://${POSTGRES_USER:-hengdesk}:${POSTGRES_PASSWORD:?请在 .env 设置 POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hengdesk}?sslmode=disable
+  HENGDESK_REDIS_ADDR: valkey:6379
+  HENGDESK_S3_ENDPOINT: ${HENGDESK_S3_ENDPOINT:-http://seaweedfs:8333}
+  HENGDESK_S3_REGION: ${HENGDESK_S3_REGION:-us-east-1}
+  HENGDESK_S3_BUCKET: ${HENGDESK_S3_BUCKET:-hengdesk}
+  HENGDESK_S3_ACCESS_KEY: ${HENGDESK_S3_ACCESS_KEY:?请在 .env 设置 HENGDESK_S3_ACCESS_KEY}
+  HENGDESK_S3_SECRET_KEY: ${HENGDESK_S3_SECRET_KEY:?请在 .env 设置 HENGDESK_S3_SECRET_KEY}
+  HENGDESK_S3_PATH_STYLE: ${HENGDESK_S3_PATH_STYLE:-true}
+  HENGDESK_JWT_SECRET: ${HENGDESK_JWT_SECRET:?请在 .env 设置至少 32 字节的 HENGDESK_JWT_SECRET}
+  HENGDESK_SESSION_TTL: ${HENGDESK_SESSION_TTL:-12h}
+  HENGDESK_COOKIE_SECURE: ${HENGDESK_COOKIE_SECURE:-false}
+  HENGDESK_ADMIN_EMAIL: ${HENGDESK_ADMIN_EMAIL:-admin@hengdesk.local}
+  HENGDESK_ADMIN_PASSWORD: ${HENGDESK_ADMIN_PASSWORD:?请在 .env 设置 HENGDESK_ADMIN_PASSWORD}
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hengdesk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-hengdesk}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 3s
+      retries: 40
+
+  valkey:
+    image: valkey/valkey:8.1.11-alpine
+    restart: unless-stopped
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes: [valkeydata:/data]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 3s
+      retries: 40
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.52
+    restart: unless-stopped
+    environment:
+      S3_AK: ${HENGDESK_S3_ACCESS_KEY}
+      S3_SK: ${HENGDESK_S3_SECRET_KEY}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        cat > /tmp/s3.json <<JSON
+        {"identities":[{"name":"hengdesk","credentials":[{"accessKey":"$${S3_AK}","secretKey":"$${S3_SK}"}],"actions":["Admin","Read","Write","List","Tagging"]}]}
+        JSON
+        exec weed server -dir=/data -ip.bind=0.0.0.0 -master.volumeSizeLimitMB=1024 -volume.max=0 -s3 -s3.port=8333 -s3.config=/tmp/s3.json
+    volumes: [seaweeddata:/data]
+    ports: ["${HENGDESK_S3_PUBLISH:-127.0.0.1:8333}:8333"]
+
+  migrate:
+    build: {context: ../server}
+    image: hengdesk/server:${HENGDESK_VERSION:-dev}
+    command: ["migrate"]
+    environment: *hd-env
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
+
+  server:
+    image: hengdesk/server:${HENGDESK_VERSION:-dev}
+    command: ["server"]
+    restart: unless-stopped
+    environment: *hd-env
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      valkey: {condition: service_healthy}
+
+  worker:
+    image: hengdesk/server:${HENGDESK_VERSION:-dev}
+    command: ["worker"]
+    restart: unless-stopped
+    environment: *hd-env
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      valkey: {condition: service_healthy}
+
+  web:
+    build: {context: ../web}
+    image: hengdesk/web:${HENGDESK_VERSION:-dev}
+    restart: unless-stopped
+    ports: ["${HENGDESK_HTTP_PORT:-8080}:80"]
+    depends_on: [server]
+
+volumes:
+  pgdata:
+  valkeydata:
+  seaweeddata:
