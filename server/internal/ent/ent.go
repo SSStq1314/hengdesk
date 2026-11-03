@@ -17,6 +17,8 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/organization"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/tool"
@@ -81,15 +83,17 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			acl.Table:          acl.ValidColumn,
-			auditlog.Table:     auditlog.ValidColumn,
-			department.Table:   department.ValidColumn,
-			deptclosure.Table:  deptclosure.ValidColumn,
-			membership.Table:   membership.ValidColumn,
-			organization.Table: organization.ValidColumn,
-			role.Table:         role.ValidColumn,
-			tool.Table:         tool.ValidColumn,
-			user.Table:         user.ValidColumn,
+			acl.Table:           acl.ValidColumn,
+			auditlog.Table:      auditlog.ValidColumn,
+			department.Table:    department.ValidColumn,
+			deptclosure.Table:   deptclosure.ValidColumn,
+			membership.Table:    membership.ValidColumn,
+			model.Table:         model.ValidColumn,
+			modelprovider.Table: modelprovider.ValidColumn,
+			organization.Table:  organization.ValidColumn,
+			role.Table:          role.ValidColumn,
+			tool.Table:          tool.ValidColumn,
+			user.Table:          user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

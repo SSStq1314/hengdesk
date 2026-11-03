@@ -30,6 +30,7 @@ const (
 	SSOManage       Perm = "auth.sso.manage"      // 认证设置（OIDC）
 	SettingsManage  Perm = "system.settings"      // 系统设置
 	ToolManage      Perm = "tool.manage"          // 工具注册与启用（新工具默认禁用）
+	ModelManage     Perm = "model.manage"         // 模型供应商与模型管理（含上游密钥，只写不读）
 	AuditRead       Perm = "audit.read"           // 查看审计日志（本身也记审计）
 	AuditExport     Perm = "audit.export"         // 导出审计日志
 	KBCreate        Perm = "kb.create"            // 创建知识库
@@ -57,7 +58,7 @@ type Role struct {
 var Builtin = []Role{
 	{Key: SuperAdmin, Name: "超级管理员", Privileged: true, Perms: []Perm{
 		MemberRead, MemberManage, DeptRead, DeptManage, RoleRead, RoleAssign, RoleAssignPriv,
-		SSOManage, SettingsManage, ToolManage, KBCreate, AgentCreate, ResourceACLRead,
+		SSOManage, SettingsManage, ToolManage, ModelManage, KBCreate, AgentCreate, ResourceACLRead,
 	}},
 	{Key: SecurityAuditor, Name: "安全审计员", Privileged: true, Perms: []Perm{
 		AuditRead, AuditExport, MemberRead, DeptRead, RoleRead,

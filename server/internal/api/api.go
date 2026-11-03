@@ -11,6 +11,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
 	"github.com/SSStq1314/hengdesk/server/internal/authz"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
+	"github.com/SSStq1314/hengdesk/server/internal/gateway"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 )
 
@@ -22,6 +23,8 @@ type Deps struct {
 	Log   *slog.Logger
 	// System 管理后台状态提示（审计员未指派、备份盘空间不足等）。
 	System SystemConfig
+	// Gateway 模型网关；为 nil 时用默认 HTTP 客户端且不配置主密钥（不能保存或使用上游密钥）。
+	Gateway *gateway.Service
 }
 
 // Mount 挂载路由。所有 /admin 接口都经统一授权层：未登录 401，无权限或越权 404。
@@ -75,6 +78,22 @@ func Mount(e *echo.Echo, d Deps) {
 	admin.POST("/departments/import", dh.importCSV, authz.Require(rbac.DeptManage))
 	admin.PATCH("/departments/:id", dh.rename, authz.Require(rbac.DeptManage))
 	admin.DELETE("/departments/:id", dh.remove, authz.Require(rbac.DeptManage))
+
+	gw := d.Gateway
+	if gw == nil {
+		gw = &gateway.Service{DB: d.DB, Client: &gateway.Client{}}
+	}
+	mdh := &modelHandlers{db: d.DB, gw: gw}
+	admin.GET("/model-providers", mdh.listProviders, authz.Require(rbac.ModelManage))
+	admin.POST("/model-providers", mdh.createProvider, authz.Require(rbac.ModelManage))
+	admin.PATCH("/model-providers/:id", mdh.updateProvider, authz.Require(rbac.ModelManage))
+	admin.DELETE("/model-providers/:id", mdh.deleteProvider, authz.Require(rbac.ModelManage))
+	admin.GET("/models", mdh.listModels, authz.Require(rbac.ModelManage))
+	admin.POST("/models", mdh.createModel, authz.Require(rbac.ModelManage))
+	admin.PATCH("/models/:id", mdh.updateModel, authz.Require(rbac.ModelManage))
+	admin.DELETE("/models/:id", mdh.deleteModel, authz.Require(rbac.ModelManage))
+	ch := &chatHandlers{gw: gw, az: az, log: d.Log}
+	g.POST("/chat/completions", ch.complete)
 
 	mountEdition(g, d.Auth)
 

@@ -21,6 +21,12 @@ type DeptClosure func(*sql.Selector)
 // Membership is the predicate function for membership builders.
 type Membership func(*sql.Selector)
 
+// Model is the predicate function for model builders.
+type Model func(*sql.Selector)
+
+// ModelProvider is the predicate function for modelprovider builders.
+type ModelProvider func(*sql.Selector)
+
 // Organization is the predicate function for organization builders.
 type Organization func(*sql.Selector)
 

@@ -55,4 +55,5 @@ const (
 	ResKB    = "kb"
 	ResAgent = "agent"
 	ResTool  = "tool"
+	ResModel = "model" // 模型（resource_id 为模型 name），use 位决定能否调用
 )
