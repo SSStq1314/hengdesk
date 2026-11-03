@@ -393,6 +393,7 @@ var (
 		{Name: "prompt_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "completion_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "request_id", Type: field.TypeString, Default: ""},
+		{Name: "superseded_at", Type: field.TypeTime, Nullable: true},
 		{Name: "conversation_id", Type: field.TypeInt},
 	}
 	// MessagesTable holds the schema information for the "messages" table.
@@ -403,7 +404,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "messages_conversations_messages",
-				Columns:    []*schema.Column{MessagesColumns[13]},
+				Columns:    []*schema.Column{MessagesColumns[14]},
 				RefColumns: []*schema.Column{ConversationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -412,7 +413,7 @@ var (
 			{
 				Name:    "message_conversation_id_id",
 				Unique:  false,
-				Columns: []*schema.Column{MessagesColumns[13], MessagesColumns[0]},
+				Columns: []*schema.Column{MessagesColumns[14], MessagesColumns[0]},
 			},
 		},
 	}

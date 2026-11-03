@@ -8,6 +8,7 @@ import {
   FileText,
   Paperclip,
   Plus,
+  RotateCcw,
   Send,
   Square,
   Trash2,
@@ -18,9 +19,11 @@ import remarkGfm from 'remark-gfm'
 import { toast } from 'sonner'
 import {
   chatApi,
+  regenerateMessage,
   sendMessage,
   type ChatMessage,
   type ConvFile,
+  type StreamHandlers,
 } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -47,6 +50,7 @@ export function ChatPage() {
   const [model, setModel] = useState('')
   const [input, setInput] = useState('')
   const [live, setLive] = useState<ChatMessage[]>([])
+  const [hidden, setHidden] = useState<number | null>(null)
   const [streaming, setStreaming] = useState(false)
   const [removing, setRemoving] = useState<number | null>(null)
   const [uploading, setUploading] = useState<string | null>(null)
@@ -71,7 +75,11 @@ export function ChatPage() {
     modelItems[0]?.name ||
     ''
 
-  const messages = [...(conv.data?.messages ?? []), ...live]
+  const messages = [
+    ...(conv.data?.messages ?? []).filter((m) => m.id !== hidden),
+    ...live,
+  ]
+  const lastId = messages.length ? messages[messages.length - 1].id : null
   const files = active != null ? (conv.data?.files ?? []) : []
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
@@ -135,29 +143,29 @@ export function ChatPage() {
     await qc.invalidateQueries({ queryKey: ['conversation', id] })
   }
 
-  async function send() {
-    const content = input.trim()
-    if (!content || streaming) return
-    const id = await ensureConv()
-    const now = new Date().toISOString()
-    const base = { prompt_tokens: 0, completion_tokens: 0, created_at: now }
-    setLive([
-      { ...base, id: -1, role: 'user', content, status: 'done' },
-      { ...base, id: -2, role: 'assistant', content: '', status: 'streaming' },
-    ])
-    setInput('')
+  // run 以 SSE 流式生成：发送新消息或重新生成 / 重试最后一条回复（D-40 第 6 条）。
+  // hide 为被替换的旧回复 id：生成期间先在界面隐藏，结束后以服务端为准（旧回复软保留，不再显示）。
+  async function run(
+    id: number,
+    call: (h: StreamHandlers, s: AbortSignal) => Promise<void>,
+    init: ChatMessage[],
+    hide: number | null
+  ) {
+    setLive(init)
+    setHidden(hide)
     setStreaming(true)
     const ac = new AbortController()
     abortRef.current = ac
     const patch = (f: (m: ChatMessage) => ChatMessage) =>
       setLive((l) => l.map((m) => (m.id === -2 ? f(m) : m)))
     try {
-      await sendMessage(
-        id,
-        { content, model: effectiveModel || undefined },
+      await call(
         {
           onToken: (tok) => patch((m) => ({ ...m, content: m.content + tok })),
-          onDone: (m) => patch(() => ({ ...m, id: -2 })),
+          onDone: (m) => {
+            if (m.notice) toast.info(m.notice)
+            patch(() => ({ ...m, id: -2 }))
+          },
           onError: (_code, msg) =>
             patch((m) => ({ ...m, status: 'error', error: msg })),
         },
@@ -172,7 +180,58 @@ export function ChatPage() {
       await qc.invalidateQueries({ queryKey: ['conversation', id] })
       await qc.invalidateQueries({ queryKey: ['conversations'] })
       setLive([])
+      setHidden(null)
     }
+  }
+
+  async function send() {
+    const content = input.trim()
+    if (!content || streaming) return
+    const id = await ensureConv()
+    const now = new Date().toISOString()
+    const base = { prompt_tokens: 0, completion_tokens: 0, created_at: now }
+    setInput('')
+    // 只有用户在下拉框里明确换了模型才传 model；否则由服务端用会话记住的模型，
+    // 记住的模型不可用时回退默认模型并提示（D-40 第 8 条）。
+    await run(
+      id,
+      (h, s) => sendMessage(id, { content, model: model || undefined }, h, s),
+      [
+        { ...base, id: -1, role: 'user', content, status: 'done' },
+        {
+          ...base,
+          id: -2,
+          role: 'assistant',
+          content: '',
+          status: 'streaming',
+        },
+      ],
+      null
+    )
+  }
+
+  async function regenerate(m: ChatMessage) {
+    if (streaming || active == null) return
+    const id = active
+    const base = {
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      created_at: new Date().toISOString(),
+    }
+    await run(
+      id,
+      (h, s) => regenerateMessage(id, m.id, h, s),
+      [
+        {
+          ...base,
+          id: -2,
+          role: 'assistant',
+          content: '',
+          status: 'streaming',
+        },
+      ],
+      m.id
+    )
   }
 
   return (
@@ -272,7 +331,19 @@ export function ChatPage() {
                 </p>
               )}
               {messages.map((m) => (
-                <MessageBubble key={m.id} m={m} />
+                <MessageBubble
+                  key={m.id}
+                  m={m}
+                  onRegenerate={
+                    m.role === 'assistant' &&
+                    m.id > 0 &&
+                    m.id === lastId &&
+                    !streaming &&
+                    m.status !== 'streaming'
+                      ? () => regenerate(m)
+                      : undefined
+                  }
+                />
               ))}
               <div ref={endRef} />
             </div>
@@ -367,7 +438,13 @@ export function ChatPage() {
   )
 }
 
-function MessageBubble({ m }: { m: ChatMessage }) {
+function MessageBubble({
+  m,
+  onRegenerate,
+}: {
+  m: ChatMessage
+  onRegenerate?: () => void
+}) {
   const mine = m.role === 'user'
   return (
     <div className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
@@ -404,6 +481,15 @@ function MessageBubble({ m }: { m: ChatMessage }) {
               <span className='text-destructive'>
                 {t.failed(m.error || m.error_code || '')}
               </span>
+            )}
+            {onRegenerate && (
+              <button
+                className='inline-flex items-center gap-1 hover:text-foreground'
+                onClick={onRegenerate}
+              >
+                <RotateCcw className='size-3' />
+                {m.status === 'error' ? t.retry : t.regenerate}
+              </button>
             )}
           </div>
         )}

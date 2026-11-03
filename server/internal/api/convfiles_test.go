@@ -298,4 +298,13 @@ func TestConversationBudgetBlocked(t *testing.T) {
 	if f.c.Message.Query().Where(message.StatusEQ(message.StatusStreaming)).CountX(ctx) != 0 {
 		t.Fatal("不应残留 streaming 消息")
 	}
+	// 重新生成同样受预算约束（D-40 第 6 条）：拦截时不调用上游、不替换旧回复
+	last := f.c.Message.Query().Where(message.RoleEQ(message.RoleAssistant)).OnlyX(ctx)
+	rec = f.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/conversations/%d/regenerate", id), fmt.Sprintf(`{"message_id":%d}`, last.ID), true)
+	if rec.Code != 429 || f.m.Count() != calls || f.c.Message.Query().CountX(ctx) != msgs {
+		t.Fatalf("重新生成应被预算拦截 %d %s", rec.Code, rec.Body)
+	}
+	if f.c.Message.Query().Where(message.SupersededAtNotNil()).CountX(ctx) != 0 {
+		t.Fatal("被拦截时不应替换旧回复")
+	}
 }

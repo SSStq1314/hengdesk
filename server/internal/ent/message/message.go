@@ -41,6 +41,8 @@ const (
 	FieldCompletionTokens = "completion_tokens"
 	// FieldRequestID holds the string denoting the request_id field in the database.
 	FieldRequestID = "request_id"
+	// FieldSupersededAt holds the string denoting the superseded_at field in the database.
+	FieldSupersededAt = "superseded_at"
 	// EdgeConversation holds the string denoting the conversation edge name in mutations.
 	EdgeConversation = "conversation"
 	// Table holds the table name of the message in the database.
@@ -70,6 +72,7 @@ var Columns = []string{
 	FieldPromptTokens,
 	FieldCompletionTokens,
 	FieldRequestID,
+	FieldSupersededAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -231,6 +234,11 @@ func ByCompletionTokens(opts ...sql.OrderTermOption) OrderOption {
 // ByRequestID orders the results by the request_id field.
 func ByRequestID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRequestID, opts...).ToFunc()
+}
+
+// BySupersededAt orders the results by the superseded_at field.
+func BySupersededAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupersededAt, opts...).ToFunc()
 }
 
 // ByConversationField orders the results by conversation field.

@@ -110,6 +110,11 @@ func RequestID(v string) predicate.Message {
 	return predicate.Message(sql.FieldEQ(FieldRequestID, v))
 }
 
+// SupersededAt applies equality check predicate on the "superseded_at" field. It's identical to SupersededAtEQ.
+func SupersededAt(v time.Time) predicate.Message {
+	return predicate.Message(sql.FieldEQ(FieldSupersededAt, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Message {
 	return predicate.Message(sql.FieldEQ(FieldCreatedAt, v))
@@ -718,6 +723,56 @@ func RequestIDEqualFold(v string) predicate.Message {
 // RequestIDContainsFold applies the ContainsFold predicate on the "request_id" field.
 func RequestIDContainsFold(v string) predicate.Message {
 	return predicate.Message(sql.FieldContainsFold(FieldRequestID, v))
+}
+
+// SupersededAtEQ applies the EQ predicate on the "superseded_at" field.
+func SupersededAtEQ(v time.Time) predicate.Message {
+	return predicate.Message(sql.FieldEQ(FieldSupersededAt, v))
+}
+
+// SupersededAtNEQ applies the NEQ predicate on the "superseded_at" field.
+func SupersededAtNEQ(v time.Time) predicate.Message {
+	return predicate.Message(sql.FieldNEQ(FieldSupersededAt, v))
+}
+
+// SupersededAtIn applies the In predicate on the "superseded_at" field.
+func SupersededAtIn(vs ...time.Time) predicate.Message {
+	return predicate.Message(sql.FieldIn(FieldSupersededAt, vs...))
+}
+
+// SupersededAtNotIn applies the NotIn predicate on the "superseded_at" field.
+func SupersededAtNotIn(vs ...time.Time) predicate.Message {
+	return predicate.Message(sql.FieldNotIn(FieldSupersededAt, vs...))
+}
+
+// SupersededAtGT applies the GT predicate on the "superseded_at" field.
+func SupersededAtGT(v time.Time) predicate.Message {
+	return predicate.Message(sql.FieldGT(FieldSupersededAt, v))
+}
+
+// SupersededAtGTE applies the GTE predicate on the "superseded_at" field.
+func SupersededAtGTE(v time.Time) predicate.Message {
+	return predicate.Message(sql.FieldGTE(FieldSupersededAt, v))
+}
+
+// SupersededAtLT applies the LT predicate on the "superseded_at" field.
+func SupersededAtLT(v time.Time) predicate.Message {
+	return predicate.Message(sql.FieldLT(FieldSupersededAt, v))
+}
+
+// SupersededAtLTE applies the LTE predicate on the "superseded_at" field.
+func SupersededAtLTE(v time.Time) predicate.Message {
+	return predicate.Message(sql.FieldLTE(FieldSupersededAt, v))
+}
+
+// SupersededAtIsNil applies the IsNil predicate on the "superseded_at" field.
+func SupersededAtIsNil() predicate.Message {
+	return predicate.Message(sql.FieldIsNull(FieldSupersededAt))
+}
+
+// SupersededAtNotNil applies the NotNil predicate on the "superseded_at" field.
+func SupersededAtNotNil() predicate.Message {
+	return predicate.Message(sql.FieldNotNull(FieldSupersededAt))
 }
 
 // HasConversation applies the HasEdge predicate on the "conversation" edge.

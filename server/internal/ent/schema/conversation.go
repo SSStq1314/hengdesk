@@ -51,6 +51,8 @@ func (Message) Fields() []ent.Field {
 		field.Int("completion_tokens").Default(0),
 		// request_id 关联审计与 usage_records（同一次请求的所有尝试）。
 		field.String("request_id").Default(""),
+		// superseded_at 被「重新生成 / 重试」替换的旧回复（D-40 第 6 条）：软保留供审计，UI 与后续上下文不再使用。
+		field.Time("superseded_at").Optional().Nillable(),
 	}
 }
 

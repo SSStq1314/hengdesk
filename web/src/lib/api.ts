@@ -647,6 +647,7 @@ export type ChatMessage = {
   completion_tokens: number
   created_at: string
   context_truncated?: boolean
+  notice?: string
 }
 export type ConvFile = {
   id: number
@@ -709,13 +710,37 @@ export type StreamHandlers = {
 
 // sendMessage 以 fetch 读取 SSE（EventSource 不支持 POST）。signal 中断即「停止生成」，
 // 服务端会把已生成部分保存为 stopped。
-export async function sendMessage(
+export function sendMessage(
   id: number,
   body: { content: string; model?: string },
   h: StreamHandlers,
   signal: AbortSignal
 ): Promise<void> {
-  const res = await fetch(`/api/v1/conversations/${id}/messages`, {
+  return streamPost(`/api/v1/conversations/${id}/messages`, body, h, signal)
+}
+
+// regenerateMessage 重新生成 / 重试最后一条回复（D-40 第 6 条），事件与 sendMessage 相同。
+export function regenerateMessage(
+  id: number,
+  messageId: number,
+  h: StreamHandlers,
+  signal: AbortSignal
+): Promise<void> {
+  return streamPost(
+    `/api/v1/conversations/${id}/regenerate`,
+    { message_id: messageId },
+    h,
+    signal
+  )
+}
+
+async function streamPost(
+  url: string,
+  body: unknown,
+  h: StreamHandlers,
+  signal: AbortSignal
+): Promise<void> {
+  const res = await fetch(url, {
     method: 'POST',
     credentials: 'include',
     headers: {
