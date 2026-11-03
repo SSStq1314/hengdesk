@@ -25,3 +25,7 @@ make test
 
 当前暂放 Apache-2.0（见 LICENSE）。**社区版最终许可（Apache-2.0 / MIT）待产品与法务最终确认**，参见决策 D-17。
 本项目只复用 MIT / Apache-2.0 代码；AGPL / GPL / 附加条款项目（MonkeyCode、MaxKB、Dify、FastGPT 等）仅参考设计，不复制代码、不引入依赖（D-07）。
+
+## 第三方代码
+
+- `web/` 基于 [satnaing/shadcn-admin](https://github.com/satnaing/shadcn-admin)（MIT，Copyright (c) 2024 Sat Naing），保留其 `web/LICENSE`，见 `web/NOTICE`。
