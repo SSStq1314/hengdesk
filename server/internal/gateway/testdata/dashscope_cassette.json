@@ -1,0 +1,356 @@
+{
+  "_note": "文档构造，待真实录制替换",
+  "_source": "按公开文档构造，非真实录制",
+  "cases": {
+    "chat-thinking": {
+      "source_case": "dashscope-compatible-mode-docs#chat-thinking",
+      "status": 200,
+      "request_body": {
+        "model": "qwen-plus",
+        "messages": [
+          {
+            "role": "user",
+            "content": "用一句话介绍你自己。"
+          }
+        ],
+        "enable_thinking": true
+      },
+      "body": {
+        "id": "chatcmpl-doc-1",
+        "object": "chat.completion",
+        "created": 1793600000,
+        "model": "qwen-plus",
+        "choices": [
+          {
+            "index": 0,
+            "finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "我是一个 AI 助手。",
+              "reasoning_content": "用户要一句话自我介绍。"
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 14,
+          "completion_tokens": 30,
+          "total_tokens": 44,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 12
+          }
+        }
+      }
+    },
+    "chat-no-thinking": {
+      "source_case": "dashscope-compatible-mode-docs#chat-no-thinking",
+      "status": 200,
+      "request_body": {
+        "model": "qwen-plus",
+        "messages": [
+          {
+            "role": "user",
+            "content": "用一句话介绍你自己。"
+          }
+        ],
+        "enable_thinking": false
+      },
+      "body": {
+        "id": "chatcmpl-doc-2",
+        "object": "chat.completion",
+        "created": 1793600000,
+        "model": "qwen-plus",
+        "choices": [
+          {
+            "index": 0,
+            "finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "我是一个 AI 助手。"
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 14,
+          "completion_tokens": 30,
+          "total_tokens": 44,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 12
+          }
+        }
+      }
+    },
+    "stream-thinking": {
+      "source_case": "dashscope-compatible-mode-docs#stream-thinking",
+      "status": 200,
+      "request_body": {
+        "model": "qwen-plus",
+        "stream": true,
+        "messages": [
+          {
+            "role": "user",
+            "content": "用一句话介绍你自己。"
+          }
+        ],
+        "enable_thinking": true
+      },
+      "chunks": [
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "qwen-plus",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": ""
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "qwen-plus",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "用户要"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "qwen-plus",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "reasoning_content": "一句话自我介绍。"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "qwen-plus",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "我是一个"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "qwen-plus",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " AI 助手。"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "qwen-plus",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {},
+              "finish_reason": "stop"
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "qwen-plus",
+          "choices": [],
+          "usage": {
+            "prompt_tokens": 14,
+            "completion_tokens": 30,
+            "total_tokens": 44,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 12
+            }
+          }
+        }
+      ],
+      "done_marker": true,
+      "finish_reason": "stop",
+      "usage": {
+        "total_tokens": 44
+      }
+    },
+    "stream-no-thinking": {
+      "source_case": "dashscope-compatible-mode-docs#stream-no-thinking",
+      "status": 200,
+      "request_body": {
+        "model": "qwen-plus",
+        "stream": true,
+        "messages": [
+          {
+            "role": "user",
+            "content": "用一句话介绍你自己。"
+          }
+        ],
+        "enable_thinking": false
+      },
+      "chunks": [
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "qwen-plus",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": ""
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "qwen-plus",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "我是一个"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "qwen-plus",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": " AI 助手。"
+              },
+              "finish_reason": null
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "qwen-plus",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {},
+              "finish_reason": "stop"
+            }
+          ]
+        },
+        {
+          "id": "chatcmpl-doc-1",
+          "object": "chat.completion.chunk",
+          "created": 1793600000,
+          "model": "qwen-plus",
+          "choices": [],
+          "usage": {
+            "prompt_tokens": 14,
+            "completion_tokens": 30,
+            "total_tokens": 44,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 12
+            }
+          }
+        }
+      ],
+      "done_marker": true,
+      "finish_reason": "stop",
+      "usage": {
+        "total_tokens": 44
+      }
+    },
+    "err-invalid-key": {
+      "source_case": "dashscope-compatible-mode-docs#err-invalid-key",
+      "status": 401,
+      "body": {
+        "error": {
+          "code": "invalid_api_key",
+          "param": null,
+          "type": "invalid_request_error",
+          "message": "Incorrect API key provided. "
+        },
+        "request_id": "doc-req-1"
+      }
+    },
+    "err-invalid-model": {
+      "source_case": "dashscope-compatible-mode-docs#err-invalid-model",
+      "status": 404,
+      "body": {
+        "error": {
+          "code": "model_not_found",
+          "param": null,
+          "type": "invalid_request_error",
+          "message": "The model `qwen-nope` does not exist or you do not have access to it."
+        },
+        "request_id": "doc-req-2"
+      }
+    },
+    "err-context-too-long": {
+      "source_case": "dashscope-compatible-mode-docs#err-context-too-long",
+      "status": 400,
+      "body": {
+        "error": {
+          "code": "invalid_parameter_error",
+          "param": null,
+          "type": "invalid_request_error",
+          "message": "Range of input length should be [1, 129024]"
+        },
+        "request_id": "doc-req-3"
+      }
+    }
+  }
+}

@@ -276,6 +276,20 @@ func (_c *UsageRecordCreate) SetNillableLatencyMs(v *int) *UsageRecordCreate {
 	return _c
 }
 
+// SetAttempt sets the "attempt" field.
+func (_c *UsageRecordCreate) SetAttempt(v int) *UsageRecordCreate {
+	_c.mutation.SetAttempt(v)
+	return _c
+}
+
+// SetNillableAttempt sets the "attempt" field if the given value is not nil.
+func (_c *UsageRecordCreate) SetNillableAttempt(v *int) *UsageRecordCreate {
+	if v != nil {
+		_c.SetAttempt(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *UsageRecordCreate) SetCreatedAt(v time.Time) *UsageRecordCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -385,6 +399,10 @@ func (_c *UsageRecordCreate) defaults() {
 		v := usagerecord.DefaultLatencyMs
 		_c.mutation.SetLatencyMs(v)
 	}
+	if _, ok := _c.mutation.Attempt(); !ok {
+		v := usagerecord.DefaultAttempt
+		_c.mutation.SetAttempt(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := usagerecord.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -462,6 +480,9 @@ func (_c *UsageRecordCreate) check() error {
 	}
 	if _, ok := _c.mutation.LatencyMs(); !ok {
 		return &ValidationError{Name: "latency_ms", err: errors.New(`ent: missing required field "UsageRecord.latency_ms"`)}
+	}
+	if _, ok := _c.mutation.Attempt(); !ok {
+		return &ValidationError{Name: "attempt", err: errors.New(`ent: missing required field "UsageRecord.attempt"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "UsageRecord.created_at"`)}
@@ -576,6 +597,10 @@ func (_c *UsageRecordCreate) createSpec() (*UsageRecord, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.LatencyMs(); ok {
 		_spec.SetField(usagerecord.FieldLatencyMs, field.TypeInt, value)
 		_node.LatencyMs = value
+	}
+	if value, ok := _c.mutation.Attempt(); ok {
+		_spec.SetField(usagerecord.FieldAttempt, field.TypeInt, value)
+		_node.Attempt = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(usagerecord.FieldCreatedAt, field.TypeTime, value)
@@ -960,6 +985,24 @@ func (u *UsageRecordUpsert) UpdateLatencyMs() *UsageRecordUpsert {
 // AddLatencyMs adds v to the "latency_ms" field.
 func (u *UsageRecordUpsert) AddLatencyMs(v int) *UsageRecordUpsert {
 	u.Add(usagerecord.FieldLatencyMs, v)
+	return u
+}
+
+// SetAttempt sets the "attempt" field.
+func (u *UsageRecordUpsert) SetAttempt(v int) *UsageRecordUpsert {
+	u.Set(usagerecord.FieldAttempt, v)
+	return u
+}
+
+// UpdateAttempt sets the "attempt" field to the value that was provided on create.
+func (u *UsageRecordUpsert) UpdateAttempt() *UsageRecordUpsert {
+	u.SetExcluded(usagerecord.FieldAttempt)
+	return u
+}
+
+// AddAttempt adds v to the "attempt" field.
+func (u *UsageRecordUpsert) AddAttempt(v int) *UsageRecordUpsert {
+	u.Add(usagerecord.FieldAttempt, v)
 	return u
 }
 
@@ -1390,6 +1433,27 @@ func (u *UsageRecordUpsertOne) AddLatencyMs(v int) *UsageRecordUpsertOne {
 func (u *UsageRecordUpsertOne) UpdateLatencyMs() *UsageRecordUpsertOne {
 	return u.Update(func(s *UsageRecordUpsert) {
 		s.UpdateLatencyMs()
+	})
+}
+
+// SetAttempt sets the "attempt" field.
+func (u *UsageRecordUpsertOne) SetAttempt(v int) *UsageRecordUpsertOne {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.SetAttempt(v)
+	})
+}
+
+// AddAttempt adds v to the "attempt" field.
+func (u *UsageRecordUpsertOne) AddAttempt(v int) *UsageRecordUpsertOne {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.AddAttempt(v)
+	})
+}
+
+// UpdateAttempt sets the "attempt" field to the value that was provided on create.
+func (u *UsageRecordUpsertOne) UpdateAttempt() *UsageRecordUpsertOne {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.UpdateAttempt()
 	})
 }
 
@@ -1986,6 +2050,27 @@ func (u *UsageRecordUpsertBulk) AddLatencyMs(v int) *UsageRecordUpsertBulk {
 func (u *UsageRecordUpsertBulk) UpdateLatencyMs() *UsageRecordUpsertBulk {
 	return u.Update(func(s *UsageRecordUpsert) {
 		s.UpdateLatencyMs()
+	})
+}
+
+// SetAttempt sets the "attempt" field.
+func (u *UsageRecordUpsertBulk) SetAttempt(v int) *UsageRecordUpsertBulk {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.SetAttempt(v)
+	})
+}
+
+// AddAttempt adds v to the "attempt" field.
+func (u *UsageRecordUpsertBulk) AddAttempt(v int) *UsageRecordUpsertBulk {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.AddAttempt(v)
+	})
+}
+
+// UpdateAttempt sets the "attempt" field to the value that was provided on create.
+func (u *UsageRecordUpsertBulk) UpdateAttempt() *UsageRecordUpsertBulk {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.UpdateAttempt()
 	})
 }
 

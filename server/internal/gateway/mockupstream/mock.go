@@ -29,6 +29,8 @@ type Server struct {
 	Requests []map[string]any
 	// FailStatus 非 0 时所有 chat 请求直接返回该状态码。
 	FailStatus int
+	// FailTimes 非 0 时只有前 FailTimes 次 chat 请求返回 FailStatus，之后正常（用于重试测试）。
+	FailTimes int
 	// Delay 返回前等待（用于超时测试）。
 	Delay time.Duration
 	// OmitUsage 不返回 usage（用于估算测试）。
@@ -92,6 +94,12 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.Requests = append(s.Requests, body)
 	fail, delay, omit := s.FailStatus, s.Delay, s.OmitUsage
+	if s.FailTimes > 0 {
+		s.FailTimes--
+		if s.FailTimes == 0 {
+			s.FailStatus = 0
+		}
+	}
 	s.mu.Unlock()
 	if delay > 0 {
 		select {

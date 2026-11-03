@@ -149,6 +149,11 @@ func LatencyMs(v int) predicate.UsageRecord {
 	return predicate.UsageRecord(sql.FieldEQ(FieldLatencyMs, v))
 }
 
+// Attempt applies equality check predicate on the "attempt" field. It's identical to AttemptEQ.
+func Attempt(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldEQ(FieldAttempt, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.UsageRecord {
 	return predicate.UsageRecord(sql.FieldEQ(FieldCreatedAt, v))
@@ -972,6 +977,46 @@ func LatencyMsLT(v int) predicate.UsageRecord {
 // LatencyMsLTE applies the LTE predicate on the "latency_ms" field.
 func LatencyMsLTE(v int) predicate.UsageRecord {
 	return predicate.UsageRecord(sql.FieldLTE(FieldLatencyMs, v))
+}
+
+// AttemptEQ applies the EQ predicate on the "attempt" field.
+func AttemptEQ(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldEQ(FieldAttempt, v))
+}
+
+// AttemptNEQ applies the NEQ predicate on the "attempt" field.
+func AttemptNEQ(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldNEQ(FieldAttempt, v))
+}
+
+// AttemptIn applies the In predicate on the "attempt" field.
+func AttemptIn(vs ...int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldIn(FieldAttempt, vs...))
+}
+
+// AttemptNotIn applies the NotIn predicate on the "attempt" field.
+func AttemptNotIn(vs ...int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldNotIn(FieldAttempt, vs...))
+}
+
+// AttemptGT applies the GT predicate on the "attempt" field.
+func AttemptGT(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldGT(FieldAttempt, v))
+}
+
+// AttemptGTE applies the GTE predicate on the "attempt" field.
+func AttemptGTE(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldGTE(FieldAttempt, v))
+}
+
+// AttemptLT applies the LT predicate on the "attempt" field.
+func AttemptLT(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldLT(FieldAttempt, v))
+}
+
+// AttemptLTE applies the LTE predicate on the "attempt" field.
+func AttemptLTE(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldLTE(FieldAttempt, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

@@ -267,6 +267,17 @@ export const zh = {
     editModel: '编辑模型',
     name: '名称',
     dialect: '方言',
+    kind: '协议',
+    kindOpenAI: 'OpenAI 兼容（DeepSeek / 通义 / vLLM / Ollama）',
+    kindAnthropic: 'Anthropic Messages',
+    dialectDashscope: '通义（DashScope 兼容模式）',
+    dialectGeneric: '通用 OpenAI 兼容（含 Ollama）',
+    internalHint:
+      'vLLM / Ollama 通常部署在内网。内网地址默认被出站白名单拒绝，请先由超级管理员在「出站控制 → 出站白名单」中显式放行该地址段和端口（如 cidr 10.0.0.0/8，端口 8000 或 11434），否则测试连接会失败。',
+    fallbacks: '备用模型',
+    fallbackOrder: (n: number) => `第 ${n} 备用`,
+    fallbackHint:
+      '最多 3 个，按勾选顺序切换。仅在开始返回内容之前、遇到连接错误 / 429 / 5xx 且重试用尽时切换；已开始流式输出后不会重试。',
     baseURL: '接口地址',
     apiKey: 'API Key',
     apiKeyKeep: '留空则不修改',

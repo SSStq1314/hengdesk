@@ -209,6 +209,12 @@ func (_c *ModelCreate) SetNillableCurrency(v *string) *ModelCreate {
 	return _c
 }
 
+// SetFallbackModelIds sets the "fallback_model_ids" field.
+func (_c *ModelCreate) SetFallbackModelIds(v []int) *ModelCreate {
+	_c.mutation.SetFallbackModelIds(v)
+	return _c
+}
+
 // SetProvider sets the "provider" edge to the ModelProvider entity.
 func (_c *ModelCreate) SetProvider(v *ModelProvider) *ModelCreate {
 	return _c.SetProviderID(v.ID)
@@ -471,6 +477,10 @@ func (_c *ModelCreate) createSpec() (*Model, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Currency(); ok {
 		_spec.SetField(model.FieldCurrency, field.TypeString, value)
 		_node.Currency = value
+	}
+	if value, ok := _c.mutation.FallbackModelIds(); ok {
+		_spec.SetField(model.FieldFallbackModelIds, field.TypeJSON, value)
+		_node.FallbackModelIds = value
 	}
 	if nodes := _c.mutation.ProviderIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -736,6 +746,24 @@ func (u *ModelUpsert) SetCurrency(v string) *ModelUpsert {
 // UpdateCurrency sets the "currency" field to the value that was provided on create.
 func (u *ModelUpsert) UpdateCurrency() *ModelUpsert {
 	u.SetExcluded(model.FieldCurrency)
+	return u
+}
+
+// SetFallbackModelIds sets the "fallback_model_ids" field.
+func (u *ModelUpsert) SetFallbackModelIds(v []int) *ModelUpsert {
+	u.Set(model.FieldFallbackModelIds, v)
+	return u
+}
+
+// UpdateFallbackModelIds sets the "fallback_model_ids" field to the value that was provided on create.
+func (u *ModelUpsert) UpdateFallbackModelIds() *ModelUpsert {
+	u.SetExcluded(model.FieldFallbackModelIds)
+	return u
+}
+
+// ClearFallbackModelIds clears the value of the "fallback_model_ids" field.
+func (u *ModelUpsert) ClearFallbackModelIds() *ModelUpsert {
+	u.SetNull(model.FieldFallbackModelIds)
 	return u
 }
 
@@ -1012,6 +1040,27 @@ func (u *ModelUpsertOne) SetCurrency(v string) *ModelUpsertOne {
 func (u *ModelUpsertOne) UpdateCurrency() *ModelUpsertOne {
 	return u.Update(func(s *ModelUpsert) {
 		s.UpdateCurrency()
+	})
+}
+
+// SetFallbackModelIds sets the "fallback_model_ids" field.
+func (u *ModelUpsertOne) SetFallbackModelIds(v []int) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetFallbackModelIds(v)
+	})
+}
+
+// UpdateFallbackModelIds sets the "fallback_model_ids" field to the value that was provided on create.
+func (u *ModelUpsertOne) UpdateFallbackModelIds() *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdateFallbackModelIds()
+	})
+}
+
+// ClearFallbackModelIds clears the value of the "fallback_model_ids" field.
+func (u *ModelUpsertOne) ClearFallbackModelIds() *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.ClearFallbackModelIds()
 	})
 }
 
@@ -1454,6 +1503,27 @@ func (u *ModelUpsertBulk) SetCurrency(v string) *ModelUpsertBulk {
 func (u *ModelUpsertBulk) UpdateCurrency() *ModelUpsertBulk {
 	return u.Update(func(s *ModelUpsert) {
 		s.UpdateCurrency()
+	})
+}
+
+// SetFallbackModelIds sets the "fallback_model_ids" field.
+func (u *ModelUpsertBulk) SetFallbackModelIds(v []int) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetFallbackModelIds(v)
+	})
+}
+
+// UpdateFallbackModelIds sets the "fallback_model_ids" field to the value that was provided on create.
+func (u *ModelUpsertBulk) UpdateFallbackModelIds() *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdateFallbackModelIds()
+	})
+}
+
+// ClearFallbackModelIds clears the value of the "fallback_model_ids" field.
+func (u *ModelUpsertBulk) ClearFallbackModelIds() *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.ClearFallbackModelIds()
 	})
 }
 

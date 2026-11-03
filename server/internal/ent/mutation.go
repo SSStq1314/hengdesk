@@ -8649,34 +8649,36 @@ func (m *MembershipMutation) ResetEdge(name string) error {
 // ModelMutation represents an operation that mutates the Model nodes in the graph.
 type ModelMutation struct {
 	config
-	op                     Op
-	typ                    string
-	id                     *int
-	created_at             *time.Time
-	updated_at             *time.Time
-	name                   *string
-	upstream_model         *string
-	thinking               *model.Thinking
-	tool_choice_policy     *model.ToolChoicePolicy
-	context_window         *int
-	addcontext_window      *int
-	max_output_tokens      *int
-	addmax_output_tokens   *int
-	enabled                *bool
-	is_default             *bool
-	price_input_micros     *int64
-	addprice_input_micros  *int64
-	price_cached_micros    *int64
-	addprice_cached_micros *int64
-	price_output_micros    *int64
-	addprice_output_micros *int64
-	currency               *string
-	clearedFields          map[string]struct{}
-	provider               *int
-	clearedprovider        bool
-	done                   bool
-	oldValue               func(context.Context) (*Model, error)
-	predicates             []predicate.Model
+	op                       Op
+	typ                      string
+	id                       *int
+	created_at               *time.Time
+	updated_at               *time.Time
+	name                     *string
+	upstream_model           *string
+	thinking                 *model.Thinking
+	tool_choice_policy       *model.ToolChoicePolicy
+	context_window           *int
+	addcontext_window        *int
+	max_output_tokens        *int
+	addmax_output_tokens     *int
+	enabled                  *bool
+	is_default               *bool
+	price_input_micros       *int64
+	addprice_input_micros    *int64
+	price_cached_micros      *int64
+	addprice_cached_micros   *int64
+	price_output_micros      *int64
+	addprice_output_micros   *int64
+	currency                 *string
+	fallback_model_ids       *[]int
+	appendfallback_model_ids []int
+	clearedFields            map[string]struct{}
+	provider                 *int
+	clearedprovider          bool
+	done                     bool
+	oldValue                 func(context.Context) (*Model, error)
+	predicates               []predicate.Model
 }
 
 var _ ent.Mutation = (*ModelMutation)(nil)
@@ -9417,6 +9419,71 @@ func (m *ModelMutation) ResetCurrency() {
 	m.currency = nil
 }
 
+// SetFallbackModelIds sets the "fallback_model_ids" field.
+func (m *ModelMutation) SetFallbackModelIds(i []int) {
+	m.fallback_model_ids = &i
+	m.appendfallback_model_ids = nil
+}
+
+// FallbackModelIds returns the value of the "fallback_model_ids" field in the mutation.
+func (m *ModelMutation) FallbackModelIds() (r []int, exists bool) {
+	v := m.fallback_model_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFallbackModelIds returns the old "fallback_model_ids" field's value of the Model entity.
+// If the Model object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ModelMutation) OldFallbackModelIds(ctx context.Context) (v []int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFallbackModelIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFallbackModelIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFallbackModelIds: %w", err)
+	}
+	return oldValue.FallbackModelIds, nil
+}
+
+// AppendFallbackModelIds adds i to the "fallback_model_ids" field.
+func (m *ModelMutation) AppendFallbackModelIds(i []int) {
+	m.appendfallback_model_ids = append(m.appendfallback_model_ids, i...)
+}
+
+// AppendedFallbackModelIds returns the list of values that were appended to the "fallback_model_ids" field in this mutation.
+func (m *ModelMutation) AppendedFallbackModelIds() ([]int, bool) {
+	if len(m.appendfallback_model_ids) == 0 {
+		return nil, false
+	}
+	return m.appendfallback_model_ids, true
+}
+
+// ClearFallbackModelIds clears the value of the "fallback_model_ids" field.
+func (m *ModelMutation) ClearFallbackModelIds() {
+	m.fallback_model_ids = nil
+	m.appendfallback_model_ids = nil
+	m.clearedFields[model.FieldFallbackModelIds] = struct{}{}
+}
+
+// FallbackModelIdsCleared returns if the "fallback_model_ids" field was cleared in this mutation.
+func (m *ModelMutation) FallbackModelIdsCleared() bool {
+	_, ok := m.clearedFields[model.FieldFallbackModelIds]
+	return ok
+}
+
+// ResetFallbackModelIds resets all changes to the "fallback_model_ids" field.
+func (m *ModelMutation) ResetFallbackModelIds() {
+	m.fallback_model_ids = nil
+	m.appendfallback_model_ids = nil
+	delete(m.clearedFields, model.FieldFallbackModelIds)
+}
+
 // ClearProvider clears the "provider" edge to the ModelProvider entity.
 func (m *ModelMutation) ClearProvider() {
 	m.clearedprovider = true
@@ -9478,7 +9545,7 @@ func (m *ModelMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ModelMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.created_at != nil {
 		fields = append(fields, model.FieldCreatedAt)
 	}
@@ -9524,6 +9591,9 @@ func (m *ModelMutation) Fields() []string {
 	if m.currency != nil {
 		fields = append(fields, model.FieldCurrency)
 	}
+	if m.fallback_model_ids != nil {
+		fields = append(fields, model.FieldFallbackModelIds)
+	}
 	return fields
 }
 
@@ -9562,6 +9632,8 @@ func (m *ModelMutation) Field(name string) (ent.Value, bool) {
 		return m.PriceOutputMicros()
 	case model.FieldCurrency:
 		return m.Currency()
+	case model.FieldFallbackModelIds:
+		return m.FallbackModelIds()
 	}
 	return nil, false
 }
@@ -9601,6 +9673,8 @@ func (m *ModelMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldPriceOutputMicros(ctx)
 	case model.FieldCurrency:
 		return m.OldCurrency(ctx)
+	case model.FieldFallbackModelIds:
+		return m.OldFallbackModelIds(ctx)
 	}
 	return nil, fmt.Errorf("unknown Model field %s", name)
 }
@@ -9715,6 +9789,13 @@ func (m *ModelMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCurrency(v)
 		return nil
+	case model.FieldFallbackModelIds:
+		v, ok := value.([]int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFallbackModelIds(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Model field %s", name)
 }
@@ -9807,7 +9888,11 @@ func (m *ModelMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *ModelMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(model.FieldFallbackModelIds) {
+		fields = append(fields, model.FieldFallbackModelIds)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -9820,6 +9905,11 @@ func (m *ModelMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *ModelMutation) ClearField(name string) error {
+	switch name {
+	case model.FieldFallbackModelIds:
+		m.ClearFallbackModelIds()
+		return nil
+	}
 	return fmt.Errorf("unknown Model nullable field %s", name)
 }
 
@@ -9871,6 +9961,9 @@ func (m *ModelMutation) ResetField(name string) error {
 		return nil
 	case model.FieldCurrency:
 		m.ResetCurrency()
+		return nil
+	case model.FieldFallbackModelIds:
+		m.ResetFallbackModelIds()
 		return nil
 	}
 	return fmt.Errorf("unknown Model field %s", name)
@@ -14278,6 +14371,8 @@ type UsageRecordMutation struct {
 	usage_unknown        *bool
 	latency_ms           *int
 	addlatency_ms        *int
+	attempt              *int
+	addattempt           *int
 	created_at           *time.Time
 	clearedFields        map[string]struct{}
 	done                 bool
@@ -15393,6 +15488,62 @@ func (m *UsageRecordMutation) ResetLatencyMs() {
 	m.addlatency_ms = nil
 }
 
+// SetAttempt sets the "attempt" field.
+func (m *UsageRecordMutation) SetAttempt(i int) {
+	m.attempt = &i
+	m.addattempt = nil
+}
+
+// Attempt returns the value of the "attempt" field in the mutation.
+func (m *UsageRecordMutation) Attempt() (r int, exists bool) {
+	v := m.attempt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttempt returns the old "attempt" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldAttempt(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttempt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttempt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttempt: %w", err)
+	}
+	return oldValue.Attempt, nil
+}
+
+// AddAttempt adds i to the "attempt" field.
+func (m *UsageRecordMutation) AddAttempt(i int) {
+	if m.addattempt != nil {
+		*m.addattempt += i
+	} else {
+		m.addattempt = &i
+	}
+}
+
+// AddedAttempt returns the value that was added to the "attempt" field in this mutation.
+func (m *UsageRecordMutation) AddedAttempt() (r int, exists bool) {
+	v := m.addattempt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAttempt resets all changes to the "attempt" field.
+func (m *UsageRecordMutation) ResetAttempt() {
+	m.attempt = nil
+	m.addattempt = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *UsageRecordMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -15463,7 +15614,7 @@ func (m *UsageRecordMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageRecordMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 23)
 	if m.org_id != nil {
 		fields = append(fields, usagerecord.FieldOrgID)
 	}
@@ -15527,6 +15678,9 @@ func (m *UsageRecordMutation) Fields() []string {
 	if m.latency_ms != nil {
 		fields = append(fields, usagerecord.FieldLatencyMs)
 	}
+	if m.attempt != nil {
+		fields = append(fields, usagerecord.FieldAttempt)
+	}
 	if m.created_at != nil {
 		fields = append(fields, usagerecord.FieldCreatedAt)
 	}
@@ -15580,6 +15734,8 @@ func (m *UsageRecordMutation) Field(name string) (ent.Value, bool) {
 		return m.UsageUnknown()
 	case usagerecord.FieldLatencyMs:
 		return m.LatencyMs()
+	case usagerecord.FieldAttempt:
+		return m.Attempt()
 	case usagerecord.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -15633,6 +15789,8 @@ func (m *UsageRecordMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldUsageUnknown(ctx)
 	case usagerecord.FieldLatencyMs:
 		return m.OldLatencyMs(ctx)
+	case usagerecord.FieldAttempt:
+		return m.OldAttempt(ctx)
 	case usagerecord.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -15791,6 +15949,13 @@ func (m *UsageRecordMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLatencyMs(v)
 		return nil
+	case usagerecord.FieldAttempt:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttempt(v)
+		return nil
 	case usagerecord.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -15842,6 +16007,9 @@ func (m *UsageRecordMutation) AddedFields() []string {
 	if m.addlatency_ms != nil {
 		fields = append(fields, usagerecord.FieldLatencyMs)
 	}
+	if m.addattempt != nil {
+		fields = append(fields, usagerecord.FieldAttempt)
+	}
 	return fields
 }
 
@@ -15874,6 +16042,8 @@ func (m *UsageRecordMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCostMicros()
 	case usagerecord.FieldLatencyMs:
 		return m.AddedLatencyMs()
+	case usagerecord.FieldAttempt:
+		return m.AddedAttempt()
 	}
 	return nil, false
 }
@@ -15966,6 +16136,13 @@ func (m *UsageRecordMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddLatencyMs(v)
+		return nil
+	case usagerecord.FieldAttempt:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAttempt(v)
 		return nil
 	}
 	return fmt.Errorf("unknown UsageRecord numeric field %s", name)
@@ -16065,6 +16242,9 @@ func (m *UsageRecordMutation) ResetField(name string) error {
 		return nil
 	case usagerecord.FieldLatencyMs:
 		m.ResetLatencyMs()
+		return nil
+	case usagerecord.FieldAttempt:
+		m.ResetAttempt()
 		return nil
 	case usagerecord.FieldCreatedAt:
 		m.ResetCreatedAt()

@@ -98,6 +98,7 @@ const DefaultKind = KindOpenaiCompat
 // Kind values.
 const (
 	KindOpenaiCompat Kind = "openai_compat"
+	KindAnthropic    Kind = "anthropic"
 )
 
 func (k Kind) String() string {
@@ -107,7 +108,7 @@ func (k Kind) String() string {
 // KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
 func KindValidator(k Kind) error {
 	switch k {
-	case KindOpenaiCompat:
+	case KindOpenaiCompat, KindAnthropic:
 		return nil
 	default:
 		return fmt.Errorf("modelprovider: invalid enum value for kind field: %q", k)
@@ -122,8 +123,10 @@ const DefaultDialect = DialectGeneric
 
 // Dialect values.
 const (
-	DialectGeneric  Dialect = "generic"
-	DialectDeepseek Dialect = "deepseek"
+	DialectGeneric   Dialect = "generic"
+	DialectDeepseek  Dialect = "deepseek"
+	DialectDashscope Dialect = "dashscope"
+	DialectVllm      Dialect = "vllm"
 )
 
 func (d Dialect) String() string {
@@ -133,7 +136,7 @@ func (d Dialect) String() string {
 // DialectValidator is a validator for the "dialect" field enum values. It is called by the builders before save.
 func DialectValidator(d Dialect) error {
 	switch d {
-	case DialectGeneric, DialectDeepseek:
+	case DialectGeneric, DialectDeepseek, DialectDashscope, DialectVllm:
 		return nil
 	default:
 		return fmt.Errorf("modelprovider: invalid enum value for dialect field: %q", d)

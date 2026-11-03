@@ -11,9 +11,11 @@ type Message struct {
 	Role             string          `json:"role"`
 	Content          json.RawMessage `json:"content,omitempty"`
 	ReasoningContent *string         `json:"reasoning_content,omitempty"`
-	Name             string          `json:"name,omitempty"`
-	ToolCalls        []ToolCall      `json:"tool_calls,omitempty"`
-	ToolCallID       string          `json:"tool_call_id,omitempty"`
+	// ReasoningSignature Anthropic 思考块签名：多轮工具调用时须连同思考内容原样回传。
+	ReasoningSignature string     `json:"reasoning_signature,omitempty"`
+	Name               string     `json:"name,omitempty"`
+	ToolCalls          []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID         string     `json:"tool_call_id,omitempty"`
 }
 
 // ToolCall 工具调用。
@@ -112,7 +114,15 @@ type wireMessage struct {
 	Role             string     `json:"role"`
 	Content          *string    `json:"content"`
 	ReasoningContent *string    `json:"reasoning_content"`
+	Reasoning        *string    `json:"reasoning"` // 新版 vLLM / Ollama 的思考字段
 	ToolCalls        []ToolCall `json:"tool_calls"`
+}
+
+func (w *wireMessage) reasoning() *string {
+	if w.ReasoningContent != nil {
+		return w.ReasoningContent
+	}
+	return w.Reasoning
 }
 
 type wireChoice struct {

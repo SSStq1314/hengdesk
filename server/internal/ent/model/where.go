@@ -675,6 +675,16 @@ func CurrencyContainsFold(v string) predicate.Model {
 	return predicate.Model(sql.FieldContainsFold(FieldCurrency, v))
 }
 
+// FallbackModelIdsIsNil applies the IsNil predicate on the "fallback_model_ids" field.
+func FallbackModelIdsIsNil() predicate.Model {
+	return predicate.Model(sql.FieldIsNull(FieldFallbackModelIds))
+}
+
+// FallbackModelIdsNotNil applies the NotNil predicate on the "fallback_model_ids" field.
+func FallbackModelIdsNotNil() predicate.Model {
+	return predicate.Model(sql.FieldNotNull(FieldFallbackModelIds))
+}
+
 // HasProvider applies the HasEdge predicate on the "provider" edge.
 func HasProvider() predicate.Model {
 	return predicate.Model(func(s *sql.Selector) {

@@ -30,6 +30,8 @@ type Error struct {
 	Message        string `json:"message"`
 	UpstreamStatus int    `json:"upstream_status,omitempty"`
 	UpstreamType   string `json:"upstream_type,omitempty"`
+	// Retryable 首字节前的连接错误、429、5xx：可重试 / 切换备用上游（PR5）。
+	Retryable bool `json:"-"`
 	// Usage 流式调用中途失败时已产生的用量（不回给调用方，只用于计量）。
 	Usage *Usage `json:"-"`
 }
@@ -48,9 +50,16 @@ func upstreamError(status int, body []byte, secret string) *Error {
 			Type    string `json:"type"`
 			Code    any    `json:"code"`
 		} `json:"error"`
+		// vLLM：{"object":"error","message":...,"type":...}
+		Message string `json:"message"`
+		Type    string `json:"type"`
 	}
 	msg := ""
-	if json.Unmarshal(body, &w) == nil && w.Error.Message != "" {
+	ok := json.Unmarshal(body, &w) == nil
+	if ok && w.Error.Message == "" && w.Message != "" {
+		w.Error.Message, w.Error.Type = w.Message, w.Type
+	}
+	if ok && w.Error.Message != "" {
 		msg = w.Error.Message
 	} else {
 		msg = strings.TrimSpace(string(body))
@@ -59,7 +68,7 @@ func upstreamError(status int, body []byte, secret string) *Error {
 		msg = msg[:500] + "…"
 	}
 	msg = Redact(msg, secret)
-	e := &Error{UpstreamStatus: status, UpstreamType: w.Error.Type}
+	e := &Error{UpstreamStatus: status, UpstreamType: w.Error.Type, Retryable: status == http.StatusTooManyRequests || status >= 500}
 	switch {
 	case status == http.StatusUnauthorized || status == http.StatusForbidden || w.Error.Type == "authentication_error":
 		e.Status, e.Code = http.StatusBadGateway, CodeUpstreamAuth

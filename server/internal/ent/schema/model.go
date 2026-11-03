@@ -30,6 +30,8 @@ func (Model) Fields() []ent.Field {
 		field.Int64("price_cached_micros").Default(0).Min(0).Comment("命中缓存的输入，每百万 token"),
 		field.Int64("price_output_micros").Default(0).Min(0).Comment("输出（含思考 token），每百万 token"),
 		field.String("currency").Default("CNY").MaxLen(8),
+		// fallback_model_ids 备用模型（按顺序）：主上游在首字节前遇到连接错误 / 429 / 5xx 时依次切换（PR5）。
+		field.JSON("fallback_model_ids", []int{}).Optional(),
 	}
 }
 

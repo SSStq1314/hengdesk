@@ -337,6 +337,7 @@ var (
 		{Name: "price_cached_micros", Type: field.TypeInt64, Default: 0},
 		{Name: "price_output_micros", Type: field.TypeInt64, Default: 0},
 		{Name: "currency", Type: field.TypeString, Size: 8, Default: "CNY"},
+		{Name: "fallback_model_ids", Type: field.TypeJSON, Nullable: true},
 		{Name: "provider_id", Type: field.TypeInt},
 	}
 	// ModelsTable holds the schema information for the "models" table.
@@ -347,7 +348,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "models_model_providers_models",
-				Columns:    []*schema.Column{ModelsColumns[15]},
+				Columns:    []*schema.Column{ModelsColumns[16]},
 				RefColumns: []*schema.Column{ModelProvidersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -359,8 +360,8 @@ var (
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "name", Type: field.TypeString, Unique: true},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"openai_compat"}, Default: "openai_compat"},
-		{Name: "dialect", Type: field.TypeEnum, Enums: []string{"generic", "deepseek"}, Default: "generic"},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"openai_compat", "anthropic"}, Default: "openai_compat"},
+		{Name: "dialect", Type: field.TypeEnum, Enums: []string{"generic", "deepseek", "dashscope", "vllm"}, Default: "generic"},
 		{Name: "base_url", Type: field.TypeString},
 		{Name: "api_key_enc", Type: field.TypeBytes, Nullable: true},
 		{Name: "enabled", Type: field.TypeBool, Default: true},
@@ -487,6 +488,7 @@ var (
 		{Name: "estimated", Type: field.TypeBool, Default: false},
 		{Name: "usage_unknown", Type: field.TypeBool, Default: false},
 		{Name: "latency_ms", Type: field.TypeInt, Default: 0},
+		{Name: "attempt", Type: field.TypeInt, Default: 1},
 		{Name: "created_at", Type: field.TypeTime},
 	}
 	// UsageRecordsTable holds the schema information for the "usage_records" table.
@@ -498,22 +500,22 @@ var (
 			{
 				Name:    "usagerecord_org_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[1], UsageRecordsColumns[22]},
+				Columns: []*schema.Column{UsageRecordsColumns[1], UsageRecordsColumns[23]},
 			},
 			{
 				Name:    "usagerecord_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[2], UsageRecordsColumns[22]},
+				Columns: []*schema.Column{UsageRecordsColumns[2], UsageRecordsColumns[23]},
 			},
 			{
 				Name:    "usagerecord_department_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[3], UsageRecordsColumns[22]},
+				Columns: []*schema.Column{UsageRecordsColumns[3], UsageRecordsColumns[23]},
 			},
 			{
 				Name:    "usagerecord_model_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[4], UsageRecordsColumns[22]},
+				Columns: []*schema.Column{UsageRecordsColumns[4], UsageRecordsColumns[23]},
 			},
 		},
 	}

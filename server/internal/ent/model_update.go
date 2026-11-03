@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
@@ -252,6 +253,24 @@ func (_u *ModelUpdate) SetNillableCurrency(v *string) *ModelUpdate {
 	return _u
 }
 
+// SetFallbackModelIds sets the "fallback_model_ids" field.
+func (_u *ModelUpdate) SetFallbackModelIds(v []int) *ModelUpdate {
+	_u.mutation.SetFallbackModelIds(v)
+	return _u
+}
+
+// AppendFallbackModelIds appends value to the "fallback_model_ids" field.
+func (_u *ModelUpdate) AppendFallbackModelIds(v []int) *ModelUpdate {
+	_u.mutation.AppendFallbackModelIds(v)
+	return _u
+}
+
+// ClearFallbackModelIds clears the value of the "fallback_model_ids" field.
+func (_u *ModelUpdate) ClearFallbackModelIds() *ModelUpdate {
+	_u.mutation.ClearFallbackModelIds()
+	return _u
+}
+
 // SetProvider sets the "provider" edge to the ModelProvider entity.
 func (_u *ModelUpdate) SetProvider(v *ModelProvider) *ModelUpdate {
 	return _u.SetProviderID(v.ID)
@@ -417,6 +436,17 @@ func (_u *ModelUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(model.FieldCurrency, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.FallbackModelIds(); ok {
+		_spec.SetField(model.FieldFallbackModelIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedFallbackModelIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, model.FieldFallbackModelIds, value)
+		})
+	}
+	if _u.mutation.FallbackModelIdsCleared() {
+		_spec.ClearField(model.FieldFallbackModelIds, field.TypeJSON)
 	}
 	if _u.mutation.ProviderCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -690,6 +720,24 @@ func (_u *ModelUpdateOne) SetNillableCurrency(v *string) *ModelUpdateOne {
 	return _u
 }
 
+// SetFallbackModelIds sets the "fallback_model_ids" field.
+func (_u *ModelUpdateOne) SetFallbackModelIds(v []int) *ModelUpdateOne {
+	_u.mutation.SetFallbackModelIds(v)
+	return _u
+}
+
+// AppendFallbackModelIds appends value to the "fallback_model_ids" field.
+func (_u *ModelUpdateOne) AppendFallbackModelIds(v []int) *ModelUpdateOne {
+	_u.mutation.AppendFallbackModelIds(v)
+	return _u
+}
+
+// ClearFallbackModelIds clears the value of the "fallback_model_ids" field.
+func (_u *ModelUpdateOne) ClearFallbackModelIds() *ModelUpdateOne {
+	_u.mutation.ClearFallbackModelIds()
+	return _u
+}
+
 // SetProvider sets the "provider" edge to the ModelProvider entity.
 func (_u *ModelUpdateOne) SetProvider(v *ModelProvider) *ModelUpdateOne {
 	return _u.SetProviderID(v.ID)
@@ -885,6 +933,17 @@ func (_u *ModelUpdateOne) sqlSave(ctx context.Context) (_node *Model, err error)
 	}
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(model.FieldCurrency, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.FallbackModelIds(); ok {
+		_spec.SetField(model.FieldFallbackModelIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedFallbackModelIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, model.FieldFallbackModelIds, value)
+		})
+	}
+	if _u.mutation.FallbackModelIdsCleared() {
+		_spec.ClearField(model.FieldFallbackModelIds, field.TypeJSON)
 	}
 	if _u.mutation.ProviderCleared() {
 		edge := &sqlgraph.EdgeSpec{

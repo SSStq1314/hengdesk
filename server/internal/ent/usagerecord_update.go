@@ -411,6 +411,27 @@ func (_u *UsageRecordUpdate) AddLatencyMs(v int) *UsageRecordUpdate {
 	return _u
 }
 
+// SetAttempt sets the "attempt" field.
+func (_u *UsageRecordUpdate) SetAttempt(v int) *UsageRecordUpdate {
+	_u.mutation.ResetAttempt()
+	_u.mutation.SetAttempt(v)
+	return _u
+}
+
+// SetNillableAttempt sets the "attempt" field if the given value is not nil.
+func (_u *UsageRecordUpdate) SetNillableAttempt(v *int) *UsageRecordUpdate {
+	if v != nil {
+		_u.SetAttempt(*v)
+	}
+	return _u
+}
+
+// AddAttempt adds value to the "attempt" field.
+func (_u *UsageRecordUpdate) AddAttempt(v int) *UsageRecordUpdate {
+	_u.mutation.AddAttempt(v)
+	return _u
+}
+
 // Mutation returns the UsageRecordMutation object of the builder.
 func (_u *UsageRecordUpdate) Mutation() *UsageRecordMutation {
 	return _u.mutation
@@ -571,6 +592,12 @@ func (_u *UsageRecordUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.AddedLatencyMs(); ok {
 		_spec.AddField(usagerecord.FieldLatencyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Attempt(); ok {
+		_spec.SetField(usagerecord.FieldAttempt, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAttempt(); ok {
+		_spec.AddField(usagerecord.FieldAttempt, field.TypeInt, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -976,6 +1003,27 @@ func (_u *UsageRecordUpdateOne) AddLatencyMs(v int) *UsageRecordUpdateOne {
 	return _u
 }
 
+// SetAttempt sets the "attempt" field.
+func (_u *UsageRecordUpdateOne) SetAttempt(v int) *UsageRecordUpdateOne {
+	_u.mutation.ResetAttempt()
+	_u.mutation.SetAttempt(v)
+	return _u
+}
+
+// SetNillableAttempt sets the "attempt" field if the given value is not nil.
+func (_u *UsageRecordUpdateOne) SetNillableAttempt(v *int) *UsageRecordUpdateOne {
+	if v != nil {
+		_u.SetAttempt(*v)
+	}
+	return _u
+}
+
+// AddAttempt adds value to the "attempt" field.
+func (_u *UsageRecordUpdateOne) AddAttempt(v int) *UsageRecordUpdateOne {
+	_u.mutation.AddAttempt(v)
+	return _u
+}
+
 // Mutation returns the UsageRecordMutation object of the builder.
 func (_u *UsageRecordUpdateOne) Mutation() *UsageRecordMutation {
 	return _u.mutation
@@ -1166,6 +1214,12 @@ func (_u *UsageRecordUpdateOne) sqlSave(ctx context.Context) (_node *UsageRecord
 	}
 	if value, ok := _u.mutation.AddedLatencyMs(); ok {
 		_spec.AddField(usagerecord.FieldLatencyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Attempt(); ok {
+		_spec.SetField(usagerecord.FieldAttempt, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAttempt(); ok {
+		_spec.AddField(usagerecord.FieldAttempt, field.TypeInt, value)
 	}
 	_node = &UsageRecord{config: _u.config}
 	_spec.Assign = _node.assignValues

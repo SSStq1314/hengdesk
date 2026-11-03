@@ -23,7 +23,8 @@ type Upstream struct {
 	Name    string
 	BaseURL string
 	APIKey  string
-	Dialect string // generic / deepseek
+	Kind    string // openai_compat / anthropic
+	Dialect string // generic / deepseek / dashscope / vllm
 	Timeout time.Duration
 }
 
@@ -43,8 +44,15 @@ type Client struct {
 var reFuncName = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
 // thinkingOn 该次调用上游是否处于思考模式（DeepSeek 不传 thinking 时默认开启）。
+// 通义（dashscope）与 vLLM 的思考模型同样不支持强制工具调用，只在显式开启时按思考模式处理。
 func thinkingOn(up Upstream, m ModelConfig) bool {
-	return up.Dialect == "deepseek" && (m.Thinking == "on" || m.Thinking == "provider_default")
+	switch up.Dialect {
+	case "deepseek":
+		return m.Thinking == "on" || m.Thinking == "provider_default"
+	case "dashscope", "vllm":
+		return m.Thinking == "on"
+	}
+	return false
 }
 
 // BuildBody 生成上游请求体，并处理 DeepSeek 方言：
@@ -53,30 +61,18 @@ func thinkingOn(up Upstream, m ModelConfig) bool {
 //   - generic 方言去掉历史消息里的 reasoning_content，deepseek 方言原样回传；
 //   - 流式一律带 stream_options.include_usage。
 func BuildBody(req *ChatRequest, up Upstream, m ModelConfig) (map[string]any, []string, *Error) {
-	if len(req.Messages) == 0 {
-		return nil, nil, newErr(http.StatusBadRequest, CodeBadRequest, "messages 不能为空")
-	}
-	for _, t := range req.Tools {
-		if t.Type != "function" {
-			return nil, nil, newErr(http.StatusBadRequest, CodeBadRequest, "只支持 type=function 的工具")
-		}
-		var f struct {
-			Name string `json:"name"`
-		}
-		if json.Unmarshal(t.Function, &f) != nil || !reFuncName.MatchString(f.Name) {
-			return nil, nil, newErr(http.StatusBadRequest, CodeInvalidFunctionName,
-				"工具函数名 %q 不合法：只能包含字母、数字、下划线、连字符，长度 1~64", f.Name)
-		}
+	if gerr := validateRequest(req); gerr != nil {
+		return nil, nil, gerr
 	}
 	var warnings []string
 	body := map[string]any{"model": m.UpstreamModel}
-	msgs := req.Messages
-	if up.Dialect != "deepseek" {
-		msgs = make([]Message, len(req.Messages))
-		for i, mm := range req.Messages {
+	msgs := make([]Message, len(req.Messages))
+	for i, mm := range req.Messages {
+		mm.ReasoningSignature = ""
+		if up.Dialect != "deepseek" {
 			mm.ReasoningContent = nil
-			msgs[i] = mm
 		}
+		msgs[i] = mm
 	}
 	body["messages"] = msgs
 	if len(req.Tools) > 0 {
@@ -96,12 +92,19 @@ func BuildBody(req *ChatRequest, up Upstream, m ModelConfig) (map[string]any, []
 		}
 		body["tool_choice"] = tc
 	}
-	if up.Dialect == "deepseek" {
-		switch m.Thinking {
-		case "on":
-			body["thinking"] = map[string]string{"type": "enabled"}
-		case "off":
-			body["thinking"] = map[string]string{"type": "disabled"}
+	if m.Thinking == "on" || m.Thinking == "off" {
+		on := m.Thinking == "on"
+		switch up.Dialect {
+		case "deepseek":
+			if on {
+				body["thinking"] = map[string]string{"type": "enabled"}
+			} else {
+				body["thinking"] = map[string]string{"type": "disabled"}
+			}
+		case "dashscope":
+			body["enable_thinking"] = on
+		case "vllm":
+			body["chat_template_kwargs"] = map[string]bool{"enable_thinking": on}
 		}
 	}
 	if req.Stream {
@@ -126,6 +129,26 @@ func BuildBody(req *ChatRequest, up Upstream, m ModelConfig) (map[string]any, []
 	return body, warnings, nil
 }
 
+// validateRequest 与上游无关的请求校验（OpenAI 兼容与 Anthropic 共用）。
+func validateRequest(req *ChatRequest) *Error {
+	if len(req.Messages) == 0 {
+		return newErr(http.StatusBadRequest, CodeBadRequest, "messages 不能为空")
+	}
+	for _, t := range req.Tools {
+		if t.Type != "function" {
+			return newErr(http.StatusBadRequest, CodeBadRequest, "只支持 type=function 的工具")
+		}
+		var f struct {
+			Name string `json:"name"`
+		}
+		if json.Unmarshal(t.Function, &f) != nil || !reFuncName.MatchString(f.Name) {
+			return newErr(http.StatusBadRequest, CodeInvalidFunctionName,
+				"工具函数名 %q 不合法：只能包含字母、数字、下划线、连字符，长度 1~64", f.Name)
+		}
+	}
+	return nil
+}
+
 // do 发送上游请求。HTTP 必须是出站控制客户端（egress.Client.HTTP()），不回退到 http.DefaultClient。
 func (c *Client) do(ctx context.Context, r *http.Request, key string) (*http.Response, *Error) {
 	if c.HTTP == nil {
@@ -140,7 +163,9 @@ func (c *Client) do(ctx context.Context, r *http.Request, key string) (*http.Res
 		if ctx.Err() != nil || isTimeout(err) {
 			return nil, newErr(http.StatusGatewayTimeout, CodeUpstreamTimeout, "上游响应超时")
 		}
-		return nil, newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "无法连接上游：%s", Redact(err.Error(), key))
+		e := newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "无法连接上游：%s", Redact(err.Error(), key))
+		e.Retryable = true
+		return nil, e
 	}
 	return resp, nil
 }
@@ -151,12 +176,17 @@ func (c *Client) post(ctx context.Context, up Upstream, body map[string]any) (*h
 		return nil, newErr(http.StatusBadRequest, CodeBadRequest, "请求无法序列化")
 	}
 	url := strings.TrimRight(up.BaseURL, "/") + "/chat/completions"
+	if up.Kind == KindAnthropic {
+		url = anthropicURL(up, "/messages")
+	}
 	r, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
 	if err != nil {
 		return nil, newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "上游地址无效")
 	}
 	r.Header.Set("Content-Type", "application/json")
-	if up.APIKey != "" {
+	if up.Kind == KindAnthropic {
+		anthropicHeaders(r, up)
+	} else if up.APIKey != "" {
 		r.Header.Set("Authorization", "Bearer "+up.APIKey)
 	}
 	resp, gerr := c.do(ctx, r, up.APIKey)
@@ -185,6 +215,9 @@ func timeoutOf(up Upstream) time.Duration {
 
 // Chat 非流式调用。
 func (c *Client) Chat(ctx context.Context, req *ChatRequest, up Upstream, m ModelConfig) (*ChatResponse, *Error) {
+	if up.Kind == KindAnthropic {
+		return c.anthropicChat(ctx, req, up, m)
+	}
 	r := *req
 	r.Stream = false
 	body, warns, gerr := BuildBody(&r, up, m)
@@ -222,7 +255,7 @@ func (c *Client) Chat(ctx context.Context, req *ChatRequest, up Upstream, m Mode
 }
 
 func fromWire(wm *wireMessage) Message {
-	m := Message{Role: "assistant", ReasoningContent: wm.ReasoningContent, ToolCalls: wm.ToolCalls}
+	m := Message{Role: "assistant", ReasoningContent: wm.reasoning(), ToolCalls: wm.ToolCalls}
 	if wm.Content != nil {
 		m.Content, _ = json.Marshal(*wm.Content)
 	} else {
@@ -239,6 +272,9 @@ func fromWire(wm *wireMessage) Message {
 // Ollama / vLLM 放在单独的 choices:[] chunk 上）；全程没有则估算并标记 Estimated。
 // tool_calls 按 index 拼接 arguments，兼容整段到达和逐 token 增量。
 func (c *Client) Stream(ctx context.Context, req *ChatRequest, up Upstream, m ModelConfig, onDelta func(Delta) error) (*ChatResponse, *Error) {
+	if up.Kind == KindAnthropic {
+		return c.anthropicStream(ctx, req, up, m, onDelta)
+	}
 	r := *req
 	r.Stream = true
 	body, warns, gerr := BuildBody(&r, up, m)
@@ -320,9 +356,9 @@ func (c *Client) Stream(ctx context.Context, req *ChatRequest, up Upstream, m Mo
 					d.Content = *ch.Delta.Content
 					content.WriteString(d.Content)
 				}
-				if ch.Delta.ReasoningContent != nil {
+				if rc := ch.Delta.reasoning(); rc != nil {
 					sawReasoning = true
-					d.ReasoningContent = *ch.Delta.ReasoningContent
+					d.ReasoningContent = *rc
 					reasoning.WriteString(d.ReasoningContent)
 				}
 				for _, tc := range ch.Delta.ToolCalls {
@@ -446,11 +482,16 @@ func (c *Client) ListModels(ctx context.Context, up Upstream) ([]string, *Error)
 	ctx, cancel := context.WithTimeout(ctx, timeoutOf(up))
 	defer cancel()
 	url := strings.TrimRight(up.BaseURL, "/") + "/models"
+	if up.Kind == KindAnthropic {
+		url = anthropicURL(up, "/models")
+	}
 	r, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, newErr(http.StatusBadGateway, CodeUpstreamUnavailable, "上游地址无效")
 	}
-	if up.APIKey != "" {
+	if up.Kind == KindAnthropic {
+		anthropicHeaders(r, up)
+	} else if up.APIKey != "" {
 		r.Header.Set("Authorization", "Bearer "+up.APIKey)
 	}
 	resp, gerr := c.do(ctx, r, up.APIKey)

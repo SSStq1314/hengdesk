@@ -1,4 +1,4 @@
-# 模型网关（M1 第二块 PR1 / PR2）
+# 模型网关（M1 第二块 PR1 / PR2 / PR5）
 
 ## 主密钥
 
@@ -97,11 +97,74 @@ curl -N -b c.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
 
 接真实 DeepSeek 时把 `base_url` 换成 `https://api.deepseek.com`、`upstream_model` 用 `deepseek-flash` / `deepseek-v4-pro`。
 
+## 供应商协议与方言（PR5）
+
+| 协议 `kind` | 方言 `dialect` | 适用 | 思考开关的发送方式 |
+|---|---|---|---|
+| `openai_compat` | `deepseek` | DeepSeek | `thinking: {type: enabled/disabled}`，回传 `reasoning_content` |
+| `openai_compat` | `dashscope` | 通义（`https://dashscope.aliyuncs.com/compatible-mode/v1`） | `enable_thinking: true/false` |
+| `openai_compat` | `vllm` | vLLM OpenAI 兼容服务（`http://<host>:8000/v1`） | `chat_template_kwargs.enable_thinking`；同时识别 `reasoning` / `reasoning_content` |
+| `openai_compat` | `generic` | 其他 OpenAI 兼容，含 Ollama | 不发送 |
+| `anthropic` | （忽略） | Anthropic Messages API（`https://api.anthropic.com`） | `thinking: {type: enabled, budget_tokens}` |
+
+**内网模型必须显式加白名单。** vLLM / Ollama 通常部署在内网，而出站控制默认拦截内网地址（PR4）。
+添加供应商前，先由超级管理员在「出站控制 → 出站白名单」放行对应网段和端口，例如 `cidr 10.20.0.0/16`、端口 `8000`（vLLM）或 `11434`（Ollama）。
+管理界面在选择 vLLM / 通用方言时会给出同样提示。
+
+### Anthropic 适配器
+
+- 走统一出站客户端；请求头 `x-api-key` + `anthropic-version: 2023-06-01`；`base_url` 未带 `/v1` 时自动补上。
+- 请求转换：`system` 消息合并为顶层 `system`；`tool` 消息转为 `tool_result` 块；相邻同角色消息合并；
+  `tools` → `input_schema`；`tool_choice`：`auto`→`auto`、`none`→`none`、`required`→`any`、指定函数→`tool`；`stop` → `stop_sequences`。
+- `max_tokens` 必填，未指定时用 4096。开启思考时 `budget_tokens = max_tokens / 2`（须 > 1024，否则 400），并去掉 `temperature` / `top_p`（返回告警）；
+  思考模式下强制工具选择按模型的「工具选择策略」降级为 `auto` 或拒绝。
+- 响应转换：thinking 块 → `reasoning_content`，签名保存在 `reasoning_signature`，多轮工具调用时须原样回传（无签名的思考内容不会发回上游）。
+  `stop_reason`：`end_turn`→`stop`、`max_tokens`→`length`、`tool_use`→`tool_calls`、`refusal`→`content_filter`。
+- 用量：`prompt_tokens = input_tokens + cache_read_input_tokens + cache_creation_input_tokens`，`cached_tokens = cache_read_input_tokens`。
+- 错误消息与其他上游一样脱敏（不回显 Key）；529 overloaded 视为可重试。
+
+## 重试与故障转移（PR5）
+
+- **只在首字节之前重试**，且只针对：连接错误、429、5xx（含 Anthropic 529）。4xx（参数、鉴权）和超时不重试。
+- **流式一旦开始输出就不再重试**（含 Anthropic 流内 `error` 事件），直接把错误发给客户端。
+- 每个上游最多尝试 2 次（间隔 200 ms × 次数），用尽后按模型配置的**备用模型**（`fallback_model_ids`，最多 3 个，按顺序）依次切换。
+  备用模型须存在、已启用、不能是自身、不能重复；管理端在「模型 → 编辑 → 备用模型」勾选。
+- **每次尝试都单独写审计**（`model.call` / `attempt`，含 `attempt` 序号，切换时带 `fallback_model`）和 `usage_record`（`attempt` 字段，同一 `request_id`）。
+  第 1 次尝试的审计写失败 → 拒绝请求；后续尝试的审计写失败 → 停止重试，返回上一次错误（不会在无审计的情况下调用上游）。
+- **预算只计实际产生的用量一次**：预算预检只在第一次尝试前做一次（以主模型为准）；失败尝试 token 与金额为 0（标记用量未知，D-37），
+  只有成功那次按实际用量记账。备用模型不再单独做使用权限检查（由管理员配置，视为主模型的一部分）。
+
+## 契约测试与录制（D-35）
+
+- 回放带在 `server/internal/gateway/testdata/`：`deepseek_cassette.json`（真实录制）、`dashscope_cassette.json`、`vllm_cassette.json`、`anthropic_cassette.json`。
+  后三者由 `tests/spikes/model-compat/make-doc-cassettes.py` **按各厂商公开文档构造**，文件头 `_note` 标注「文档构造，待真实录制替换」。
+- 测试（`contract_vendors_test.go`）覆盖：非流式 / 流式、思考字段开关、错误（无效 Key、无效模型、超长上下文、Anthropic overloaded）、超时；CI 离线运行。
+- 拿到凭据后在**本机**真实录制（不要在 CI 运行，不要使用 `DEEPSEEK_API_KEY`）：
+
+```bash
+cd server
+HENGDESK_RECORD_API_KEY=<通义 Key> go run ./cmd/cassette-record -vendor dashscope \
+  -base https://dashscope.aliyuncs.com/compatible-mode/v1 -model qwen-plus \
+  -out internal/gateway/testdata/dashscope_cassette.json
+# vLLM（内网，无 Key 可不设；需显式放行内网地址）
+go run ./cmd/cassette-record -vendor vllm -base http://10.20.0.5:8000/v1 -model Qwen/Qwen3-8B \
+  -allow "cidr 10.20.0.0/16 8000" -out internal/gateway/testdata/vllm_cassette.json
+HENGDESK_RECORD_API_KEY=<Anthropic Key> go run ./cmd/cassette-record -vendor anthropic \
+  -base https://api.anthropic.com -model claude-sonnet-4-5 -out internal/gateway/testdata/anthropic_cassette.json
+go test ./internal/gateway/ -run Contract
+```
+
+  录制工具只保存请求体与响应体（不保存任何请求头），写盘前把 Key 替换为 `[REDACTED]` 并断言文件中不含 Key；同样经出站客户端，默认只放行 `-base` 的主机。
+  录制后检查 diff，确认无敏感内容再提交。
+
 ## Ollama（本机验证步骤）
 
-本开发机未安装 Ollama，PR1 未实测。验证步骤：
+本开发机未安装 Ollama，PR1 / PR5 均未实测。验证步骤：
 
-1. `ollama pull qwen3:8b && ollama serve`；
-2. 创建供应商 `{"name":"ollama","dialect":"generic","base_url":"http://127.0.0.1:11434/v1","api_key":"ollama"}`；
-3. 创建模型 `{"name":"local","provider_id":<id>,"upstream_model":"qwen3:8b"}`，按上面 curl 调用。
+1. `ollama pull qwen3:8b && ollama serve`（默认监听 `127.0.0.1:11434`；服务端与 Ollama 不在同一主机时设 `OLLAMA_HOST=0.0.0.0`）；
+2. 在「出站控制 → 出站白名单」放行 Ollama 地址，如 `ip 127.0.0.1` 端口 `11434` 或 `cidr 10.20.0.0/16` 端口 `11434`（内网地址默认拦截）；
+3. 创建供应商 `{"name":"ollama","dialect":"generic","base_url":"http://127.0.0.1:11434/v1","api_key":"ollama"}`；
+4. 在管理界面点「测试连接」，应列出 `qwen3:8b`；
+5. 创建模型 `{"name":"local","provider_id":<id>,"upstream_model":"qwen3:8b","thinking":"provider_default"}`，按上面 curl 分别调用非流式、流式、带 `tools` 的请求；
+6. 在「用量」页确认有 usage_record，在审计日志确认有 `model.call` 记录。
 已知差异（见 docs/spikes/model-compat.md）：Ollama 忽略 `required`，usage 在单独的 `choices:[]` 块中，网关均能处理。
