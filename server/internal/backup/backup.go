@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
+	"syscall"
 	"time"
 )
 
@@ -82,4 +84,36 @@ func Run(ctx context.Context, d Dumper, dsn, dir, label string) (string, error) 
 		return "", err
 	}
 	return final, nil
+}
+
+// Prune 只保留 dir 下最新的 keep 份 hengdesk-*.dump（按文件名中的 UTC 时间排序），返回删除的文件。
+func Prune(dir string, keep int) ([]string, error) {
+	if keep < 1 {
+		keep = 1
+	}
+	files, err := filepath.Glob(filepath.Join(dir, "hengdesk-*.dump"))
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(files)))
+	var removed []string
+	for _, f := range files[min(keep, len(files)):] {
+		if err := os.Remove(f); err != nil {
+			return removed, err
+		}
+		removed = append(removed, f)
+	}
+	return removed, nil
+}
+
+// FreePercent 返回 dir 所在文件系统的剩余空间百分比（非特权用户可用部分）。
+func FreePercent(dir string) (float64, error) {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(dir, &st); err != nil {
+		return 0, err
+	}
+	if st.Blocks == 0 {
+		return 0, errors.New("无法读取磁盘容量")
+	}
+	return float64(st.Bavail) * 100 / float64(st.Blocks), nil
 }

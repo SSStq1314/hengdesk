@@ -10,10 +10,10 @@ import (
 	"context"
 	"crypto/subtle"
 	"errors"
-	"fmt"
 	"math"
 	"mime"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,14 +36,14 @@ const CSRFCookie = "hd_csrf"
 // CSRFHeader 变更类请求必须携带的头。
 const CSRFHeader = "X-CSRF-Token"
 
-// MinPasswordLen 本地密码最小长度。
-const MinPasswordLen = 8
-
 const (
 	ctxKey     = "hd_user"
 	ctxSession = "hd_session"
 	ctxToken   = "hd_token"
 )
+
+// ErrBadCredentials 登录失败的唯一对外响应（账号不存在 / 密码错误 / 已锁定 / 已停用一致）。
+var ErrBadCredentials = echo.NewHTTPError(http.StatusUnauthorized, "邮箱或密码错误，或账号暂不可用")
 
 // dummyHash 用于账号不存在时做等时比较，避免用户枚举。
 var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("hengdesk-dummy"), bcrypt.DefaultCost)
@@ -58,6 +58,10 @@ type Service struct {
 	Sessions *session.Store
 	Lockout  *session.Lockout
 	Secure   bool
+	// Passwords 本地密码策略。
+	Passwords PasswordPolicy
+	// IPLimit 按来源 IP 的登录限速（滑动窗口）；nil 表示关闭。
+	IPLimit *session.RateLimiter
 	// BcryptCost 默认 bcrypt.DefaultCost，测试可调低。
 	BcryptCost int
 	// Target 管理接口取目标用户：负责范围判断与越权 404（由 authz 注入，避免循环依赖）。
@@ -122,36 +126,41 @@ func (s *Service) login(c echo.Context) error {
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 	e := s.entry(c, "auth.login", email)
 
+	// 1) 按来源 IP 限速：不暴露账号是否存在，可单独返回 429。
+	if okIP, wait, err := s.IPLimit.Allow(ctx, "login:ip:"+c.RealIP()); err != nil {
+		return ErrUnavailable
+	} else if !okIP {
+		e.Detail = map[string]any{"reason": "ip_rate_limited"}
+		if aerr := s.Audit.Write(ctx, e); aerr != nil {
+			return audit.ErrRejected
+		}
+		c.Response().Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
+		return echo.NewHTTPError(http.StatusTooManyRequests, "登录尝试过于频繁，请稍后再试")
+	}
 	left, err := s.Lockout.Locked(ctx, email)
 	if err != nil {
 		return ErrUnavailable
 	}
-	if left > 0 {
-		e.Detail = map[string]any{"reason": "locked"}
-		if aerr := s.Audit.Write(ctx, e); aerr != nil {
-			return audit.ErrRejected
-		}
-		return echo.NewHTTPError(http.StatusTooManyRequests,
-			fmt.Sprintf("登录失败次数过多，请 %d 分钟后再试", int(math.Ceil(left.Minutes()))))
-	}
-
+	// 2) 账号不存在、密码错误、已锁定：都做一次 bcrypt 比较，对外返回完全相同的 401，避免枚举与计时侧信道。
 	u, err := s.DB.User.Query().Where(user.Email(email)).Only(ctx)
 	ok := false
-	if err == nil {
-		ok = u.PasswordHash != "" && bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(req.Password)) == nil && u.Status == user.StatusActive
+	if err == nil && u.PasswordHash != "" {
+		ok = bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(req.Password)) == nil && u.Status == user.StatusActive
 	} else {
 		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(req.Password))
 	}
-	if !ok {
-		locked, lerr := s.Lockout.Fail(ctx, email)
-		if lerr != nil {
+	if left > 0 || !ok {
+		reason, locked := "bad_credentials", false
+		if left > 0 {
+			reason = "locked"
+		} else if locked, err = s.Lockout.Fail(ctx, email); err != nil {
 			return ErrUnavailable
 		}
-		e.Detail = map[string]any{"reason": "bad_credentials", "locked": locked}
+		e.Detail = map[string]any{"reason": reason, "locked": locked}
 		if aerr := s.Audit.Write(ctx, e); aerr != nil {
 			return audit.ErrRejected
 		}
-		return echo.NewHTTPError(http.StatusUnauthorized, "邮箱或密码错误")
+		return ErrBadCredentials
 	}
 	e.Outcome, e.ActorID, e.OrgID = "success", u.ID, u.OrgID
 	if aerr := s.Audit.Write(ctx, e); aerr != nil {
@@ -219,11 +228,11 @@ func (s *Service) changePassword(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "请求格式错误")
 	}
-	if err := ValidatePassword(req.New); err != nil {
+	p := Current(c)
+	if err := s.Passwords.Validate(req.New, p.Email); err != nil {
 		return err
 	}
 	ctx := c.Request().Context()
-	p := Current(c)
 	u, err := s.DB.User.Get(ctx, p.ID)
 	if err != nil {
 		return err
@@ -235,17 +244,6 @@ func (s *Service) changePassword(c echo.Context) error {
 		return err
 	}
 	return s.issue(c, u.ID)
-}
-
-// ValidatePassword 本地密码策略。
-func ValidatePassword(pw string) error {
-	if len(pw) < MinPasswordLen {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("密码至少 %d 位", MinPasswordLen))
-	}
-	if len(pw) > 72 {
-		return echo.NewHTTPError(http.StatusBadRequest, "密码最长 72 字节")
-	}
-	return nil
 }
 
 // SetPassword 更新密码哈希并失效该用户全部会话。

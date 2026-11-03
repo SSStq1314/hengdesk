@@ -111,3 +111,16 @@ export const auditApi = {
     ),
   exportUrl: (f: AuditFilter) => `/api/v1/admin/audit-logs/export${qs(f)}`,
 }
+
+export type SystemStatus = {
+  auditor_assigned: boolean
+  backup_keep: number
+  disk_free_percent: number | null
+  disk_low_threshold: number
+  disk_low: boolean
+  https: boolean
+}
+
+export const systemApi = {
+  status: () => api<SystemStatus>('/admin/system/status'),
+}

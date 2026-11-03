@@ -79,6 +79,8 @@ services:
     command: ["server"]
     restart: unless-stopped
     environment: *hd-env
+    # 只读挂载备份卷：管理后台据此显示备份盘剩余空间告警。
+    volumes: [backups:/backups:ro]
     depends_on:
       migrate: {condition: service_completed_successfully}
       valkey: {condition: service_healthy}

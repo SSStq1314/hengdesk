@@ -20,6 +20,8 @@ type Deps struct {
 	Audit audit.Writer
 	Auth  *auth.Service
 	Log   *slog.Logger
+	// System 管理后台状态提示（审计员未指派、备份盘空间不足等）。
+	System SystemConfig
 }
 
 // Mount 挂载路由。所有 /admin 接口都经统一授权层：未登录 401，无权限或越权 404。
@@ -52,6 +54,9 @@ func Mount(e *echo.Echo, d Deps) {
 
 	// 账号安全（强制下线、停用、重置密码、解锁）：组织范围 MemberManage，目标为特权角色时还需 RoleAssignPriv。
 	d.Auth.RegisterAdmin(admin.Group("", authz.Require(rbac.MemberManage)))
+
+	sh := &systemHandlers{db: d.DB, cfg: d.System}
+	admin.GET("/system/status", sh.status, authz.Require(rbac.SettingsManage))
 
 	rh := &roleHandlers{db: d.DB, az: az}
 	admin.GET("/roles", rh.matrix, authz.Require(rbac.RoleRead))
