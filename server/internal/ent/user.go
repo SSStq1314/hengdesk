@@ -30,8 +30,6 @@ type User struct {
 	PasswordHash string `json:"-"`
 	// Status holds the value of the "status" field.
 	Status user.Status `json:"status,omitempty"`
-	// IsSuperAdmin holds the value of the "is_super_admin" field.
-	IsSuperAdmin bool `json:"is_super_admin,omitempty"`
 	// OrgID holds the value of the "org_id" field.
 	OrgID int `json:"org_id,omitempty"`
 	// LastLoginAt holds the value of the "last_login_at" field.
@@ -78,8 +76,6 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldIsSuperAdmin:
-			values[i] = new(sql.NullBool)
 		case user.FieldID, user.FieldOrgID:
 			values[i] = new(sql.NullInt64)
 		case user.FieldEmail, user.FieldDisplayName, user.FieldPasswordHash, user.FieldStatus:
@@ -142,12 +138,6 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = user.Status(value.String)
-			}
-		case user.FieldIsSuperAdmin:
-			if value, ok := values[i].(*sql.NullBool); !ok {
-				return fmt.Errorf("unexpected type %T for field is_super_admin", values[i])
-			} else if value.Valid {
-				_m.IsSuperAdmin = value.Bool
 			}
 		case user.FieldOrgID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -224,9 +214,6 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
-	builder.WriteString(", ")
-	builder.WriteString("is_super_admin=")
-	builder.WriteString(fmt.Sprintf("%v", _m.IsSuperAdmin))
 	builder.WriteString(", ")
 	builder.WriteString("org_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.OrgID))

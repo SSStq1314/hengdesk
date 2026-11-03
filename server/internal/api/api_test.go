@@ -91,8 +91,9 @@ func TestLoginFlow(t *testing.T) {
 	if get(h, "/api/v1/auth/me", nil) != http.StatusUnauthorized {
 		t.Fatal("me without cookie should 401")
 	}
-	if get(h, "/api/v1/admin/audit-logs", cks) != http.StatusOK {
-		t.Fatal("admin audit-logs failed")
+	// 三员分立：超级管理员不能查看审计日志，按无权限处理返回 404。
+	if get(h, "/api/v1/admin/audit-logs", cks) != http.StatusNotFound {
+		t.Fatal("super admin must not read audit logs")
 	}
 }
 

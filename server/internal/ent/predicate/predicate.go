@@ -6,11 +6,17 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// ACL is the predicate function for acl builders.
+type ACL func(*sql.Selector)
+
 // AuditLog is the predicate function for auditlog builders.
 type AuditLog func(*sql.Selector)
 
 // Department is the predicate function for department builders.
 type Department func(*sql.Selector)
+
+// DeptClosure is the predicate function for deptclosure builders.
+type DeptClosure func(*sql.Selector)
 
 // Membership is the predicate function for membership builders.
 type Membership func(*sql.Selector)

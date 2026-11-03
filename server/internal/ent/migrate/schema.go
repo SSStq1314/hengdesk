@@ -3,11 +3,43 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
 
 var (
+	// ACLColumns holds the columns for the "acl" table.
+	ACLColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "resource_type", Type: field.TypeString},
+		{Name: "resource_id", Type: field.TypeString},
+		{Name: "subject_type", Type: field.TypeEnum, Enums: []string{"user", "dept", "role"}},
+		{Name: "subject_id", Type: field.TypeInt},
+		{Name: "include_children", Type: field.TypeBool, Default: false},
+		{Name: "perms", Type: field.TypeInt},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// ACLTable holds the schema information for the "acl" table.
+	ACLTable = &schema.Table{
+		Name:       "acl",
+		Columns:    ACLColumns,
+		PrimaryKey: []*schema.Column{ACLColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "acl_resource_type_resource_id_subject_type_subject_id",
+				Unique:  true,
+				Columns: []*schema.Column{ACLColumns[2], ACLColumns[3], ACLColumns[4], ACLColumns[5]},
+			},
+			{
+				Name:    "acl_org_id_resource_type_subject_type_subject_id",
+				Unique:  false,
+				Columns: []*schema.Column{ACLColumns[1], ACLColumns[2], ACLColumns[4], ACLColumns[5]},
+			},
+		},
+	}
 	// AuditLogsColumns holds the columns for the "audit_logs" table.
 	AuditLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -83,6 +115,32 @@ var (
 				Name:    "department_org_id_parent_id_name",
 				Unique:  true,
 				Columns: []*schema.Column{DepartmentsColumns[6], DepartmentsColumns[5], DepartmentsColumns[3]},
+			},
+		},
+	}
+	// DeptClosureColumns holds the columns for the "dept_closure" table.
+	DeptClosureColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "ancestor_id", Type: field.TypeInt},
+		{Name: "descendant_id", Type: field.TypeInt},
+		{Name: "depth", Type: field.TypeInt},
+	}
+	// DeptClosureTable holds the schema information for the "dept_closure" table.
+	DeptClosureTable = &schema.Table{
+		Name:       "dept_closure",
+		Columns:    DeptClosureColumns,
+		PrimaryKey: []*schema.Column{DeptClosureColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "deptclosure_ancestor_id_descendant_id",
+				Unique:  true,
+				Columns: []*schema.Column{DeptClosureColumns[2], DeptClosureColumns[3]},
+			},
+			{
+				Name:    "deptclosure_descendant_id",
+				Unique:  false,
+				Columns: []*schema.Column{DeptClosureColumns[3]},
 			},
 		},
 	}
@@ -185,7 +243,6 @@ var (
 		{Name: "display_name", Type: field.TypeString, Default: ""},
 		{Name: "password_hash", Type: field.TypeString, Nullable: true},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "disabled"}, Default: "active"},
-		{Name: "is_super_admin", Type: field.TypeBool, Default: false},
 		{Name: "last_login_at", Type: field.TypeTime, Nullable: true},
 		{Name: "org_id", Type: field.TypeInt},
 	}
@@ -197,7 +254,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "users_organizations_users",
-				Columns:    []*schema.Column{UsersColumns[9]},
+				Columns:    []*schema.Column{UsersColumns[8]},
 				RefColumns: []*schema.Column{OrganizationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -205,8 +262,10 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		ACLTable,
 		AuditLogsTable,
 		DepartmentsTable,
+		DeptClosureTable,
 		MembershipsTable,
 		OrganizationsTable,
 		RolesTable,
@@ -216,8 +275,14 @@ var (
 )
 
 func init() {
+	ACLTable.Annotation = &entsql.Annotation{
+		Table: "acl",
+	}
 	DepartmentsTable.ForeignKeys[0].RefTable = DepartmentsTable
 	DepartmentsTable.ForeignKeys[1].RefTable = OrganizationsTable
+	DeptClosureTable.Annotation = &entsql.Annotation{
+		Table: "dept_closure",
+	}
 	MembershipsTable.ForeignKeys[0].RefTable = DepartmentsTable
 	MembershipsTable.ForeignKeys[1].RefTable = RolesTable
 	MembershipsTable.ForeignKeys[2].RefTable = UsersTable

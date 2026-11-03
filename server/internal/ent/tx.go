@@ -12,10 +12,14 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// ACL is the client for interacting with the ACL builders.
+	ACL *ACLClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
 	// Department is the client for interacting with the Department builders.
 	Department *DepartmentClient
+	// DeptClosure is the client for interacting with the DeptClosure builders.
+	DeptClosure *DeptClosureClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
 	// Organization is the client for interacting with the Organization builders.
@@ -157,8 +161,10 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.ACL = NewACLClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
 	tx.Department = NewDepartmentClient(tx.config)
+	tx.DeptClosure = NewDeptClosureClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
 	tx.Organization = NewOrganizationClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
@@ -173,7 +179,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: AuditLog.QueryXXX(), the query will be executed
+// applies a query, for example: ACL.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

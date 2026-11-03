@@ -9,6 +9,18 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 )
 
+// The ACLFunc type is an adapter to allow the use of ordinary
+// function as ACL mutator.
+type ACLFunc func(context.Context, *ent.ACLMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ACLFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ACLMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ACLMutation", m)
+}
+
 // The AuditLogFunc type is an adapter to allow the use of ordinary
 // function as AuditLog mutator.
 type AuditLogFunc func(context.Context, *ent.AuditLogMutation) (ent.Value, error)
@@ -31,6 +43,18 @@ func (f DepartmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DepartmentMutation", m)
+}
+
+// The DeptClosureFunc type is an adapter to allow the use of ordinary
+// function as DeptClosure mutator.
+type DeptClosureFunc func(context.Context, *ent.DeptClosureMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DeptClosureFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DeptClosureMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeptClosureMutation", m)
 }
 
 // The MembershipFunc type is an adapter to allow the use of ordinary

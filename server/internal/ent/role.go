@@ -22,7 +22,7 @@ type Role struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
-	// 如 super_admin / admin / auditor / approver / member
+	// 内置：super_admin / security_auditor / org_admin / dept_admin / member（见 internal/rbac）
 	Key string `json:"key,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`

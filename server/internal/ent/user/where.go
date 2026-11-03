@@ -80,11 +80,6 @@ func PasswordHash(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldPasswordHash, v))
 }
 
-// IsSuperAdmin applies equality check predicate on the "is_super_admin" field. It's identical to IsSuperAdminEQ.
-func IsSuperAdmin(v bool) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldIsSuperAdmin, v))
-}
-
 // OrgID applies equality check predicate on the "org_id" field. It's identical to OrgIDEQ.
 func OrgID(v int) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldOrgID, v))
@@ -398,16 +393,6 @@ func StatusIn(vs ...Status) predicate.User {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.User {
 	return predicate.User(sql.FieldNotIn(FieldStatus, vs...))
-}
-
-// IsSuperAdminEQ applies the EQ predicate on the "is_super_admin" field.
-func IsSuperAdminEQ(v bool) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldIsSuperAdmin, v))
-}
-
-// IsSuperAdminNEQ applies the NEQ predicate on the "is_super_admin" field.
-func IsSuperAdminNEQ(v bool) predicate.User {
-	return predicate.User(sql.FieldNEQ(FieldIsSuperAdmin, v))
 }
 
 // OrgIDEQ applies the EQ predicate on the "org_id" field.

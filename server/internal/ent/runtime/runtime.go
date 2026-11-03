@@ -5,8 +5,10 @@ package runtime
 import (
 	"time"
 
+	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/organization"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
@@ -19,6 +21,28 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	aclFields := schema.ACL{}.Fields()
+	_ = aclFields
+	// aclDescResourceType is the schema descriptor for resource_type field.
+	aclDescResourceType := aclFields[1].Descriptor()
+	// acl.ResourceTypeValidator is a validator for the "resource_type" field. It is called by the builders before save.
+	acl.ResourceTypeValidator = aclDescResourceType.Validators[0].(func(string) error)
+	// aclDescResourceID is the schema descriptor for resource_id field.
+	aclDescResourceID := aclFields[2].Descriptor()
+	// acl.ResourceIDValidator is a validator for the "resource_id" field. It is called by the builders before save.
+	acl.ResourceIDValidator = aclDescResourceID.Validators[0].(func(string) error)
+	// aclDescIncludeChildren is the schema descriptor for include_children field.
+	aclDescIncludeChildren := aclFields[5].Descriptor()
+	// acl.DefaultIncludeChildren holds the default value on creation for the include_children field.
+	acl.DefaultIncludeChildren = aclDescIncludeChildren.Default.(bool)
+	// aclDescPerms is the schema descriptor for perms field.
+	aclDescPerms := aclFields[6].Descriptor()
+	// acl.PermsValidator is a validator for the "perms" field. It is called by the builders before save.
+	acl.PermsValidator = aclDescPerms.Validators[0].(func(int) error)
+	// aclDescCreatedAt is the schema descriptor for created_at field.
+	aclDescCreatedAt := aclFields[8].Descriptor()
+	// acl.DefaultCreatedAt holds the default value on creation for the created_at field.
+	acl.DefaultCreatedAt = aclDescCreatedAt.Default.(func() time.Time)
 	auditlogHooks := schema.AuditLog{}.Hooks()
 	auditlog.Hooks[0] = auditlogHooks[0]
 	auditlogFields := schema.AuditLog{}.Fields()
@@ -82,6 +106,12 @@ func init() {
 	departmentDescName := departmentFields[0].Descriptor()
 	// department.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	department.NameValidator = departmentDescName.Validators[0].(func(string) error)
+	deptclosureFields := schema.DeptClosure{}.Fields()
+	_ = deptclosureFields
+	// deptclosureDescDepth is the schema descriptor for depth field.
+	deptclosureDescDepth := deptclosureFields[3].Descriptor()
+	// deptclosure.DepthValidator is a validator for the "depth" field. It is called by the builders before save.
+	deptclosure.DepthValidator = deptclosureDescDepth.Validators[0].(func(int) error)
 	membershipMixin := schema.Membership{}.Mixin()
 	membershipMixinFields0 := membershipMixin[0].Fields()
 	_ = membershipMixinFields0
@@ -209,10 +239,6 @@ func init() {
 	userDescDisplayName := userFields[1].Descriptor()
 	// user.DefaultDisplayName holds the default value on creation for the display_name field.
 	user.DefaultDisplayName = userDescDisplayName.Default.(string)
-	// userDescIsSuperAdmin is the schema descriptor for is_super_admin field.
-	userDescIsSuperAdmin := userFields[4].Descriptor()
-	// user.DefaultIsSuperAdmin holds the default value on creation for the is_super_admin field.
-	user.DefaultIsSuperAdmin = userDescIsSuperAdmin.Default.(bool)
 }
 
 const (

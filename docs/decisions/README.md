@@ -8,5 +8,6 @@
 | D-29 | Go 工具链改为 1.26 与依赖安全门禁（取代 D-24 中 Go 1.25） | [D-29-go-toolchain-govulncheck.md](D-29-go-toolchain-govulncheck.md) |
 | D-30 | M1 工程默认项确认（产品经理） | [D-30-m1-engineering-defaults.md](D-30-m1-engineering-defaults.md) |
 | D-31 | 数据库迁移：ent + Atlas 版本化、只向前、升级前自动备份 | [D-31-versioned-migrations-backup.md](D-31-versioned-migrations-backup.md) |
+| D-32 | 统一授权层：RBAC 五角色、三员分立、资源 ACL | [D-32-authz-rbac-acl.md](D-32-authz-rbac-acl.md) |
 
 > D-27（ACL 检索分档策略与性能基线）由产品经理维护，不在此复制。

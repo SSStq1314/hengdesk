@@ -7,6 +7,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/subtle"
 	"errors"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
+	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 	"github.com/SSStq1314/hengdesk/server/internal/session"
 )
 
@@ -58,6 +60,10 @@ type Service struct {
 	Secure   bool
 	// BcryptCost 默认 bcrypt.DefaultCost，测试可调低。
 	BcryptCost int
+	// Target 管理接口取目标用户：负责范围判断与越权 404（由 authz 注入，避免循环依赖）。
+	Target func(c echo.Context) (*ent.User, error)
+	// GuardDisable 停用前的附加校验（如至少保留 1 名超级管理员）。
+	GuardDisable func(c echo.Context, u *ent.User) error
 }
 
 // Principal 当前登录用户。
@@ -68,7 +74,13 @@ type Principal struct {
 	DisplayName  string   `json:"display_name"`
 	IsSuperAdmin bool     `json:"is_super_admin"`
 	Roles        []string `json:"roles"`
+	Permissions  []string `json:"permissions"`
 	CSRFToken    string   `json:"csrf_token,omitempty"`
+
+	// 授权层使用，不下发前端。
+	Perms   rbac.Set `json:"-"`
+	RoleIDs []int    `json:"-"`
+	DeptIDs []int    `json:"-"`
 }
 
 // HasRole 是否拥有角色。
@@ -157,7 +169,7 @@ func (s *Service) issue(c echo.Context, uid int) error {
 		return ErrUnavailable
 	}
 	s.setCookies(c, tok, ss.CSRF, ss.ExpiresAt)
-	p, err := s.principal(c, uid)
+	p, err := LoadPrincipal(c.Request().Context(), s.DB, uid)
 	if err != nil {
 		return err
 	}
@@ -260,18 +272,38 @@ func (s *Service) RevokeAll(c echo.Context, uid int) error {
 	return nil
 }
 
-func (s *Service) principal(c echo.Context, id int) (*Principal, error) {
-	u, err := s.DB.User.Query().Where(user.ID(id), user.StatusEQ(user.StatusActive)).
-		WithMemberships(func(q *ent.MembershipQuery) { q.WithRole() }).Only(c.Request().Context())
+// LoadPrincipal 从数据库加载启用用户的身份、角色与权限集合（每次请求实时计算，角色变更立即生效）。
+func LoadPrincipal(ctx context.Context, db *ent.Client, id int) (*Principal, error) {
+	u, err := db.User.Query().Where(user.ID(id), user.StatusEQ(user.StatusActive)).
+		WithMemberships(func(q *ent.MembershipQuery) { q.WithRole() }).Only(ctx)
 	if err != nil {
 		return nil, err
 	}
-	p := &Principal{ID: u.ID, OrgID: u.OrgID, Email: u.Email, DisplayName: u.DisplayName, IsSuperAdmin: u.IsSuperAdmin, Roles: []string{}}
+	p := &Principal{ID: u.ID, OrgID: u.OrgID, Email: u.Email, DisplayName: u.DisplayName, Roles: []string{}}
+	var grants []rbac.Grant
+	seenRole, seenDept := map[int]bool{}, map[int]bool{}
 	for _, m := range u.Edges.Memberships {
-		if m.Edges.Role != nil {
+		if m.DepartmentID != nil && !seenDept[*m.DepartmentID] {
+			seenDept[*m.DepartmentID] = true
+			p.DeptIDs = append(p.DeptIDs, *m.DepartmentID)
+		}
+		if m.Edges.Role == nil {
+			continue
+		}
+		if !seenRole[m.RoleID] {
+			seenRole[m.RoleID] = true
+			p.RoleIDs = append(p.RoleIDs, m.RoleID)
 			p.Roles = append(p.Roles, m.Edges.Role.Key)
 		}
+		g := rbac.Grant{Role: m.Edges.Role.Key}
+		if m.DepartmentID != nil {
+			g.Dept = *m.DepartmentID
+		}
+		grants = append(grants, g)
 	}
+	p.Perms = rbac.Resolve(grants)
+	p.Permissions = p.Perms.List()
+	p.IsSuperAdmin = p.HasRole(rbac.SuperAdmin)
 	return p, nil
 }
 
@@ -289,7 +321,7 @@ func (s *Service) Optional(next echo.HandlerFunc) echo.HandlerFunc {
 		if err != nil {
 			return ErrUnavailable
 		}
-		p, err := s.principal(c, ss.UserID)
+		p, err := LoadPrincipal(c.Request().Context(), s.DB, ss.UserID)
 		if err != nil {
 			// 用户已停用或删除：顺手清掉会话
 			_, _ = s.Sessions.RevokeUser(c.Request().Context(), ss.UserID)

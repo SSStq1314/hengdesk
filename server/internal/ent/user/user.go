@@ -27,8 +27,6 @@ const (
 	FieldPasswordHash = "password_hash"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
-	// FieldIsSuperAdmin holds the string denoting the is_super_admin field in the database.
-	FieldIsSuperAdmin = "is_super_admin"
 	// FieldOrgID holds the string denoting the org_id field in the database.
 	FieldOrgID = "org_id"
 	// FieldLastLoginAt holds the string denoting the last_login_at field in the database.
@@ -64,7 +62,6 @@ var Columns = []string{
 	FieldDisplayName,
 	FieldPasswordHash,
 	FieldStatus,
-	FieldIsSuperAdmin,
 	FieldOrgID,
 	FieldLastLoginAt,
 }
@@ -90,8 +87,6 @@ var (
 	EmailValidator func(string) error
 	// DefaultDisplayName holds the default value on creation for the "display_name" field.
 	DefaultDisplayName string
-	// DefaultIsSuperAdmin holds the default value on creation for the "is_super_admin" field.
-	DefaultIsSuperAdmin bool
 )
 
 // Status defines the type for the "status" enum field.
@@ -156,11 +151,6 @@ func ByPasswordHash(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
-}
-
-// ByIsSuperAdmin orders the results by the is_super_admin field.
-func ByIsSuperAdmin(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldIsSuperAdmin, opts...).ToFunc()
 }
 
 // ByOrgID orders the results by the org_id field.

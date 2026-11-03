@@ -13,7 +13,7 @@ func (Role) Mixin() []ent.Mixin { return []ent.Mixin{TimeMixin{}} }
 
 func (Role) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("key").NotEmpty().Unique().Comment("如 super_admin / admin / auditor / approver / member"),
+		field.String("key").NotEmpty().Unique().Comment("内置：super_admin / security_auditor / org_admin / dept_admin / member（见 internal/rbac）"),
 		field.String("name").NotEmpty(),
 		field.Strings("permissions").Default([]string{}),
 		field.Bool("builtin").Default(false),

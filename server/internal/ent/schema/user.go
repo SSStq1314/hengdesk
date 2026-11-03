@@ -17,7 +17,6 @@ func (User) Fields() []ent.Field {
 		field.String("display_name").Default(""),
 		field.String("password_hash").Sensitive().Optional(),
 		field.Enum("status").Values("active", "disabled").Default("active"),
-		field.Bool("is_super_admin").Default(false),
 		field.Int("org_id"),
 		field.Time("last_login_at").Optional().Nillable(),
 	}

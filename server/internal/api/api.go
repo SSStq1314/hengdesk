@@ -13,6 +13,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/authz"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
+	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 )
 
 // Deps 依赖。
@@ -23,11 +24,29 @@ type Deps struct {
 	Log   *slog.Logger
 }
 
-// Mount 挂载路由。
+// Mount 挂载路由。所有 /admin 接口都经统一授权层：未登录 401，无权限或越权 404。
 func Mount(e *echo.Echo, d Deps) {
+	az := &authz.Service{DB: d.DB}
+	d.Auth.Target = func(c echo.Context) (*ent.User, error) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			return nil, authz.Deny(c, "bad_id")
+		}
+		u, err := az.VisibleUser(c, rbac.MemberManage, id)
+		if err != nil {
+			return nil, err
+		}
+		if !authz.CanManageTarget(auth.Current(c), u) {
+			return nil, authz.Deny(c, "target_priv")
+		}
+		return u, nil
+	}
+	d.Auth.GuardDisable = guardDisable(d.DB)
+
 	g := e.Group("/api/v1", d.Auth.Optional, audit.Middleware(d.Audit, auth.Actor, d.Log), auth.CSRF)
 	d.Auth.Register(g)
-	admin := g.Group("/admin", authz.RequireRole("admin", "auditor"))
+	admin := g.Group("/admin")
+
 	admin.GET("/audit-logs", func(c echo.Context) error {
 		limit, _ := strconv.Atoi(c.QueryParam("limit"))
 		if limit <= 0 || limit > 200 {
@@ -38,7 +57,13 @@ func Mount(e *echo.Echo, d Deps) {
 			return err
 		}
 		return c.JSON(http.StatusOK, map[string]any{"items": rows})
-	})
-	// 账号安全管理（强制下线、停用、重置密码、解锁）。角色名在统一授权层 PR 中改为 PRD 的 5 个内置角色。
-	d.Auth.RegisterAdmin(g.Group("/admin", authz.RequireRole("admin")))
+	}, authz.Require(rbac.AuditRead))
+
+	// 账号安全（强制下线、停用、重置密码、解锁）：组织范围 MemberManage，目标为特权角色时还需 RoleAssignPriv。
+	d.Auth.RegisterAdmin(admin.Group("", authz.Require(rbac.MemberManage)))
+
+	rh := &roleHandlers{db: d.DB, az: az}
+	admin.GET("/roles", rh.matrix, authz.Require(rbac.RoleRead))
+	admin.POST("/users/:id/roles", rh.assign, authz.Require(rbac.RoleAssign))
+	admin.DELETE("/users/:id/roles/:role", rh.revoke, authz.Require(rbac.RoleAssign))
 }
