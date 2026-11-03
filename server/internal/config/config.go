@@ -26,6 +26,7 @@ type Config struct {
 	AdminEmail    string
 	AdminPassword string
 	CookieSecure  bool
+	BackupDir     string
 }
 
 func get(k, def string) string {
@@ -60,6 +61,7 @@ func Load() (*Config, error) {
 		AdminEmail:    get("ADMIN_EMAIL", "admin@hengdesk.local"),
 		AdminPassword: get("ADMIN_PASSWORD", ""),
 		CookieSecure:  secure,
+		BackupDir:     get("BACKUP_DIR", "/backups"),
 	}
 	if c.Env == "prod" && len(c.JWTSecret) < 32 {
 		return nil, fmt.Errorf("生产环境必须设置至少 32 字节的 HENGDESK_JWT_SECRET")
