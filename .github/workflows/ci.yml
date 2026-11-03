@@ -20,6 +20,44 @@ jobs:
       - run: go test -race ./...
       - run: CGO_ENABLED=0 go build -o /tmp/hengdesk ./cmd/hengdesk
 
+  go-postgres:
+    name: go (postgres17+pgvector 集成)
+    runs-on: ubuntu-latest
+    services:
+      pg:
+        image: pgvector/pgvector:pg17
+        env: {POSTGRES_USER: hengdesk, POSTGRES_PASSWORD: hengdesk, POSTGRES_DB: hengdesk}
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U hengdesk" --health-interval 2s --health-retries 30
+    env:
+      HENGDESK_DATABASE_URL: postgres://hengdesk:hengdesk@localhost:5432/hengdesk?sslmode=disable
+      HENGDESK_ADMIN_EMAIL: admin@hengdesk.local
+      HENGDESK_ADMIN_PASSWORD: ci-only-password-123
+      PGPASSWORD: hengdesk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: {go-version: '1.25.x', cache-dependency-path: server/go.sum}
+      - working-directory: server
+        run: CGO_ENABLED=0 go build -o /tmp/hengdesk ./cmd/hengdesk
+      - name: migrate（两次，验证幂等）
+        run: /tmp/hengdesk migrate && /tmp/hengdesk migrate
+      - name: 审计表 append-only（UPDATE/DELETE/TRUNCATE 必须失败）
+        run: |
+          q() { psql -h localhost -U hengdesk -d hengdesk -v ON_ERROR_STOP=1 -c "$1"; }
+          q "INSERT INTO audit_logs (ts, actor_email, action, resource_type, resource_id, phase, outcome, ip, user_agent, request_id, trace_id) VALUES (now(),'','ci','','','result','','','','','')"
+          for s in "UPDATE audit_logs SET outcome='x'" "DELETE FROM audit_logs" "TRUNCATE audit_logs"; do
+            if q "$s"; then echo "should fail: $s"; exit 1; fi
+          done
+          q "SELECT extname FROM pg_extension WHERE extname='vector'" | grep -q vector
+      - name: server 登录冒烟
+        run: |
+          /tmp/hengdesk server & sleep 2
+          curl -fsS localhost:8080/healthz
+          curl -fsS -c /tmp/ck -H 'Content-Type: application/json' -d "{\"email\":\"$HENGDESK_ADMIN_EMAIL\",\"password\":\"$HENGDESK_ADMIN_PASSWORD\"}" localhost:8080/api/v1/auth/login
+          curl -fsS -b /tmp/ck localhost:8080/api/v1/auth/me
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"email":"admin@hengdesk.local","password":"bad-password"}' localhost:8080/api/v1/auth/login)" = 401
+
   web:
     name: web (lint + typecheck + build)
     runs-on: ubuntu-latest
