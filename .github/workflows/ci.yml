@@ -29,7 +29,12 @@ jobs:
         env: {POSTGRES_USER: hengdesk, POSTGRES_PASSWORD: hengdesk, POSTGRES_DB: hengdesk}
         ports: ['5432:5432']
         options: --health-cmd "pg_isready -U hengdesk" --health-interval 2s --health-retries 30
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "valkey-cli ping" --health-interval 2s --health-retries 30
     env:
+      HENGDESK_REDIS_ADDR: localhost:6379
       HENGDESK_DATABASE_URL: postgres://hengdesk:hengdesk@localhost:5432/hengdesk?sslmode=disable
       HENGDESK_ADMIN_EMAIL: admin@hengdesk.local
       HENGDESK_ADMIN_PASSWORD: ci-only-password-123
@@ -65,6 +70,15 @@ jobs:
           curl -fsS -c /tmp/ck -H 'Content-Type: application/json' -d "{\"email\":\"$HENGDESK_ADMIN_EMAIL\",\"password\":\"$HENGDESK_ADMIN_PASSWORD\"}" localhost:8080/api/v1/auth/login
           curl -fsS -b /tmp/ck localhost:8080/api/v1/auth/me
           test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"email":"admin@hengdesk.local","password":"bad-password"}' localhost:8080/api/v1/auth/login)" = 401
+          # CSRF：不带 X-CSRF-Token 的变更请求被拒绝，带上则成功
+          csrf=$(awk '$6=="hd_csrf"{print $7}' /tmp/ck)
+          test -n "$csrf"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ck -X POST localhost:8080/api/v1/auth/logout)" = 403
+          test "$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ck -H "X-CSRF-Token: $csrf" -X POST localhost:8080/api/v1/auth/logout)" = 204
+          test "$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ck localhost:8080/api/v1/auth/me)" = 401
+          # 连续 5 次失败后锁定（429），使用独立账号名避免影响管理员
+          for i in 1 2 3 4 5; do curl -s -o /dev/null -H 'Content-Type: application/json' -d '{"email":"lock@ci.local","password":"bad-password"}' localhost:8080/api/v1/auth/login; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"email":"lock@ci.local","password":"bad-password"}' localhost:8080/api/v1/auth/login)" = 429
 
   govulncheck:
     name: govulncheck（可达漏洞阻断）

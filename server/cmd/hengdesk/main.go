@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 
 	"github.com/SSStq1314/hengdesk/server/internal/api"
@@ -24,6 +25,7 @@ import (
 	hlog "github.com/SSStq1314/hengdesk/server/internal/log"
 	"github.com/SSStq1314/hengdesk/server/internal/objstore"
 	"github.com/SSStq1314/hengdesk/server/internal/queue"
+	"github.com/SSStq1314/hengdesk/server/internal/session"
 	"github.com/SSStq1314/hengdesk/server/internal/store"
 )
 
@@ -53,8 +55,13 @@ func serverCmd() *cobra.Command {
 		defer func() { _ = client.Close() }()
 		e := httpserver.New(lg)
 		w := audit.EntWriter{C: client}
+		rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+		defer func() { _ = rdb.Close() }()
 		api.Mount(e, api.Deps{DB: client, Audit: w, Log: lg, Auth: &auth.Service{
-			DB: client, Audit: w, Secret: []byte(cfg.JWTSecret), TTL: cfg.SessionTTL, Secure: cfg.CookieSecure}})
+			DB: client, Audit: w, Secure: cfg.CookieSecure,
+			Sessions: &session.Store{R: rdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle},
+			Lockout:  &session.Lockout{R: rdb, MaxFailures: cfg.LockoutMax, Duration: cfg.LockoutFor},
+		}})
 		ctx, stop := signalCtx()
 		defer stop()
 		go func() {

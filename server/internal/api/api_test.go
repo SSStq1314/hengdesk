@@ -15,10 +15,26 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/httpserver"
 	"github.com/SSStq1314/hengdesk/server/internal/store"
 	"github.com/SSStq1314/hengdesk/server/internal/store/storetest"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/SSStq1314/hengdesk/server/internal/ent"
+	"github.com/SSStq1314/hengdesk/server/internal/session"
 )
 
+type env struct {
+	h  http.Handler
+	mr *miniredis.Miniredis
+	c  *ent.Client
+}
+
 func newServer(t *testing.T) (http.Handler, func()) {
+	e := newEnv(t)
+	return e.h, func() {}
+}
+
+func newEnv(t *testing.T) *env {
 	c := storetest.NewTestClient(t)
 	ctx := context.Background()
 	if _, err := store.Seed(ctx, c, store.SeedOptions{OrgName: "o", OrgSlug: "o", AdminEmail: "admin@x.local", AdminPassword: "password123"}); err != nil {
@@ -29,9 +45,13 @@ func newServer(t *testing.T) (http.Handler, func()) {
 	c.User.Create().SetEmail("member@x.local").SetPasswordHash(string(h)).SetOrg(org).ExecX(ctx)
 	w := audit.EntWriter{C: c}
 	e := httpserver.New(slog.Default())
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	api.Mount(e, api.Deps{DB: c, Audit: w, Log: slog.Default(),
-		Auth: &auth.Service{DB: c, Audit: w, Secret: []byte("test-secret"), TTL: time.Hour}})
-	return e, func() {}
+		Auth: &auth.Service{DB: c, Audit: w, BcryptCost: bcrypt.MinCost,
+			Sessions: &session.Store{R: rdb, TTL: time.Hour},
+			Lockout:  &session.Lockout{R: rdb, MaxFailures: 5, Duration: 15 * time.Minute}}})
+	return &env{h: e, mr: mr, c: c}
 }
 
 func login(t *testing.T, h http.Handler, email, pw string) *httptest.ResponseRecorder {
