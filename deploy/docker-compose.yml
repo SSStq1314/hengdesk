@@ -18,6 +18,7 @@ x-hengdesk-env: &hd-env
   HENGDESK_COOKIE_SECURE: ${HENGDESK_COOKIE_SECURE:-false}
   HENGDESK_ADMIN_EMAIL: ${HENGDESK_ADMIN_EMAIL:-admin@hengdesk.local}
   HENGDESK_ADMIN_PASSWORD: ${HENGDESK_ADMIN_PASSWORD:?请在 .env 设置 HENGDESK_ADMIN_PASSWORD}
+  HENGDESK_BACKUP_DIR: /backups
 
 services:
   postgres:
@@ -27,7 +28,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-hengdesk}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-hengdesk}
-    volumes: [pgdata:/var/lib/postgresql/data]
+    # /backups 与 migrate 共享：migrate 升级前写入 pg_dump 备份，restore.sh 在此容器内 pg_restore。
+    entrypoint: ["sh", "-c", "mkdir -p /backups && chown 10001:10001 /backups && chmod 700 /backups && exec docker-entrypoint.sh postgres"]
+    volumes: [pgdata:/var/lib/postgresql/data, backups:/backups]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 3s
@@ -64,6 +67,7 @@ services:
     image: hengdesk/server:${HENGDESK_VERSION:-dev}
     command: ["migrate"]
     environment: *hd-env
+    volumes: [backups:/backups]
     depends_on:
       postgres: {condition: service_healthy}
     restart: "no"
@@ -95,5 +99,6 @@ services:
 
 volumes:
   pgdata:
+  backups:
   valkeydata:
   seaweeddata:

@@ -40,6 +40,14 @@ jobs:
         with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
       - working-directory: server
         run: CGO_ENABLED=0 go build -o /tmp/hengdesk ./cmd/hengdesk
+      - name: 迁移目录与 ent schema 一致（Atlas 版本化迁移）
+        working-directory: server
+        run: go run ./cmd/migdiff -check -dev 'postgres://hengdesk:hengdesk@localhost:5432/postgres?sslmode=disable'
+      - name: 迁移集成测试（只向前 / 防篡改 / 拒绝降级 / 拒绝 M0 旧库）
+        working-directory: server
+        run: |
+          psql -h localhost -U hengdesk -d hengdesk -c 'CREATE DATABASE hengdesk_it'
+          HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -run 'Migrations|Legacy' ./internal/store/
       - name: migrate（两次，验证幂等）
         run: /tmp/hengdesk migrate && /tmp/hengdesk migrate
       - name: 审计表 append-only（UPDATE/DELETE/TRUNCATE 必须失败）
@@ -131,6 +139,26 @@ jobs:
           set -a; . ../deploy/.env; set +a
           if [ "${{ matrix.storage }}" = minio ]; then export HENGDESK_S3_ENDPOINT=http://localhost:9000; else export HENGDESK_S3_ENDPOINT=http://localhost:8333; fi
           HENGDESK_S3_IT=1 go test -count=1 -run TestS3Integration -v ./internal/objstore/
+      - name: 升级备份恢复冒烟（backup → upgrade → restore）
+        if: matrix.storage == 'seaweedfs'
+        working-directory: deploy
+        run: |
+          set -euo pipefail
+          q() { docker compose exec -T postgres psql -U hengdesk -d hengdesk -tAc "$1"; }
+          q "INSERT INTO audit_logs (ts, action) VALUES (now(), 'ci.restore.marker')"
+          # 注入一个探针迁移，模拟新版本
+          echo 'CREATE TABLE ci_probe (id int);' > ../server/internal/store/migrations/29991231000000_ci_upgrade_probe.sql
+          (cd ../server && go run ./cmd/migdiff -hash)
+          ./upgrade.sh --build
+          test "$(q "SELECT to_regclass('ci_probe') IS NOT NULL")" = t
+          B=$(docker compose exec -T postgres sh -c 'ls -1t /backups | head -1' | tr -d '\r')
+          echo "backup=$B"; case "$B" in *pre-upgrade.dump) ;; *) exit 1 ;; esac
+          ./restore.sh "$B" -y
+          test "$(q "SELECT to_regclass('ci_probe') IS NULL")" = t
+          test "$(q "SELECT count(*) FROM audit_logs WHERE action='ci.restore.marker'")" = 1
+          for i in $(seq 1 60); do curl -fsS localhost:8080/healthz && break; sleep 2; done
+          curl -fsS -H 'Content-Type: application/json' \
+            -d '{"email":"admin@hengdesk.local","password":"ci-only-password-123"}' localhost:8080/api/v1/auth/login >/dev/null
       - name: 失败时输出日志
         if: failure()
         working-directory: deploy

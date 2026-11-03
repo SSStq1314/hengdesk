@@ -18,6 +18,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/api"
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
+	"github.com/SSStq1314/hengdesk/server/internal/backup"
 	"github.com/SSStq1314/hengdesk/server/internal/config"
 	"github.com/SSStq1314/hengdesk/server/internal/httpserver"
 	hlog "github.com/SSStq1314/hengdesk/server/internal/log"
@@ -104,7 +105,8 @@ func waitDB(ctx context.Context, db *sql.DB) error {
 }
 
 func migrateCmd() *cobra.Command {
-	return &cobra.Command{Use: "migrate", Short: "执行数据库迁移并初始化管理员", RunE: func(_ *cobra.Command, _ []string) error {
+	var statusOnly bool
+	cmd := &cobra.Command{Use: "migrate", Short: "执行数据库迁移（升级前自动备份）并初始化管理员", RunE: func(_ *cobra.Command, _ []string) error {
 		cfg, err := config.Load()
 		if err != nil {
 			return err
@@ -115,14 +117,33 @@ func migrateCmd() *cobra.Command {
 			return err
 		}
 		defer func() { _ = client.Close() }()
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
 		if err := waitDB(ctx, db); err != nil {
 			return err
 		}
-		if err := store.Migrate(ctx, client, db, true); err != nil {
+		st, err := store.Status(ctx, db)
+		if err != nil {
 			return err
 		}
+		lg.Info("migration status", "applied", len(st.Applied), "pending", st.Pending)
+		if statusOnly {
+			return nil
+		}
+		if len(st.Pending) > 0 && !st.Fresh {
+			// 已有数据的库：先备份，备份失败则中止升级。
+			file, err := backup.Run(ctx, backup.PGDump{}, cfg.DatabaseURL, cfg.BackupDir, "pre-upgrade")
+			if err != nil {
+				lg.Error("升级前备份失败，已中止升级", "err", err)
+				return fmt.Errorf("升级前备份失败，已中止升级: %w", err)
+			}
+			lg.Info("升级前备份完成", "file", file)
+		}
+		applied, err := store.ApplyMigrations(ctx, db)
+		if err != nil {
+			return err
+		}
+		lg.Info("migrations applied", "files", applied)
 		created, err := store.Seed(ctx, client, store.SeedOptions{OrgName: "默认组织", OrgSlug: "default",
 			AdminEmail: cfg.AdminEmail, AdminPassword: cfg.AdminPassword})
 		if err != nil {
@@ -137,6 +158,8 @@ func migrateCmd() *cobra.Command {
 		}
 		return nil
 	}}
+	cmd.Flags().BoolVar(&statusOnly, "status", false, "只显示迁移状态，不执行")
+	return cmd
 }
 
 // ensureBucket 创建默认桶，对象存储启动较慢时重试。

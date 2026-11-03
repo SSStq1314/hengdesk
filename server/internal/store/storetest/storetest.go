@@ -26,7 +26,7 @@ func NewTestClient(t testing.TB) *ent.Client {
 		t.Fatal(err)
 	}
 	c := ent.NewClient(ent.Driver(entsql.OpenDB(dialect.SQLite, db)))
-	if err := store.Migrate(context.Background(), c, db, false); err != nil {
+	if err := store.CreateSchemaForTest(context.Background(), c); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = c.Close() })

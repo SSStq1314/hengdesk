@@ -29,35 +29,10 @@ func Open(dsn string) (*ent.Client, *sql.DB, error) {
 	return ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, db))), db, nil
 }
 
-// appendOnlySQL 在数据库层强制审计表只追加。
-const appendOnlySQL = `
-CREATE OR REPLACE FUNCTION hengdesk_audit_immutable() RETURNS trigger AS $$
-BEGIN
-  RAISE EXCEPTION 'audit_logs is append-only (% rejected)', TG_OP;
-END;
-$$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS audit_logs_no_update ON audit_logs;
-CREATE TRIGGER audit_logs_no_update BEFORE UPDATE OR DELETE ON audit_logs
-  FOR EACH ROW EXECUTE FUNCTION hengdesk_audit_immutable();
-DROP TRIGGER IF EXISTS audit_logs_no_truncate ON audit_logs;
-CREATE TRIGGER audit_logs_no_truncate BEFORE TRUNCATE ON audit_logs
-  FOR EACH STATEMENT EXECUTE FUNCTION hengdesk_audit_immutable();
-`
-
-// Migrate 建表；在 PostgreSQL 上额外启用 pgvector 并安装审计只追加触发器。
-func Migrate(ctx context.Context, c *ent.Client, db *sql.DB, postgres bool) error {
-	if postgres {
-		if _, err := db.ExecContext(ctx, `CREATE EXTENSION IF NOT EXISTS vector`); err != nil {
-			return fmt.Errorf("启用 pgvector: %w", err)
-		}
-	}
+// CreateSchemaForTest 仅供单元测试（SQLite）：用 ent 自动建表。生产环境一律走版本化迁移（ApplyMigrations）。
+func CreateSchemaForTest(ctx context.Context, c *ent.Client) error {
 	if err := c.Schema.Create(ctx); err != nil {
 		return fmt.Errorf("建表: %w", err)
-	}
-	if postgres {
-		if _, err := db.ExecContext(ctx, appendOnlySQL); err != nil {
-			return fmt.Errorf("审计触发器: %w", err)
-		}
 	}
 	return nil
 }
