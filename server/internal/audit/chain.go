@@ -81,4 +81,3 @@ func Verify(ctx context.Context, c *ent.Client) (VerifyResult, error) {
 		}
 	}
 }
-
