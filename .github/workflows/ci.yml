@@ -76,9 +76,13 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ck -X POST localhost:8080/api/v1/auth/logout)" = 403
           test "$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ck -H "X-CSRF-Token: $csrf" -X POST localhost:8080/api/v1/auth/logout)" = 204
           test "$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ck localhost:8080/api/v1/auth/me)" = 401
-          # 连续 5 次失败后锁定（429），使用独立账号名避免影响管理员
+          # 账号锁定与凭据错误统一返回 401（D-33，避免账号枚举）
           for i in 1 2 3 4 5; do curl -s -o /dev/null -H 'Content-Type: application/json' -d '{"email":"lock@ci.local","password":"bad-password"}' localhost:8080/api/v1/auth/login; done
-          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"email":"lock@ci.local","password":"bad-password"}' localhost:8080/api/v1/auth/login)" = 429
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"email":"lock@ci.local","password":"bad-password"}' localhost:8080/api/v1/auth/login)" = 401
+          # 同一 IP 超过 LOGIN_IP_LIMIT（默认 30 次 / 10 分钟）后返回 429 + Retry-After
+          for i in $(seq 1 30); do curl -s -o /dev/null -H 'Content-Type: application/json' -d "{\"email\":\"ip$i@ci.local\",\"password\":\"bad-password\"}" localhost:8080/api/v1/auth/login; done
+          curl -s -D /tmp/h -o /dev/null -H 'Content-Type: application/json' -d '{"email":"ip@ci.local","password":"bad-password"}' localhost:8080/api/v1/auth/login
+          grep -q '^HTTP/1.1 429' /tmp/h && grep -qi '^Retry-After:' /tmp/h
 
   govulncheck:
     name: govulncheck（可达漏洞阻断）
