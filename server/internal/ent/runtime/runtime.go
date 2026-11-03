@@ -7,11 +7,13 @@ import (
 
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/notification"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/organization"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
@@ -99,6 +101,59 @@ func init() {
 	auditlogDescHash := auditlogFields[15].Descriptor()
 	// auditlog.DefaultHash holds the default value on creation for the hash field.
 	auditlog.DefaultHash = auditlogDescHash.Default.(string)
+	budgetMixin := schema.Budget{}.Mixin()
+	budgetMixinFields0 := budgetMixin[0].Fields()
+	_ = budgetMixinFields0
+	budgetFields := schema.Budget{}.Fields()
+	_ = budgetFields
+	// budgetDescCreatedAt is the schema descriptor for created_at field.
+	budgetDescCreatedAt := budgetMixinFields0[0].Descriptor()
+	// budget.DefaultCreatedAt holds the default value on creation for the created_at field.
+	budget.DefaultCreatedAt = budgetDescCreatedAt.Default.(func() time.Time)
+	// budgetDescUpdatedAt is the schema descriptor for updated_at field.
+	budgetDescUpdatedAt := budgetMixinFields0[1].Descriptor()
+	// budget.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	budget.DefaultUpdatedAt = budgetDescUpdatedAt.Default.(func() time.Time)
+	// budget.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	budget.UpdateDefaultUpdatedAt = budgetDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// budgetDescScopeID is the schema descriptor for scope_id field.
+	budgetDescScopeID := budgetFields[2].Descriptor()
+	// budget.DefaultScopeID holds the default value on creation for the scope_id field.
+	budget.DefaultScopeID = budgetDescScopeID.Default.(int)
+	// budgetDescLimitValue is the schema descriptor for limit_value field.
+	budgetDescLimitValue := budgetFields[5].Descriptor()
+	// budget.LimitValueValidator is a validator for the "limit_value" field. It is called by the builders before save.
+	budget.LimitValueValidator = budgetDescLimitValue.Validators[0].(func(int64) error)
+	// budgetDescThresholdPct is the schema descriptor for threshold_pct field.
+	budgetDescThresholdPct := budgetFields[6].Descriptor()
+	// budget.DefaultThresholdPct holds the default value on creation for the threshold_pct field.
+	budget.DefaultThresholdPct = budgetDescThresholdPct.Default.(int)
+	// budget.ThresholdPctValidator is a validator for the "threshold_pct" field. It is called by the builders before save.
+	budget.ThresholdPctValidator = func() func(int) error {
+		validators := budgetDescThresholdPct.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(threshold_pct int) error {
+			for _, fn := range fns {
+				if err := fn(threshold_pct); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// budgetDescEnabled is the schema descriptor for enabled field.
+	budgetDescEnabled := budgetFields[8].Descriptor()
+	// budget.DefaultEnabled holds the default value on creation for the enabled field.
+	budget.DefaultEnabled = budgetDescEnabled.Default.(bool)
+	// budgetDescNote is the schema descriptor for note field.
+	budgetDescNote := budgetFields[9].Descriptor()
+	// budget.DefaultNote holds the default value on creation for the note field.
+	budget.DefaultNote = budgetDescNote.Default.(string)
+	// budget.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	budget.NoteValidator = budgetDescNote.Validators[0].(func(string) error)
 	departmentMixin := schema.Department{}.Mixin()
 	departmentMixinFields0 := departmentMixin[0].Fields()
 	_ = departmentMixinFields0
@@ -253,6 +308,24 @@ func init() {
 			return nil
 		}
 	}()
+	notificationFields := schema.Notification{}.Fields()
+	_ = notificationFields
+	// notificationDescKind is the schema descriptor for kind field.
+	notificationDescKind := notificationFields[2].Descriptor()
+	// notification.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	notification.KindValidator = notificationDescKind.Validators[0].(func(string) error)
+	// notificationDescTitle is the schema descriptor for title field.
+	notificationDescTitle := notificationFields[3].Descriptor()
+	// notification.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	notification.TitleValidator = notificationDescTitle.Validators[0].(func(string) error)
+	// notificationDescDedupeKey is the schema descriptor for dedupe_key field.
+	notificationDescDedupeKey := notificationFields[5].Descriptor()
+	// notification.DedupeKeyValidator is a validator for the "dedupe_key" field. It is called by the builders before save.
+	notification.DedupeKeyValidator = notificationDescDedupeKey.Validators[0].(func(string) error)
+	// notificationDescCreatedAt is the schema descriptor for created_at field.
+	notificationDescCreatedAt := notificationFields[7].Descriptor()
+	// notification.DefaultCreatedAt holds the default value on creation for the created_at field.
+	notification.DefaultCreatedAt = notificationDescCreatedAt.Default.(func() time.Time)
 	organizationMixin := schema.Organization{}.Mixin()
 	organizationMixinFields0 := organizationMixin[0].Fields()
 	_ = organizationMixinFields0

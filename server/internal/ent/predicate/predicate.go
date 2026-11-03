@@ -12,6 +12,9 @@ type ACL func(*sql.Selector)
 // AuditLog is the predicate function for auditlog builders.
 type AuditLog func(*sql.Selector)
 
+// Budget is the predicate function for budget builders.
+type Budget func(*sql.Selector)
+
 // Department is the predicate function for department builders.
 type Department func(*sql.Selector)
 
@@ -26,6 +29,9 @@ type Model func(*sql.Selector)
 
 // ModelProvider is the predicate function for modelprovider builders.
 type ModelProvider func(*sql.Selector)
+
+// Notification is the predicate function for notification builders.
+type Notification func(*sql.Selector)
 
 // Organization is the predicate function for organization builders.
 type Organization func(*sql.Selector)

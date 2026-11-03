@@ -242,6 +242,9 @@ func (h *modelHandlers) testModel(c echo.Context) error {
 	if err != nil {
 		return notFoundOr(err)
 	}
+	if err := budgetGate(c, h.bs, h.db, m.ID, m.Name); err != nil || c.Response().Committed {
+		return err
+	}
 	res := testResult{}
 	start := time.Now()
 	tgt, ge := h.gw.Target(m, false)
@@ -277,9 +280,11 @@ func (h *modelHandlers) testModel(c echo.Context) error {
 		} else {
 			rec.ErrorCode = ge.Code
 		}
-		if _, err := usage.Write(context.WithoutCancel(ctx), h.db, rec); err != nil {
+		ur, err := usage.Write(context.WithoutCancel(ctx), h.db, rec)
+		if err != nil {
 			c.Logger().Errorf("usage record write failed: %v", err)
 		}
+		settle(ctx, h.bs, ur)
 	}
 	if err := h.recordTest(c, "model.test", "model", id, m.Name, res); err != nil {
 		return err

@@ -35,7 +35,7 @@ type gwEnv struct {
 	model string
 }
 
-func newGW(t *testing.T, failAudit bool) *gwEnv {
+func newGW(t *testing.T, failAudit bool, opts ...func(*api.Deps)) *gwEnv {
 	m := mockupstream.New(upKey)
 	t.Cleanup(m.Close)
 	keys, _ := gateway.LoadKeyring("", strings.Repeat("11", 32))
@@ -43,6 +43,9 @@ func newGW(t *testing.T, failAudit bool) *gwEnv {
 		d.Gateway = &gateway.Service{DB: d.DB, Keys: keys, Client: &gateway.Client{}}
 		if failAudit {
 			d.Audit = failModelCall{d.Audit}
+		}
+		for _, o := range opts {
+			o(d)
 		}
 	})
 	g := &gwEnv{env: e, m: m, admin: e.loginAs(t, "admin@x.local", "password123")}
