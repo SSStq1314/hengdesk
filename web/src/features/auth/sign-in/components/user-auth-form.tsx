@@ -1,12 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
-import { Loader2, LogIn } from 'lucide-react'
+import { KeyRound, Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
-import { ApiError, authApi } from '@/lib/api'
+import { ApiError, authApi, type OIDCConfig } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,6 +37,17 @@ export function UserAuthForm({
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
   const { auth } = useAuthStore()
+  const [sso, setSso] = useState<OIDCConfig>({ enabled: false })
+
+  useEffect(() => {
+    authApi
+      .oidcConfig()
+      .then(setSso)
+      .catch(() => setSso({ enabled: false }))
+    if (new URLSearchParams(window.location.search).get('error') === 'sso') {
+      toast.error('单点登录失败：账号未开通或已停用，请联系管理员')
+    }
+  }, [])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -107,6 +118,18 @@ export function UserAuthForm({
           {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
           登录
         </Button>
+        {sso.enabled && (
+          <Button
+            type='button'
+            variant='outline'
+            onClick={() => {
+              window.location.href = '/api/v1/auth/oidc/login'
+            }}
+          >
+            <KeyRound />
+            使用{sso.display_name || '企业单点登录'}
+          </Button>
+        )}
       </form>
     </Form>
   )

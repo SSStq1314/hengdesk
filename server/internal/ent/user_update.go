@@ -126,6 +126,34 @@ func (_u *UserUpdate) SetNillableOrgID(v *int) *UserUpdate {
 	return _u
 }
 
+// SetOidcIssuer sets the "oidc_issuer" field.
+func (_u *UserUpdate) SetOidcIssuer(v string) *UserUpdate {
+	_u.mutation.SetOidcIssuer(v)
+	return _u
+}
+
+// SetNillableOidcIssuer sets the "oidc_issuer" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableOidcIssuer(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetOidcIssuer(*v)
+	}
+	return _u
+}
+
+// SetOidcSubject sets the "oidc_subject" field.
+func (_u *UserUpdate) SetOidcSubject(v string) *UserUpdate {
+	_u.mutation.SetOidcSubject(v)
+	return _u
+}
+
+// SetNillableOidcSubject sets the "oidc_subject" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableOidcSubject(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetOidcSubject(*v)
+	}
+	return _u
+}
+
 // SetLastLoginAt sets the "last_login_at" field.
 func (_u *UserUpdate) SetLastLoginAt(v time.Time) *UserUpdate {
 	_u.mutation.SetLastLoginAt(v)
@@ -284,6 +312,12 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.OidcIssuer(); ok {
+		_spec.SetField(user.FieldOidcIssuer, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OidcSubject(); ok {
+		_spec.SetField(user.FieldOidcSubject, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.LastLoginAt(); ok {
 		_spec.SetField(user.FieldLastLoginAt, field.TypeTime, value)
@@ -481,6 +515,34 @@ func (_u *UserUpdateOne) SetNillableOrgID(v *int) *UserUpdateOne {
 	return _u
 }
 
+// SetOidcIssuer sets the "oidc_issuer" field.
+func (_u *UserUpdateOne) SetOidcIssuer(v string) *UserUpdateOne {
+	_u.mutation.SetOidcIssuer(v)
+	return _u
+}
+
+// SetNillableOidcIssuer sets the "oidc_issuer" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableOidcIssuer(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetOidcIssuer(*v)
+	}
+	return _u
+}
+
+// SetOidcSubject sets the "oidc_subject" field.
+func (_u *UserUpdateOne) SetOidcSubject(v string) *UserUpdateOne {
+	_u.mutation.SetOidcSubject(v)
+	return _u
+}
+
+// SetNillableOidcSubject sets the "oidc_subject" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableOidcSubject(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetOidcSubject(*v)
+	}
+	return _u
+}
+
 // SetLastLoginAt sets the "last_login_at" field.
 func (_u *UserUpdateOne) SetLastLoginAt(v time.Time) *UserUpdateOne {
 	_u.mutation.SetLastLoginAt(v)
@@ -669,6 +731,12 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.OidcIssuer(); ok {
+		_spec.SetField(user.FieldOidcIssuer, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OidcSubject(); ok {
+		_spec.SetField(user.FieldOidcSubject, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.LastLoginAt(); ok {
 		_spec.SetField(user.FieldLastLoginAt, field.TypeTime, value)

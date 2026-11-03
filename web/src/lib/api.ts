@@ -56,7 +56,13 @@ export interface Me {
   csrf_token?: string
 }
 
+export interface OIDCConfig {
+  enabled: boolean
+  display_name?: string
+}
+
 export const authApi = {
+  oidcConfig: () => api<OIDCConfig>('/auth/oidc/config'),
   login: (email: string, password: string) =>
     api<Me>('/auth/login', {
       method: 'POST',

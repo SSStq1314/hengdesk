@@ -251,6 +251,14 @@ func init() {
 	userDescEmployeeNo := userFields[2].Descriptor()
 	// user.DefaultEmployeeNo holds the default value on creation for the employee_no field.
 	user.DefaultEmployeeNo = userDescEmployeeNo.Default.(string)
+	// userDescOidcIssuer is the schema descriptor for oidc_issuer field.
+	userDescOidcIssuer := userFields[6].Descriptor()
+	// user.DefaultOidcIssuer holds the default value on creation for the oidc_issuer field.
+	user.DefaultOidcIssuer = userDescOidcIssuer.Default.(string)
+	// userDescOidcSubject is the schema descriptor for oidc_subject field.
+	userDescOidcSubject := userFields[7].Descriptor()
+	// user.DefaultOidcSubject holds the default value on creation for the oidc_subject field.
+	user.DefaultOidcSubject = userDescOidcSubject.Default.(string)
 }
 
 const (

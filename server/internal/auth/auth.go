@@ -68,6 +68,8 @@ type Service struct {
 	Target func(c echo.Context) (*ent.User, error)
 	// GuardDisable 停用前的附加校验（如至少保留 1 名超级管理员）。
 	GuardDisable func(c echo.Context, u *ent.User) error
+	// OIDC 单点登录；nil 表示未启用。
+	OIDC *OIDC
 }
 
 // Principal 当前登录用户。
@@ -110,6 +112,7 @@ func (s *Service) Register(g *echo.Group) {
 	g.POST("/auth/logout", s.logout)
 	g.GET("/auth/me", s.me, s.RequireUser)
 	g.POST("/auth/password", s.changePassword, s.RequireUser)
+	s.registerOIDC(g)
 }
 
 func (s *Service) entry(c echo.Context, action, email string) audit.Entry {
@@ -201,6 +204,10 @@ func (s *Service) clearCookies(c echo.Context) {
 
 func (s *Service) logout(c echo.Context) error {
 	if tok, _ := c.Get(ctxToken).(string); tok != "" {
+		// 登出写审计（fail-closed：审计失败则不删除会话）。
+		if err := audit.Record(c, audit.Entry{Action: "auth.logout", Outcome: "success"}); err != nil {
+			return err
+		}
 		if err := s.Sessions.Delete(c.Request().Context(), tok); err != nil {
 			return ErrUnavailable
 		}

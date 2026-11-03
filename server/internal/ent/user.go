@@ -34,6 +34,10 @@ type User struct {
 	Status user.Status `json:"status,omitempty"`
 	// OrgID holds the value of the "org_id" field.
 	OrgID int `json:"org_id,omitempty"`
+	// OIDC 签发方（已关联 SSO 时）
+	OidcIssuer string `json:"oidc_issuer,omitempty"`
+	// OIDC sub（已关联 SSO 时）
+	OidcSubject string `json:"oidc_subject,omitempty"`
 	// LastLoginAt holds the value of the "last_login_at" field.
 	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -80,7 +84,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case user.FieldID, user.FieldOrgID:
 			values[i] = new(sql.NullInt64)
-		case user.FieldEmail, user.FieldDisplayName, user.FieldEmployeeNo, user.FieldPasswordHash, user.FieldStatus:
+		case user.FieldEmail, user.FieldDisplayName, user.FieldEmployeeNo, user.FieldPasswordHash, user.FieldStatus, user.FieldOidcIssuer, user.FieldOidcSubject:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldLastLoginAt:
 			values[i] = new(sql.NullTime)
@@ -152,6 +156,18 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field org_id", values[i])
 			} else if value.Valid {
 				_m.OrgID = int(value.Int64)
+			}
+		case user.FieldOidcIssuer:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field oidc_issuer", values[i])
+			} else if value.Valid {
+				_m.OidcIssuer = value.String
+			}
+		case user.FieldOidcSubject:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field oidc_subject", values[i])
+			} else if value.Valid {
+				_m.OidcSubject = value.String
 			}
 		case user.FieldLastLoginAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -228,6 +244,12 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("org_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.OrgID))
+	builder.WriteString(", ")
+	builder.WriteString("oidc_issuer=")
+	builder.WriteString(_m.OidcIssuer)
+	builder.WriteString(", ")
+	builder.WriteString("oidc_subject=")
+	builder.WriteString(_m.OidcSubject)
 	builder.WriteString(", ")
 	if v := _m.LastLoginAt; v != nil {
 		builder.WriteString("last_login_at=")

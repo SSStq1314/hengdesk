@@ -120,6 +120,34 @@ func (_c *UserCreate) SetOrgID(v int) *UserCreate {
 	return _c
 }
 
+// SetOidcIssuer sets the "oidc_issuer" field.
+func (_c *UserCreate) SetOidcIssuer(v string) *UserCreate {
+	_c.mutation.SetOidcIssuer(v)
+	return _c
+}
+
+// SetNillableOidcIssuer sets the "oidc_issuer" field if the given value is not nil.
+func (_c *UserCreate) SetNillableOidcIssuer(v *string) *UserCreate {
+	if v != nil {
+		_c.SetOidcIssuer(*v)
+	}
+	return _c
+}
+
+// SetOidcSubject sets the "oidc_subject" field.
+func (_c *UserCreate) SetOidcSubject(v string) *UserCreate {
+	_c.mutation.SetOidcSubject(v)
+	return _c
+}
+
+// SetNillableOidcSubject sets the "oidc_subject" field if the given value is not nil.
+func (_c *UserCreate) SetNillableOidcSubject(v *string) *UserCreate {
+	if v != nil {
+		_c.SetOidcSubject(*v)
+	}
+	return _c
+}
+
 // SetLastLoginAt sets the "last_login_at" field.
 func (_c *UserCreate) SetLastLoginAt(v time.Time) *UserCreate {
 	_c.mutation.SetLastLoginAt(v)
@@ -209,6 +237,14 @@ func (_c *UserCreate) defaults() {
 		v := user.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.OidcIssuer(); !ok {
+		v := user.DefaultOidcIssuer
+		_c.mutation.SetOidcIssuer(v)
+	}
+	if _, ok := _c.mutation.OidcSubject(); !ok {
+		v := user.DefaultOidcSubject
+		_c.mutation.SetOidcSubject(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -243,6 +279,12 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.OrgID(); !ok {
 		return &ValidationError{Name: "org_id", err: errors.New(`ent: missing required field "User.org_id"`)}
+	}
+	if _, ok := _c.mutation.OidcIssuer(); !ok {
+		return &ValidationError{Name: "oidc_issuer", err: errors.New(`ent: missing required field "User.oidc_issuer"`)}
+	}
+	if _, ok := _c.mutation.OidcSubject(); !ok {
+		return &ValidationError{Name: "oidc_subject", err: errors.New(`ent: missing required field "User.oidc_subject"`)}
 	}
 	if len(_c.mutation.OrgIDs()) == 0 {
 		return &ValidationError{Name: "org", err: errors.New(`ent: missing required edge "User.org"`)}
@@ -301,6 +343,14 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.OidcIssuer(); ok {
+		_spec.SetField(user.FieldOidcIssuer, field.TypeString, value)
+		_node.OidcIssuer = value
+	}
+	if value, ok := _c.mutation.OidcSubject(); ok {
+		_spec.SetField(user.FieldOidcSubject, field.TypeString, value)
+		_node.OidcSubject = value
 	}
 	if value, ok := _c.mutation.LastLoginAt(); ok {
 		_spec.SetField(user.FieldLastLoginAt, field.TypeTime, value)
@@ -481,6 +531,30 @@ func (u *UserUpsert) UpdateOrgID() *UserUpsert {
 	return u
 }
 
+// SetOidcIssuer sets the "oidc_issuer" field.
+func (u *UserUpsert) SetOidcIssuer(v string) *UserUpsert {
+	u.Set(user.FieldOidcIssuer, v)
+	return u
+}
+
+// UpdateOidcIssuer sets the "oidc_issuer" field to the value that was provided on create.
+func (u *UserUpsert) UpdateOidcIssuer() *UserUpsert {
+	u.SetExcluded(user.FieldOidcIssuer)
+	return u
+}
+
+// SetOidcSubject sets the "oidc_subject" field.
+func (u *UserUpsert) SetOidcSubject(v string) *UserUpsert {
+	u.Set(user.FieldOidcSubject, v)
+	return u
+}
+
+// UpdateOidcSubject sets the "oidc_subject" field to the value that was provided on create.
+func (u *UserUpsert) UpdateOidcSubject() *UserUpsert {
+	u.SetExcluded(user.FieldOidcSubject)
+	return u
+}
+
 // SetLastLoginAt sets the "last_login_at" field.
 func (u *UserUpsert) SetLastLoginAt(v time.Time) *UserUpsert {
 	u.Set(user.FieldLastLoginAt, v)
@@ -646,6 +720,34 @@ func (u *UserUpsertOne) SetOrgID(v int) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateOrgID() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateOrgID()
+	})
+}
+
+// SetOidcIssuer sets the "oidc_issuer" field.
+func (u *UserUpsertOne) SetOidcIssuer(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetOidcIssuer(v)
+	})
+}
+
+// UpdateOidcIssuer sets the "oidc_issuer" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateOidcIssuer() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateOidcIssuer()
+	})
+}
+
+// SetOidcSubject sets the "oidc_subject" field.
+func (u *UserUpsertOne) SetOidcSubject(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetOidcSubject(v)
+	})
+}
+
+// UpdateOidcSubject sets the "oidc_subject" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateOidcSubject() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateOidcSubject()
 	})
 }
 
@@ -983,6 +1085,34 @@ func (u *UserUpsertBulk) SetOrgID(v int) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateOrgID() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateOrgID()
+	})
+}
+
+// SetOidcIssuer sets the "oidc_issuer" field.
+func (u *UserUpsertBulk) SetOidcIssuer(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetOidcIssuer(v)
+	})
+}
+
+// UpdateOidcIssuer sets the "oidc_issuer" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateOidcIssuer() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateOidcIssuer()
+	})
+}
+
+// SetOidcSubject sets the "oidc_subject" field.
+func (u *UserUpsertBulk) SetOidcSubject(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetOidcSubject(v)
+	})
+}
+
+// UpdateOidcSubject sets the "oidc_subject" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateOidcSubject() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateOidcSubject()
 	})
 }
 

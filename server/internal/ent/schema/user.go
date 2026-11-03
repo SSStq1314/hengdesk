@@ -14,7 +14,10 @@ type User struct{ ent.Schema }
 func (User) Mixin() []ent.Mixin { return []ent.Mixin{TimeMixin{}} }
 
 func (User) Indexes() []ent.Index {
-	return []ent.Index{index.Fields("org_id", "employee_no").Unique().Annotations(entsql.IndexWhere("employee_no <> ''"))}
+	return []ent.Index{
+		index.Fields("org_id", "employee_no").Unique().Annotations(entsql.IndexWhere("employee_no <> ''")),
+		index.Fields("oidc_issuer", "oidc_subject").Unique().Annotations(entsql.IndexWhere("oidc_subject <> ''")),
+	}
 }
 
 func (User) Fields() []ent.Field {
@@ -25,6 +28,8 @@ func (User) Fields() []ent.Field {
 		field.String("password_hash").Sensitive().Optional(),
 		field.Enum("status").Values("active", "disabled").Default("active"),
 		field.Int("org_id"),
+		field.String("oidc_issuer").Default("").Comment("OIDC 签发方（已关联 SSO 时）"),
+		field.String("oidc_subject").Default("").Comment("OIDC sub（已关联 SSO 时）"),
 		field.Time("last_login_at").Optional().Nillable(),
 	}
 }

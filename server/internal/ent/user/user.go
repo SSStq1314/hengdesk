@@ -31,6 +31,10 @@ const (
 	FieldStatus = "status"
 	// FieldOrgID holds the string denoting the org_id field in the database.
 	FieldOrgID = "org_id"
+	// FieldOidcIssuer holds the string denoting the oidc_issuer field in the database.
+	FieldOidcIssuer = "oidc_issuer"
+	// FieldOidcSubject holds the string denoting the oidc_subject field in the database.
+	FieldOidcSubject = "oidc_subject"
 	// FieldLastLoginAt holds the string denoting the last_login_at field in the database.
 	FieldLastLoginAt = "last_login_at"
 	// EdgeOrg holds the string denoting the org edge name in mutations.
@@ -66,6 +70,8 @@ var Columns = []string{
 	FieldPasswordHash,
 	FieldStatus,
 	FieldOrgID,
+	FieldOidcIssuer,
+	FieldOidcSubject,
 	FieldLastLoginAt,
 }
 
@@ -92,6 +98,10 @@ var (
 	DefaultDisplayName string
 	// DefaultEmployeeNo holds the default value on creation for the "employee_no" field.
 	DefaultEmployeeNo string
+	// DefaultOidcIssuer holds the default value on creation for the "oidc_issuer" field.
+	DefaultOidcIssuer string
+	// DefaultOidcSubject holds the default value on creation for the "oidc_subject" field.
+	DefaultOidcSubject string
 )
 
 // Status defines the type for the "status" enum field.
@@ -166,6 +176,16 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByOrgID orders the results by the org_id field.
 func ByOrgID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOrgID, opts...).ToFunc()
+}
+
+// ByOidcIssuer orders the results by the oidc_issuer field.
+func ByOidcIssuer(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOidcIssuer, opts...).ToFunc()
+}
+
+// ByOidcSubject orders the results by the oidc_subject field.
+func ByOidcSubject(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOidcSubject, opts...).ToFunc()
 }
 
 // ByLastLoginAt orders the results by the last_login_at field.
