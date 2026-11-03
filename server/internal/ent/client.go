@@ -19,11 +19,13 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budgetalertstate"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/notification"
@@ -48,6 +50,8 @@ type Client struct {
 	Budget *BudgetClient
 	// BudgetAlertState is the client for interacting with the BudgetAlertState builders.
 	BudgetAlertState *BudgetAlertStateClient
+	// Conversation is the client for interacting with the Conversation builders.
+	Conversation *ConversationClient
 	// Department is the client for interacting with the Department builders.
 	Department *DepartmentClient
 	// DeptClosure is the client for interacting with the DeptClosure builders.
@@ -58,6 +62,8 @@ type Client struct {
 	EgressRule *EgressRuleClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
+	// Message is the client for interacting with the Message builders.
+	Message *MessageClient
 	// Model is the client for interacting with the Model builders.
 	Model *ModelClient
 	// ModelProvider is the client for interacting with the ModelProvider builders.
@@ -91,11 +97,13 @@ func (c *Client) init() {
 	c.AuditLog = NewAuditLogClient(c.config)
 	c.Budget = NewBudgetClient(c.config)
 	c.BudgetAlertState = NewBudgetAlertStateClient(c.config)
+	c.Conversation = NewConversationClient(c.config)
 	c.Department = NewDepartmentClient(c.config)
 	c.DeptClosure = NewDeptClosureClient(c.config)
 	c.EgressLog = NewEgressLogClient(c.config)
 	c.EgressRule = NewEgressRuleClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
+	c.Message = NewMessageClient(c.config)
 	c.Model = NewModelClient(c.config)
 	c.ModelProvider = NewModelProviderClient(c.config)
 	c.Notification = NewNotificationClient(c.config)
@@ -201,11 +209,13 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AuditLog:         NewAuditLogClient(cfg),
 		Budget:           NewBudgetClient(cfg),
 		BudgetAlertState: NewBudgetAlertStateClient(cfg),
+		Conversation:     NewConversationClient(cfg),
 		Department:       NewDepartmentClient(cfg),
 		DeptClosure:      NewDeptClosureClient(cfg),
 		EgressLog:        NewEgressLogClient(cfg),
 		EgressRule:       NewEgressRuleClient(cfg),
 		Membership:       NewMembershipClient(cfg),
+		Message:          NewMessageClient(cfg),
 		Model:            NewModelClient(cfg),
 		ModelProvider:    NewModelProviderClient(cfg),
 		Notification:     NewNotificationClient(cfg),
@@ -238,11 +248,13 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AuditLog:         NewAuditLogClient(cfg),
 		Budget:           NewBudgetClient(cfg),
 		BudgetAlertState: NewBudgetAlertStateClient(cfg),
+		Conversation:     NewConversationClient(cfg),
 		Department:       NewDepartmentClient(cfg),
 		DeptClosure:      NewDeptClosureClient(cfg),
 		EgressLog:        NewEgressLogClient(cfg),
 		EgressRule:       NewEgressRuleClient(cfg),
 		Membership:       NewMembershipClient(cfg),
+		Message:          NewMessageClient(cfg),
 		Model:            NewModelClient(cfg),
 		ModelProvider:    NewModelProviderClient(cfg),
 		Notification:     NewNotificationClient(cfg),
@@ -281,10 +293,10 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Department, c.DeptClosure,
-		c.EgressLog, c.EgressRule, c.Membership, c.Model, c.ModelProvider,
-		c.Notification, c.Organization, c.Role, c.SystemSetting, c.Tool, c.UsageRecord,
-		c.User,
+		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Conversation, c.Department,
+		c.DeptClosure, c.EgressLog, c.EgressRule, c.Membership, c.Message, c.Model,
+		c.ModelProvider, c.Notification, c.Organization, c.Role, c.SystemSetting,
+		c.Tool, c.UsageRecord, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -294,10 +306,10 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Department, c.DeptClosure,
-		c.EgressLog, c.EgressRule, c.Membership, c.Model, c.ModelProvider,
-		c.Notification, c.Organization, c.Role, c.SystemSetting, c.Tool, c.UsageRecord,
-		c.User,
+		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Conversation, c.Department,
+		c.DeptClosure, c.EgressLog, c.EgressRule, c.Membership, c.Message, c.Model,
+		c.ModelProvider, c.Notification, c.Organization, c.Role, c.SystemSetting,
+		c.Tool, c.UsageRecord, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -314,6 +326,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Budget.mutate(ctx, m)
 	case *BudgetAlertStateMutation:
 		return c.BudgetAlertState.mutate(ctx, m)
+	case *ConversationMutation:
+		return c.Conversation.mutate(ctx, m)
 	case *DepartmentMutation:
 		return c.Department.mutate(ctx, m)
 	case *DeptClosureMutation:
@@ -324,6 +338,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EgressRule.mutate(ctx, m)
 	case *MembershipMutation:
 		return c.Membership.mutate(ctx, m)
+	case *MessageMutation:
+		return c.Message.mutate(ctx, m)
 	case *ModelMutation:
 		return c.Model.mutate(ctx, m)
 	case *ModelProviderMutation:
@@ -877,6 +893,155 @@ func (c *BudgetAlertStateClient) mutate(ctx context.Context, m *BudgetAlertState
 		return (&BudgetAlertStateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown BudgetAlertState mutation op: %q", m.Op())
+	}
+}
+
+// ConversationClient is a client for the Conversation schema.
+type ConversationClient struct {
+	config
+}
+
+// NewConversationClient returns a client for the Conversation from the given config.
+func NewConversationClient(c config) *ConversationClient {
+	return &ConversationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `conversation.Hooks(f(g(h())))`.
+func (c *ConversationClient) Use(hooks ...Hook) {
+	c.hooks.Conversation = append(c.hooks.Conversation, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `conversation.Intercept(f(g(h())))`.
+func (c *ConversationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Conversation = append(c.inters.Conversation, interceptors...)
+}
+
+// Create returns a builder for creating a Conversation entity.
+func (c *ConversationClient) Create() *ConversationCreate {
+	mutation := newConversationMutation(c.config, OpCreate)
+	return &ConversationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Conversation entities.
+func (c *ConversationClient) CreateBulk(builders ...*ConversationCreate) *ConversationCreateBulk {
+	return &ConversationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ConversationClient) MapCreateBulk(slice any, setFunc func(*ConversationCreate, int)) *ConversationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ConversationCreateBulk{err: fmt.Errorf("calling to ConversationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ConversationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ConversationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Conversation.
+func (c *ConversationClient) Update() *ConversationUpdate {
+	mutation := newConversationMutation(c.config, OpUpdate)
+	return &ConversationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ConversationClient) UpdateOne(_m *Conversation) *ConversationUpdateOne {
+	mutation := newConversationMutation(c.config, OpUpdateOne, withConversation(_m))
+	return &ConversationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ConversationClient) UpdateOneID(id int) *ConversationUpdateOne {
+	mutation := newConversationMutation(c.config, OpUpdateOne, withConversationID(id))
+	return &ConversationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Conversation.
+func (c *ConversationClient) Delete() *ConversationDelete {
+	mutation := newConversationMutation(c.config, OpDelete)
+	return &ConversationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ConversationClient) DeleteOne(_m *Conversation) *ConversationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ConversationClient) DeleteOneID(id int) *ConversationDeleteOne {
+	builder := c.Delete().Where(conversation.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ConversationDeleteOne{builder}
+}
+
+// Query returns a query builder for Conversation.
+func (c *ConversationClient) Query() *ConversationQuery {
+	return &ConversationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeConversation},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Conversation entity by its id.
+func (c *ConversationClient) Get(ctx context.Context, id int) (*Conversation, error) {
+	return c.Query().Where(conversation.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ConversationClient) GetX(ctx context.Context, id int) *Conversation {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryMessages queries the messages edge of a Conversation.
+func (c *ConversationClient) QueryMessages(_m *Conversation) *MessageQuery {
+	query := (&MessageClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(conversation.Table, conversation.FieldID, id),
+			sqlgraph.To(message.Table, message.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, conversation.MessagesTable, conversation.MessagesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ConversationClient) Hooks() []Hook {
+	return c.hooks.Conversation
+}
+
+// Interceptors returns the client interceptors.
+func (c *ConversationClient) Interceptors() []Interceptor {
+	return c.inters.Conversation
+}
+
+func (c *ConversationClient) mutate(ctx context.Context, m *ConversationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ConversationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ConversationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ConversationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ConversationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Conversation mutation op: %q", m.Op())
 	}
 }
 
@@ -1654,6 +1819,155 @@ func (c *MembershipClient) mutate(ctx context.Context, m *MembershipMutation) (V
 		return (&MembershipDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Membership mutation op: %q", m.Op())
+	}
+}
+
+// MessageClient is a client for the Message schema.
+type MessageClient struct {
+	config
+}
+
+// NewMessageClient returns a client for the Message from the given config.
+func NewMessageClient(c config) *MessageClient {
+	return &MessageClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `message.Hooks(f(g(h())))`.
+func (c *MessageClient) Use(hooks ...Hook) {
+	c.hooks.Message = append(c.hooks.Message, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `message.Intercept(f(g(h())))`.
+func (c *MessageClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Message = append(c.inters.Message, interceptors...)
+}
+
+// Create returns a builder for creating a Message entity.
+func (c *MessageClient) Create() *MessageCreate {
+	mutation := newMessageMutation(c.config, OpCreate)
+	return &MessageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Message entities.
+func (c *MessageClient) CreateBulk(builders ...*MessageCreate) *MessageCreateBulk {
+	return &MessageCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MessageClient) MapCreateBulk(slice any, setFunc func(*MessageCreate, int)) *MessageCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MessageCreateBulk{err: fmt.Errorf("calling to MessageClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MessageCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MessageCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Message.
+func (c *MessageClient) Update() *MessageUpdate {
+	mutation := newMessageMutation(c.config, OpUpdate)
+	return &MessageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MessageClient) UpdateOne(_m *Message) *MessageUpdateOne {
+	mutation := newMessageMutation(c.config, OpUpdateOne, withMessage(_m))
+	return &MessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MessageClient) UpdateOneID(id int) *MessageUpdateOne {
+	mutation := newMessageMutation(c.config, OpUpdateOne, withMessageID(id))
+	return &MessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Message.
+func (c *MessageClient) Delete() *MessageDelete {
+	mutation := newMessageMutation(c.config, OpDelete)
+	return &MessageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MessageClient) DeleteOne(_m *Message) *MessageDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MessageClient) DeleteOneID(id int) *MessageDeleteOne {
+	builder := c.Delete().Where(message.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MessageDeleteOne{builder}
+}
+
+// Query returns a query builder for Message.
+func (c *MessageClient) Query() *MessageQuery {
+	return &MessageQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMessage},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Message entity by its id.
+func (c *MessageClient) Get(ctx context.Context, id int) (*Message, error) {
+	return c.Query().Where(message.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MessageClient) GetX(ctx context.Context, id int) *Message {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryConversation queries the conversation edge of a Message.
+func (c *MessageClient) QueryConversation(_m *Message) *ConversationQuery {
+	query := (&ConversationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(message.Table, message.FieldID, id),
+			sqlgraph.To(conversation.Table, conversation.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, message.ConversationTable, message.ConversationColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MessageClient) Hooks() []Hook {
+	return c.hooks.Message
+}
+
+// Interceptors returns the client interceptors.
+func (c *MessageClient) Interceptors() []Interceptor {
+	return c.inters.Message
+}
+
+func (c *MessageClient) mutate(ctx context.Context, m *MessageMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MessageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MessageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MessageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Message mutation op: %q", m.Op())
 	}
 }
 
@@ -2969,13 +3283,13 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		ACL, AuditLog, Budget, BudgetAlertState, Department, DeptClosure, EgressLog,
-		EgressRule, Membership, Model, ModelProvider, Notification, Organization, Role,
-		SystemSetting, Tool, UsageRecord, User []ent.Hook
+		ACL, AuditLog, Budget, BudgetAlertState, Conversation, Department, DeptClosure,
+		EgressLog, EgressRule, Membership, Message, Model, ModelProvider, Notification,
+		Organization, Role, SystemSetting, Tool, UsageRecord, User []ent.Hook
 	}
 	inters struct {
-		ACL, AuditLog, Budget, BudgetAlertState, Department, DeptClosure, EgressLog,
-		EgressRule, Membership, Model, ModelProvider, Notification, Organization, Role,
-		SystemSetting, Tool, UsageRecord, User []ent.Interceptor
+		ACL, AuditLog, Budget, BudgetAlertState, Conversation, Department, DeptClosure,
+		EgressLog, EgressRule, Membership, Message, Model, ModelProvider, Notification,
+		Organization, Role, SystemSetting, Tool, UsageRecord, User []ent.Interceptor
 	}
 )

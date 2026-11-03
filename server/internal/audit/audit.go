@@ -124,7 +124,8 @@ func Middleware(w Writer, actor ActorFunc, lg *slog.Logger) echo.MiddlewareFunc 
 			if actor != nil {
 				e.OrgID, e.ActorID, e.ActorEmail = actor(c)
 			}
-			if err := w.Write(r.Context(), e); err != nil {
+			// 结果审计不受客户端断开影响（停止生成时也要留痕）。
+			if err := w.Write(context.WithoutCancel(r.Context()), e); err != nil {
 				lg.Error("audit result write failed", "err", err, "path", c.Path())
 			}
 			return herr
@@ -158,7 +159,12 @@ func Record(c echo.Context, e Entry) error {
 	r := c.Request()
 	e.IP, e.UserAgent = c.RealIP(), r.UserAgent()
 	e.RequestID = c.Response().Header().Get(echo.HeaderXRequestID)
-	if err := w.Write(r.Context(), e); err != nil {
+	ctx := r.Context()
+	if e.Phase == "result" {
+		// 结果审计不受客户端断开影响；attempt 仍随请求取消而失败（fail-closed）。
+		ctx = context.WithoutCancel(ctx)
+	}
+	if err := w.Write(ctx, e); err != nil {
 		return ErrRejected
 	}
 	return nil

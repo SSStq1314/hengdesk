@@ -625,3 +625,115 @@ export const egressApi = {
     }>(`/admin/egress/logs?${q}`)
   },
 }
+
+// ---- 对话（M1 第三块 PR1）----
+export type Conversation = {
+  id: number
+  title: string
+  model_id?: number | null
+  created_at: string
+  updated_at: string
+}
+export type ChatMessage = {
+  id: number
+  role: 'user' | 'assistant'
+  content: string
+  status: 'streaming' | 'done' | 'stopped' | 'error'
+  model_name?: string
+  fallback_from?: string
+  error_code?: string
+  error?: string
+  prompt_tokens: number
+  completion_tokens: number
+  created_at: string
+}
+export type MyModel = { id: number; name: string; is_default: boolean }
+
+export const chatApi = {
+  models: () => api<{ items: MyModel[] }>('/models'),
+  list: () => api<{ items: Conversation[] }>('/conversations'),
+  create: (b: { title?: string; model?: string }) =>
+    api<Conversation>('/conversations', json('POST', b)),
+  get: (id: number) =>
+    api<Conversation & { messages: ChatMessage[] }>(`/conversations/${id}`),
+  rename: (id: number, title: string) =>
+    api<Conversation>(`/conversations/${id}`, json('PATCH', { title })),
+  remove: (id: number) =>
+    api<void>(`/conversations/${id}`, { method: 'DELETE' }),
+}
+
+export type StreamHandlers = {
+  onToken: (t: string) => void
+  onDone: (m: ChatMessage) => void
+  onError: (code: string, message: string) => void
+}
+
+// sendMessage 以 fetch 读取 SSE（EventSource 不支持 POST）。signal 中断即「停止生成」，
+// 服务端会把已生成部分保存为 stopped。
+export async function sendMessage(
+  id: number,
+  body: { content: string; model?: string },
+  h: StreamHandlers,
+  signal: AbortSignal
+): Promise<void> {
+  const res = await fetch(`/api/v1/conversations/${id}/messages`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken(),
+    },
+    body: JSON.stringify(body),
+    signal,
+  })
+  if (!res.ok || !res.body) {
+    let code = String(res.status)
+    let msg = res.statusText
+    try {
+      const b = (await res.json()) as {
+        message?: string
+        error?: { code?: string; message?: string }
+      }
+      code = b.error?.code ?? code
+      msg = b.error?.message ?? b.message ?? msg
+    } catch {
+      /* 非 JSON 响应 */
+    }
+    h.onError(code, msg)
+    return
+  }
+  const reader = res.body.getReader()
+  const dec = new TextDecoder()
+  let buf = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buf += dec.decode(value, { stream: true })
+    let i: number
+    while ((i = buf.indexOf('\n\n')) >= 0) {
+      const raw = buf.slice(0, i)
+      buf = buf.slice(i + 2)
+      let event = 'message'
+      let data = ''
+      for (const line of raw.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim()
+        else if (line.startsWith('data:')) data += line.slice(5).trim()
+      }
+      if (!data) continue
+      let p: unknown
+      try {
+        p = JSON.parse(data)
+      } catch {
+        continue
+      }
+      if (event === 'token') {
+        h.onToken((p as { content?: string }).content ?? '')
+      } else if (event === 'done') {
+        h.onDone(p as ChatMessage)
+      } else if (event === 'error') {
+        const e = (p as { error?: { code?: string; message?: string } }).error
+        h.onError(e?.code ?? 'error', e?.message ?? '')
+      }
+    }
+  }
+}

@@ -134,6 +134,13 @@ func Mount(e *echo.Echo, d Deps) {
 	g.GET("/usage/me", mdh.myUsage)
 	ch := &chatHandlers{gw: gw, az: az, log: d.Log, bs: bs}
 	g.POST("/chat/completions", ch.complete)
+	cvh := &convHandlers{db: d.DB, ch: ch}
+	g.GET("/conversations", cvh.list)
+	g.POST("/conversations", cvh.create)
+	g.GET("/conversations/:id", cvh.get)
+	g.PATCH("/conversations/:id", cvh.update)
+	g.DELETE("/conversations/:id", cvh.remove)
+	g.POST("/conversations/:id/messages", cvh.send)
 
 	bh := &budgetHandlers{db: d.DB, bs: bs, az: az}
 	admin.GET("/budgets", bh.list, authz.Require(rbac.BudgetRead))

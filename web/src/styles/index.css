@@ -85,3 +85,46 @@
     height: 0;
   }
 }
+
+/* 对话 Markdown 渲染（无 typography 插件时的最小样式） */
+.chat-md > * + * {
+  margin-top: 0.5rem;
+}
+.chat-md ul {
+  list-style: disc;
+  padding-inline-start: 1.25rem;
+}
+.chat-md ol {
+  list-style: decimal;
+  padding-inline-start: 1.25rem;
+}
+.chat-md h1,
+.chat-md h2,
+.chat-md h3 {
+  font-weight: 600;
+}
+.chat-md a {
+  text-decoration: underline;
+}
+.chat-md code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+}
+.chat-md pre {
+  overflow-x: auto;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  background: var(--background);
+}
+.chat-md table {
+  border-collapse: collapse;
+}
+.chat-md th,
+.chat-md td {
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.5rem;
+}
+.chat-md blockquote {
+  border-inline-start: 3px solid var(--border);
+  padding-inline-start: 0.75rem;
+}
