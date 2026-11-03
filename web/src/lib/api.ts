@@ -127,6 +127,18 @@ export type SystemStatus = {
   disk_low: boolean
   https: boolean
   tls: TLSInfo | null
+  master_key?: MasterKeyStatus
+}
+
+// 主密钥备份确认（D-36）：configured 且未 acknowledged 时常驻提示。
+export type MasterKeyStatus = {
+  configured: boolean
+  path: string
+  fingerprint: string
+  acknowledged: boolean
+  acknowledged_at?: string
+  acknowledged_by?: string
+  warning: string
 }
 
 // 部署证书信息（D-34 第 3 点）。
@@ -168,6 +180,11 @@ export const alertApi = {
 export const systemApi = {
   status: () => api<SystemStatus>('/admin/system/status'),
   tls: () => api<TLSInfo>('/admin/system/tls'),
+  ackMasterKey: (fingerprint: string) =>
+    api<SystemStatus>('/admin/system/master-key/ack', {
+      method: 'POST',
+      body: JSON.stringify({ fingerprint }),
+    }),
 }
 
 export type DeptRef = { id: number; name: string }
@@ -297,4 +314,127 @@ export type RoleMatrix = {
 
 export const roleApi = {
   matrix: () => api<RoleMatrix>('/admin/roles'),
+}
+
+// ---- 模型网关（M1 第二块 PR2）----
+export type Provider = {
+  id: number
+  name: string
+  kind: string
+  dialect: string
+  base_url: string
+  has_api_key: boolean
+  enabled: boolean
+  timeout_seconds: number
+}
+export type ProviderInput = Partial<{
+  name: string
+  dialect: string
+  base_url: string
+  api_key: string
+  enabled: boolean
+  timeout_seconds: number
+}>
+export type Model = {
+  id: number
+  name: string
+  provider_id: number
+  upstream_model: string
+  thinking: string
+  tool_choice_policy: string
+  context_window: number
+  max_output_tokens: number
+  enabled: boolean
+  is_default: boolean
+  price_input_micros: number
+  price_cached_micros: number
+  price_output_micros: number
+  currency: string
+}
+export type ModelInput = Partial<Omit<Model, 'id' | 'is_default'>>
+export type ModelACL = {
+  subject_type: 'user' | 'dept' | 'role'
+  subject_id: number
+  subject_name: string
+  include_children: boolean
+  perms: number
+}
+export type TestResult = {
+  ok: boolean
+  latency_ms: number
+  models?: string[]
+  reply?: string
+  usage?: { total_tokens: number; estimated?: boolean }
+  error?: { code: string; message: string }
+}
+export type UsageTotals = {
+  calls: number
+  error_calls: number
+  prompt_tokens: number
+  cached_tokens: number
+  completion_tokens: number
+  reasoning_tokens: number
+  total_tokens: number
+  cost_micros: number
+  estimated_calls: number
+  estimated_tokens: number
+  estimated_cost_micros: number
+}
+export type UsageGroup = 'user' | 'department' | 'model'
+export type UsageSummary = {
+  group_by: string
+  items: (UsageTotals & { key: number; name: string })[]
+  totals: UsageTotals
+  currency: string
+}
+export type UsageRecord = {
+  id: number
+  user_id: number
+  department_id?: number
+  model_name: string
+  purpose: string
+  stream?: boolean
+  status: string
+  error_code?: string
+  total_tokens?: number
+  cost_micros?: number
+  estimated?: boolean
+  latency_ms?: number
+  created_at: string
+}
+export type UsageFilter = { from?: string; to?: string }
+
+export const modelApi = {
+  providers: () => api<{ items: Provider[] }>('/admin/model-providers'),
+  createProvider: (p: ProviderInput) =>
+    api<Provider>('/admin/model-providers', json('POST', p)),
+  updateProvider: (id: number, p: ProviderInput) =>
+    api<Provider>(`/admin/model-providers/${id}`, json('PATCH', p)),
+  removeProvider: (id: number) =>
+    api<void>(`/admin/model-providers/${id}`, { method: 'DELETE' }),
+  testProvider: (id: number) =>
+    api<TestResult>(`/admin/model-providers/${id}/test`, { method: 'POST' }),
+  models: () => api<{ items: Model[] }>('/admin/models'),
+  createModel: (m: ModelInput) => api<Model>('/admin/models', json('POST', m)),
+  updateModel: (id: number, m: ModelInput) =>
+    api<Model>(`/admin/models/${id}`, json('PATCH', m)),
+  removeModel: (id: number) =>
+    api<void>(`/admin/models/${id}`, { method: 'DELETE' }),
+  setDefault: (id: number) =>
+    api<Model>(`/admin/models/${id}/default`, { method: 'POST' }),
+  testModel: (id: number) =>
+    api<TestResult>(`/admin/models/${id}/test`, { method: 'POST' }),
+  acl: (id: number) => api<{ items: ModelACL[] }>(`/admin/models/${id}/acl`),
+  grant: (
+    id: number,
+    a: { subject_type: string; subject_id: number; include_children: boolean }
+  ) => api<unknown>(`/admin/models/${id}/acl`, json('POST', a)),
+  revoke: (id: number, type: string, sid: number) =>
+    api<unknown>(`/admin/models/${id}/acl/${type}/${sid}`, {
+      method: 'DELETE',
+    }),
+  usageSummary: (group_by: UsageGroup, f: UsageFilter) =>
+    api<UsageSummary>(`/admin/usage/summary${qs({ group_by, ...f })}`),
+  usageRecords: (f: UsageFilter) =>
+    api<{ items: UsageRecord[] }>(`/admin/usage/records${qs(f)}`),
 }

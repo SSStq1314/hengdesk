@@ -35,7 +35,8 @@ make test
 ```bash
 cd deploy
 ./install.sh                     # 交互：选择 SeaweedFS（默认）/ MinIO / 外部 S3
-# 或非交互：./install.sh -y --storage seaweedfs
+# 或非交互：./install.sh -y --storage seaweedfs --ack-master-key
+# 安装结束会显示主密钥路径（deploy/secrets/master.key），须确认已与数据库备份分开保管（D-36）
 docker compose up -d --build
 ```
 
