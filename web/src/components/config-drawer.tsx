@@ -47,7 +47,7 @@ export function ConfigDrawer() {
         <Button
           size='icon'
           variant='ghost'
-          aria-label='Open theme settings'
+          aria-label={zh.a11y.openThemeSettings}
           className='rounded-full'
         >
           <Settings aria-hidden='true' />
@@ -70,7 +70,7 @@ export function ConfigDrawer() {
           <Button
             variant='destructive'
             onClick={handleReset}
-            aria-label='Reset all settings to default values'
+            aria-label={zh.a11y.resetSettings}
           >
             Reset
           </Button>
@@ -187,7 +187,7 @@ function ThemeConfig() {
         value={theme}
         onValueChange={setTheme}
         className='grid w-full max-w-md grid-cols-3 gap-4'
-        aria-label='Select theme preference'
+        aria-label={zh.a11y.selectTheme}
         aria-describedby='theme-description'
       >
         {[
@@ -231,7 +231,7 @@ function SidebarConfig() {
         value={variant}
         onValueChange={setVariant}
         className='grid w-full max-w-md grid-cols-3 gap-4'
-        aria-label='Select sidebar style'
+        aria-label={zh.a11y.selectSidebar}
         aria-describedby='sidebar-description'
       >
         {[
@@ -289,7 +289,7 @@ function LayoutConfig() {
           setCollapsible(v as Collapsible)
         }}
         className='grid w-full max-w-md grid-cols-3 gap-4'
-        aria-label='Select layout style'
+        aria-label={zh.a11y.selectLayout}
         aria-describedby='layout-description'
       >
         {[
@@ -333,7 +333,7 @@ function DirConfig() {
         value={dir}
         onValueChange={setDir}
         className='grid w-full max-w-md grid-cols-3 gap-4'
-        aria-label='Select site direction'
+        aria-label={zh.a11y.selectDirection}
         aria-describedby='direction-description'
       >
         {[

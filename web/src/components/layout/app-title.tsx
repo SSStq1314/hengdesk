@@ -59,7 +59,7 @@ function ToggleSidebar({
     >
       <X className='md:hidden' />
       <Menu className='max-md:hidden' />
-      <span className='sr-only'>Toggle Sidebar</span>
+      <span className='sr-only'>{zh.a11y.toggleSidebar}</span>
     </Button>
   )
 }

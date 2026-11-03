@@ -1,3 +1,4 @@
+import { zh } from '@/locales/zh-CN'
 import { Loader } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FormControl } from '@/components/ui/form'
@@ -37,7 +38,7 @@ export function SelectDropdown({
     <Select {...defaultState}>
       <FormControl>
         <SelectTrigger disabled={disabled} className={cn(className)}>
-          <SelectValue placeholder={placeholder ?? 'Select'} />
+          <SelectValue placeholder={placeholder ?? zh.a11y.select} />
         </SelectTrigger>
       </FormControl>
       <SelectContent>

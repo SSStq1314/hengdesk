@@ -1,3 +1,4 @@
+import { zh } from '@/locales/zh-CN'
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -59,7 +60,7 @@ export function DataTablePagination<TData>({
               ))}
             </SelectContent>
           </Select>
-          <p className='hidden text-sm font-medium sm:block'>Rows per page</p>
+          <p className='hidden text-sm font-medium sm:block'>{zh.a11y.rowsPerPage}</p>
         </div>
       </div>
 
@@ -74,7 +75,7 @@ export function DataTablePagination<TData>({
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
           >
-            <span className='sr-only'>Go to first page</span>
+            <span className='sr-only'>{zh.a11y.firstPage}</span>
             <DoubleArrowLeftIcon className='h-4 w-4' />
           </Button>
           <Button
@@ -83,7 +84,7 @@ export function DataTablePagination<TData>({
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
-            <span className='sr-only'>Go to previous page</span>
+            <span className='sr-only'>{zh.a11y.prevPage}</span>
             <ChevronLeftIcon className='h-4 w-4' />
           </Button>
 
@@ -98,7 +99,7 @@ export function DataTablePagination<TData>({
                   className='h-8 min-w-8 px-2'
                   onClick={() => table.setPageIndex((pageNumber as number) - 1)}
                 >
-                  <span className='sr-only'>Go to page {pageNumber}</span>
+                  <span className='sr-only'>{zh.a11y.goToPage(pageNumber)}</span>
                   {pageNumber}
                 </Button>
               )}
@@ -111,7 +112,7 @@ export function DataTablePagination<TData>({
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
-            <span className='sr-only'>Go to next page</span>
+            <span className='sr-only'>{zh.a11y.nextPage}</span>
             <ChevronRightIcon className='h-4 w-4' />
           </Button>
           <Button
@@ -120,7 +121,7 @@ export function DataTablePagination<TData>({
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
           >
-            <span className='sr-only'>Go to last page</span>
+            <span className='sr-only'>{zh.a11y.lastPage}</span>
             <DoubleArrowRightIcon className='h-4 w-4' />
           </Button>
         </div>
