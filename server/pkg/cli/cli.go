@@ -108,7 +108,18 @@ func serverCmd() *cobra.Command {
 			lg.Info("model gateway master key loaded", "file", cfg.MasterKeyFile, "fingerprint", keys.Fingerprint())
 		}
 		gw := &gateway.Service{DB: client, Keys: keys, Client: &gateway.Client{HTTP: eg.HTTP()}}
-		api.Mount(e, api.Deps{Timezone: cfg.Timezone, Gateway: gw, Egress: eg, EgressPolicy: egPolicy, DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc, EnforceSSO: cfg.OIDCEnforce, BreakGlass: cfg.OIDCBreakGlass,
+		var files api.FileStore
+		if cfg.S3AccessKey != "" {
+			st, err := objstore.New(objstore.Config{Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, AccessKey: cfg.S3AccessKey,
+				SecretKey: cfg.S3SecretKey, Bucket: cfg.S3Bucket, PathStyle: cfg.S3PathStyle})
+			if err != nil {
+				return fmt.Errorf("对象存储配置错误: %w", err)
+			}
+			files = st
+		} else {
+			lg.Warn("object storage not configured; conversation file upload disabled")
+		}
+		api.Mount(e, api.Deps{Files: files, FileLimits: api.FileLimits{MaxBytes: int64(cfg.ChatFileMaxMB) << 20}, Timezone: cfg.Timezone, Gateway: gw, Egress: eg, EgressPolicy: egPolicy, DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc, EnforceSSO: cfg.OIDCEnforce, BreakGlass: cfg.OIDCBreakGlass,
 			DB: client, Audit: w, Secure: cfg.CookieSecure,
 			Sessions:  &session.Store{R: rdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle},
 			Lockout:   &session.Lockout{R: rdb, MaxFailures: cfg.LockoutMax, Duration: cfg.LockoutFor},

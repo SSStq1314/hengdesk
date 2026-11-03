@@ -646,6 +646,16 @@ export type ChatMessage = {
   prompt_tokens: number
   completion_tokens: number
   created_at: string
+  context_truncated?: boolean
+}
+export type ConvFile = {
+  id: number
+  name: string
+  kind: string
+  size: number
+  chars: number
+  truncated: boolean
+  created_at: string
 }
 export type MyModel = { id: number; name: string; is_default: boolean }
 
@@ -655,7 +665,36 @@ export const chatApi = {
   create: (b: { title?: string; model?: string }) =>
     api<Conversation>('/conversations', json('POST', b)),
   get: (id: number) =>
-    api<Conversation & { messages: ChatMessage[] }>(`/conversations/${id}`),
+    api<Conversation & { messages: ChatMessage[]; files: ConvFile[] }>(
+      `/conversations/${id}`
+    ),
+  // 上传用 multipart（不能带 JSON 的 Content-Type，由浏览器生成 boundary）。
+  upload: async (id: number, file: File): Promise<ConvFile> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch(`/api/v1/conversations/${id}/files`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-CSRF-Token': csrfToken() },
+      body: fd,
+    })
+    if (!res.ok) {
+      let msg = res.statusText
+      try {
+        const b = (await res.json()) as { message?: string }
+        if (b.message) msg = b.message
+      } catch {
+        /* 非 JSON 响应 */
+      }
+      throw new ApiError(res.status, msg)
+    }
+    return (await res.json()) as ConvFile
+  },
+  removeFile: (id: number, fid: number) =>
+    api<void>(`/conversations/${id}/files/${fid}`, { method: 'DELETE' }),
+  // 下载走后端代理（鉴权 + 审计），不暴露对象存储地址。
+  fileURL: (id: number, fid: number) =>
+    `/api/v1/conversations/${id}/files/${fid}/content`,
   rename: (id: number, title: string) =>
     api<Conversation>(`/conversations/${id}`, json('PATCH', { title })),
   remove: (id: number) =>

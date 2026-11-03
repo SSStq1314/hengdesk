@@ -1,13 +1,27 @@
-// 对话工作台（FR-14）：会话列表、流式显示、Markdown 渲染、停止生成、模型选择。
+// 对话工作台（FR-14）：会话列表、流式显示、Markdown 渲染、停止生成、模型选择；会话内上传文件（FR-15）。
 // 布局参考 shadcn-admin 的 chats 页面（MIT）。
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zh } from '@/locales/zh-CN'
-import { Plus, Send, Square, Trash2 } from 'lucide-react'
+import {
+  Download,
+  FileText,
+  Paperclip,
+  Plus,
+  Send,
+  Square,
+  Trash2,
+  X,
+} from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { toast } from 'sonner'
-import { chatApi, sendMessage, type ChatMessage } from '@/lib/api'
+import {
+  chatApi,
+  sendMessage,
+  type ChatMessage,
+  type ConvFile,
+} from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -19,6 +33,13 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { NativeSelect } from '@/features/models/fields'
 
 const t = zh.chat
+const ACCEPT = '.pdf,.docx,.xlsx,.pptx,.txt,.md,.markdown'
+
+function fmtSize(n: number) {
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / 1024 / 1024).toFixed(1)} MB`
+}
 
 export function ChatPage() {
   const qc = useQueryClient()
@@ -28,6 +49,9 @@ export function ChatPage() {
   const [live, setLive] = useState<ChatMessage[]>([])
   const [streaming, setStreaming] = useState(false)
   const [removing, setRemoving] = useState<number | null>(null)
+  const [uploading, setUploading] = useState<string | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -48,6 +72,7 @@ export function ChatPage() {
     ''
 
   const messages = [...(conv.data?.messages ?? []), ...live]
+  const files = active != null ? (conv.data?.files ?? []) : []
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
   }, [messages.length, live])
@@ -71,15 +96,49 @@ export function ChatPage() {
     onError: (e: Error) => toast.error(e.message),
   })
 
+  const removeFile = useMutation({
+    mutationFn: (f: ConvFile) => chatApi.removeFile(active!, f.id),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['conversation', active] }),
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  async function ensureConv() {
+    if (active != null) return active
+    const c = await chatApi.create({ model: effectiveModel || undefined })
+    setActive(c.id)
+    qc.invalidateQueries({ queryKey: ['conversations'] })
+    return c.id
+  }
+
+  async function uploadFiles(list: FileList | File[]) {
+    if (streaming || uploading) return
+    const files = Array.from(list)
+    if (files.length === 0) return
+    let id: number
+    try {
+      id = await ensureConv()
+    } catch (e) {
+      toast.error(String((e as Error).message ?? e))
+      return
+    }
+    for (const f of files) {
+      setUploading(f.name)
+      try {
+        await chatApi.upload(id, f)
+        toast.success(t.uploaded(f.name))
+      } catch (e) {
+        toast.error(t.uploadFailed(f.name, (e as Error).message))
+      }
+    }
+    setUploading(null)
+    await qc.invalidateQueries({ queryKey: ['conversation', id] })
+  }
+
   async function send() {
     const content = input.trim()
     if (!content || streaming) return
-    let id = active
-    if (id == null) {
-      const c = await chatApi.create({ model: effectiveModel || undefined })
-      id = c.id
-      setActive(id)
-    }
+    const id = await ensureConv()
     const now = new Date().toISOString()
     const base = { prompt_tokens: 0, completion_tokens: 0, created_at: now }
     setLive([
@@ -165,7 +224,31 @@ export function ChatPage() {
               ))}
             </div>
           </aside>
-          <section className='flex min-w-0 flex-1 flex-col'>
+          <section
+            className={cn(
+              'relative flex min-w-0 flex-1 flex-col',
+              dragging && 'rounded-md ring-2 ring-primary'
+            )}
+            onDragOver={(e) => {
+              if (!e.dataTransfer.types.includes('Files')) return
+              e.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node))
+                setDragging(false)
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragging(false)
+              void uploadFiles(e.dataTransfer.files)
+            }}
+          >
+            {dragging && (
+              <div className='pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-md bg-background/80 text-sm font-medium'>
+                {t.dropHere}
+              </div>
+            )}
             <div className='flex items-center gap-2 border-b pb-2'>
               <span className='text-sm text-muted-foreground'>{t.model}</span>
               {modelItems.length === 0 ? (
@@ -193,7 +276,47 @@ export function ChatPage() {
               ))}
               <div ref={endRef} />
             </div>
+            {(files.length > 0 || uploading) && (
+              <div className='flex flex-wrap gap-2 border-t pt-2'>
+                {files.map((f) => (
+                  <FileChip
+                    key={f.id}
+                    f={f}
+                    href={chatApi.fileURL(active!, f.id)}
+                    onRemove={() => removeFile.mutate(f)}
+                  />
+                ))}
+                {uploading && (
+                  <span className='rounded-md border px-2 py-1 text-xs text-muted-foreground'>
+                    {t.uploading(uploading)}
+                  </span>
+                )}
+              </div>
+            )}
             <div className='flex items-end gap-2 border-t pt-3'>
+              <input
+                ref={fileRef}
+                type='file'
+                multiple
+                accept={ACCEPT}
+                className='hidden'
+                onChange={(e) => {
+                  if (e.target.files) void uploadFiles(e.target.files)
+                  e.target.value = ''
+                }}
+              />
+              <Button
+                variant='outline'
+                size='icon'
+                aria-label={t.attach}
+                title={t.attachHint}
+                disabled={
+                  streaming || uploading != null || modelItems.length === 0
+                }
+                onClick={() => fileRef.current?.click()}
+              >
+                <Paperclip className='size-4' />
+              </Button>
               <Textarea
                 value={input}
                 placeholder={t.placeholder}
@@ -274,6 +397,9 @@ function MessageBubble({ m }: { m: ChatMessage }) {
             {m.model_name && <span>{m.model_name}</span>}
             {m.fallback_from && <span>{t.fallback(m.fallback_from)}</span>}
             {m.status === 'stopped' && <span>{t.stopped}</span>}
+            {m.context_truncated && (
+              <span className='text-amber-600'>{t.contextTruncated}</span>
+            )}
             {m.status === 'error' && (
               <span className='text-destructive'>
                 {t.failed(m.error || m.error_code || '')}
@@ -283,5 +409,36 @@ function MessageBubble({ m }: { m: ChatMessage }) {
         )}
       </div>
     </div>
+  )
+}
+
+function FileChip({
+  f,
+  href,
+  onRemove,
+}: {
+  f: ConvFile
+  href: string
+  onRemove: () => void
+}) {
+  return (
+    <span className='flex max-w-xs items-center gap-1.5 rounded-md border bg-muted/50 px-2 py-1 text-xs'>
+      <FileText className='size-3.5 shrink-0' />
+      <span className='truncate' title={f.name}>
+        {f.name}
+      </span>
+      <span className='shrink-0 text-muted-foreground'>{fmtSize(f.size)}</span>
+      {f.truncated && (
+        <span className='shrink-0 text-amber-600' title={t.fileTruncated}>
+          {t.truncatedBadge}
+        </span>
+      )}
+      <a href={href} aria-label={t.download} title={t.download} download>
+        <Download className='size-3.5' />
+      </a>
+      <button aria-label={t.removeFile} title={t.removeFile} onClick={onRemove}>
+        <X className='size-3.5' />
+      </button>
+    </span>
   )
 }

@@ -21,6 +21,9 @@ type BudgetAlertState func(*sql.Selector)
 // Conversation is the predicate function for conversation builders.
 type Conversation func(*sql.Selector)
 
+// ConversationFile is the predicate function for conversationfile builders.
+type ConversationFile func(*sql.Selector)
+
 // Department is the predicate function for department builders.
 type Department func(*sql.Selector)
 

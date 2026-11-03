@@ -15,6 +15,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
 	"github.com/SSStq1314/hengdesk/server/internal/authz"
+	"github.com/SSStq1314/hengdesk/server/internal/docparse"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
@@ -37,6 +38,9 @@ type Deps struct {
 	// Egress 统一出站客户端（FR-27）；为 nil 时按 DB 白名单构造。所有对外 HTTP 必须经过它。
 	Egress       *egress.Client
 	EgressPolicy *egress.DBPolicy
+	// Files 会话文件对象存储（FR-15）；为 nil 时上传 / 下载返回 503。
+	Files      FileStore
+	FileLimits FileLimits
 }
 
 // Mount 挂载路由。所有 /admin 接口都经统一授权层：未登录 401，无权限或越权 404。
@@ -134,13 +138,17 @@ func Mount(e *echo.Echo, d Deps) {
 	g.GET("/usage/me", mdh.myUsage)
 	ch := &chatHandlers{gw: gw, az: az, log: d.Log, bs: bs}
 	g.POST("/chat/completions", ch.complete)
-	cvh := &convHandlers{db: d.DB, ch: ch}
+	cvh := &convHandlers{db: d.DB, ch: ch, fs: d.Files, lim: d.FileLimits.withDefaults(), parser: docparse.New()}
 	g.GET("/conversations", cvh.list)
 	g.POST("/conversations", cvh.create)
 	g.GET("/conversations/:id", cvh.get)
 	g.PATCH("/conversations/:id", cvh.update)
 	g.DELETE("/conversations/:id", cvh.remove)
 	g.POST("/conversations/:id/messages", cvh.send)
+	g.GET("/conversations/:id/files", cvh.listFiles)
+	g.POST("/conversations/:id/files", cvh.upload)
+	g.GET("/conversations/:id/files/:fid/content", cvh.download)
+	g.DELETE("/conversations/:id/files/:fid", cvh.removeFile)
 
 	bh := &budgetHandlers{db: d.DB, bs: bs, az: az}
 	admin.GET("/budgets", bh.list, authz.Require(rbac.BudgetRead))

@@ -499,5 +499,17 @@ export const zh = {
     you: '我',
     assistant: '助手',
     thinking: '正在生成…',
+    attach: '上传文件',
+    attachHint:
+      '支持 PDF、Word（.docx）、Excel（.xlsx）、PowerPoint（.pptx）、TXT、Markdown；也可以拖到这里',
+    dropHere: '松开以上传到当前对话',
+    uploading: (n: string) => `正在上传并解析：${n}`,
+    uploaded: (n: string) => `已上传：${n}`,
+    uploadFailed: (n: string, m: string) => `${n} 上传失败：${m}`,
+    download: '下载',
+    removeFile: '移除文件',
+    fileTruncated: '文件过长，只有前面一部分内容参与对话',
+    truncatedBadge: '已截断',
+    contextTruncated: '文件内容过长，本轮只使用了部分内容',
   },
 } as const
