@@ -46,8 +46,12 @@ type Config struct {
 	// TrustedProxies 允许读取 X-Forwarded-For 的上游代理网段；为空时只用 TCP 对端地址。
 	TrustedProxies []*net.IPNet
 	// BackupKeep 保留最近 N 份备份；DiskLowPercent 备份盘剩余空间低于该百分比时告警。
-	BackupKeep     int
-	DiskLowPercent int
+	BackupKeep int
+	// AuditRetentionDays 审计在线保留天数（FR-40，默认 365，最少 180）；超过的记录只能由审计员手动归档。
+	AuditRetentionDays int
+	// AuditArchiveSignKeyFile 归档包 Ed25519 签名私钥文件（hex 编码的 32 字节种子）；为空不签名。
+	AuditArchiveSignKeyFile string
+	DiskLowPercent          int
 	// OIDC 单点登录（OIDCIssuer 为空表示未启用）。
 	OIDCIssuer       string
 	OIDCClientID     string
@@ -67,6 +71,9 @@ type Config struct {
 	OIDCEnforce    bool
 	OIDCBreakGlass []string
 }
+
+// MinAuditRetentionDays 审计在线保留期下限（FR-40）。
+const MinAuditRetentionDays = 180
 
 // DefaultTrustedProxies 默认信任回环与私有网段（Compose 内 nginx 反代）。
 const DefaultTrustedProxies = "127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7"
@@ -148,6 +155,10 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	retention, err := intEnv("AUDIT_RETENTION_DAYS", "365", MinAuditRetentionDays, 36500)
+	if err != nil {
+		return nil, err
+	}
 	low, err := intEnv("DISK_LOW_PERCENT", "10", 0, 99)
 	if err != nil {
 		return nil, err
@@ -161,48 +172,50 @@ func Load() (*Config, error) {
 	autoCreate, _ := strconv.ParseBool(get("OIDC_AUTO_CREATE", "true"))
 	scopes := strings.Fields(strings.ReplaceAll(get("OIDC_SCOPES", "openid email profile"), ",", " "))
 	c := &Config{
-		Env:              get("ENV", "dev"),
-		HTTPAddr:         get("HTTP_ADDR", ":8080"),
-		LogLevel:         get("LOG_LEVEL", "info"),
-		DatabaseURL:      get("DATABASE_URL", "postgres://hengdesk:hengdesk@localhost:5432/hengdesk?sslmode=disable"),
-		RedisAddr:        get("REDIS_ADDR", "localhost:6379"),
-		S3Endpoint:       get("S3_ENDPOINT", "http://localhost:8333"),
-		S3Region:         get("S3_REGION", "us-east-1"),
-		S3Bucket:         get("S3_BUCKET", "hengdesk"),
-		S3PathStyle:      pathStyle,
-		S3AccessKey:      get("S3_ACCESS_KEY", ""),
-		S3SecretKey:      get("S3_SECRET_KEY", ""),
-		SessionTTL:       ttl,
-		SessionIdle:      idle,
-		LockoutMax:       lockMax,
-		LockoutFor:       lockFor,
-		AdminEmail:       get("ADMIN_EMAIL", "admin@hengdesk.local"),
-		AdminPassword:    get("ADMIN_PASSWORD", ""),
-		AuditorEmail:     get("AUDITOR_EMAIL", ""),
-		AuditorPassword:  get("AUDITOR_PASSWORD", ""),
-		CookieSecure:     secure,
-		PublicHTTPS:      publicHTTPS,
-		BackupDir:        get("BACKUP_DIR", "/backups"),
-		TLSCertFile:      get("TLS_CERT_FILE", "/etc/hengdesk/tls/tls.crt"),
-		PasswordMinLen:   minLen,
-		LoginIPLimit:     ipLimit,
-		LoginIPWindow:    ipWin,
-		TrustedProxies:   proxies,
-		BackupKeep:       keep,
-		DiskLowPercent:   low,
-		OIDCIssuer:       get("OIDC_ISSUER", ""),
-		OIDCClientID:     get("OIDC_CLIENT_ID", ""),
-		OIDCClientSecret: get("OIDC_CLIENT_SECRET", ""),
-		OIDCRedirectURL:  get("OIDC_REDIRECT_URL", ""),
-		OIDCScopes:       scopes,
-		OIDCLinkBy:       get("OIDC_LINK_BY", "email"),
-		OIDCAutoCreate:   autoCreate,
-		OIDCDisplayName:  get("OIDC_DISPLAY_NAME", "企业单点登录"),
-		OIDCEmailDomains: lowerList(get("OIDC_EMAIL_DOMAINS", "")),
-		OIDCDeptClaim:    get("OIDC_DEPT_CLAIM", ""),
-		OIDCDeptMatch:    get("OIDC_DEPT_MATCH", "path"),
-		OIDCDeptDefault:  get("OIDC_DEPT_DEFAULT", ""),
-		OIDCBreakGlass:   lowerList(get("OIDC_BREAKGLASS_EMAILS", "")),
+		Env:                     get("ENV", "dev"),
+		HTTPAddr:                get("HTTP_ADDR", ":8080"),
+		LogLevel:                get("LOG_LEVEL", "info"),
+		DatabaseURL:             get("DATABASE_URL", "postgres://hengdesk:hengdesk@localhost:5432/hengdesk?sslmode=disable"),
+		RedisAddr:               get("REDIS_ADDR", "localhost:6379"),
+		S3Endpoint:              get("S3_ENDPOINT", "http://localhost:8333"),
+		S3Region:                get("S3_REGION", "us-east-1"),
+		S3Bucket:                get("S3_BUCKET", "hengdesk"),
+		S3PathStyle:             pathStyle,
+		S3AccessKey:             get("S3_ACCESS_KEY", ""),
+		S3SecretKey:             get("S3_SECRET_KEY", ""),
+		SessionTTL:              ttl,
+		SessionIdle:             idle,
+		LockoutMax:              lockMax,
+		LockoutFor:              lockFor,
+		AdminEmail:              get("ADMIN_EMAIL", "admin@hengdesk.local"),
+		AdminPassword:           get("ADMIN_PASSWORD", ""),
+		AuditorEmail:            get("AUDITOR_EMAIL", ""),
+		AuditorPassword:         get("AUDITOR_PASSWORD", ""),
+		CookieSecure:            secure,
+		PublicHTTPS:             publicHTTPS,
+		BackupDir:               get("BACKUP_DIR", "/backups"),
+		TLSCertFile:             get("TLS_CERT_FILE", "/etc/hengdesk/tls/tls.crt"),
+		PasswordMinLen:          minLen,
+		LoginIPLimit:            ipLimit,
+		LoginIPWindow:           ipWin,
+		TrustedProxies:          proxies,
+		BackupKeep:              keep,
+		AuditRetentionDays:      retention,
+		AuditArchiveSignKeyFile: get("AUDIT_ARCHIVE_SIGN_KEY_FILE", ""),
+		DiskLowPercent:          low,
+		OIDCIssuer:              get("OIDC_ISSUER", ""),
+		OIDCClientID:            get("OIDC_CLIENT_ID", ""),
+		OIDCClientSecret:        get("OIDC_CLIENT_SECRET", ""),
+		OIDCRedirectURL:         get("OIDC_REDIRECT_URL", ""),
+		OIDCScopes:              scopes,
+		OIDCLinkBy:              get("OIDC_LINK_BY", "email"),
+		OIDCAutoCreate:          autoCreate,
+		OIDCDisplayName:         get("OIDC_DISPLAY_NAME", "企业单点登录"),
+		OIDCEmailDomains:        lowerList(get("OIDC_EMAIL_DOMAINS", "")),
+		OIDCDeptClaim:           get("OIDC_DEPT_CLAIM", ""),
+		OIDCDeptMatch:           get("OIDC_DEPT_MATCH", "path"),
+		OIDCDeptDefault:         get("OIDC_DEPT_DEFAULT", ""),
+		OIDCBreakGlass:          lowerList(get("OIDC_BREAKGLASS_EMAILS", "")),
 	}
 	enforce, err := strconv.ParseBool(get("OIDC_ENFORCE", "false"))
 	if err != nil {

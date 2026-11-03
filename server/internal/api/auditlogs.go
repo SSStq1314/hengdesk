@@ -14,7 +14,11 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 )
 
-type auditHandlers struct{ db *ent.Client }
+type auditHandlers struct {
+	db            *ent.Client
+	retentionDays int
+	now           func() time.Time
+}
 
 // query 按条件过滤：actor（邮箱包含）、action（前缀）、outcome、from/to（RFC3339）、before_id（游标）。
 // 范围为本组织记录以及无组织归属的记录（如未知账号的登录失败）。

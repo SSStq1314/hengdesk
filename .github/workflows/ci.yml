@@ -53,8 +53,15 @@ jobs:
         run: |
           psql -h localhost -U hengdesk -d hengdesk -c 'CREATE DATABASE hengdesk_it'
           HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -run 'Migrations|Legacy' ./internal/store/
+          # FR-40 归档：检查点后链可验证、包可离线校验、中途失败数据完整、无检查点不得删除
+          HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -p 1 -run 'PG' ./internal/auditarchive/
       - name: migrate（两次，验证幂等）
         run: /tmp/hengdesk migrate && /tmp/hengdesk migrate
+      - name: 审计保留期 CLI（FR-40）
+        run: |
+          /tmp/hengdesk audit status | grep -q '"retention_days": 365'
+          if HENGDESK_AUDIT_RETENTION_DAYS=179 /tmp/hengdesk audit status; then echo "retention < 180 must fail"; exit 1; fi
+          /tmp/hengdesk audit archive --auditor nobody@x.local --yes && exit 1 || true
       - name: 审计表 append-only（UPDATE/DELETE/TRUNCATE 必须失败）
         run: |
           q() { psql -h localhost -U hengdesk -d hengdesk -v ON_ERROR_STOP=1 -c "$1"; }

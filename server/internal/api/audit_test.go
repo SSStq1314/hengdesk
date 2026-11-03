@@ -38,6 +38,14 @@ func TestAuditDeniedLoginAndQuery(t *testing.T) {
 	if rec := a.do(http.MethodGet, "/api/v1/admin/audit-logs/verify", "", false); rec.Code != 200 || !strings.Contains(rec.Body.String(), `"ok":true`) {
 		t.Fatalf("verify %d %s", rec.Code, rec.Body)
 	}
+	// FR-40 保留期状态：审计员可读，普通成员不可见。
+	if rec := a.do(http.MethodGet, "/api/v1/admin/audit-logs/retention", "", false); rec.Code != 200 ||
+		!strings.Contains(rec.Body.String(), `"retention_days":365`) || !strings.Contains(rec.Body.String(), `"archives":[]`) {
+		t.Fatalf("retention %d %s", rec.Code, rec.Body)
+	}
+	if got := m.do(http.MethodGet, "/api/v1/admin/audit-logs/retention", "", false).Code; got != 404 {
+		t.Fatalf("member retention %d", got)
+	}
 	rec := a.do(http.MethodGet, "/api/v1/admin/audit-logs/export", "", false)
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "authz.denied") {
 		t.Fatalf("export %d", rec.Code)

@@ -50,6 +50,26 @@ type VerifyResult struct {
 	Checked  int  `json:"checked"`
 	Legacy   int  `json:"legacy"`              // 未入链的旧记录（M1 之前）
 	BrokenAt int  `json:"broken_at,omitempty"` // 第一条校验失败的记录 ID
+	// AnchorID 已有记录被归档时，剩余链首条的 prev_hash 由这条归档断点记录（action=audit.archive.checkpoint）担保。
+	AnchorID int `json:"anchor_id,omitempty"`
+}
+
+// Anchor 查找担保 prev 的归档断点：断点记录本身在链上（受哈希保护），detail.last_hash == prev，
+// 且被归档区间在 firstID 之前、断点写在 firstID 之后。找不到返回 0。
+func Anchor(ctx context.Context, c *ent.Client, prev string, firstID int) (int, error) {
+	cps, err := c.AuditLog.Query().Where(auditlog.Action(CheckpointAction), auditlog.HashNEQ(""), auditlog.IDGT(firstID)).
+		Order(ent.Asc(auditlog.FieldID)).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	for _, cp := range cps {
+		lh, _ := cp.Detail["last_hash"].(string)
+		lid, _ := cp.Detail["last_id"].(float64)
+		if lh == prev && int(lid) < firstID {
+			return cp.ID, nil
+		}
+	}
+	return 0, nil
 }
 
 // Verify 按 ID 顺序校验整条链：内容哈希一致且 prev_hash 指向上一条。
@@ -72,6 +92,18 @@ func Verify(ctx context.Context, c *ent.Client) (VerifyResult, error) {
 			return res, nil
 		}
 		for _, r := range rows {
+			if res.Checked == 0 && r.PrevHash != "" && prev == "" {
+				// 链首之前的记录已归档：须有归档断点担保。
+				id, err := Anchor(ctx, c, r.PrevHash, r.ID)
+				if err != nil {
+					return res, err
+				}
+				if id == 0 {
+					res.BrokenAt = r.ID
+					return res, nil
+				}
+				res.AnchorID, prev = id, r.PrevHash
+			}
 			if r.PrevHash != prev || rowHash(r) != r.Hash {
 				res.BrokenAt = r.ID
 				return res, nil

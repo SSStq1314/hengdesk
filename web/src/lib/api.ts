@@ -147,7 +147,12 @@ export type HighRiskAlert = {
   ts: string
   actor_email: string
   ip: string
-  detail: { kind?: string; severity?: string }
+  detail: {
+    kind?: string
+    severity?: string
+    due_at?: string
+    days_left?: number
+  }
 }
 
 // 审计员站内通知（D-34）：未读的高风险审计事件。
