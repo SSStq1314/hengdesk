@@ -45,6 +45,18 @@ func (f BudgetFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BudgetMutation", m)
 }
 
+// The BudgetAlertStateFunc type is an adapter to allow the use of ordinary
+// function as BudgetAlertState mutator.
+type BudgetAlertStateFunc func(context.Context, *ent.BudgetAlertStateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BudgetAlertStateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BudgetAlertStateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BudgetAlertStateMutation", m)
+}
+
 // The DepartmentFunc type is an adapter to allow the use of ordinary
 // function as Department mutator.
 type DepartmentFunc func(context.Context, *ent.DepartmentMutation) (ent.Value, error)

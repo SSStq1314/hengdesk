@@ -9,9 +9,9 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/budgetalertstate"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
-	"github.com/SSStq1314/hengdesk/server/internal/ent/notification"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
@@ -37,7 +37,7 @@ func managerRoles() []string {
 }
 
 // Recipients 告警收件人：
-//   - 所有预算管理员（持有 budget.manage 的角色）；
+//   - 所有全组织范围的预算管理员（持有 budget.manage 的非部门角色：超级管理员、组织管理员）；
 //   - 部门预算：该部门及其上级部门的部门管理员（AC-10）；
 //   - 个人预算：本人，以及其主部门（含上级）的部门管理员。
 func (s *Service) Recipients(ctx context.Context, b *ent.Budget) ([]int, error) {
@@ -94,30 +94,40 @@ func (s *Service) Recipients(ctx context.Context, b *ent.Budget) ([]int, error) 
 	return out, nil
 }
 
-func dedupeKey(b *ent.Budget, w Window, level int) string {
-	return fmt.Sprintf("budget:%d:%d:%s:%d", b.ID, b.UpdatedAt.UnixMilli(), w.Key, level)
-}
-
-// alert 同一预算、同一周期、同一级别只发一次：先用 Valkey SETNX 挡掉重复，再在一个事务里写审计与站内提醒
-// （收件人 + dedupe_key 唯一索引兜底）。审计写不进去则整个提醒不发，并清掉 Valkey 标记等下一次结算重试。
+// alert 同一预算、同一周期、同一级别只发一次（D-37 第 11 条）。发送状态存数据库 budget_alert_states
+// （budget_id + period_key + level 唯一），不依赖 Valkey：Valkey 重启或计数重建后不会重发。
+// 状态行、审计、站内提醒在同一事务里写入：唯一约束冲突说明已发过，直接跳过；审计写不进去则整体回滚，下一次结算再试。
 func (s *Service) alert(ctx context.Context, b *ent.Budget, w Window, level int, used int64) error {
-	key := dedupeKey(b, w, level)
-	gate := "budget:alerted:" + key
-	ok, err := s.R.SetNX(ctx, gate, 1, w.End.Sub(s.now())+24*time.Hour).Result()
-	if err != nil || !ok {
+	n, err := s.DB.BudgetAlertState.Query().Where(budgetalertstate.BudgetID(b.ID), budgetalertstate.PeriodKey(w.Key),
+		budgetalertstate.Level(level)).Count(ctx)
+	if err != nil || n > 0 {
 		return err
 	}
-	if err := s.sendAlert(ctx, b, w, level, used, key); err != nil {
-		s.R.Del(context.WithoutCancel(ctx), gate)
+	return s.sendAlert(ctx, b, w, level, used)
+}
+
+// ResetAlerts 预算被修改后按新的级别重新判断（D-37 第 11、13 条）：删掉本期高于当前级别的发送状态
+// （例如上调额度后从「已用尽」回落），再按当前级别补发尚未发过的告警。
+func (s *Service) ResetAlerts(ctx context.Context, b *ent.Budget, used int64) error {
+	w := s.Window(b)
+	lvl := Level(b, used)
+	if _, err := s.DB.BudgetAlertState.Delete().Where(budgetalertstate.BudgetID(b.ID), budgetalertstate.PeriodKey(w.Key),
+		budgetalertstate.LevelGT(lvl)).Exec(ctx); err != nil {
 		return err
+	}
+	if lvl > 0 {
+		return s.alert(ctx, b, w, lvl, used)
 	}
 	return nil
 }
 
-func (s *Service) sendAlert(ctx context.Context, b *ent.Budget, w Window, level int, used int64, key string) error {
-	if n, err := s.DB.Notification.Query().Where(notification.DedupeKey(key)).Count(ctx); err != nil || n > 0 {
-		return err
-	}
+// ForgetAlerts 删除预算后清理其告警发送状态。
+func (s *Service) ForgetAlerts(ctx context.Context, budgetID int) error {
+	_, err := s.DB.BudgetAlertState.Delete().Where(budgetalertstate.BudgetID(budgetID)).Exec(ctx)
+	return err
+}
+
+func (s *Service) sendAlert(ctx context.Context, b *ent.Budget, w Window, level int, used int64) error {
 	to, err := s.Recipients(ctx, b)
 	if err != nil {
 		return err
@@ -136,6 +146,16 @@ func (s *Service) sendAlert(ctx context.Context, b *ent.Budget, w Window, level 
 	if err != nil {
 		return err
 	}
+	st, err := tx.BudgetAlertState.Create().SetOrgID(b.OrgID).SetBudgetID(b.ID).SetPeriodKey(w.Key).
+		SetLevel(level).SetUsed(used).Save(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		if ent.IsConstraintError(err) {
+			return nil // 并发结算已发过
+		}
+		return err
+	}
+	key := fmt.Sprintf("budget:%d:%s:%d:%d", b.ID, w.Key, level, st.ID)
 	ad := map[string]any{"recipients": len(to)}
 	for k, v := range detail {
 		ad[k] = v

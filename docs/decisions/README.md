@@ -13,5 +13,6 @@
 | D-34 | M1 第二批默认值：OIDC 建号 / 绑定 / 强制 SSO，端口、自签证书、审计保留期 | [D-34-m1-batch2-defaults.md](D-34-m1-batch2-defaults.md) |
 | D-35 | 模型网关客户端：标准库自研，每家上游录制回放契约测试，通义 / vLLM 冒烟列入 M1 验收 | [D-35-model-gateway-client.md](D-35-model-gateway-client.md) |
 | D-36 | 主密钥：安装确认与后台提示、事务内轮换、启动自检、备份不含主密钥 | [D-36-master-key.md](D-36-master-key.md) |
+| D-37 | 预算与配额默认规则：测试连接不拦截、用量未知标记、系统时区、告警状态入库、组织管理员可管理 / 部门管理员只读 | [D-37-budget-defaults.md](D-37-budget-defaults.md) |
 
 > D-27（ACL 检索分档策略与性能基线）由产品经理维护，不在此复制。

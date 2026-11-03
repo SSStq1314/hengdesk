@@ -35,6 +35,11 @@ function TotalsCells({ t }: { t: UsageTotals }) {
         {t.estimated_calls > 0 && (
           <Badge variant='outline'>{zh.models.estimated}</Badge>
         )}
+        {(t.unknown_calls ?? 0) > 0 && (
+          <Badge variant='outline' title={zh.models.usageUnknownHint}>
+            {zh.models.usageUnknown} {num(t.unknown_calls ?? 0)}
+          </Badge>
+        )}
       </TableCell>
       <TableCell className='tabular-nums'>{yuan(t.cost_micros)}</TableCell>
     </>
@@ -159,6 +164,11 @@ export function UsageTab() {
                 {num(r.total_tokens)}{' '}
                 {r.estimated && (
                   <Badge variant='outline'>{zh.models.estimated}</Badge>
+                )}
+                {r.usage_unknown && (
+                  <Badge variant='outline' title={zh.models.usageUnknownHint}>
+                    {zh.models.usageUnknown}
+                  </Badge>
                 )}
               </TableCell>
               <TableCell className='tabular-nums'>

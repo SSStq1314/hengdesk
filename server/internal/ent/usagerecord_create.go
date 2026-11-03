@@ -248,6 +248,20 @@ func (_c *UsageRecordCreate) SetNillableEstimated(v *bool) *UsageRecordCreate {
 	return _c
 }
 
+// SetUsageUnknown sets the "usage_unknown" field.
+func (_c *UsageRecordCreate) SetUsageUnknown(v bool) *UsageRecordCreate {
+	_c.mutation.SetUsageUnknown(v)
+	return _c
+}
+
+// SetNillableUsageUnknown sets the "usage_unknown" field if the given value is not nil.
+func (_c *UsageRecordCreate) SetNillableUsageUnknown(v *bool) *UsageRecordCreate {
+	if v != nil {
+		_c.SetUsageUnknown(*v)
+	}
+	return _c
+}
+
 // SetLatencyMs sets the "latency_ms" field.
 func (_c *UsageRecordCreate) SetLatencyMs(v int) *UsageRecordCreate {
 	_c.mutation.SetLatencyMs(v)
@@ -363,6 +377,10 @@ func (_c *UsageRecordCreate) defaults() {
 		v := usagerecord.DefaultEstimated
 		_c.mutation.SetEstimated(v)
 	}
+	if _, ok := _c.mutation.UsageUnknown(); !ok {
+		v := usagerecord.DefaultUsageUnknown
+		_c.mutation.SetUsageUnknown(v)
+	}
 	if _, ok := _c.mutation.LatencyMs(); !ok {
 		v := usagerecord.DefaultLatencyMs
 		_c.mutation.SetLatencyMs(v)
@@ -438,6 +456,9 @@ func (_c *UsageRecordCreate) check() error {
 	}
 	if _, ok := _c.mutation.Estimated(); !ok {
 		return &ValidationError{Name: "estimated", err: errors.New(`ent: missing required field "UsageRecord.estimated"`)}
+	}
+	if _, ok := _c.mutation.UsageUnknown(); !ok {
+		return &ValidationError{Name: "usage_unknown", err: errors.New(`ent: missing required field "UsageRecord.usage_unknown"`)}
 	}
 	if _, ok := _c.mutation.LatencyMs(); !ok {
 		return &ValidationError{Name: "latency_ms", err: errors.New(`ent: missing required field "UsageRecord.latency_ms"`)}
@@ -547,6 +568,10 @@ func (_c *UsageRecordCreate) createSpec() (*UsageRecord, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Estimated(); ok {
 		_spec.SetField(usagerecord.FieldEstimated, field.TypeBool, value)
 		_node.Estimated = value
+	}
+	if value, ok := _c.mutation.UsageUnknown(); ok {
+		_spec.SetField(usagerecord.FieldUsageUnknown, field.TypeBool, value)
+		_node.UsageUnknown = value
 	}
 	if value, ok := _c.mutation.LatencyMs(); ok {
 		_spec.SetField(usagerecord.FieldLatencyMs, field.TypeInt, value)
@@ -905,6 +930,18 @@ func (u *UsageRecordUpsert) SetEstimated(v bool) *UsageRecordUpsert {
 // UpdateEstimated sets the "estimated" field to the value that was provided on create.
 func (u *UsageRecordUpsert) UpdateEstimated() *UsageRecordUpsert {
 	u.SetExcluded(usagerecord.FieldEstimated)
+	return u
+}
+
+// SetUsageUnknown sets the "usage_unknown" field.
+func (u *UsageRecordUpsert) SetUsageUnknown(v bool) *UsageRecordUpsert {
+	u.Set(usagerecord.FieldUsageUnknown, v)
+	return u
+}
+
+// UpdateUsageUnknown sets the "usage_unknown" field to the value that was provided on create.
+func (u *UsageRecordUpsert) UpdateUsageUnknown() *UsageRecordUpsert {
+	u.SetExcluded(usagerecord.FieldUsageUnknown)
 	return u
 }
 
@@ -1318,6 +1355,20 @@ func (u *UsageRecordUpsertOne) SetEstimated(v bool) *UsageRecordUpsertOne {
 func (u *UsageRecordUpsertOne) UpdateEstimated() *UsageRecordUpsertOne {
 	return u.Update(func(s *UsageRecordUpsert) {
 		s.UpdateEstimated()
+	})
+}
+
+// SetUsageUnknown sets the "usage_unknown" field.
+func (u *UsageRecordUpsertOne) SetUsageUnknown(v bool) *UsageRecordUpsertOne {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.SetUsageUnknown(v)
+	})
+}
+
+// UpdateUsageUnknown sets the "usage_unknown" field to the value that was provided on create.
+func (u *UsageRecordUpsertOne) UpdateUsageUnknown() *UsageRecordUpsertOne {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.UpdateUsageUnknown()
 	})
 }
 
@@ -1900,6 +1951,20 @@ func (u *UsageRecordUpsertBulk) SetEstimated(v bool) *UsageRecordUpsertBulk {
 func (u *UsageRecordUpsertBulk) UpdateEstimated() *UsageRecordUpsertBulk {
 	return u.Update(func(s *UsageRecordUpsert) {
 		s.UpdateEstimated()
+	})
+}
+
+// SetUsageUnknown sets the "usage_unknown" field.
+func (u *UsageRecordUpsertBulk) SetUsageUnknown(v bool) *UsageRecordUpsertBulk {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.SetUsageUnknown(v)
+	})
+}
+
+// UpdateUsageUnknown sets the "usage_unknown" field to the value that was provided on create.
+func (u *UsageRecordUpsertBulk) UpdateUsageUnknown() *UsageRecordUpsertBulk {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.UpdateUsageUnknown()
 	})
 }
 

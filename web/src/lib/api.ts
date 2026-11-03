@@ -378,6 +378,7 @@ export type UsageTotals = {
   total_tokens: number
   cost_micros: number
   estimated_calls: number
+  unknown_calls?: number
   estimated_tokens: number
   estimated_cost_micros: number
 }
@@ -400,6 +401,7 @@ export type UsageRecord = {
   total_tokens?: number
   cost_micros?: number
   estimated?: boolean
+  usage_unknown?: boolean
   latency_ms?: number
   created_at: string
 }

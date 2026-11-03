@@ -322,6 +322,8 @@ export const zh = {
     totalTokens: '合计 token',
     cost: '金额（元）',
     estimated: '估算',
+    usageUnknown: '用量未知',
+    usageUnknownHint: '调用失败且上游未返回用量（如超时、上游 5xx），按 0 记账',
     estimatedHint: (calls: number, tokens: number) =>
       `其中 ${calls} 次调用的用量为网关估算（上游未返回用量），共 ${tokens} token，已在下表标注。`,
     total: '合计',
@@ -367,6 +369,9 @@ export const zh = {
     empty: '尚未设置预算',
     deleteConfirm: '确定删除这条预算？删除后不再限制，也不再告警。',
     pickTarget: '请选择对象',
+    readOnly: '只读：本部门及下级',
+    overrunNotice:
+      '说明：调用前按当期已用量预检查、结束后按实际用量记账，并发或大请求可能少量超出上限。周期按系统时区（默认 Asia/Shanghai）切分。',
   },
   notices: {
     title: (n: number) => `有 ${n} 条未读的预算提醒`,

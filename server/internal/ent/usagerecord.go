@@ -55,6 +55,8 @@ type UsageRecord struct {
 	Currency string `json:"currency,omitempty"`
 	// Estimated holds the value of the "estimated" field.
 	Estimated bool `json:"estimated,omitempty"`
+	// 上游未返回用量（超时 / 5xx 等），按 0 记账；对账时需关注
+	UsageUnknown bool `json:"usage_unknown,omitempty"`
 	// LatencyMs holds the value of the "latency_ms" field.
 	LatencyMs int `json:"latency_ms,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -67,7 +69,7 @@ func (*UsageRecord) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case usagerecord.FieldStream, usagerecord.FieldEstimated:
+		case usagerecord.FieldStream, usagerecord.FieldEstimated, usagerecord.FieldUsageUnknown:
 			values[i] = new(sql.NullBool)
 		case usagerecord.FieldID, usagerecord.FieldOrgID, usagerecord.FieldUserID, usagerecord.FieldDepartmentID, usagerecord.FieldModelID, usagerecord.FieldProviderID, usagerecord.FieldPromptTokens, usagerecord.FieldCachedTokens, usagerecord.FieldCompletionTokens, usagerecord.FieldReasoningTokens, usagerecord.FieldTotalTokens, usagerecord.FieldCostMicros, usagerecord.FieldLatencyMs:
 			values[i] = new(sql.NullInt64)
@@ -211,6 +213,12 @@ func (_m *UsageRecord) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Estimated = value.Bool
 			}
+		case usagerecord.FieldUsageUnknown:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field usage_unknown", values[i])
+			} else if value.Valid {
+				_m.UsageUnknown = value.Bool
+			}
 		case usagerecord.FieldLatencyMs:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field latency_ms", values[i])
@@ -317,6 +325,9 @@ func (_m *UsageRecord) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("estimated=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Estimated))
+	builder.WriteString(", ")
+	builder.WriteString("usage_unknown=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UsageUnknown))
 	builder.WriteString(", ")
 	builder.WriteString("latency_ms=")
 	builder.WriteString(fmt.Sprintf("%v", _m.LatencyMs))

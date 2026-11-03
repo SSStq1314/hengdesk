@@ -121,6 +121,29 @@ var (
 			},
 		},
 	}
+	// BudgetAlertStatesColumns holds the columns for the "budget_alert_states" table.
+	BudgetAlertStatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "budget_id", Type: field.TypeInt},
+		{Name: "period_key", Type: field.TypeString},
+		{Name: "level", Type: field.TypeInt},
+		{Name: "used", Type: field.TypeInt64, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// BudgetAlertStatesTable holds the schema information for the "budget_alert_states" table.
+	BudgetAlertStatesTable = &schema.Table{
+		Name:       "budget_alert_states",
+		Columns:    BudgetAlertStatesColumns,
+		PrimaryKey: []*schema.Column{BudgetAlertStatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "budgetalertstate_budget_id_period_key_level",
+				Unique:  true,
+				Columns: []*schema.Column{BudgetAlertStatesColumns[2], BudgetAlertStatesColumns[3], BudgetAlertStatesColumns[4]},
+			},
+		},
+	}
 	// DepartmentsColumns holds the columns for the "departments" table.
 	DepartmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -462,6 +485,7 @@ var (
 		{Name: "cost_micros", Type: field.TypeInt64, Default: 0},
 		{Name: "currency", Type: field.TypeString, Default: "CNY"},
 		{Name: "estimated", Type: field.TypeBool, Default: false},
+		{Name: "usage_unknown", Type: field.TypeBool, Default: false},
 		{Name: "latency_ms", Type: field.TypeInt, Default: 0},
 		{Name: "created_at", Type: field.TypeTime},
 	}
@@ -474,22 +498,22 @@ var (
 			{
 				Name:    "usagerecord_org_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[1], UsageRecordsColumns[21]},
+				Columns: []*schema.Column{UsageRecordsColumns[1], UsageRecordsColumns[22]},
 			},
 			{
 				Name:    "usagerecord_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[2], UsageRecordsColumns[21]},
+				Columns: []*schema.Column{UsageRecordsColumns[2], UsageRecordsColumns[22]},
 			},
 			{
 				Name:    "usagerecord_department_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[3], UsageRecordsColumns[21]},
+				Columns: []*schema.Column{UsageRecordsColumns[3], UsageRecordsColumns[22]},
 			},
 			{
 				Name:    "usagerecord_model_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[4], UsageRecordsColumns[21]},
+				Columns: []*schema.Column{UsageRecordsColumns[4], UsageRecordsColumns[22]},
 			},
 		},
 	}
@@ -545,6 +569,7 @@ var (
 		ACLTable,
 		AuditLogsTable,
 		BudgetsTable,
+		BudgetAlertStatesTable,
 		DepartmentsTable,
 		DeptClosureTable,
 		EgressLogsTable,

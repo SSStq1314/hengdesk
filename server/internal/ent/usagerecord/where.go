@@ -139,6 +139,11 @@ func Estimated(v bool) predicate.UsageRecord {
 	return predicate.UsageRecord(sql.FieldEQ(FieldEstimated, v))
 }
 
+// UsageUnknown applies equality check predicate on the "usage_unknown" field. It's identical to UsageUnknownEQ.
+func UsageUnknown(v bool) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldEQ(FieldUsageUnknown, v))
+}
+
 // LatencyMs applies equality check predicate on the "latency_ms" field. It's identical to LatencyMsEQ.
 func LatencyMs(v int) predicate.UsageRecord {
 	return predicate.UsageRecord(sql.FieldEQ(FieldLatencyMs, v))
@@ -917,6 +922,16 @@ func EstimatedEQ(v bool) predicate.UsageRecord {
 // EstimatedNEQ applies the NEQ predicate on the "estimated" field.
 func EstimatedNEQ(v bool) predicate.UsageRecord {
 	return predicate.UsageRecord(sql.FieldNEQ(FieldEstimated, v))
+}
+
+// UsageUnknownEQ applies the EQ predicate on the "usage_unknown" field.
+func UsageUnknownEQ(v bool) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldEQ(FieldUsageUnknown, v))
+}
+
+// UsageUnknownNEQ applies the NEQ predicate on the "usage_unknown" field.
+func UsageUnknownNEQ(v bool) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldNEQ(FieldUsageUnknown, v))
 }
 
 // LatencyMsEQ applies the EQ predicate on the "latency_ms" field.

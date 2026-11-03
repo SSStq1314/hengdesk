@@ -17,6 +17,7 @@ import (
 	"log/slog"
 	"strconv"
 	"time"
+	_ "time/tzdata"
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/redis/go-redis/v9"
@@ -62,8 +63,20 @@ func (s *Service) loc() *time.Location {
 	if s.Loc != nil {
 		return s.Loc
 	}
-	return time.Local
+	return defaultLoc
 }
+
+// defaultLoc 未配置时的系统时区（D-37 第 6 条：默认 Asia/Shanghai，不依赖容器 TZ）。
+var defaultLoc = func() *time.Location {
+	l, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		return time.FixedZone("CST", 8*3600)
+	}
+	return l
+}()
+
+// Logger 服务日志。
+func (s *Service) Logger() *slog.Logger { return s.log() }
 
 func (s *Service) log() *slog.Logger {
 	if s.Log != nil {

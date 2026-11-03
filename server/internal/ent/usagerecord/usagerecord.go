@@ -52,6 +52,8 @@ const (
 	FieldCurrency = "currency"
 	// FieldEstimated holds the string denoting the estimated field in the database.
 	FieldEstimated = "estimated"
+	// FieldUsageUnknown holds the string denoting the usage_unknown field in the database.
+	FieldUsageUnknown = "usage_unknown"
 	// FieldLatencyMs holds the string denoting the latency_ms field in the database.
 	FieldLatencyMs = "latency_ms"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -82,6 +84,7 @@ var Columns = []string{
 	FieldCostMicros,
 	FieldCurrency,
 	FieldEstimated,
+	FieldUsageUnknown,
 	FieldLatencyMs,
 	FieldCreatedAt,
 }
@@ -119,6 +122,8 @@ var (
 	DefaultCurrency string
 	// DefaultEstimated holds the default value on creation for the "estimated" field.
 	DefaultEstimated bool
+	// DefaultUsageUnknown holds the default value on creation for the "usage_unknown" field.
+	DefaultUsageUnknown bool
 	// DefaultLatencyMs holds the default value on creation for the "latency_ms" field.
 	DefaultLatencyMs int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -278,6 +283,11 @@ func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
 // ByEstimated orders the results by the estimated field.
 func ByEstimated(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEstimated, opts...).ToFunc()
+}
+
+// ByUsageUnknown orders the results by the usage_unknown field.
+func ByUsageUnknown(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUsageUnknown, opts...).ToFunc()
 }
 
 // ByLatencyMs orders the results by the latency_ms field.

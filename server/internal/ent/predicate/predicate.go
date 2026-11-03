@@ -15,6 +15,9 @@ type AuditLog func(*sql.Selector)
 // Budget is the predicate function for budget builders.
 type Budget func(*sql.Selector)
 
+// BudgetAlertState is the predicate function for budgetalertstate builders.
+type BudgetAlertState func(*sql.Selector)
+
 // Department is the predicate function for department builders.
 type Department func(*sql.Selector)
 

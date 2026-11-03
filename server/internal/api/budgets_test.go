@@ -54,11 +54,16 @@ func TestBudgetBlockAlertReconcile(t *testing.T) {
 	org := f.c.Organization.Query().OnlyX(ctx)
 	f.addUser(t, "orgadmin@x.local", org, rbac.OrgAdmin, nil)
 
-	// 非预算管理员：一律 404
-	for _, who := range []string{"dev@x.local", "da@x.local", "orgadmin@x.local"} {
+	// 普通成员：一律 404；部门管理员只读（写接口 404）；组织管理员可管理（D-37 第 9 条）
+	writes := [][2]string{{http.MethodPost, "/api/v1/admin/budgets"}, {http.MethodPut, "/api/v1/admin/budgets/1"},
+		{http.MethodDelete, "/api/v1/admin/budgets/1"}, {http.MethodPost, "/api/v1/admin/budgets/reconcile"}}
+	for _, who := range []string{"dev@x.local", "da@x.local"} {
 		cl := f.loginAs(t, who, "password123")
-		for _, r := range [][2]string{{http.MethodGet, "/api/v1/admin/budgets"}, {http.MethodPost, "/api/v1/admin/budgets"},
-			{http.MethodPut, "/api/v1/admin/budgets/1"}, {http.MethodDelete, "/api/v1/admin/budgets/1"}, {http.MethodPost, "/api/v1/admin/budgets/reconcile"}} {
+		rs := writes
+		if who == "dev@x.local" {
+			rs = append(rs, [2]string{http.MethodGet, "/api/v1/admin/budgets"}, [2]string{http.MethodGet, "/api/v1/admin/budgets/1"})
+		}
+		for _, r := range rs {
 			if got := cl.do(r[0], r[1], `{}`, r[0] != http.MethodGet).Code; got != 404 {
 				t.Errorf("%s %s %s → %d", who, r[0], r[1], got)
 			}
@@ -199,5 +204,169 @@ func TestBudgetFailClosed(t *testing.T) {
 	rec = dev.do(http.MethodPost, "/api/v1/chat/completions", hi, true)
 	if rec.Code != 503 || !strings.Contains(rec.Body.String(), "budget_unavailable") {
 		t.Fatalf("应 fail-closed %d %s", rec.Code, rec.Body)
+	}
+}
+
+func budgetID(t *testing.T, rec interface{ Bytes() []byte }) int {
+	t.Helper()
+	var v struct{ ID int }
+	_ = json.Unmarshal(rec.Bytes(), &v)
+	if v.ID == 0 {
+		t.Fatalf("no id: %s", rec.Bytes())
+	}
+	return v.ID
+}
+
+// D-37 第 9 条：部门管理员只读本部门及下级的部门预算和成员个人预算，范围外 404；组织管理员可管理。
+func TestBudgetDeptAdminScope(t *testing.T) {
+	f := newBudgetFixture(t)
+	ctx := context.Background()
+	org := f.c.Organization.Query().OnlyX(ctx)
+	tx, _ := f.c.Tx(ctx)
+	sales, _ := store.CreateDept(ctx, tx, org.ID, "销售部", nil)
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	f.addUser(t, "oa@x.local", org, rbac.OrgAdmin, nil)
+	oa := f.loginAs(t, "oa@x.local", "password123")
+	mk := func(body string) int {
+		rec := oa.do(http.MethodPost, "/api/v1/admin/budgets", body, true)
+		if rec.Code != 201 {
+			t.Fatalf("组织管理员创建 %d %s", rec.Code, rec.Body)
+		}
+		return budgetID(t, rec.Body)
+	}
+	child := mk(fmt.Sprintf(`{"scope":"dept","scope_id":%d,"period":"month","metric":"tokens","limit":100000}`, f.child.ID))
+	self := mk(fmt.Sprintf(`{"scope":"user","scope_id":%d,"period":"month","metric":"tokens","limit":100000}`, f.dev.ID))
+	out := mk(fmt.Sprintf(`{"scope":"dept","scope_id":%d,"period":"month","metric":"tokens","limit":100000}`, sales.ID))
+	orgB := mk(`{"scope":"org","period":"month","metric":"tokens","limit":100000000}`)
+
+	da := f.loginAs(t, "da@x.local", "password123")
+	rec := da.do(http.MethodGet, "/api/v1/admin/budgets", "", false)
+	var vs []struct{ ID int }
+	_ = json.Unmarshal(rec.Body.Bytes(), &vs)
+	if rec.Code != 200 || len(vs) != 2 {
+		t.Fatalf("部门管理员列表 %d %s", rec.Code, rec.Body)
+	}
+	for _, id := range []int{child, self} {
+		if got := da.do(http.MethodGet, fmt.Sprintf("/api/v1/admin/budgets/%d", id), "", false).Code; got != 200 {
+			t.Errorf("范围内 %d → %d", id, got)
+		}
+		if got := da.do(http.MethodPut, fmt.Sprintf("/api/v1/admin/budgets/%d", id), `{}`, true).Code; got != 404 {
+			t.Errorf("只读却能改 %d → %d", id, got)
+		}
+	}
+	for _, id := range []int{out, orgB, 99999} {
+		if got := da.do(http.MethodGet, fmt.Sprintf("/api/v1/admin/budgets/%d", id), "", false).Code; got != 404 {
+			t.Errorf("范围外 %d → %d", id, got)
+		}
+	}
+	if got := oa.do(http.MethodGet, fmt.Sprintf("/api/v1/admin/budgets/%d", out), "", false).Code; got != 200 {
+		t.Errorf("组织管理员读 %d", got)
+	}
+	if got := oa.do(http.MethodPost, "/api/v1/admin/budgets/reconcile", "", true).Code; got != 200 {
+		t.Errorf("组织管理员对账 %d", got)
+	}
+}
+
+// D-37 第 11、13 条：告警状态入库，计数重建后不重发；修改预算立即重建并按新级别重新判断。
+func TestBudgetAlertStateAndRebuild(t *testing.T) {
+	f := newBudgetFixture(t)
+	ctx := context.Background()
+	dev := f.loginAs(t, "dev@x.local", "password123")
+	stream := `{"stream":true,"messages":[{"role":"user","content":"hi"}]}`
+	if rec := dev.do(http.MethodPost, "/api/v1/chat/completions", hi, true); rec.Code != 200 {
+		t.Fatalf("chat %d", rec.Code)
+	}
+	body := func(limit int) string {
+		return fmt.Sprintf(`{"scope":"dept","scope_id":%d,"period":"day","metric":"tokens","limit":%d,"action":"alert_only"}`, f.root.ID, limit)
+	}
+	rec := f.admin.do(http.MethodPost, "/api/v1/admin/budgets", body(5), true)
+	if rec.Code != 201 {
+		t.Fatalf("create %d %s", rec.Code, rec.Body)
+	}
+	id := budgetID(t, rec.Body)
+	dropCounters := func() { // 模拟 Valkey 丢失预算计数（会话也在 Valkey，不整体清空）
+		for _, k := range f.mr.Keys() {
+			if strings.HasPrefix(k, "budget:") {
+				f.mr.Del(k)
+			}
+		}
+	}
+	daN := func() int { return f.c.Notification.Query().Where(notification.UserID(f.da.ID)).CountX(ctx) }
+	// 新建时已超额：立即告警一次
+	if n := daN(); n != 1 {
+		t.Fatalf("新建即告警 %d", n)
+	}
+	// Valkey 全部丢失（重启）→ 计数重建，同一周期同一级别不重发
+	dropCounters()
+	if rec := dev.do(http.MethodPost, "/api/v1/chat/completions", stream, true); rec.Code != 200 {
+		t.Fatalf("chat %d", rec.Code)
+	}
+	if n := daN(); n != 1 {
+		t.Fatalf("重建后重发了 %d", n)
+	}
+	// 修改额度：立即重建计数（不等下次调用）；级别回落 → 清掉「已用尽」状态
+	before := len(f.mr.Keys())
+	dropCounters()
+	if rec := f.admin.do(http.MethodPut, fmt.Sprintf("/api/v1/admin/budgets/%d", id), body(100000000), true); rec.Code != 200 {
+		t.Fatalf("update %d %s", rec.Code, rec.Body)
+	}
+	found := false
+	for _, k := range f.mr.Keys() {
+		if strings.HasPrefix(k, fmt.Sprintf("budget:used:%d:", id)) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("修改后未立即重建计数（之前 %d 个 key）", before)
+	}
+	if n := f.c.BudgetAlertState.Query().CountX(ctx); n != 0 {
+		t.Fatalf("级别回落应清掉状态 %d", n)
+	}
+	// 改回小额度：级别再次变化 → 重新告警
+	if rec := f.admin.do(http.MethodPut, fmt.Sprintf("/api/v1/admin/budgets/%d", id), body(5), true); rec.Code != 200 {
+		t.Fatalf("update %d", rec.Code)
+	}
+	if n := daN(); n != 2 {
+		t.Fatalf("级别变化应重新告警 %d", n)
+	}
+	// 组织管理员也收到告警（D-37 第 9 条）
+	org := f.c.Organization.Query().OnlyX(ctx)
+	oa := f.addUser(t, "oa@x.local", org, rbac.OrgAdmin, nil)
+	f.admin.do(http.MethodPut, fmt.Sprintf("/api/v1/admin/budgets/%d", id), body(100000000), true)
+	f.admin.do(http.MethodPut, fmt.Sprintf("/api/v1/admin/budgets/%d", id), body(5), true)
+	if n := f.c.Notification.Query().Where(notification.UserID(oa.ID)).CountX(ctx); n != 1 {
+		t.Fatalf("组织管理员告警 %d", n)
+	}
+	if got := f.admin.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/budgets/%d", id), "", true).Code; got != 204 {
+		t.Fatalf("delete %d", got)
+	}
+	if n := f.c.BudgetAlertState.Query().CountX(ctx); n != 0 {
+		t.Fatalf("删除预算后状态残留 %d", n)
+	}
+}
+
+// D-37 第 4 条：测试连接计入用量，但不受超额拦截。
+func TestBudgetTestConnectionNotBlocked(t *testing.T) {
+	f := newBudgetFixture(t)
+	ctx := context.Background()
+	if rec := f.admin.do(http.MethodPost, "/api/v1/chat/completions", hi, true); rec.Code != 200 {
+		t.Fatalf("chat %d", rec.Code)
+	}
+	if rec := f.admin.do(http.MethodPost, "/api/v1/admin/budgets", `{"scope":"org","period":"day","metric":"tokens","limit":1}`, true); rec.Code != 201 {
+		t.Fatalf("create %d %s", rec.Code, rec.Body)
+	}
+	if rec := f.admin.do(http.MethodPost, "/api/v1/chat/completions", hi, true); rec.Code != 429 {
+		t.Fatalf("对话应被拦截 %d", rec.Code)
+	}
+	n0 := f.c.UsageRecord.Query().CountX(ctx)
+	m := f.c.Model.Query().OnlyX(ctx)
+	rec := f.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/models/%d/test", m.ID), "", true)
+	if rec.Code != 200 || strings.Contains(rec.Body.String(), "budget_exceeded") {
+		t.Fatalf("测试连接不应被拦截 %d %s", rec.Code, rec.Body)
+	}
+	if n := f.c.UsageRecord.Query().CountX(ctx); n != n0+1 {
+		t.Fatalf("测试连接应计入用量 %d → %d", n0, n)
 	}
 }

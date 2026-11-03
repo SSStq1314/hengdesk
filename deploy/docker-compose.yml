@@ -5,6 +5,7 @@ name: hengdesk
 x-hengdesk-env: &hd-env
   HENGDESK_ENV: ${HENGDESK_ENV:-prod}
   HENGDESK_LOG_LEVEL: ${HENGDESK_LOG_LEVEL:-info}
+  HENGDESK_TIMEZONE: ${HENGDESK_TIMEZONE:-Asia/Shanghai}
   HENGDESK_DATABASE_URL: postgres://${POSTGRES_USER:-hengdesk}:${POSTGRES_PASSWORD:?请在 .env 设置 POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hengdesk}?sslmode=disable
   HENGDESK_REDIS_ADDR: valkey:6379
   HENGDESK_S3_ENDPOINT: ${HENGDESK_S3_ENDPOINT:-http://seaweedfs:8333}

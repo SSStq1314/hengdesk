@@ -58,3 +58,23 @@ func TestBits(t *testing.T) {
 		t.Fatal("unknown bit accepted")
 	}
 }
+
+// D-37 第 9 条：超级管理员、组织管理员管预算；部门管理员按部门只读。
+func TestBudgetPerms(t *testing.T) {
+	for _, r := range []string{SuperAdmin, OrgAdmin} {
+		s := Resolve([]Grant{{Role: r}})
+		if !s.Has(BudgetManage) || !s.Has(BudgetRead) {
+			t.Fatalf("%s 应能管理预算", r)
+		}
+	}
+	d := Resolve([]Grant{{Role: DeptAdmin, Dept: 3}})
+	if d.Has(BudgetManage) || d.HasAny(BudgetManage) || d.Has(BudgetRead) {
+		t.Fatal("部门管理员不应有组织范围的预算权限")
+	}
+	if roots, org := d.DeptRoots(BudgetRead); org || len(roots) != 1 || roots[0] != 3 {
+		t.Fatalf("部门管理员预算只读范围 %v %v", roots, org)
+	}
+	if Resolve([]Grant{{Role: SecurityAuditor}}).HasAny(BudgetRead) {
+		t.Fatal("审计员不看预算")
+	}
+}

@@ -18,6 +18,8 @@ type Tx struct {
 	AuditLog *AuditLogClient
 	// Budget is the client for interacting with the Budget builders.
 	Budget *BudgetClient
+	// BudgetAlertState is the client for interacting with the BudgetAlertState builders.
+	BudgetAlertState *BudgetAlertStateClient
 	// Department is the client for interacting with the Department builders.
 	Department *DepartmentClient
 	// DeptClosure is the client for interacting with the DeptClosure builders.
@@ -180,6 +182,7 @@ func (tx *Tx) init() {
 	tx.ACL = NewACLClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
 	tx.Budget = NewBudgetClient(tx.config)
+	tx.BudgetAlertState = NewBudgetAlertStateClient(tx.config)
 	tx.Department = NewDepartmentClient(tx.config)
 	tx.DeptClosure = NewDeptClosureClient(tx.config)
 	tx.EgressLog = NewEgressLogClient(tx.config)

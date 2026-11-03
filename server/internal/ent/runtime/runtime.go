@@ -8,6 +8,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/budgetalertstate"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
@@ -156,6 +157,20 @@ func init() {
 	budget.DefaultNote = budgetDescNote.Default.(string)
 	// budget.NoteValidator is a validator for the "note" field. It is called by the builders before save.
 	budget.NoteValidator = budgetDescNote.Validators[0].(func(string) error)
+	budgetalertstateFields := schema.BudgetAlertState{}.Fields()
+	_ = budgetalertstateFields
+	// budgetalertstateDescPeriodKey is the schema descriptor for period_key field.
+	budgetalertstateDescPeriodKey := budgetalertstateFields[2].Descriptor()
+	// budgetalertstate.PeriodKeyValidator is a validator for the "period_key" field. It is called by the builders before save.
+	budgetalertstate.PeriodKeyValidator = budgetalertstateDescPeriodKey.Validators[0].(func(string) error)
+	// budgetalertstateDescUsed is the schema descriptor for used field.
+	budgetalertstateDescUsed := budgetalertstateFields[4].Descriptor()
+	// budgetalertstate.DefaultUsed holds the default value on creation for the used field.
+	budgetalertstate.DefaultUsed = budgetalertstateDescUsed.Default.(int64)
+	// budgetalertstateDescCreatedAt is the schema descriptor for created_at field.
+	budgetalertstateDescCreatedAt := budgetalertstateFields[5].Descriptor()
+	// budgetalertstate.DefaultCreatedAt holds the default value on creation for the created_at field.
+	budgetalertstate.DefaultCreatedAt = budgetalertstateDescCreatedAt.Default.(func() time.Time)
 	departmentMixin := schema.Department{}.Mixin()
 	departmentMixinFields0 := departmentMixin[0].Fields()
 	_ = departmentMixinFields0
@@ -584,12 +599,16 @@ func init() {
 	usagerecordDescEstimated := usagerecordFields[18].Descriptor()
 	// usagerecord.DefaultEstimated holds the default value on creation for the estimated field.
 	usagerecord.DefaultEstimated = usagerecordDescEstimated.Default.(bool)
+	// usagerecordDescUsageUnknown is the schema descriptor for usage_unknown field.
+	usagerecordDescUsageUnknown := usagerecordFields[19].Descriptor()
+	// usagerecord.DefaultUsageUnknown holds the default value on creation for the usage_unknown field.
+	usagerecord.DefaultUsageUnknown = usagerecordDescUsageUnknown.Default.(bool)
 	// usagerecordDescLatencyMs is the schema descriptor for latency_ms field.
-	usagerecordDescLatencyMs := usagerecordFields[19].Descriptor()
+	usagerecordDescLatencyMs := usagerecordFields[20].Descriptor()
 	// usagerecord.DefaultLatencyMs holds the default value on creation for the latency_ms field.
 	usagerecord.DefaultLatencyMs = usagerecordDescLatencyMs.Default.(int)
 	// usagerecordDescCreatedAt is the schema descriptor for created_at field.
-	usagerecordDescCreatedAt := usagerecordFields[20].Descriptor()
+	usagerecordDescCreatedAt := usagerecordFields[21].Descriptor()
 	// usagerecord.DefaultCreatedAt holds the default value on creation for the created_at field.
 	usagerecord.DefaultCreatedAt = usagerecordDescCreatedAt.Default.(func() time.Time)
 	userMixin := schema.User{}.Mixin()
