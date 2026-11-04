@@ -174,6 +174,7 @@ func Mount(e *echo.Echo, d Deps) {
 	g.DELETE("/conversations/:id", cvh.remove)
 	g.POST("/conversations/:id/messages", cvh.send)
 	g.POST("/conversations/:id/regenerate", cvh.regenerate)
+	g.POST("/conversations/:id/messages/:mid/continue", cvh.continueMsg)
 	g.GET("/conversations/:id/files", cvh.listFiles)
 	g.POST("/conversations/:id/files", cvh.upload)
 	g.GET("/conversations/:id/files/:fid/content", cvh.download)
@@ -182,7 +183,9 @@ func Mount(e *echo.Echo, d Deps) {
 	mountKB(g, d, az, gw)
 	mcph := mountMCP(admin, d, gw)
 	mountTools(g, admin, d, az)
-	mountApprovals(g, newApprovalService(d, mcph))
+	apsvc := newApprovalService(d, mcph)
+	mountApprovals(g, apsvc)
+	cvh.az, cvh.ap = az, apsvc
 
 	bh := &budgetHandlers{db: d.DB, bs: bs, az: az}
 	admin.GET("/budgets", bh.list, authz.Require(rbac.BudgetRead))

@@ -815,6 +815,26 @@ func KBUngroundedNEQ(v bool) predicate.Message {
 	return predicate.Message(sql.FieldNEQ(FieldKBUngrounded, v))
 }
 
+// ToolCallsIsNil applies the IsNil predicate on the "tool_calls" field.
+func ToolCallsIsNil() predicate.Message {
+	return predicate.Message(sql.FieldIsNull(FieldToolCalls))
+}
+
+// ToolCallsNotNil applies the NotNil predicate on the "tool_calls" field.
+func ToolCallsNotNil() predicate.Message {
+	return predicate.Message(sql.FieldNotNull(FieldToolCalls))
+}
+
+// ToolStateIsNil applies the IsNil predicate on the "tool_state" field.
+func ToolStateIsNil() predicate.Message {
+	return predicate.Message(sql.FieldIsNull(FieldToolState))
+}
+
+// ToolStateNotNil applies the NotNil predicate on the "tool_state" field.
+func ToolStateNotNil() predicate.Message {
+	return predicate.Message(sql.FieldNotNull(FieldToolState))
+}
+
 // HasConversation applies the HasEdge predicate on the "conversation" edge.
 func HasConversation() predicate.Message {
 	return predicate.Message(func(s *sql.Selector) {

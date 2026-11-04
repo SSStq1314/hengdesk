@@ -49,6 +49,10 @@ const (
 	FieldCitations = "citations"
 	// FieldKBUngrounded holds the string denoting the kb_ungrounded field in the database.
 	FieldKBUngrounded = "kb_ungrounded"
+	// FieldToolCalls holds the string denoting the tool_calls field in the database.
+	FieldToolCalls = "tool_calls"
+	// FieldToolState holds the string denoting the tool_state field in the database.
+	FieldToolState = "tool_state"
 	// EdgeConversation holds the string denoting the conversation edge name in mutations.
 	EdgeConversation = "conversation"
 	// Table holds the table name of the message in the database.
@@ -82,6 +86,8 @@ var Columns = []string{
 	FieldSupersededAt,
 	FieldCitations,
 	FieldKBUngrounded,
+	FieldToolCalls,
+	FieldToolState,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -156,10 +162,11 @@ const DefaultStatus = StatusDone
 
 // Status values.
 const (
-	StatusStreaming Status = "streaming"
-	StatusDone      Status = "done"
-	StatusStopped   Status = "stopped"
-	StatusError     Status = "error"
+	StatusStreaming        Status = "streaming"
+	StatusDone             Status = "done"
+	StatusStopped          Status = "stopped"
+	StatusError            Status = "error"
+	StatusAwaitingApproval Status = "awaiting_approval"
 )
 
 func (s Status) String() string {
@@ -169,7 +176,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusStreaming, StatusDone, StatusStopped, StatusError:
+	case StatusStreaming, StatusDone, StatusStopped, StatusError, StatusAwaitingApproval:
 		return nil
 	default:
 		return fmt.Errorf("message: invalid enum value for status field: %q", s)

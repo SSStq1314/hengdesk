@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"time"
@@ -235,6 +236,18 @@ func (_c *MessageCreate) SetNillableKBUngrounded(v *bool) *MessageCreate {
 	if v != nil {
 		_c.SetKBUngrounded(*v)
 	}
+	return _c
+}
+
+// SetToolCalls sets the "tool_calls" field.
+func (_c *MessageCreate) SetToolCalls(v []schema.MsgToolCall) *MessageCreate {
+	_c.mutation.SetToolCalls(v)
+	return _c
+}
+
+// SetToolState sets the "tool_state" field.
+func (_c *MessageCreate) SetToolState(v jsontext.Value) *MessageCreate {
+	_c.mutation.SetToolState(v)
 	return _c
 }
 
@@ -487,6 +500,14 @@ func (_c *MessageCreate) createSpec() (*Message, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.KBUngrounded(); ok {
 		_spec.SetField(message.FieldKBUngrounded, field.TypeBool, value)
 		_node.KBUngrounded = value
+	}
+	if value, ok := _c.mutation.ToolCalls(); ok {
+		_spec.SetField(message.FieldToolCalls, field.TypeJSON, value)
+		_node.ToolCalls = value
+	}
+	if value, ok := _c.mutation.ToolState(); ok {
+		_spec.SetField(message.FieldToolState, field.TypeJSON, value)
+		_node.ToolState = value
 	}
 	if nodes := _c.mutation.ConversationIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -770,6 +791,42 @@ func (u *MessageUpsert) SetKBUngrounded(v bool) *MessageUpsert {
 // UpdateKBUngrounded sets the "kb_ungrounded" field to the value that was provided on create.
 func (u *MessageUpsert) UpdateKBUngrounded() *MessageUpsert {
 	u.SetExcluded(message.FieldKBUngrounded)
+	return u
+}
+
+// SetToolCalls sets the "tool_calls" field.
+func (u *MessageUpsert) SetToolCalls(v []schema.MsgToolCall) *MessageUpsert {
+	u.Set(message.FieldToolCalls, v)
+	return u
+}
+
+// UpdateToolCalls sets the "tool_calls" field to the value that was provided on create.
+func (u *MessageUpsert) UpdateToolCalls() *MessageUpsert {
+	u.SetExcluded(message.FieldToolCalls)
+	return u
+}
+
+// ClearToolCalls clears the value of the "tool_calls" field.
+func (u *MessageUpsert) ClearToolCalls() *MessageUpsert {
+	u.SetNull(message.FieldToolCalls)
+	return u
+}
+
+// SetToolState sets the "tool_state" field.
+func (u *MessageUpsert) SetToolState(v jsontext.Value) *MessageUpsert {
+	u.Set(message.FieldToolState, v)
+	return u
+}
+
+// UpdateToolState sets the "tool_state" field to the value that was provided on create.
+func (u *MessageUpsert) UpdateToolState() *MessageUpsert {
+	u.SetExcluded(message.FieldToolState)
+	return u
+}
+
+// ClearToolState clears the value of the "tool_state" field.
+func (u *MessageUpsert) ClearToolState() *MessageUpsert {
+	u.SetNull(message.FieldToolState)
 	return u
 }
 
@@ -1067,6 +1124,48 @@ func (u *MessageUpsertOne) SetKBUngrounded(v bool) *MessageUpsertOne {
 func (u *MessageUpsertOne) UpdateKBUngrounded() *MessageUpsertOne {
 	return u.Update(func(s *MessageUpsert) {
 		s.UpdateKBUngrounded()
+	})
+}
+
+// SetToolCalls sets the "tool_calls" field.
+func (u *MessageUpsertOne) SetToolCalls(v []schema.MsgToolCall) *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.SetToolCalls(v)
+	})
+}
+
+// UpdateToolCalls sets the "tool_calls" field to the value that was provided on create.
+func (u *MessageUpsertOne) UpdateToolCalls() *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.UpdateToolCalls()
+	})
+}
+
+// ClearToolCalls clears the value of the "tool_calls" field.
+func (u *MessageUpsertOne) ClearToolCalls() *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.ClearToolCalls()
+	})
+}
+
+// SetToolState sets the "tool_state" field.
+func (u *MessageUpsertOne) SetToolState(v jsontext.Value) *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.SetToolState(v)
+	})
+}
+
+// UpdateToolState sets the "tool_state" field to the value that was provided on create.
+func (u *MessageUpsertOne) UpdateToolState() *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.UpdateToolState()
+	})
+}
+
+// ClearToolState clears the value of the "tool_state" field.
+func (u *MessageUpsertOne) ClearToolState() *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.ClearToolState()
 	})
 }
 
@@ -1530,6 +1629,48 @@ func (u *MessageUpsertBulk) SetKBUngrounded(v bool) *MessageUpsertBulk {
 func (u *MessageUpsertBulk) UpdateKBUngrounded() *MessageUpsertBulk {
 	return u.Update(func(s *MessageUpsert) {
 		s.UpdateKBUngrounded()
+	})
+}
+
+// SetToolCalls sets the "tool_calls" field.
+func (u *MessageUpsertBulk) SetToolCalls(v []schema.MsgToolCall) *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.SetToolCalls(v)
+	})
+}
+
+// UpdateToolCalls sets the "tool_calls" field to the value that was provided on create.
+func (u *MessageUpsertBulk) UpdateToolCalls() *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.UpdateToolCalls()
+	})
+}
+
+// ClearToolCalls clears the value of the "tool_calls" field.
+func (u *MessageUpsertBulk) ClearToolCalls() *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.ClearToolCalls()
+	})
+}
+
+// SetToolState sets the "tool_state" field.
+func (u *MessageUpsertBulk) SetToolState(v jsontext.Value) *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.SetToolState(v)
+	})
+}
+
+// UpdateToolState sets the "tool_state" field to the value that was provided on create.
+func (u *MessageUpsertBulk) UpdateToolState() *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.UpdateToolState()
+	})
+}
+
+// ClearToolState clears the value of the "tool_state" field.
+func (u *MessageUpsertBulk) ClearToolState() *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.ClearToolState()
 	})
 }
 

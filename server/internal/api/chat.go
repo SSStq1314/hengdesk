@@ -273,10 +273,12 @@ func (h *chatHandlers) stream(c echo.Context, req *gateway.ChatRequest, tgt, pri
 			return
 		}
 		started = true
-		w.Header().Set(echo.HeaderContentType, "text/event-stream; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("X-Accel-Buffering", "no")
-		w.WriteHeader(http.StatusOK)
+		if !w.Committed { // 工具循环的后续轮次：同一个流里接着输出
+			w.Header().Set(echo.HeaderContentType, "text/event-stream; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("X-Accel-Buffering", "no")
+			w.WriteHeader(http.StatusOK)
+		}
 		for _, ev := range hk.prelude {
 			_ = send(ev.event, ev.data)
 		}
@@ -307,8 +309,11 @@ func (h *chatHandlers) stream(c echo.Context, req *gateway.ChatRequest, tgt, pri
 		return nil, ge, true
 	}
 	start()
-	if err := send("done", hk.done(res, tgt, primary)); err != nil && !errors.Is(err, http.ErrHandlerTimeout) {
-		h.log.Debug("sse write failed", "err", err)
+	// done 返回 nil 表示调用方还要继续（工具循环），本轮不发 done。
+	if v := hk.done(res, tgt, primary); v != nil {
+		if err := send("done", v); err != nil && !errors.Is(err, http.ErrHandlerTimeout) {
+			h.log.Debug("sse write failed", "err", err)
+		}
 	}
 	return res, nil, true
 }

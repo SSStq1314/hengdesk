@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"sync"
@@ -6185,6 +6186,8 @@ type ConversationMutation struct {
 	deleted_at      *time.Time
 	kb_ids          *[]int
 	appendkb_ids    []int
+	tool_ids        *[]int
+	appendtool_ids  []int
 	clearedFields   map[string]struct{}
 	messages        map[int]struct{}
 	removedmessages map[int]struct{}
@@ -6696,6 +6699,71 @@ func (m *ConversationMutation) ResetKBIds() {
 	delete(m.clearedFields, conversation.FieldKBIds)
 }
 
+// SetToolIds sets the "tool_ids" field.
+func (m *ConversationMutation) SetToolIds(i []int) {
+	m.tool_ids = &i
+	m.appendtool_ids = nil
+}
+
+// ToolIds returns the value of the "tool_ids" field in the mutation.
+func (m *ConversationMutation) ToolIds() (r []int, exists bool) {
+	v := m.tool_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldToolIds returns the old "tool_ids" field's value of the Conversation entity.
+// If the Conversation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationMutation) OldToolIds(ctx context.Context) (v []int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldToolIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldToolIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldToolIds: %w", err)
+	}
+	return oldValue.ToolIds, nil
+}
+
+// AppendToolIds adds i to the "tool_ids" field.
+func (m *ConversationMutation) AppendToolIds(i []int) {
+	m.appendtool_ids = append(m.appendtool_ids, i...)
+}
+
+// AppendedToolIds returns the list of values that were appended to the "tool_ids" field in this mutation.
+func (m *ConversationMutation) AppendedToolIds() ([]int, bool) {
+	if len(m.appendtool_ids) == 0 {
+		return nil, false
+	}
+	return m.appendtool_ids, true
+}
+
+// ClearToolIds clears the value of the "tool_ids" field.
+func (m *ConversationMutation) ClearToolIds() {
+	m.tool_ids = nil
+	m.appendtool_ids = nil
+	m.clearedFields[conversation.FieldToolIds] = struct{}{}
+}
+
+// ToolIdsCleared returns if the "tool_ids" field was cleared in this mutation.
+func (m *ConversationMutation) ToolIdsCleared() bool {
+	_, ok := m.clearedFields[conversation.FieldToolIds]
+	return ok
+}
+
+// ResetToolIds resets all changes to the "tool_ids" field.
+func (m *ConversationMutation) ResetToolIds() {
+	m.tool_ids = nil
+	m.appendtool_ids = nil
+	delete(m.clearedFields, conversation.FieldToolIds)
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by ids.
 func (m *ConversationMutation) AddMessageIDs(ids ...int) {
 	if m.messages == nil {
@@ -6784,7 +6852,7 @@ func (m *ConversationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ConversationMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.created_at != nil {
 		fields = append(fields, conversation.FieldCreatedAt)
 	}
@@ -6808,6 +6876,9 @@ func (m *ConversationMutation) Fields() []string {
 	}
 	if m.kb_ids != nil {
 		fields = append(fields, conversation.FieldKBIds)
+	}
+	if m.tool_ids != nil {
+		fields = append(fields, conversation.FieldToolIds)
 	}
 	return fields
 }
@@ -6833,6 +6904,8 @@ func (m *ConversationMutation) Field(name string) (ent.Value, bool) {
 		return m.DeletedAt()
 	case conversation.FieldKBIds:
 		return m.KBIds()
+	case conversation.FieldToolIds:
+		return m.ToolIds()
 	}
 	return nil, false
 }
@@ -6858,6 +6931,8 @@ func (m *ConversationMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldDeletedAt(ctx)
 	case conversation.FieldKBIds:
 		return m.OldKBIds(ctx)
+	case conversation.FieldToolIds:
+		return m.OldToolIds(ctx)
 	}
 	return nil, fmt.Errorf("unknown Conversation field %s", name)
 }
@@ -6922,6 +6997,13 @@ func (m *ConversationMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetKBIds(v)
+		return nil
+	case conversation.FieldToolIds:
+		v, ok := value.([]int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetToolIds(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Conversation field %s", name)
@@ -7001,6 +7083,9 @@ func (m *ConversationMutation) ClearedFields() []string {
 	if m.FieldCleared(conversation.FieldKBIds) {
 		fields = append(fields, conversation.FieldKBIds)
 	}
+	if m.FieldCleared(conversation.FieldToolIds) {
+		fields = append(fields, conversation.FieldToolIds)
+	}
 	return fields
 }
 
@@ -7023,6 +7108,9 @@ func (m *ConversationMutation) ClearField(name string) error {
 		return nil
 	case conversation.FieldKBIds:
 		m.ClearKBIds()
+		return nil
+	case conversation.FieldToolIds:
+		m.ClearToolIds()
 		return nil
 	}
 	return fmt.Errorf("unknown Conversation nullable field %s", name)
@@ -7055,6 +7143,9 @@ func (m *ConversationMutation) ResetField(name string) error {
 		return nil
 	case conversation.FieldKBIds:
 		m.ResetKBIds()
+		return nil
+	case conversation.FieldToolIds:
+		m.ResetToolIds()
 		return nil
 	}
 	return fmt.Errorf("unknown Conversation field %s", name)
@@ -17835,6 +17926,10 @@ type MessageMutation struct {
 	citations            *[]schema.MsgCitation
 	appendcitations      []schema.MsgCitation
 	kb_ungrounded        *bool
+	tool_calls           *[]schema.MsgToolCall
+	appendtool_calls     []schema.MsgToolCall
+	tool_state           *jsontext.Value
+	appendtool_state     jsontext.Value
 	clearedFields        map[string]struct{}
 	conversation         *int
 	clearedconversation  bool
@@ -18635,6 +18730,136 @@ func (m *MessageMutation) ResetKBUngrounded() {
 	m.kb_ungrounded = nil
 }
 
+// SetToolCalls sets the "tool_calls" field.
+func (m *MessageMutation) SetToolCalls(stc []schema.MsgToolCall) {
+	m.tool_calls = &stc
+	m.appendtool_calls = nil
+}
+
+// ToolCalls returns the value of the "tool_calls" field in the mutation.
+func (m *MessageMutation) ToolCalls() (r []schema.MsgToolCall, exists bool) {
+	v := m.tool_calls
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldToolCalls returns the old "tool_calls" field's value of the Message entity.
+// If the Message object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageMutation) OldToolCalls(ctx context.Context) (v []schema.MsgToolCall, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldToolCalls is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldToolCalls requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldToolCalls: %w", err)
+	}
+	return oldValue.ToolCalls, nil
+}
+
+// AppendToolCalls adds stc to the "tool_calls" field.
+func (m *MessageMutation) AppendToolCalls(stc []schema.MsgToolCall) {
+	m.appendtool_calls = append(m.appendtool_calls, stc...)
+}
+
+// AppendedToolCalls returns the list of values that were appended to the "tool_calls" field in this mutation.
+func (m *MessageMutation) AppendedToolCalls() ([]schema.MsgToolCall, bool) {
+	if len(m.appendtool_calls) == 0 {
+		return nil, false
+	}
+	return m.appendtool_calls, true
+}
+
+// ClearToolCalls clears the value of the "tool_calls" field.
+func (m *MessageMutation) ClearToolCalls() {
+	m.tool_calls = nil
+	m.appendtool_calls = nil
+	m.clearedFields[message.FieldToolCalls] = struct{}{}
+}
+
+// ToolCallsCleared returns if the "tool_calls" field was cleared in this mutation.
+func (m *MessageMutation) ToolCallsCleared() bool {
+	_, ok := m.clearedFields[message.FieldToolCalls]
+	return ok
+}
+
+// ResetToolCalls resets all changes to the "tool_calls" field.
+func (m *MessageMutation) ResetToolCalls() {
+	m.tool_calls = nil
+	m.appendtool_calls = nil
+	delete(m.clearedFields, message.FieldToolCalls)
+}
+
+// SetToolState sets the "tool_state" field.
+func (m *MessageMutation) SetToolState(j jsontext.Value) {
+	m.tool_state = &j
+	m.appendtool_state = nil
+}
+
+// ToolState returns the value of the "tool_state" field in the mutation.
+func (m *MessageMutation) ToolState() (r jsontext.Value, exists bool) {
+	v := m.tool_state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldToolState returns the old "tool_state" field's value of the Message entity.
+// If the Message object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageMutation) OldToolState(ctx context.Context) (v jsontext.Value, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldToolState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldToolState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldToolState: %w", err)
+	}
+	return oldValue.ToolState, nil
+}
+
+// AppendToolState adds j to the "tool_state" field.
+func (m *MessageMutation) AppendToolState(j jsontext.Value) {
+	m.appendtool_state = append(m.appendtool_state, j...)
+}
+
+// AppendedToolState returns the list of values that were appended to the "tool_state" field in this mutation.
+func (m *MessageMutation) AppendedToolState() (jsontext.Value, bool) {
+	if len(m.appendtool_state) == 0 {
+		return nil, false
+	}
+	return m.appendtool_state, true
+}
+
+// ClearToolState clears the value of the "tool_state" field.
+func (m *MessageMutation) ClearToolState() {
+	m.tool_state = nil
+	m.appendtool_state = nil
+	m.clearedFields[message.FieldToolState] = struct{}{}
+}
+
+// ToolStateCleared returns if the "tool_state" field was cleared in this mutation.
+func (m *MessageMutation) ToolStateCleared() bool {
+	_, ok := m.clearedFields[message.FieldToolState]
+	return ok
+}
+
+// ResetToolState resets all changes to the "tool_state" field.
+func (m *MessageMutation) ResetToolState() {
+	m.tool_state = nil
+	m.appendtool_state = nil
+	delete(m.clearedFields, message.FieldToolState)
+}
+
 // ClearConversation clears the "conversation" edge to the Conversation entity.
 func (m *MessageMutation) ClearConversation() {
 	m.clearedconversation = true
@@ -18696,7 +18921,7 @@ func (m *MessageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MessageMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 19)
 	if m.created_at != nil {
 		fields = append(fields, message.FieldCreatedAt)
 	}
@@ -18748,6 +18973,12 @@ func (m *MessageMutation) Fields() []string {
 	if m.kb_ungrounded != nil {
 		fields = append(fields, message.FieldKBUngrounded)
 	}
+	if m.tool_calls != nil {
+		fields = append(fields, message.FieldToolCalls)
+	}
+	if m.tool_state != nil {
+		fields = append(fields, message.FieldToolState)
+	}
 	return fields
 }
 
@@ -18790,6 +19021,10 @@ func (m *MessageMutation) Field(name string) (ent.Value, bool) {
 		return m.Citations()
 	case message.FieldKBUngrounded:
 		return m.KBUngrounded()
+	case message.FieldToolCalls:
+		return m.ToolCalls()
+	case message.FieldToolState:
+		return m.ToolState()
 	}
 	return nil, false
 }
@@ -18833,6 +19068,10 @@ func (m *MessageMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldCitations(ctx)
 	case message.FieldKBUngrounded:
 		return m.OldKBUngrounded(ctx)
+	case message.FieldToolCalls:
+		return m.OldToolCalls(ctx)
+	case message.FieldToolState:
+		return m.OldToolState(ctx)
 	}
 	return nil, fmt.Errorf("unknown Message field %s", name)
 }
@@ -18961,6 +19200,20 @@ func (m *MessageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetKBUngrounded(v)
 		return nil
+	case message.FieldToolCalls:
+		v, ok := value.([]schema.MsgToolCall)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetToolCalls(v)
+		return nil
+	case message.FieldToolState:
+		v, ok := value.(jsontext.Value)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetToolState(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Message field %s", name)
 }
@@ -19024,6 +19277,12 @@ func (m *MessageMutation) ClearedFields() []string {
 	if m.FieldCleared(message.FieldCitations) {
 		fields = append(fields, message.FieldCitations)
 	}
+	if m.FieldCleared(message.FieldToolCalls) {
+		fields = append(fields, message.FieldToolCalls)
+	}
+	if m.FieldCleared(message.FieldToolState) {
+		fields = append(fields, message.FieldToolState)
+	}
 	return fields
 }
 
@@ -19043,6 +19302,12 @@ func (m *MessageMutation) ClearField(name string) error {
 		return nil
 	case message.FieldCitations:
 		m.ClearCitations()
+		return nil
+	case message.FieldToolCalls:
+		m.ClearToolCalls()
+		return nil
+	case message.FieldToolState:
+		m.ClearToolState()
 		return nil
 	}
 	return fmt.Errorf("unknown Message nullable field %s", name)
@@ -19102,6 +19367,12 @@ func (m *MessageMutation) ResetField(name string) error {
 		return nil
 	case message.FieldKBUngrounded:
 		m.ResetKBUngrounded()
+		return nil
+	case message.FieldToolCalls:
+		m.ResetToolCalls()
+		return nil
+	case message.FieldToolState:
+		m.ResetToolState()
 		return nil
 	}
 	return fmt.Errorf("unknown Message field %s", name)

@@ -111,6 +111,12 @@ func (_c *ConversationCreate) SetKBIds(v []int) *ConversationCreate {
 	return _c
 }
 
+// SetToolIds sets the "tool_ids" field.
+func (_c *ConversationCreate) SetToolIds(v []int) *ConversationCreate {
+	_c.mutation.SetToolIds(v)
+	return _c
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by IDs.
 func (_c *ConversationCreate) AddMessageIDs(ids ...int) *ConversationCreate {
 	_c.mutation.AddMessageIDs(ids...)
@@ -255,6 +261,10 @@ func (_c *ConversationCreate) createSpec() (*Conversation, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.KBIds(); ok {
 		_spec.SetField(conversation.FieldKBIds, field.TypeJSON, value)
 		_node.KBIds = value
+	}
+	if value, ok := _c.mutation.ToolIds(); ok {
+		_spec.SetField(conversation.FieldToolIds, field.TypeJSON, value)
+		_node.ToolIds = value
 	}
 	if nodes := _c.mutation.MessagesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -444,6 +454,24 @@ func (u *ConversationUpsert) ClearKBIds() *ConversationUpsert {
 	return u
 }
 
+// SetToolIds sets the "tool_ids" field.
+func (u *ConversationUpsert) SetToolIds(v []int) *ConversationUpsert {
+	u.Set(conversation.FieldToolIds, v)
+	return u
+}
+
+// UpdateToolIds sets the "tool_ids" field to the value that was provided on create.
+func (u *ConversationUpsert) UpdateToolIds() *ConversationUpsert {
+	u.SetExcluded(conversation.FieldToolIds)
+	return u
+}
+
+// ClearToolIds clears the value of the "tool_ids" field.
+func (u *ConversationUpsert) ClearToolIds() *ConversationUpsert {
+	u.SetNull(conversation.FieldToolIds)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -626,6 +654,27 @@ func (u *ConversationUpsertOne) UpdateKBIds() *ConversationUpsertOne {
 func (u *ConversationUpsertOne) ClearKBIds() *ConversationUpsertOne {
 	return u.Update(func(s *ConversationUpsert) {
 		s.ClearKBIds()
+	})
+}
+
+// SetToolIds sets the "tool_ids" field.
+func (u *ConversationUpsertOne) SetToolIds(v []int) *ConversationUpsertOne {
+	return u.Update(func(s *ConversationUpsert) {
+		s.SetToolIds(v)
+	})
+}
+
+// UpdateToolIds sets the "tool_ids" field to the value that was provided on create.
+func (u *ConversationUpsertOne) UpdateToolIds() *ConversationUpsertOne {
+	return u.Update(func(s *ConversationUpsert) {
+		s.UpdateToolIds()
+	})
+}
+
+// ClearToolIds clears the value of the "tool_ids" field.
+func (u *ConversationUpsertOne) ClearToolIds() *ConversationUpsertOne {
+	return u.Update(func(s *ConversationUpsert) {
+		s.ClearToolIds()
 	})
 }
 
@@ -977,6 +1026,27 @@ func (u *ConversationUpsertBulk) UpdateKBIds() *ConversationUpsertBulk {
 func (u *ConversationUpsertBulk) ClearKBIds() *ConversationUpsertBulk {
 	return u.Update(func(s *ConversationUpsert) {
 		s.ClearKBIds()
+	})
+}
+
+// SetToolIds sets the "tool_ids" field.
+func (u *ConversationUpsertBulk) SetToolIds(v []int) *ConversationUpsertBulk {
+	return u.Update(func(s *ConversationUpsert) {
+		s.SetToolIds(v)
+	})
+}
+
+// UpdateToolIds sets the "tool_ids" field to the value that was provided on create.
+func (u *ConversationUpsertBulk) UpdateToolIds() *ConversationUpsertBulk {
+	return u.Update(func(s *ConversationUpsert) {
+		s.UpdateToolIds()
+	})
+}
+
+// ClearToolIds clears the value of the "tool_ids" field.
+func (u *ConversationUpsertBulk) ClearToolIds() *ConversationUpsertBulk {
+	return u.Update(func(s *ConversationUpsert) {
+		s.ClearToolIds()
 	})
 }
 

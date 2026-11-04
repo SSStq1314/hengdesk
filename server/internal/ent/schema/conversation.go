@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"encoding/json"
+
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
@@ -21,6 +23,8 @@ func (Conversation) Fields() []ent.Field {
 		field.Time("deleted_at").Optional().Nillable(),
 		// 本会话选用的知识库（最多 5 个，待确认 8）。每次发消息都按当前权限重新过滤，失去 view 的不再参与检索。
 		field.JSON("kb_ids", []int{}).Optional(),
+		// tool_ids 本会话选用的工具（第五块 PR4，FR-23）。每次生成时按 authz.ToolAccess 现算，失去权限的工具不提供给模型。
+		field.JSON("tool_ids", []int{}).Optional(),
 	}
 }
 
@@ -43,7 +47,7 @@ func (Message) Fields() []ent.Field {
 		field.Int("conversation_id"),
 		field.Enum("role").Values("user", "assistant"),
 		field.Text("content").Default(""),
-		field.Enum("status").Values("streaming", "done", "stopped", "error").Default("done"),
+		field.Enum("status").Values("streaming", "done", "stopped", "error", "awaiting_approval").Default("done"),
 		// 实际使用的模型名（快照）；切换到备用模型时 fallback_from 为主模型名（D-39 第 7 条）。
 		field.String("model_name").Default(""),
 		field.String("fallback_from").Default(""),
@@ -61,6 +65,9 @@ func (Message) Fields() []ent.Field {
 		field.JSON("citations", []MsgCitation{}).Optional(),
 		// kb_ungrounded 绑定了知识库但本条回答没有引用任何知识库资料（无命中或用户选择本次不使用知识库，D-42），界面标注「未引用知识库资料」。
 		field.Bool("kb_ungrounded").Default(false),
+		// tool_calls 本条回复中的工具调用（摘要，界面展示用）；tool_state 等待审批时挂起的工具循环状态（重启后可续跑）。
+		field.JSON("tool_calls", []MsgToolCall{}).Optional(),
+		field.JSON("tool_state", json.RawMessage{}).Optional(),
 	}
 }
 
@@ -77,6 +84,18 @@ type MsgCitation struct {
 	Heading  string  `json:"heading,omitempty"`
 	Snippet  string  `json:"snippet"`
 	Score    float64 `json:"score"`
+}
+
+// MsgToolCall 落库的工具调用摘要（参数与结果只存截断后的摘要；完整参数在审批单 / 审计里）。
+type MsgToolCall struct {
+	ID            string `json:"id"`
+	Tool          string `json:"tool"`
+	ServerID      int    `json:"server_id,omitempty"`
+	Status        string `json:"status"`
+	ArgsSummary   string `json:"args_summary,omitempty"`
+	ResultSummary string `json:"result_summary,omitempty"`
+	ErrorCode     string `json:"error_code,omitempty"`
+	ApprovalID    int    `json:"approval_id,omitempty"`
 }
 
 func (Message) Mixin() []ent.Mixin { return []ent.Mixin{TimeMixin{}} }

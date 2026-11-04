@@ -27,6 +27,10 @@ type Server struct {
 	mu sync.Mutex
 	// Requests 收到的请求体（按顺序）。
 	Requests []map[string]any
+	// ToolArgs 非空时工具调用参数用它（一次性发出）；默认 {"id":"T-1"} 逐 token 增量。
+	ToolArgs string
+	// AlwaysTool 为 true 时即使上一条是工具结果也继续调用工具（测试步数上限）。
+	AlwaysTool bool
 	// FailStatus 非 0 时所有 chat 请求直接返回该状态码。
 	FailStatus int
 	// FailTimes 非 0 时只有前 FailTimes 次 chat 请求返回 FailStatus，之后正常（用于重试测试）。
@@ -161,7 +165,23 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		mm, _ := msgs[len(msgs)-1].(map[string]any)
 		lastRole, _ = mm["role"].(string)
 	}
-	callTool := len(tools) > 0 && lastRole != "tool" && tc != "none"
+	s.mu.Lock()
+	toolArgs, always := s.ToolArgs, s.AlwaysTool
+	s.mu.Unlock()
+	callTool := len(tools) > 0 && (lastRole != "tool" || always) && tc != "none"
+	// 调用请求里的第一个工具（未给名称时按 get_ticket）。
+	toolName := "get_ticket"
+	if len(tools) > 0 {
+		t0, _ := tools[0].(map[string]any)
+		fn, _ := t0["function"].(map[string]any)
+		if n, _ := fn["name"].(string); n != "" {
+			toolName = n
+		}
+	}
+	argPieces := []string{`{"`, `id`, `":`, ` "`, `T`, `-`, `1`, `"}`}
+	if toolArgs != "" {
+		argPieces = []string{toolArgs}
+	}
 	reasoning := ""
 	if thinking {
 		reasoning = "用户在问工单，先想一想。"
@@ -178,7 +198,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	id := "mock-cmpl-1"
 	if stream, _ := body["stream"].(bool); stream {
-		s.stream(w, r, id, model, reasoning, content, callTool, usage, omit)
+		s.stream(w, r, id, model, reasoning, content, callTool, toolName, argPieces, usage, omit)
 		return
 	}
 	msg := map[string]any{"role": "assistant", "content": content}
@@ -186,7 +206,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	if callTool {
 		msg["content"] = ""
 		msg["tool_calls"] = []any{map[string]any{"id": "call_00_mock", "type": "function",
-			"function": map[string]any{"name": "get_ticket", "arguments": `{"id":"T-1"}`}}}
+			"function": map[string]any{"name": toolName, "arguments": nonEmpty(toolArgs, `{"id":"T-1"}`)}}}
 		finish = "tool_calls"
 	}
 	if thinking {
@@ -201,7 +221,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-func (s *Server) stream(w http.ResponseWriter, r *http.Request, id, model, reasoning, content string, callTool bool, usage map[string]any, omit bool) {
+func (s *Server) stream(w http.ResponseWriter, r *http.Request, id, model, reasoning, content string, callTool bool, toolName string, argPieces []string, usage map[string]any, omit bool) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	fl, _ := w.(http.Flusher)
 	send := func(delta map[string]any, finish any, u any) {
@@ -224,8 +244,8 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request, id, model, reaso
 	finish := "stop"
 	if callTool {
 		send(map[string]any{"content": nil, "tool_calls": []any{map[string]any{"index": 0, "id": "call_00_mock", "type": "function",
-			"function": map[string]any{"name": "get_ticket", "arguments": ""}}}}, nil, nil)
-		for _, p := range []string{`{"`, `id`, `":`, ` "`, `T`, `-`, `1`, `"}`} {
+			"function": map[string]any{"name": toolName, "arguments": ""}}}}, nil, nil)
+		for _, p := range argPieces {
 			send(map[string]any{"content": nil, "tool_calls": []any{map[string]any{"index": 0, "function": map[string]any{"arguments": p}}}}, nil, nil)
 		}
 		finish = "tool_calls"
@@ -266,4 +286,11 @@ func (s *Server) Count() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return len(s.Requests)
+}
+
+func nonEmpty(s, def string) string {
+	if s != "" {
+		return s
+	}
+	return def
 }
