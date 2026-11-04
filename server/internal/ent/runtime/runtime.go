@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/approval"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budgetalertstate"
@@ -59,6 +60,67 @@ func init() {
 	aclDescCreatedAt := aclFields[8].Descriptor()
 	// acl.DefaultCreatedAt holds the default value on creation for the created_at field.
 	acl.DefaultCreatedAt = aclDescCreatedAt.Default.(func() time.Time)
+	approvalMixin := schema.Approval{}.Mixin()
+	approvalMixinFields0 := approvalMixin[0].Fields()
+	_ = approvalMixinFields0
+	approvalFields := schema.Approval{}.Fields()
+	_ = approvalFields
+	// approvalDescCreatedAt is the schema descriptor for created_at field.
+	approvalDescCreatedAt := approvalMixinFields0[0].Descriptor()
+	// approval.DefaultCreatedAt holds the default value on creation for the created_at field.
+	approval.DefaultCreatedAt = approvalDescCreatedAt.Default.(func() time.Time)
+	// approvalDescUpdatedAt is the schema descriptor for updated_at field.
+	approvalDescUpdatedAt := approvalMixinFields0[1].Descriptor()
+	// approval.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	approval.DefaultUpdatedAt = approvalDescUpdatedAt.Default.(func() time.Time)
+	// approval.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	approval.UpdateDefaultUpdatedAt = approvalDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// approvalDescToolKey is the schema descriptor for tool_key field.
+	approvalDescToolKey := approvalFields[2].Descriptor()
+	// approval.ToolKeyValidator is a validator for the "tool_key" field. It is called by the builders before save.
+	approval.ToolKeyValidator = approvalDescToolKey.Validators[0].(func(string) error)
+	// approvalDescToolName is the schema descriptor for tool_name field.
+	approvalDescToolName := approvalFields[3].Descriptor()
+	// approval.ToolNameValidator is a validator for the "tool_name" field. It is called by the builders before save.
+	approval.ToolNameValidator = approvalDescToolName.Validators[0].(func(string) error)
+	// approvalDescRiskLevel is the schema descriptor for risk_level field.
+	approvalDescRiskLevel := approvalFields[4].Descriptor()
+	// approval.DefaultRiskLevel holds the default value on creation for the risk_level field.
+	approval.DefaultRiskLevel = approvalDescRiskLevel.Default.(string)
+	// approvalDescToolCallID is the schema descriptor for tool_call_id field.
+	approvalDescToolCallID := approvalFields[8].Descriptor()
+	// approval.DefaultToolCallID holds the default value on creation for the tool_call_id field.
+	approval.DefaultToolCallID = approvalDescToolCallID.Default.(string)
+	// approval.ToolCallIDValidator is a validator for the "tool_call_id" field. It is called by the builders before save.
+	approval.ToolCallIDValidator = approvalDescToolCallID.Validators[0].(func(string) error)
+	// approvalDescArgsHash is the schema descriptor for args_hash field.
+	approvalDescArgsHash := approvalFields[10].Descriptor()
+	// approval.DefaultArgsHash holds the default value on creation for the args_hash field.
+	approval.DefaultArgsHash = approvalDescArgsHash.Default.(string)
+	// approvalDescContextSummary is the schema descriptor for context_summary field.
+	approvalDescContextSummary := approvalFields[11].Descriptor()
+	// approval.DefaultContextSummary holds the default value on creation for the context_summary field.
+	approval.DefaultContextSummary = approvalDescContextSummary.Default.(string)
+	// approval.ContextSummaryValidator is a validator for the "context_summary" field. It is called by the builders before save.
+	approval.ContextSummaryValidator = approvalDescContextSummary.Validators[0].(func(string) error)
+	// approvalDescDecisionComment is the schema descriptor for decision_comment field.
+	approvalDescDecisionComment := approvalFields[15].Descriptor()
+	// approval.DefaultDecisionComment holds the default value on creation for the decision_comment field.
+	approval.DefaultDecisionComment = approvalDescDecisionComment.Default.(string)
+	// approval.DecisionCommentValidator is a validator for the "decision_comment" field. It is called by the builders before save.
+	approval.DecisionCommentValidator = approvalDescDecisionComment.Validators[0].(func(string) error)
+	// approvalDescResult is the schema descriptor for result field.
+	approvalDescResult := approvalFields[19].Descriptor()
+	// approval.DefaultResult holds the default value on creation for the result field.
+	approval.DefaultResult = approvalDescResult.Default.(string)
+	// approvalDescResultIsError is the schema descriptor for result_is_error field.
+	approvalDescResultIsError := approvalFields[20].Descriptor()
+	// approval.DefaultResultIsError holds the default value on creation for the result_is_error field.
+	approval.DefaultResultIsError = approvalDescResultIsError.Default.(bool)
+	// approvalDescTraceID is the schema descriptor for trace_id field.
+	approvalDescTraceID := approvalFields[22].Descriptor()
+	// approval.DefaultTraceID holds the default value on creation for the trace_id field.
+	approval.DefaultTraceID = approvalDescTraceID.Default.(string)
 	auditlogHooks := schema.AuditLog{}.Hooks()
 	auditlog.Hooks[0] = auditlogHooks[0]
 	auditlogFields := schema.AuditLog{}.Fields()

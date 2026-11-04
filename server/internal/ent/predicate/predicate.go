@@ -9,6 +9,9 @@ import (
 // ACL is the predicate function for acl builders.
 type ACL func(*sql.Selector)
 
+// Approval is the predicate function for approval builders.
+type Approval func(*sql.Selector)
+
 // AuditLog is the predicate function for auditlog builders.
 type AuditLog func(*sql.Selector)
 

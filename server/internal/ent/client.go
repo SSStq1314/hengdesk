@@ -16,6 +16,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/approval"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budgetalertstate"
@@ -49,6 +50,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// ACL is the client for interacting with the ACL builders.
 	ACL *ACLClient
+	// Approval is the client for interacting with the Approval builders.
+	Approval *ApprovalClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
 	// Budget is the client for interacting with the Budget builders.
@@ -109,6 +112,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.ACL = NewACLClient(c.config)
+	c.Approval = NewApprovalClient(c.config)
 	c.AuditLog = NewAuditLogClient(c.config)
 	c.Budget = NewBudgetClient(c.config)
 	c.BudgetAlertState = NewBudgetAlertStateClient(c.config)
@@ -226,6 +230,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:              ctx,
 		config:           cfg,
 		ACL:              NewACLClient(cfg),
+		Approval:         NewApprovalClient(cfg),
 		AuditLog:         NewAuditLogClient(cfg),
 		Budget:           NewBudgetClient(cfg),
 		BudgetAlertState: NewBudgetAlertStateClient(cfg),
@@ -270,6 +275,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:              ctx,
 		config:           cfg,
 		ACL:              NewACLClient(cfg),
+		Approval:         NewApprovalClient(cfg),
 		AuditLog:         NewAuditLogClient(cfg),
 		Budget:           NewBudgetClient(cfg),
 		BudgetAlertState: NewBudgetAlertStateClient(cfg),
@@ -323,7 +329,7 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Conversation,
+		c.ACL, c.Approval, c.AuditLog, c.Budget, c.BudgetAlertState, c.Conversation,
 		c.ConversationFile, c.Department, c.DeptClosure, c.EgressLog, c.EgressRule,
 		c.KBFile, c.KnowledgeBase, c.LegalHold, c.McpServer, c.Membership, c.Message,
 		c.Model, c.ModelProvider, c.Notification, c.Organization, c.Role,
@@ -337,7 +343,7 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Conversation,
+		c.ACL, c.Approval, c.AuditLog, c.Budget, c.BudgetAlertState, c.Conversation,
 		c.ConversationFile, c.Department, c.DeptClosure, c.EgressLog, c.EgressRule,
 		c.KBFile, c.KnowledgeBase, c.LegalHold, c.McpServer, c.Membership, c.Message,
 		c.Model, c.ModelProvider, c.Notification, c.Organization, c.Role,
@@ -352,6 +358,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *ACLMutation:
 		return c.ACL.mutate(ctx, m)
+	case *ApprovalMutation:
+		return c.Approval.mutate(ctx, m)
 	case *AuditLogMutation:
 		return c.AuditLog.mutate(ctx, m)
 	case *BudgetMutation:
@@ -535,6 +543,139 @@ func (c *ACLClient) mutate(ctx context.Context, m *ACLMutation) (Value, error) {
 		return (&ACLDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ACL mutation op: %q", m.Op())
+	}
+}
+
+// ApprovalClient is a client for the Approval schema.
+type ApprovalClient struct {
+	config
+}
+
+// NewApprovalClient returns a client for the Approval from the given config.
+func NewApprovalClient(c config) *ApprovalClient {
+	return &ApprovalClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `approval.Hooks(f(g(h())))`.
+func (c *ApprovalClient) Use(hooks ...Hook) {
+	c.hooks.Approval = append(c.hooks.Approval, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `approval.Intercept(f(g(h())))`.
+func (c *ApprovalClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Approval = append(c.inters.Approval, interceptors...)
+}
+
+// Create returns a builder for creating a Approval entity.
+func (c *ApprovalClient) Create() *ApprovalCreate {
+	mutation := newApprovalMutation(c.config, OpCreate)
+	return &ApprovalCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Approval entities.
+func (c *ApprovalClient) CreateBulk(builders ...*ApprovalCreate) *ApprovalCreateBulk {
+	return &ApprovalCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ApprovalClient) MapCreateBulk(slice any, setFunc func(*ApprovalCreate, int)) *ApprovalCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ApprovalCreateBulk{err: fmt.Errorf("calling to ApprovalClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ApprovalCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ApprovalCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Approval.
+func (c *ApprovalClient) Update() *ApprovalUpdate {
+	mutation := newApprovalMutation(c.config, OpUpdate)
+	return &ApprovalUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ApprovalClient) UpdateOne(_m *Approval) *ApprovalUpdateOne {
+	mutation := newApprovalMutation(c.config, OpUpdateOne, withApproval(_m))
+	return &ApprovalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ApprovalClient) UpdateOneID(id int) *ApprovalUpdateOne {
+	mutation := newApprovalMutation(c.config, OpUpdateOne, withApprovalID(id))
+	return &ApprovalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Approval.
+func (c *ApprovalClient) Delete() *ApprovalDelete {
+	mutation := newApprovalMutation(c.config, OpDelete)
+	return &ApprovalDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ApprovalClient) DeleteOne(_m *Approval) *ApprovalDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ApprovalClient) DeleteOneID(id int) *ApprovalDeleteOne {
+	builder := c.Delete().Where(approval.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ApprovalDeleteOne{builder}
+}
+
+// Query returns a query builder for Approval.
+func (c *ApprovalClient) Query() *ApprovalQuery {
+	return &ApprovalQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeApproval},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Approval entity by its id.
+func (c *ApprovalClient) Get(ctx context.Context, id int) (*Approval, error) {
+	return c.Query().Where(approval.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ApprovalClient) GetX(ctx context.Context, id int) *Approval {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ApprovalClient) Hooks() []Hook {
+	return c.hooks.Approval
+}
+
+// Interceptors returns the client interceptors.
+func (c *ApprovalClient) Interceptors() []Interceptor {
+	return c.inters.Approval
+}
+
+func (c *ApprovalClient) mutate(ctx context.Context, m *ApprovalMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ApprovalCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ApprovalUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ApprovalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ApprovalDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Approval mutation op: %q", m.Op())
 	}
 }
 
@@ -3990,15 +4131,17 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		ACL, AuditLog, Budget, BudgetAlertState, Conversation, ConversationFile,
-		Department, DeptClosure, EgressLog, EgressRule, KBFile, KnowledgeBase,
-		LegalHold, McpServer, Membership, Message, Model, ModelProvider, Notification,
-		Organization, Role, SystemSetting, Tool, UsageRecord, User []ent.Hook
+		ACL, Approval, AuditLog, Budget, BudgetAlertState, Conversation,
+		ConversationFile, Department, DeptClosure, EgressLog, EgressRule, KBFile,
+		KnowledgeBase, LegalHold, McpServer, Membership, Message, Model, ModelProvider,
+		Notification, Organization, Role, SystemSetting, Tool, UsageRecord,
+		User []ent.Hook
 	}
 	inters struct {
-		ACL, AuditLog, Budget, BudgetAlertState, Conversation, ConversationFile,
-		Department, DeptClosure, EgressLog, EgressRule, KBFile, KnowledgeBase,
-		LegalHold, McpServer, Membership, Message, Model, ModelProvider, Notification,
-		Organization, Role, SystemSetting, Tool, UsageRecord, User []ent.Interceptor
+		ACL, Approval, AuditLog, Budget, BudgetAlertState, Conversation,
+		ConversationFile, Department, DeptClosure, EgressLog, EgressRule, KBFile,
+		KnowledgeBase, LegalHold, McpServer, Membership, Message, Model, ModelProvider,
+		Notification, Organization, Role, SystemSetting, Tool, UsageRecord,
+		User []ent.Interceptor
 	}
 )

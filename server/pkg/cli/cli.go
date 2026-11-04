@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/SSStq1314/hengdesk/server/internal/approval"
+
 	"github.com/SSStq1314/hengdesk/server/internal/docparse"
 	"github.com/SSStq1314/hengdesk/server/internal/egress"
 	"github.com/SSStq1314/hengdesk/server/internal/kb"
@@ -234,6 +236,15 @@ func workerCmd() *cobra.Command {
 			}
 			return err
 		})
+		// FR-25 / D-27：到期的待审批单按拒绝（超时）落库；读取时也会实时判定。
+		apx := &approval.Service{DB: client, Audit: audit.EntWriter{C: client}, Log: lg}
+		mux.HandleFunc(approval.TaskExpire, func(ctx context.Context, _ *asynq.Task) error {
+			n, err := apx.ExpireDue(ctx)
+			if n > 0 {
+				lg.Info("approvals expired", "count", n)
+			}
+			return err
+		})
 		if err := srv.Start(mux); err != nil {
 			return err
 		}
@@ -242,6 +253,9 @@ func workerCmd() *cobra.Command {
 			return err
 		}
 		if _, err := sch.Register("@every 24h", asynq.NewTask(chatretention.TaskPurge, nil), asynq.Unique(time.Hour)); err != nil {
+			return err
+		}
+		if _, err := sch.Register("@every 1m", asynq.NewTask(approval.TaskExpire, nil), asynq.Unique(50*time.Second)); err != nil {
 			return err
 		}
 		if _, err := sch.Register("@every 5m", asynq.NewTask(kb.TaskSweep, nil), asynq.Unique(4*time.Minute)); err != nil {
