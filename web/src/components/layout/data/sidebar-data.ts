@@ -1,6 +1,8 @@
 import { zh } from '@/locales/zh-CN'
 import {
   BookOpen,
+  ClipboardCheck,
+  Plug,
   Bot,
   Building2,
   LayoutDashboard,
@@ -23,6 +25,7 @@ export const sidebarData: SidebarData = {
         { title: zh.nav.dashboard, url: '/', icon: LayoutDashboard },
         { title: zh.nav.chat, url: '/chat', icon: MessagesSquare },
         { title: zh.nav.kb, url: '/kbs', icon: BookOpen },
+        { title: zh.nav.approvals, url: '/approvals', icon: ClipboardCheck },
       ],
     },
     {
@@ -56,6 +59,12 @@ export const sidebarData: SidebarData = {
           url: '/models',
           icon: Bot,
           perm: 'model.manage',
+        },
+        {
+          title: zh.nav.mcp,
+          url: '/mcp',
+          icon: Plug,
+          perm: 'tool.manage',
         },
         {
           title: zh.nav.budgets,
