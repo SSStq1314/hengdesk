@@ -52,8 +52,9 @@ func BitsToNames(b int) []string {
 
 // 资源类型。新资源类型复用同一 ACL 层（知识库文件 ACL 在知识库阶段接入）。
 const (
-	ResKB    = "kb"
-	ResAgent = "agent"
-	ResTool  = "tool"
-	ResModel = "model" // 模型（resource_id 为模型 ID 的十进制字符串），use 位决定能否调用
+	ResKB     = "kb"
+	ResKBFile = "kb_file" // 知识库文件的独立 ACL（kb_files.acl_custom=true 时生效），resource_id 为文件 ID
+	ResAgent  = "agent"
+	ResTool   = "tool"
+	ResModel  = "model" // 模型（resource_id 为模型 ID 的十进制字符串），use 位决定能否调用
 )

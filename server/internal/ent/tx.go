@@ -32,6 +32,10 @@ type Tx struct {
 	EgressLog *EgressLogClient
 	// EgressRule is the client for interacting with the EgressRule builders.
 	EgressRule *EgressRuleClient
+	// KBFile is the client for interacting with the KBFile builders.
+	KBFile *KBFileClient
+	// KnowledgeBase is the client for interacting with the KnowledgeBase builders.
+	KnowledgeBase *KnowledgeBaseClient
 	// LegalHold is the client for interacting with the LegalHold builders.
 	LegalHold *LegalHoldClient
 	// Membership is the client for interacting with the Membership builders.
@@ -197,6 +201,8 @@ func (tx *Tx) init() {
 	tx.DeptClosure = NewDeptClosureClient(tx.config)
 	tx.EgressLog = NewEgressLogClient(tx.config)
 	tx.EgressRule = NewEgressRuleClient(tx.config)
+	tx.KBFile = NewKBFileClient(tx.config)
+	tx.KnowledgeBase = NewKnowledgeBaseClient(tx.config)
 	tx.LegalHold = NewLegalHoldClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
 	tx.Message = NewMessageClient(tx.config)

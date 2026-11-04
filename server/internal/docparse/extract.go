@@ -41,3 +41,15 @@ func (x *Extractor) Extract(ctx context.Context, kind string, data []byte) (stri
 	}
 	return t, nil
 }
+
+// Parse 返回结构化文档（知识库按标题/段落/表格切片用），不截断；没有文本时返回 ErrEmpty。
+func (x *Extractor) Parse(ctx context.Context, kind string, data []byte) (*Document, error) {
+	d, err := x.reg.Parse(ctx, "f."+kind, bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(d.PlainText()) == "" {
+		return nil, ErrEmpty
+	}
+	return d, nil
+}

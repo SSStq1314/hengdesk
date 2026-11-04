@@ -48,6 +48,8 @@ type Config struct {
 	LoginIPWindow time.Duration
 	// ChatFileMaxMB 会话内上传文件的单文件大小上限（MB，默认 20，范围 1~90；nginx 请求体上限为 100m）。
 	ChatFileMaxMB int
+	// KBFileMaxMB 知识库单文件大小上限（MB，默认 50，范围 1~90）。
+	KBFileMaxMB int
 	// TrustedProxies 允许读取 X-Forwarded-For 的上游代理网段；为空时只用 TCP 对端地址。
 	TrustedProxies []*net.IPNet
 	// TraceTrustedProxies 受信代理 IP 列表（D-41 第 1 条）：只有来源 IP 在其中的请求才接受传入的 traceparent，
@@ -166,6 +168,10 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	kbFileMB, err := intEnv("KB_FILE_MAX_MB", "50", 1, 90)
+	if err != nil {
+		return nil, err
+	}
 	chatFileMB, err := intEnv("CHAT_FILE_MAX_MB", "20", 1, 90)
 	if err != nil {
 		return nil, err
@@ -238,6 +244,7 @@ func Load() (*Config, error) {
 		PasswordMinLen:          minLen,
 		LoginIPLimit:            ipLimit,
 		ChatFileMaxMB:           chatFileMB,
+		KBFileMaxMB:             kbFileMB,
 		LoginIPWindow:           ipWin,
 		TrustedProxies:          proxies,
 		TraceTrustedProxies:     traceProxies,

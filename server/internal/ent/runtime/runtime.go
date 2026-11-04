@@ -15,6 +15,8 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/kbfile"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/knowledgebase"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/legalhold"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
@@ -373,6 +375,106 @@ func init() {
 	egressruleDescReviewRequired := egressruleFields[9].Descriptor()
 	// egressrule.DefaultReviewRequired holds the default value on creation for the review_required field.
 	egressrule.DefaultReviewRequired = egressruleDescReviewRequired.Default.(bool)
+	kbfileMixin := schema.KBFile{}.Mixin()
+	kbfileMixinFields0 := kbfileMixin[0].Fields()
+	_ = kbfileMixinFields0
+	kbfileFields := schema.KBFile{}.Fields()
+	_ = kbfileFields
+	// kbfileDescCreatedAt is the schema descriptor for created_at field.
+	kbfileDescCreatedAt := kbfileMixinFields0[0].Descriptor()
+	// kbfile.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kbfile.DefaultCreatedAt = kbfileDescCreatedAt.Default.(func() time.Time)
+	// kbfileDescUpdatedAt is the schema descriptor for updated_at field.
+	kbfileDescUpdatedAt := kbfileMixinFields0[1].Descriptor()
+	// kbfile.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kbfile.DefaultUpdatedAt = kbfileDescUpdatedAt.Default.(func() time.Time)
+	// kbfile.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kbfile.UpdateDefaultUpdatedAt = kbfileDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kbfileDescName is the schema descriptor for name field.
+	kbfileDescName := kbfileFields[2].Descriptor()
+	// kbfile.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	kbfile.NameValidator = kbfileDescName.Validators[0].(func(string) error)
+	// kbfileDescErrorCode is the schema descriptor for error_code field.
+	kbfileDescErrorCode := kbfileFields[8].Descriptor()
+	// kbfile.DefaultErrorCode holds the default value on creation for the error_code field.
+	kbfile.DefaultErrorCode = kbfileDescErrorCode.Default.(string)
+	// kbfileDescError is the schema descriptor for error field.
+	kbfileDescError := kbfileFields[9].Descriptor()
+	// kbfile.DefaultError holds the default value on creation for the error field.
+	kbfile.DefaultError = kbfileDescError.Default.(string)
+	// kbfile.ErrorValidator is a validator for the "error" field. It is called by the builders before save.
+	kbfile.ErrorValidator = kbfileDescError.Validators[0].(func(string) error)
+	// kbfileDescChars is the schema descriptor for chars field.
+	kbfileDescChars := kbfileFields[10].Descriptor()
+	// kbfile.DefaultChars holds the default value on creation for the chars field.
+	kbfile.DefaultChars = kbfileDescChars.Default.(int)
+	// kbfileDescChunkCount is the schema descriptor for chunk_count field.
+	kbfileDescChunkCount := kbfileFields[11].Descriptor()
+	// kbfile.DefaultChunkCount holds the default value on creation for the chunk_count field.
+	kbfile.DefaultChunkCount = kbfileDescChunkCount.Default.(int)
+	// kbfileDescACLCustom is the schema descriptor for acl_custom field.
+	kbfileDescACLCustom := kbfileFields[12].Descriptor()
+	// kbfile.DefaultACLCustom holds the default value on creation for the acl_custom field.
+	kbfile.DefaultACLCustom = kbfileDescACLCustom.Default.(bool)
+	// kbfileDescEmbeddingModel is the schema descriptor for embedding_model field.
+	kbfileDescEmbeddingModel := kbfileFields[14].Descriptor()
+	// kbfile.DefaultEmbeddingModel holds the default value on creation for the embedding_model field.
+	kbfile.DefaultEmbeddingModel = kbfileDescEmbeddingModel.Default.(string)
+	// kbfileDescAttempts is the schema descriptor for attempts field.
+	kbfileDescAttempts := kbfileFields[15].Descriptor()
+	// kbfile.DefaultAttempts holds the default value on creation for the attempts field.
+	kbfile.DefaultAttempts = kbfileDescAttempts.Default.(int)
+	knowledgebaseMixin := schema.KnowledgeBase{}.Mixin()
+	knowledgebaseMixinFields0 := knowledgebaseMixin[0].Fields()
+	_ = knowledgebaseMixinFields0
+	knowledgebaseFields := schema.KnowledgeBase{}.Fields()
+	_ = knowledgebaseFields
+	// knowledgebaseDescCreatedAt is the schema descriptor for created_at field.
+	knowledgebaseDescCreatedAt := knowledgebaseMixinFields0[0].Descriptor()
+	// knowledgebase.DefaultCreatedAt holds the default value on creation for the created_at field.
+	knowledgebase.DefaultCreatedAt = knowledgebaseDescCreatedAt.Default.(func() time.Time)
+	// knowledgebaseDescUpdatedAt is the schema descriptor for updated_at field.
+	knowledgebaseDescUpdatedAt := knowledgebaseMixinFields0[1].Descriptor()
+	// knowledgebase.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	knowledgebase.DefaultUpdatedAt = knowledgebaseDescUpdatedAt.Default.(func() time.Time)
+	// knowledgebase.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	knowledgebase.UpdateDefaultUpdatedAt = knowledgebaseDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// knowledgebaseDescName is the schema descriptor for name field.
+	knowledgebaseDescName := knowledgebaseFields[1].Descriptor()
+	// knowledgebase.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	knowledgebase.NameValidator = func() func(string) error {
+		validators := knowledgebaseDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// knowledgebaseDescDescription is the schema descriptor for description field.
+	knowledgebaseDescDescription := knowledgebaseFields[2].Descriptor()
+	// knowledgebase.DefaultDescription holds the default value on creation for the description field.
+	knowledgebase.DefaultDescription = knowledgebaseDescDescription.Default.(string)
+	// knowledgebase.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	knowledgebase.DescriptionValidator = knowledgebaseDescDescription.Validators[0].(func(string) error)
+	// knowledgebaseDescEmbeddingModel is the schema descriptor for embedding_model field.
+	knowledgebaseDescEmbeddingModel := knowledgebaseFields[3].Descriptor()
+	// knowledgebase.EmbeddingModelValidator is a validator for the "embedding_model" field. It is called by the builders before save.
+	knowledgebase.EmbeddingModelValidator = knowledgebaseDescEmbeddingModel.Validators[0].(func(string) error)
+	// knowledgebaseDescChunkSize is the schema descriptor for chunk_size field.
+	knowledgebaseDescChunkSize := knowledgebaseFields[4].Descriptor()
+	// knowledgebase.DefaultChunkSize holds the default value on creation for the chunk_size field.
+	knowledgebase.DefaultChunkSize = knowledgebaseDescChunkSize.Default.(int)
+	// knowledgebaseDescChunkOverlap is the schema descriptor for chunk_overlap field.
+	knowledgebaseDescChunkOverlap := knowledgebaseFields[5].Descriptor()
+	// knowledgebase.DefaultChunkOverlap holds the default value on creation for the chunk_overlap field.
+	knowledgebase.DefaultChunkOverlap = knowledgebaseDescChunkOverlap.Default.(int)
 	legalholdFields := schema.LegalHold{}.Fields()
 	_ = legalholdFields
 	// legalholdDescReason is the schema descriptor for reason field.

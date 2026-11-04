@@ -336,6 +336,79 @@ var (
 			},
 		},
 	}
+	// KBFilesColumns holds the columns for the "kb_files" table.
+	KBFilesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "kb_id", Type: field.TypeInt},
+		{Name: "name", Type: field.TypeString, Size: 255},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "sha256", Type: field.TypeString},
+		{Name: "object_key", Type: field.TypeString},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "parsing", "indexing", "ready", "failed"}, Default: "pending"},
+		{Name: "error_code", Type: field.TypeString, Default: ""},
+		{Name: "error", Type: field.TypeString, Size: 500, Default: ""},
+		{Name: "chars", Type: field.TypeInt, Default: 0},
+		{Name: "chunk_count", Type: field.TypeInt, Default: 0},
+		{Name: "acl_custom", Type: field.TypeBool, Default: false},
+		{Name: "uploaded_by", Type: field.TypeInt},
+		{Name: "embedding_model", Type: field.TypeString, Default: ""},
+		{Name: "attempts", Type: field.TypeInt, Default: 0},
+		{Name: "indexed_at", Type: field.TypeTime, Nullable: true},
+	}
+	// KBFilesTable holds the schema information for the "kb_files" table.
+	KBFilesTable = &schema.Table{
+		Name:       "kb_files",
+		Columns:    KBFilesColumns,
+		PrimaryKey: []*schema.Column{KBFilesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kbfile_kb_id_sha256",
+				Unique:  true,
+				Columns: []*schema.Column{KBFilesColumns[4], KBFilesColumns[8]},
+			},
+			{
+				Name:    "kbfile_kb_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{KBFilesColumns[4], KBFilesColumns[5]},
+			},
+			{
+				Name:    "kbfile_org_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{KBFilesColumns[3], KBFilesColumns[10]},
+			},
+		},
+	}
+	// KnowledgeBasesColumns holds the columns for the "knowledge_bases" table.
+	KnowledgeBasesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "name", Type: field.TypeString, Size: 100},
+		{Name: "description", Type: field.TypeString, Size: 500, Default: ""},
+		{Name: "embedding_model", Type: field.TypeString},
+		{Name: "chunk_size", Type: field.TypeInt, Default: 800},
+		{Name: "chunk_overlap", Type: field.TypeInt, Default: 100},
+		{Name: "created_by", Type: field.TypeInt},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+	}
+	// KnowledgeBasesTable holds the schema information for the "knowledge_bases" table.
+	KnowledgeBasesTable = &schema.Table{
+		Name:       "knowledge_bases",
+		Columns:    KnowledgeBasesColumns,
+		PrimaryKey: []*schema.Column{KnowledgeBasesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "knowledgebase_org_id_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KnowledgeBasesColumns[3], KnowledgeBasesColumns[10]},
+			},
+		},
+	}
 	// LegalHoldsColumns holds the columns for the "legal_holds" table.
 	LegalHoldsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -597,7 +670,7 @@ var (
 		{Name: "model_name", Type: field.TypeString},
 		{Name: "provider_id", Type: field.TypeInt},
 		{Name: "request_id", Type: field.TypeString, Default: ""},
-		{Name: "purpose", Type: field.TypeEnum, Enums: []string{"chat", "test"}, Default: "chat"},
+		{Name: "purpose", Type: field.TypeEnum, Enums: []string{"chat", "test", "embedding"}, Default: "chat"},
 		{Name: "stream", Type: field.TypeBool, Default: false},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"ok", "error"}, Default: "ok"},
 		{Name: "error_code", Type: field.TypeString, Default: ""},
@@ -702,6 +775,8 @@ var (
 		DeptClosureTable,
 		EgressLogsTable,
 		EgressRulesTable,
+		KBFilesTable,
+		KnowledgeBasesTable,
 		LegalHoldsTable,
 		MembershipsTable,
 		MessagesTable,
@@ -725,6 +800,12 @@ func init() {
 	DepartmentsTable.ForeignKeys[1].RefTable = OrganizationsTable
 	DeptClosureTable.Annotation = &entsql.Annotation{
 		Table: "dept_closure",
+	}
+	KBFilesTable.Annotation = &entsql.Annotation{
+		Table: "kb_files",
+	}
+	KnowledgeBasesTable.Annotation = &entsql.Annotation{
+		Table: "knowledge_bases",
 	}
 	MembershipsTable.ForeignKeys[0].RefTable = DepartmentsTable
 	MembershipsTable.ForeignKeys[1].RefTable = RolesTable

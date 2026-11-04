@@ -129,6 +129,30 @@ func (f EgressRuleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EgressRuleMutation", m)
 }
 
+// The KBFileFunc type is an adapter to allow the use of ordinary
+// function as KBFile mutator.
+type KBFileFunc func(context.Context, *ent.KBFileMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KBFileFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KBFileMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KBFileMutation", m)
+}
+
+// The KnowledgeBaseFunc type is an adapter to allow the use of ordinary
+// function as KnowledgeBase mutator.
+type KnowledgeBaseFunc func(context.Context, *ent.KnowledgeBaseMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KnowledgeBaseFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KnowledgeBaseMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KnowledgeBaseMutation", m)
+}
+
 // The LegalHoldFunc type is an adapter to allow the use of ordinary
 // function as LegalHold mutator.
 type LegalHoldFunc func(context.Context, *ent.LegalHoldMutation) (ent.Value, error)

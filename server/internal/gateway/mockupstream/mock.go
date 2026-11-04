@@ -39,6 +39,9 @@ type Server struct {
 	TokenDelay time.Duration
 	// OmitUsage 不返回 usage（用于估算测试）。
 	OmitUsage bool
+	// EmbedCalls 收到的 /embeddings 请求数；EmbedFail 非 0 时 /embeddings 直接返回该状态码。
+	EmbedCalls int
+	EmbedFail  int
 	// CutAfter 非 0 时流式回答输出 CutAfter 个字符后直接断开连接（用于首 token 之后失败的测试）。
 	CutAfter int
 }
@@ -77,6 +80,10 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/models" || r.URL.Path == "/v1/models" {
 		_ = json.NewEncoder(w).Encode(map[string]any{"object": "list", "data": []map[string]any{
 			{"id": "deepseek-flash", "object": "model"}, {"id": "deepseek-v4-pro", "object": "model"}}})
+		return
+	}
+	if strings.HasSuffix(r.URL.Path, "/embeddings") {
+		s.embeddings(w, r)
 		return
 	}
 	if !strings.HasSuffix(r.URL.Path, "/chat/completions") {

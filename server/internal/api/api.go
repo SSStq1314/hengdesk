@@ -19,6 +19,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/docparse"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
+	"github.com/SSStq1314/hengdesk/server/internal/kb"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 )
 
@@ -44,6 +45,12 @@ type Deps struct {
 	// Files 会话文件对象存储（FR-15）；为 nil 时上传 / 下载返回 503。
 	Files      FileStore
 	FileLimits FileLimits
+	// KBStore 知识库切片存储；为 nil 时用内存实现（测试 / 开发）。生产为 kb.PGStore。
+	KBStore kb.ChunkStore
+	// KBEnqueue 投递索引任务；为 nil 时同步执行（测试 / 开发）。生产为 kb.AsynqEnqueuer。
+	KBEnqueue kb.Enqueuer
+	// KBFileMaxBytes 知识库单文件上限，默认 50 MiB（待确认 7）。
+	KBFileMaxBytes int64
 }
 
 // Mount 挂载路由。所有 /admin 接口都经统一授权层：未登录 401，无权限或越权 404。
@@ -163,6 +170,8 @@ func Mount(e *echo.Echo, d Deps) {
 	g.POST("/conversations/:id/files", cvh.upload)
 	g.GET("/conversations/:id/files/:fid/content", cvh.download)
 	g.DELETE("/conversations/:id/files/:fid", cvh.removeFile)
+
+	mountKB(g, d, az, gw)
 
 	bh := &budgetHandlers{db: d.DB, bs: bs, az: az}
 	admin.GET("/budgets", bh.list, authz.Require(rbac.BudgetRead))

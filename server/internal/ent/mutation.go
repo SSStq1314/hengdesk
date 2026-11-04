@@ -21,6 +21,8 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/kbfile"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/knowledgebase"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/legalhold"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
@@ -55,6 +57,8 @@ const (
 	TypeDeptClosure      = "DeptClosure"
 	TypeEgressLog        = "EgressLog"
 	TypeEgressRule       = "EgressRule"
+	TypeKBFile           = "KBFile"
+	TypeKnowledgeBase    = "KnowledgeBase"
 	TypeLegalHold        = "LegalHold"
 	TypeMembership       = "Membership"
 	TypeMessage          = "Message"
@@ -10278,6 +10282,2529 @@ func (m *EgressRuleMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *EgressRuleMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EgressRule edge %s", name)
+}
+
+// KBFileMutation represents an operation that mutates the KBFile nodes in the graph.
+type KBFileMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int
+	created_at      *time.Time
+	updated_at      *time.Time
+	org_id          *int
+	addorg_id       *int
+	kb_id           *int
+	addkb_id        *int
+	name            *string
+	kind            *string
+	size            *int64
+	addsize         *int64
+	sha256          *string
+	object_key      *string
+	status          *kbfile.Status
+	error_code      *string
+	error           *string
+	chars           *int
+	addchars        *int
+	chunk_count     *int
+	addchunk_count  *int
+	acl_custom      *bool
+	uploaded_by     *int
+	adduploaded_by  *int
+	embedding_model *string
+	attempts        *int
+	addattempts     *int
+	indexed_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*KBFile, error)
+	predicates      []predicate.KBFile
+}
+
+var _ ent.Mutation = (*KBFileMutation)(nil)
+
+// kbfileOption allows management of the mutation configuration using functional options.
+type kbfileOption func(*KBFileMutation)
+
+// newKBFileMutation creates new mutation for the KBFile entity.
+func newKBFileMutation(c config, op Op, opts ...kbfileOption) *KBFileMutation {
+	m := &KBFileMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeKBFile,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withKBFileID sets the ID field of the mutation.
+func withKBFileID(id int) kbfileOption {
+	return func(m *KBFileMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *KBFile
+		)
+		m.oldValue = func(ctx context.Context) (*KBFile, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().KBFile.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withKBFile sets the old KBFile of the mutation.
+func withKBFile(node *KBFile) kbfileOption {
+	return func(m *KBFileMutation) {
+		m.oldValue = func(context.Context) (*KBFile, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m KBFileMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m KBFileMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *KBFileMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *KBFileMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().KBFile.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *KBFileMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *KBFileMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *KBFileMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *KBFileMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *KBFileMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *KBFileMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetOrgID sets the "org_id" field.
+func (m *KBFileMutation) SetOrgID(i int) {
+	m.org_id = &i
+	m.addorg_id = nil
+}
+
+// OrgID returns the value of the "org_id" field in the mutation.
+func (m *KBFileMutation) OrgID() (r int, exists bool) {
+	v := m.org_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrgID returns the old "org_id" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldOrgID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrgID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrgID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrgID: %w", err)
+	}
+	return oldValue.OrgID, nil
+}
+
+// AddOrgID adds i to the "org_id" field.
+func (m *KBFileMutation) AddOrgID(i int) {
+	if m.addorg_id != nil {
+		*m.addorg_id += i
+	} else {
+		m.addorg_id = &i
+	}
+}
+
+// AddedOrgID returns the value that was added to the "org_id" field in this mutation.
+func (m *KBFileMutation) AddedOrgID() (r int, exists bool) {
+	v := m.addorg_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrgID resets all changes to the "org_id" field.
+func (m *KBFileMutation) ResetOrgID() {
+	m.org_id = nil
+	m.addorg_id = nil
+}
+
+// SetKBID sets the "kb_id" field.
+func (m *KBFileMutation) SetKBID(i int) {
+	m.kb_id = &i
+	m.addkb_id = nil
+}
+
+// KBID returns the value of the "kb_id" field in the mutation.
+func (m *KBFileMutation) KBID() (r int, exists bool) {
+	v := m.kb_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKBID returns the old "kb_id" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldKBID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKBID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKBID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKBID: %w", err)
+	}
+	return oldValue.KBID, nil
+}
+
+// AddKBID adds i to the "kb_id" field.
+func (m *KBFileMutation) AddKBID(i int) {
+	if m.addkb_id != nil {
+		*m.addkb_id += i
+	} else {
+		m.addkb_id = &i
+	}
+}
+
+// AddedKBID returns the value that was added to the "kb_id" field in this mutation.
+func (m *KBFileMutation) AddedKBID() (r int, exists bool) {
+	v := m.addkb_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetKBID resets all changes to the "kb_id" field.
+func (m *KBFileMutation) ResetKBID() {
+	m.kb_id = nil
+	m.addkb_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *KBFileMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *KBFileMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *KBFileMutation) ResetName() {
+	m.name = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *KBFileMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *KBFileMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *KBFileMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetSize sets the "size" field.
+func (m *KBFileMutation) SetSize(i int64) {
+	m.size = &i
+	m.addsize = nil
+}
+
+// Size returns the value of the "size" field in the mutation.
+func (m *KBFileMutation) Size() (r int64, exists bool) {
+	v := m.size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSize returns the old "size" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldSize(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSize: %w", err)
+	}
+	return oldValue.Size, nil
+}
+
+// AddSize adds i to the "size" field.
+func (m *KBFileMutation) AddSize(i int64) {
+	if m.addsize != nil {
+		*m.addsize += i
+	} else {
+		m.addsize = &i
+	}
+}
+
+// AddedSize returns the value that was added to the "size" field in this mutation.
+func (m *KBFileMutation) AddedSize() (r int64, exists bool) {
+	v := m.addsize
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSize resets all changes to the "size" field.
+func (m *KBFileMutation) ResetSize() {
+	m.size = nil
+	m.addsize = nil
+}
+
+// SetSha256 sets the "sha256" field.
+func (m *KBFileMutation) SetSha256(s string) {
+	m.sha256 = &s
+}
+
+// Sha256 returns the value of the "sha256" field in the mutation.
+func (m *KBFileMutation) Sha256() (r string, exists bool) {
+	v := m.sha256
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSha256 returns the old "sha256" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldSha256(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSha256 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSha256 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSha256: %w", err)
+	}
+	return oldValue.Sha256, nil
+}
+
+// ResetSha256 resets all changes to the "sha256" field.
+func (m *KBFileMutation) ResetSha256() {
+	m.sha256 = nil
+}
+
+// SetObjectKey sets the "object_key" field.
+func (m *KBFileMutation) SetObjectKey(s string) {
+	m.object_key = &s
+}
+
+// ObjectKey returns the value of the "object_key" field in the mutation.
+func (m *KBFileMutation) ObjectKey() (r string, exists bool) {
+	v := m.object_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldObjectKey returns the old "object_key" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldObjectKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldObjectKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldObjectKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldObjectKey: %w", err)
+	}
+	return oldValue.ObjectKey, nil
+}
+
+// ResetObjectKey resets all changes to the "object_key" field.
+func (m *KBFileMutation) ResetObjectKey() {
+	m.object_key = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *KBFileMutation) SetStatus(k kbfile.Status) {
+	m.status = &k
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *KBFileMutation) Status() (r kbfile.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldStatus(ctx context.Context) (v kbfile.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *KBFileMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetErrorCode sets the "error_code" field.
+func (m *KBFileMutation) SetErrorCode(s string) {
+	m.error_code = &s
+}
+
+// ErrorCode returns the value of the "error_code" field in the mutation.
+func (m *KBFileMutation) ErrorCode() (r string, exists bool) {
+	v := m.error_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldErrorCode returns the old "error_code" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldErrorCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldErrorCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldErrorCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldErrorCode: %w", err)
+	}
+	return oldValue.ErrorCode, nil
+}
+
+// ResetErrorCode resets all changes to the "error_code" field.
+func (m *KBFileMutation) ResetErrorCode() {
+	m.error_code = nil
+}
+
+// SetError sets the "error" field.
+func (m *KBFileMutation) SetError(s string) {
+	m.error = &s
+}
+
+// Error returns the value of the "error" field in the mutation.
+func (m *KBFileMutation) Error() (r string, exists bool) {
+	v := m.error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldError returns the old "error" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldError: %w", err)
+	}
+	return oldValue.Error, nil
+}
+
+// ResetError resets all changes to the "error" field.
+func (m *KBFileMutation) ResetError() {
+	m.error = nil
+}
+
+// SetChars sets the "chars" field.
+func (m *KBFileMutation) SetChars(i int) {
+	m.chars = &i
+	m.addchars = nil
+}
+
+// Chars returns the value of the "chars" field in the mutation.
+func (m *KBFileMutation) Chars() (r int, exists bool) {
+	v := m.chars
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChars returns the old "chars" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldChars(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChars is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChars requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChars: %w", err)
+	}
+	return oldValue.Chars, nil
+}
+
+// AddChars adds i to the "chars" field.
+func (m *KBFileMutation) AddChars(i int) {
+	if m.addchars != nil {
+		*m.addchars += i
+	} else {
+		m.addchars = &i
+	}
+}
+
+// AddedChars returns the value that was added to the "chars" field in this mutation.
+func (m *KBFileMutation) AddedChars() (r int, exists bool) {
+	v := m.addchars
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChars resets all changes to the "chars" field.
+func (m *KBFileMutation) ResetChars() {
+	m.chars = nil
+	m.addchars = nil
+}
+
+// SetChunkCount sets the "chunk_count" field.
+func (m *KBFileMutation) SetChunkCount(i int) {
+	m.chunk_count = &i
+	m.addchunk_count = nil
+}
+
+// ChunkCount returns the value of the "chunk_count" field in the mutation.
+func (m *KBFileMutation) ChunkCount() (r int, exists bool) {
+	v := m.chunk_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChunkCount returns the old "chunk_count" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldChunkCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChunkCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChunkCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChunkCount: %w", err)
+	}
+	return oldValue.ChunkCount, nil
+}
+
+// AddChunkCount adds i to the "chunk_count" field.
+func (m *KBFileMutation) AddChunkCount(i int) {
+	if m.addchunk_count != nil {
+		*m.addchunk_count += i
+	} else {
+		m.addchunk_count = &i
+	}
+}
+
+// AddedChunkCount returns the value that was added to the "chunk_count" field in this mutation.
+func (m *KBFileMutation) AddedChunkCount() (r int, exists bool) {
+	v := m.addchunk_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChunkCount resets all changes to the "chunk_count" field.
+func (m *KBFileMutation) ResetChunkCount() {
+	m.chunk_count = nil
+	m.addchunk_count = nil
+}
+
+// SetACLCustom sets the "acl_custom" field.
+func (m *KBFileMutation) SetACLCustom(b bool) {
+	m.acl_custom = &b
+}
+
+// ACLCustom returns the value of the "acl_custom" field in the mutation.
+func (m *KBFileMutation) ACLCustom() (r bool, exists bool) {
+	v := m.acl_custom
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldACLCustom returns the old "acl_custom" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldACLCustom(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldACLCustom is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldACLCustom requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldACLCustom: %w", err)
+	}
+	return oldValue.ACLCustom, nil
+}
+
+// ResetACLCustom resets all changes to the "acl_custom" field.
+func (m *KBFileMutation) ResetACLCustom() {
+	m.acl_custom = nil
+}
+
+// SetUploadedBy sets the "uploaded_by" field.
+func (m *KBFileMutation) SetUploadedBy(i int) {
+	m.uploaded_by = &i
+	m.adduploaded_by = nil
+}
+
+// UploadedBy returns the value of the "uploaded_by" field in the mutation.
+func (m *KBFileMutation) UploadedBy() (r int, exists bool) {
+	v := m.uploaded_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUploadedBy returns the old "uploaded_by" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldUploadedBy(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUploadedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUploadedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUploadedBy: %w", err)
+	}
+	return oldValue.UploadedBy, nil
+}
+
+// AddUploadedBy adds i to the "uploaded_by" field.
+func (m *KBFileMutation) AddUploadedBy(i int) {
+	if m.adduploaded_by != nil {
+		*m.adduploaded_by += i
+	} else {
+		m.adduploaded_by = &i
+	}
+}
+
+// AddedUploadedBy returns the value that was added to the "uploaded_by" field in this mutation.
+func (m *KBFileMutation) AddedUploadedBy() (r int, exists bool) {
+	v := m.adduploaded_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUploadedBy resets all changes to the "uploaded_by" field.
+func (m *KBFileMutation) ResetUploadedBy() {
+	m.uploaded_by = nil
+	m.adduploaded_by = nil
+}
+
+// SetEmbeddingModel sets the "embedding_model" field.
+func (m *KBFileMutation) SetEmbeddingModel(s string) {
+	m.embedding_model = &s
+}
+
+// EmbeddingModel returns the value of the "embedding_model" field in the mutation.
+func (m *KBFileMutation) EmbeddingModel() (r string, exists bool) {
+	v := m.embedding_model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmbeddingModel returns the old "embedding_model" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldEmbeddingModel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmbeddingModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmbeddingModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmbeddingModel: %w", err)
+	}
+	return oldValue.EmbeddingModel, nil
+}
+
+// ResetEmbeddingModel resets all changes to the "embedding_model" field.
+func (m *KBFileMutation) ResetEmbeddingModel() {
+	m.embedding_model = nil
+}
+
+// SetAttempts sets the "attempts" field.
+func (m *KBFileMutation) SetAttempts(i int) {
+	m.attempts = &i
+	m.addattempts = nil
+}
+
+// Attempts returns the value of the "attempts" field in the mutation.
+func (m *KBFileMutation) Attempts() (r int, exists bool) {
+	v := m.attempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttempts returns the old "attempts" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldAttempts(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttempts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttempts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttempts: %w", err)
+	}
+	return oldValue.Attempts, nil
+}
+
+// AddAttempts adds i to the "attempts" field.
+func (m *KBFileMutation) AddAttempts(i int) {
+	if m.addattempts != nil {
+		*m.addattempts += i
+	} else {
+		m.addattempts = &i
+	}
+}
+
+// AddedAttempts returns the value that was added to the "attempts" field in this mutation.
+func (m *KBFileMutation) AddedAttempts() (r int, exists bool) {
+	v := m.addattempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAttempts resets all changes to the "attempts" field.
+func (m *KBFileMutation) ResetAttempts() {
+	m.attempts = nil
+	m.addattempts = nil
+}
+
+// SetIndexedAt sets the "indexed_at" field.
+func (m *KBFileMutation) SetIndexedAt(t time.Time) {
+	m.indexed_at = &t
+}
+
+// IndexedAt returns the value of the "indexed_at" field in the mutation.
+func (m *KBFileMutation) IndexedAt() (r time.Time, exists bool) {
+	v := m.indexed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIndexedAt returns the old "indexed_at" field's value of the KBFile entity.
+// If the KBFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KBFileMutation) OldIndexedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIndexedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIndexedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIndexedAt: %w", err)
+	}
+	return oldValue.IndexedAt, nil
+}
+
+// ClearIndexedAt clears the value of the "indexed_at" field.
+func (m *KBFileMutation) ClearIndexedAt() {
+	m.indexed_at = nil
+	m.clearedFields[kbfile.FieldIndexedAt] = struct{}{}
+}
+
+// IndexedAtCleared returns if the "indexed_at" field was cleared in this mutation.
+func (m *KBFileMutation) IndexedAtCleared() bool {
+	_, ok := m.clearedFields[kbfile.FieldIndexedAt]
+	return ok
+}
+
+// ResetIndexedAt resets all changes to the "indexed_at" field.
+func (m *KBFileMutation) ResetIndexedAt() {
+	m.indexed_at = nil
+	delete(m.clearedFields, kbfile.FieldIndexedAt)
+}
+
+// Where appends a list predicates to the KBFileMutation builder.
+func (m *KBFileMutation) Where(ps ...predicate.KBFile) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the KBFileMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *KBFileMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.KBFile, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *KBFileMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *KBFileMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (KBFile).
+func (m *KBFileMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *KBFileMutation) Fields() []string {
+	fields := make([]string, 0, 19)
+	if m.created_at != nil {
+		fields = append(fields, kbfile.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, kbfile.FieldUpdatedAt)
+	}
+	if m.org_id != nil {
+		fields = append(fields, kbfile.FieldOrgID)
+	}
+	if m.kb_id != nil {
+		fields = append(fields, kbfile.FieldKBID)
+	}
+	if m.name != nil {
+		fields = append(fields, kbfile.FieldName)
+	}
+	if m.kind != nil {
+		fields = append(fields, kbfile.FieldKind)
+	}
+	if m.size != nil {
+		fields = append(fields, kbfile.FieldSize)
+	}
+	if m.sha256 != nil {
+		fields = append(fields, kbfile.FieldSha256)
+	}
+	if m.object_key != nil {
+		fields = append(fields, kbfile.FieldObjectKey)
+	}
+	if m.status != nil {
+		fields = append(fields, kbfile.FieldStatus)
+	}
+	if m.error_code != nil {
+		fields = append(fields, kbfile.FieldErrorCode)
+	}
+	if m.error != nil {
+		fields = append(fields, kbfile.FieldError)
+	}
+	if m.chars != nil {
+		fields = append(fields, kbfile.FieldChars)
+	}
+	if m.chunk_count != nil {
+		fields = append(fields, kbfile.FieldChunkCount)
+	}
+	if m.acl_custom != nil {
+		fields = append(fields, kbfile.FieldACLCustom)
+	}
+	if m.uploaded_by != nil {
+		fields = append(fields, kbfile.FieldUploadedBy)
+	}
+	if m.embedding_model != nil {
+		fields = append(fields, kbfile.FieldEmbeddingModel)
+	}
+	if m.attempts != nil {
+		fields = append(fields, kbfile.FieldAttempts)
+	}
+	if m.indexed_at != nil {
+		fields = append(fields, kbfile.FieldIndexedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *KBFileMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case kbfile.FieldCreatedAt:
+		return m.CreatedAt()
+	case kbfile.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case kbfile.FieldOrgID:
+		return m.OrgID()
+	case kbfile.FieldKBID:
+		return m.KBID()
+	case kbfile.FieldName:
+		return m.Name()
+	case kbfile.FieldKind:
+		return m.Kind()
+	case kbfile.FieldSize:
+		return m.Size()
+	case kbfile.FieldSha256:
+		return m.Sha256()
+	case kbfile.FieldObjectKey:
+		return m.ObjectKey()
+	case kbfile.FieldStatus:
+		return m.Status()
+	case kbfile.FieldErrorCode:
+		return m.ErrorCode()
+	case kbfile.FieldError:
+		return m.Error()
+	case kbfile.FieldChars:
+		return m.Chars()
+	case kbfile.FieldChunkCount:
+		return m.ChunkCount()
+	case kbfile.FieldACLCustom:
+		return m.ACLCustom()
+	case kbfile.FieldUploadedBy:
+		return m.UploadedBy()
+	case kbfile.FieldEmbeddingModel:
+		return m.EmbeddingModel()
+	case kbfile.FieldAttempts:
+		return m.Attempts()
+	case kbfile.FieldIndexedAt:
+		return m.IndexedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *KBFileMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case kbfile.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case kbfile.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case kbfile.FieldOrgID:
+		return m.OldOrgID(ctx)
+	case kbfile.FieldKBID:
+		return m.OldKBID(ctx)
+	case kbfile.FieldName:
+		return m.OldName(ctx)
+	case kbfile.FieldKind:
+		return m.OldKind(ctx)
+	case kbfile.FieldSize:
+		return m.OldSize(ctx)
+	case kbfile.FieldSha256:
+		return m.OldSha256(ctx)
+	case kbfile.FieldObjectKey:
+		return m.OldObjectKey(ctx)
+	case kbfile.FieldStatus:
+		return m.OldStatus(ctx)
+	case kbfile.FieldErrorCode:
+		return m.OldErrorCode(ctx)
+	case kbfile.FieldError:
+		return m.OldError(ctx)
+	case kbfile.FieldChars:
+		return m.OldChars(ctx)
+	case kbfile.FieldChunkCount:
+		return m.OldChunkCount(ctx)
+	case kbfile.FieldACLCustom:
+		return m.OldACLCustom(ctx)
+	case kbfile.FieldUploadedBy:
+		return m.OldUploadedBy(ctx)
+	case kbfile.FieldEmbeddingModel:
+		return m.OldEmbeddingModel(ctx)
+	case kbfile.FieldAttempts:
+		return m.OldAttempts(ctx)
+	case kbfile.FieldIndexedAt:
+		return m.OldIndexedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown KBFile field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KBFileMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case kbfile.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case kbfile.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case kbfile.FieldOrgID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrgID(v)
+		return nil
+	case kbfile.FieldKBID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKBID(v)
+		return nil
+	case kbfile.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case kbfile.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case kbfile.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSize(v)
+		return nil
+	case kbfile.FieldSha256:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSha256(v)
+		return nil
+	case kbfile.FieldObjectKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetObjectKey(v)
+		return nil
+	case kbfile.FieldStatus:
+		v, ok := value.(kbfile.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case kbfile.FieldErrorCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetErrorCode(v)
+		return nil
+	case kbfile.FieldError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetError(v)
+		return nil
+	case kbfile.FieldChars:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChars(v)
+		return nil
+	case kbfile.FieldChunkCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChunkCount(v)
+		return nil
+	case kbfile.FieldACLCustom:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetACLCustom(v)
+		return nil
+	case kbfile.FieldUploadedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUploadedBy(v)
+		return nil
+	case kbfile.FieldEmbeddingModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmbeddingModel(v)
+		return nil
+	case kbfile.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttempts(v)
+		return nil
+	case kbfile.FieldIndexedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIndexedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KBFile field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *KBFileMutation) AddedFields() []string {
+	var fields []string
+	if m.addorg_id != nil {
+		fields = append(fields, kbfile.FieldOrgID)
+	}
+	if m.addkb_id != nil {
+		fields = append(fields, kbfile.FieldKBID)
+	}
+	if m.addsize != nil {
+		fields = append(fields, kbfile.FieldSize)
+	}
+	if m.addchars != nil {
+		fields = append(fields, kbfile.FieldChars)
+	}
+	if m.addchunk_count != nil {
+		fields = append(fields, kbfile.FieldChunkCount)
+	}
+	if m.adduploaded_by != nil {
+		fields = append(fields, kbfile.FieldUploadedBy)
+	}
+	if m.addattempts != nil {
+		fields = append(fields, kbfile.FieldAttempts)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *KBFileMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case kbfile.FieldOrgID:
+		return m.AddedOrgID()
+	case kbfile.FieldKBID:
+		return m.AddedKBID()
+	case kbfile.FieldSize:
+		return m.AddedSize()
+	case kbfile.FieldChars:
+		return m.AddedChars()
+	case kbfile.FieldChunkCount:
+		return m.AddedChunkCount()
+	case kbfile.FieldUploadedBy:
+		return m.AddedUploadedBy()
+	case kbfile.FieldAttempts:
+		return m.AddedAttempts()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KBFileMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case kbfile.FieldOrgID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrgID(v)
+		return nil
+	case kbfile.FieldKBID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddKBID(v)
+		return nil
+	case kbfile.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSize(v)
+		return nil
+	case kbfile.FieldChars:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChars(v)
+		return nil
+	case kbfile.FieldChunkCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChunkCount(v)
+		return nil
+	case kbfile.FieldUploadedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUploadedBy(v)
+		return nil
+	case kbfile.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAttempts(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KBFile numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *KBFileMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(kbfile.FieldIndexedAt) {
+		fields = append(fields, kbfile.FieldIndexedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *KBFileMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *KBFileMutation) ClearField(name string) error {
+	switch name {
+	case kbfile.FieldIndexedAt:
+		m.ClearIndexedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown KBFile nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *KBFileMutation) ResetField(name string) error {
+	switch name {
+	case kbfile.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case kbfile.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case kbfile.FieldOrgID:
+		m.ResetOrgID()
+		return nil
+	case kbfile.FieldKBID:
+		m.ResetKBID()
+		return nil
+	case kbfile.FieldName:
+		m.ResetName()
+		return nil
+	case kbfile.FieldKind:
+		m.ResetKind()
+		return nil
+	case kbfile.FieldSize:
+		m.ResetSize()
+		return nil
+	case kbfile.FieldSha256:
+		m.ResetSha256()
+		return nil
+	case kbfile.FieldObjectKey:
+		m.ResetObjectKey()
+		return nil
+	case kbfile.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case kbfile.FieldErrorCode:
+		m.ResetErrorCode()
+		return nil
+	case kbfile.FieldError:
+		m.ResetError()
+		return nil
+	case kbfile.FieldChars:
+		m.ResetChars()
+		return nil
+	case kbfile.FieldChunkCount:
+		m.ResetChunkCount()
+		return nil
+	case kbfile.FieldACLCustom:
+		m.ResetACLCustom()
+		return nil
+	case kbfile.FieldUploadedBy:
+		m.ResetUploadedBy()
+		return nil
+	case kbfile.FieldEmbeddingModel:
+		m.ResetEmbeddingModel()
+		return nil
+	case kbfile.FieldAttempts:
+		m.ResetAttempts()
+		return nil
+	case kbfile.FieldIndexedAt:
+		m.ResetIndexedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown KBFile field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *KBFileMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *KBFileMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *KBFileMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *KBFileMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *KBFileMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *KBFileMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *KBFileMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown KBFile unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *KBFileMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown KBFile edge %s", name)
+}
+
+// KnowledgeBaseMutation represents an operation that mutates the KnowledgeBase nodes in the graph.
+type KnowledgeBaseMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int
+	created_at       *time.Time
+	updated_at       *time.Time
+	org_id           *int
+	addorg_id        *int
+	name             *string
+	description      *string
+	embedding_model  *string
+	chunk_size       *int
+	addchunk_size    *int
+	chunk_overlap    *int
+	addchunk_overlap *int
+	created_by       *int
+	addcreated_by    *int
+	deleted_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*KnowledgeBase, error)
+	predicates       []predicate.KnowledgeBase
+}
+
+var _ ent.Mutation = (*KnowledgeBaseMutation)(nil)
+
+// knowledgebaseOption allows management of the mutation configuration using functional options.
+type knowledgebaseOption func(*KnowledgeBaseMutation)
+
+// newKnowledgeBaseMutation creates new mutation for the KnowledgeBase entity.
+func newKnowledgeBaseMutation(c config, op Op, opts ...knowledgebaseOption) *KnowledgeBaseMutation {
+	m := &KnowledgeBaseMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeKnowledgeBase,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withKnowledgeBaseID sets the ID field of the mutation.
+func withKnowledgeBaseID(id int) knowledgebaseOption {
+	return func(m *KnowledgeBaseMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *KnowledgeBase
+		)
+		m.oldValue = func(ctx context.Context) (*KnowledgeBase, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().KnowledgeBase.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withKnowledgeBase sets the old KnowledgeBase of the mutation.
+func withKnowledgeBase(node *KnowledgeBase) knowledgebaseOption {
+	return func(m *KnowledgeBaseMutation) {
+		m.oldValue = func(context.Context) (*KnowledgeBase, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m KnowledgeBaseMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m KnowledgeBaseMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *KnowledgeBaseMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *KnowledgeBaseMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().KnowledgeBase.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *KnowledgeBaseMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *KnowledgeBaseMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the KnowledgeBase entity.
+// If the KnowledgeBase object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeBaseMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *KnowledgeBaseMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *KnowledgeBaseMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *KnowledgeBaseMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the KnowledgeBase entity.
+// If the KnowledgeBase object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeBaseMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *KnowledgeBaseMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetOrgID sets the "org_id" field.
+func (m *KnowledgeBaseMutation) SetOrgID(i int) {
+	m.org_id = &i
+	m.addorg_id = nil
+}
+
+// OrgID returns the value of the "org_id" field in the mutation.
+func (m *KnowledgeBaseMutation) OrgID() (r int, exists bool) {
+	v := m.org_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrgID returns the old "org_id" field's value of the KnowledgeBase entity.
+// If the KnowledgeBase object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeBaseMutation) OldOrgID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrgID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrgID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrgID: %w", err)
+	}
+	return oldValue.OrgID, nil
+}
+
+// AddOrgID adds i to the "org_id" field.
+func (m *KnowledgeBaseMutation) AddOrgID(i int) {
+	if m.addorg_id != nil {
+		*m.addorg_id += i
+	} else {
+		m.addorg_id = &i
+	}
+}
+
+// AddedOrgID returns the value that was added to the "org_id" field in this mutation.
+func (m *KnowledgeBaseMutation) AddedOrgID() (r int, exists bool) {
+	v := m.addorg_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrgID resets all changes to the "org_id" field.
+func (m *KnowledgeBaseMutation) ResetOrgID() {
+	m.org_id = nil
+	m.addorg_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *KnowledgeBaseMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *KnowledgeBaseMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the KnowledgeBase entity.
+// If the KnowledgeBase object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeBaseMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *KnowledgeBaseMutation) ResetName() {
+	m.name = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *KnowledgeBaseMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *KnowledgeBaseMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the KnowledgeBase entity.
+// If the KnowledgeBase object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeBaseMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *KnowledgeBaseMutation) ResetDescription() {
+	m.description = nil
+}
+
+// SetEmbeddingModel sets the "embedding_model" field.
+func (m *KnowledgeBaseMutation) SetEmbeddingModel(s string) {
+	m.embedding_model = &s
+}
+
+// EmbeddingModel returns the value of the "embedding_model" field in the mutation.
+func (m *KnowledgeBaseMutation) EmbeddingModel() (r string, exists bool) {
+	v := m.embedding_model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmbeddingModel returns the old "embedding_model" field's value of the KnowledgeBase entity.
+// If the KnowledgeBase object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeBaseMutation) OldEmbeddingModel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmbeddingModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmbeddingModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmbeddingModel: %w", err)
+	}
+	return oldValue.EmbeddingModel, nil
+}
+
+// ResetEmbeddingModel resets all changes to the "embedding_model" field.
+func (m *KnowledgeBaseMutation) ResetEmbeddingModel() {
+	m.embedding_model = nil
+}
+
+// SetChunkSize sets the "chunk_size" field.
+func (m *KnowledgeBaseMutation) SetChunkSize(i int) {
+	m.chunk_size = &i
+	m.addchunk_size = nil
+}
+
+// ChunkSize returns the value of the "chunk_size" field in the mutation.
+func (m *KnowledgeBaseMutation) ChunkSize() (r int, exists bool) {
+	v := m.chunk_size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChunkSize returns the old "chunk_size" field's value of the KnowledgeBase entity.
+// If the KnowledgeBase object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeBaseMutation) OldChunkSize(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChunkSize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChunkSize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChunkSize: %w", err)
+	}
+	return oldValue.ChunkSize, nil
+}
+
+// AddChunkSize adds i to the "chunk_size" field.
+func (m *KnowledgeBaseMutation) AddChunkSize(i int) {
+	if m.addchunk_size != nil {
+		*m.addchunk_size += i
+	} else {
+		m.addchunk_size = &i
+	}
+}
+
+// AddedChunkSize returns the value that was added to the "chunk_size" field in this mutation.
+func (m *KnowledgeBaseMutation) AddedChunkSize() (r int, exists bool) {
+	v := m.addchunk_size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChunkSize resets all changes to the "chunk_size" field.
+func (m *KnowledgeBaseMutation) ResetChunkSize() {
+	m.chunk_size = nil
+	m.addchunk_size = nil
+}
+
+// SetChunkOverlap sets the "chunk_overlap" field.
+func (m *KnowledgeBaseMutation) SetChunkOverlap(i int) {
+	m.chunk_overlap = &i
+	m.addchunk_overlap = nil
+}
+
+// ChunkOverlap returns the value of the "chunk_overlap" field in the mutation.
+func (m *KnowledgeBaseMutation) ChunkOverlap() (r int, exists bool) {
+	v := m.chunk_overlap
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChunkOverlap returns the old "chunk_overlap" field's value of the KnowledgeBase entity.
+// If the KnowledgeBase object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeBaseMutation) OldChunkOverlap(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChunkOverlap is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChunkOverlap requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChunkOverlap: %w", err)
+	}
+	return oldValue.ChunkOverlap, nil
+}
+
+// AddChunkOverlap adds i to the "chunk_overlap" field.
+func (m *KnowledgeBaseMutation) AddChunkOverlap(i int) {
+	if m.addchunk_overlap != nil {
+		*m.addchunk_overlap += i
+	} else {
+		m.addchunk_overlap = &i
+	}
+}
+
+// AddedChunkOverlap returns the value that was added to the "chunk_overlap" field in this mutation.
+func (m *KnowledgeBaseMutation) AddedChunkOverlap() (r int, exists bool) {
+	v := m.addchunk_overlap
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChunkOverlap resets all changes to the "chunk_overlap" field.
+func (m *KnowledgeBaseMutation) ResetChunkOverlap() {
+	m.chunk_overlap = nil
+	m.addchunk_overlap = nil
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *KnowledgeBaseMutation) SetCreatedBy(i int) {
+	m.created_by = &i
+	m.addcreated_by = nil
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *KnowledgeBaseMutation) CreatedBy() (r int, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the KnowledgeBase entity.
+// If the KnowledgeBase object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeBaseMutation) OldCreatedBy(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// AddCreatedBy adds i to the "created_by" field.
+func (m *KnowledgeBaseMutation) AddCreatedBy(i int) {
+	if m.addcreated_by != nil {
+		*m.addcreated_by += i
+	} else {
+		m.addcreated_by = &i
+	}
+}
+
+// AddedCreatedBy returns the value that was added to the "created_by" field in this mutation.
+func (m *KnowledgeBaseMutation) AddedCreatedBy() (r int, exists bool) {
+	v := m.addcreated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *KnowledgeBaseMutation) ResetCreatedBy() {
+	m.created_by = nil
+	m.addcreated_by = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *KnowledgeBaseMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *KnowledgeBaseMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the KnowledgeBase entity.
+// If the KnowledgeBase object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeBaseMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *KnowledgeBaseMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[knowledgebase.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *KnowledgeBaseMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[knowledgebase.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *KnowledgeBaseMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, knowledgebase.FieldDeletedAt)
+}
+
+// Where appends a list predicates to the KnowledgeBaseMutation builder.
+func (m *KnowledgeBaseMutation) Where(ps ...predicate.KnowledgeBase) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the KnowledgeBaseMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *KnowledgeBaseMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.KnowledgeBase, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *KnowledgeBaseMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *KnowledgeBaseMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (KnowledgeBase).
+func (m *KnowledgeBaseMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *KnowledgeBaseMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.created_at != nil {
+		fields = append(fields, knowledgebase.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, knowledgebase.FieldUpdatedAt)
+	}
+	if m.org_id != nil {
+		fields = append(fields, knowledgebase.FieldOrgID)
+	}
+	if m.name != nil {
+		fields = append(fields, knowledgebase.FieldName)
+	}
+	if m.description != nil {
+		fields = append(fields, knowledgebase.FieldDescription)
+	}
+	if m.embedding_model != nil {
+		fields = append(fields, knowledgebase.FieldEmbeddingModel)
+	}
+	if m.chunk_size != nil {
+		fields = append(fields, knowledgebase.FieldChunkSize)
+	}
+	if m.chunk_overlap != nil {
+		fields = append(fields, knowledgebase.FieldChunkOverlap)
+	}
+	if m.created_by != nil {
+		fields = append(fields, knowledgebase.FieldCreatedBy)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, knowledgebase.FieldDeletedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *KnowledgeBaseMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case knowledgebase.FieldCreatedAt:
+		return m.CreatedAt()
+	case knowledgebase.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case knowledgebase.FieldOrgID:
+		return m.OrgID()
+	case knowledgebase.FieldName:
+		return m.Name()
+	case knowledgebase.FieldDescription:
+		return m.Description()
+	case knowledgebase.FieldEmbeddingModel:
+		return m.EmbeddingModel()
+	case knowledgebase.FieldChunkSize:
+		return m.ChunkSize()
+	case knowledgebase.FieldChunkOverlap:
+		return m.ChunkOverlap()
+	case knowledgebase.FieldCreatedBy:
+		return m.CreatedBy()
+	case knowledgebase.FieldDeletedAt:
+		return m.DeletedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *KnowledgeBaseMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case knowledgebase.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case knowledgebase.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case knowledgebase.FieldOrgID:
+		return m.OldOrgID(ctx)
+	case knowledgebase.FieldName:
+		return m.OldName(ctx)
+	case knowledgebase.FieldDescription:
+		return m.OldDescription(ctx)
+	case knowledgebase.FieldEmbeddingModel:
+		return m.OldEmbeddingModel(ctx)
+	case knowledgebase.FieldChunkSize:
+		return m.OldChunkSize(ctx)
+	case knowledgebase.FieldChunkOverlap:
+		return m.OldChunkOverlap(ctx)
+	case knowledgebase.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case knowledgebase.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown KnowledgeBase field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KnowledgeBaseMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case knowledgebase.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case knowledgebase.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case knowledgebase.FieldOrgID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrgID(v)
+		return nil
+	case knowledgebase.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case knowledgebase.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case knowledgebase.FieldEmbeddingModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmbeddingModel(v)
+		return nil
+	case knowledgebase.FieldChunkSize:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChunkSize(v)
+		return nil
+	case knowledgebase.FieldChunkOverlap:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChunkOverlap(v)
+		return nil
+	case knowledgebase.FieldCreatedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case knowledgebase.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KnowledgeBase field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *KnowledgeBaseMutation) AddedFields() []string {
+	var fields []string
+	if m.addorg_id != nil {
+		fields = append(fields, knowledgebase.FieldOrgID)
+	}
+	if m.addchunk_size != nil {
+		fields = append(fields, knowledgebase.FieldChunkSize)
+	}
+	if m.addchunk_overlap != nil {
+		fields = append(fields, knowledgebase.FieldChunkOverlap)
+	}
+	if m.addcreated_by != nil {
+		fields = append(fields, knowledgebase.FieldCreatedBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *KnowledgeBaseMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case knowledgebase.FieldOrgID:
+		return m.AddedOrgID()
+	case knowledgebase.FieldChunkSize:
+		return m.AddedChunkSize()
+	case knowledgebase.FieldChunkOverlap:
+		return m.AddedChunkOverlap()
+	case knowledgebase.FieldCreatedBy:
+		return m.AddedCreatedBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KnowledgeBaseMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case knowledgebase.FieldOrgID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrgID(v)
+		return nil
+	case knowledgebase.FieldChunkSize:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChunkSize(v)
+		return nil
+	case knowledgebase.FieldChunkOverlap:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChunkOverlap(v)
+		return nil
+	case knowledgebase.FieldCreatedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreatedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KnowledgeBase numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *KnowledgeBaseMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(knowledgebase.FieldDeletedAt) {
+		fields = append(fields, knowledgebase.FieldDeletedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *KnowledgeBaseMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *KnowledgeBaseMutation) ClearField(name string) error {
+	switch name {
+	case knowledgebase.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown KnowledgeBase nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *KnowledgeBaseMutation) ResetField(name string) error {
+	switch name {
+	case knowledgebase.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case knowledgebase.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case knowledgebase.FieldOrgID:
+		m.ResetOrgID()
+		return nil
+	case knowledgebase.FieldName:
+		m.ResetName()
+		return nil
+	case knowledgebase.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case knowledgebase.FieldEmbeddingModel:
+		m.ResetEmbeddingModel()
+		return nil
+	case knowledgebase.FieldChunkSize:
+		m.ResetChunkSize()
+		return nil
+	case knowledgebase.FieldChunkOverlap:
+		m.ResetChunkOverlap()
+		return nil
+	case knowledgebase.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case knowledgebase.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown KnowledgeBase field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *KnowledgeBaseMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *KnowledgeBaseMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *KnowledgeBaseMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *KnowledgeBaseMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *KnowledgeBaseMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *KnowledgeBaseMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *KnowledgeBaseMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown KnowledgeBase unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *KnowledgeBaseMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown KnowledgeBase edge %s", name)
 }
 
 // LegalHoldMutation represents an operation that mutates the LegalHold nodes in the graph.
