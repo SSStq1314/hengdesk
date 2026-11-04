@@ -1,0 +1,93 @@
+{
+  "chunks": 1000000,
+  "ef_search": 100,
+  "k": 8,
+  "queries_per_tier": 100,
+  "threshold": 20000,
+  "tiers": [
+    {
+      "visible_pct": 1,
+      "visible_chunks": 10000,
+      "strategy": {
+        "exact": 100
+      },
+      "e2e_ms": {
+        "P50": 51.58,
+        "P95": 70.823,
+        "P99": 93.309,
+        "Max": 162.52
+      },
+      "vector_ms": {
+        "P50": 43.16,
+        "P95": 54.299,
+        "P99": 79.453,
+        "Max": 151.569
+      },
+      "vector_recall_at_k": 1,
+      "leaks": 0
+    },
+    {
+      "visible_pct": 10,
+      "visible_chunks": 100000,
+      "strategy": {
+        "hnsw": 100
+      },
+      "e2e_ms": {
+        "P50": 1027.902,
+        "P95": 2593.105,
+        "P99": 3339.778,
+        "Max": 3478.653
+      },
+      "vector_ms": {
+        "P50": 997.471,
+        "P95": 2568.459,
+        "P99": 3316.313,
+        "Max": 3454.993
+      },
+      "vector_recall_at_k": 0.9562499999999998,
+      "leaks": 0
+    },
+    {
+      "visible_pct": 50,
+      "visible_chunks": 500000,
+      "strategy": {
+        "hnsw": 100
+      },
+      "e2e_ms": {
+        "P50": 318.955,
+        "P95": 567.507,
+        "P99": 634.675,
+        "Max": 690.33
+      },
+      "vector_ms": {
+        "P50": 209.976,
+        "P95": 470.838,
+        "P99": 530.679,
+        "Max": 584.933
+      },
+      "vector_recall_at_k": 0.7775000000000001,
+      "leaks": 0
+    },
+    {
+      "visible_pct": 100,
+      "visible_chunks": 1000000,
+      "strategy": {
+        "hnsw": 100
+      },
+      "e2e_ms": {
+        "P50": 301.934,
+        "P95": 429.785,
+        "P99": 541.166,
+        "Max": 734.86
+      },
+      "vector_ms": {
+        "P50": 99.587,
+        "P95": 224.101,
+        "P99": 329.875,
+        "Max": 501.311
+      },
+      "vector_recall_at_k": 0.74625,
+      "leaks": 0
+    }
+  ]
+}
