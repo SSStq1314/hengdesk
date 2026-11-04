@@ -16,6 +16,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/predicate"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
+	"github.com/SSStq1314/hengdesk/server/internal/rawjson"
 )
 
 // MessageUpdate is the builder for updating Message entities.
@@ -271,6 +272,42 @@ func (_u *MessageUpdate) SetNillableKBUngrounded(v *bool) *MessageUpdate {
 	return _u
 }
 
+// SetToolCalls sets the "tool_calls" field.
+func (_u *MessageUpdate) SetToolCalls(v []schema.MsgToolCall) *MessageUpdate {
+	_u.mutation.SetToolCalls(v)
+	return _u
+}
+
+// AppendToolCalls appends value to the "tool_calls" field.
+func (_u *MessageUpdate) AppendToolCalls(v []schema.MsgToolCall) *MessageUpdate {
+	_u.mutation.AppendToolCalls(v)
+	return _u
+}
+
+// ClearToolCalls clears the value of the "tool_calls" field.
+func (_u *MessageUpdate) ClearToolCalls() *MessageUpdate {
+	_u.mutation.ClearToolCalls()
+	return _u
+}
+
+// SetToolState sets the "tool_state" field.
+func (_u *MessageUpdate) SetToolState(v rawjson.Raw) *MessageUpdate {
+	_u.mutation.SetToolState(v)
+	return _u
+}
+
+// AppendToolState appends value to the "tool_state" field.
+func (_u *MessageUpdate) AppendToolState(v rawjson.Raw) *MessageUpdate {
+	_u.mutation.AppendToolState(v)
+	return _u
+}
+
+// ClearToolState clears the value of the "tool_state" field.
+func (_u *MessageUpdate) ClearToolState() *MessageUpdate {
+	_u.mutation.ClearToolState()
+	return _u
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_u *MessageUpdate) SetConversation(v *Conversation) *MessageUpdate {
 	return _u.SetConversationID(v.ID)
@@ -419,6 +456,28 @@ func (_u *MessageUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.KBUngrounded(); ok {
 		_spec.SetField(message.FieldKBUngrounded, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ToolCalls(); ok {
+		_spec.SetField(message.FieldToolCalls, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedToolCalls(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, message.FieldToolCalls, value)
+		})
+	}
+	if _u.mutation.ToolCallsCleared() {
+		_spec.ClearField(message.FieldToolCalls, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ToolState(); ok {
+		_spec.SetField(message.FieldToolState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedToolState(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, message.FieldToolState, value)
+		})
+	}
+	if _u.mutation.ToolStateCleared() {
+		_spec.ClearField(message.FieldToolState, field.TypeJSON)
 	}
 	if _u.mutation.ConversationCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -709,6 +768,42 @@ func (_u *MessageUpdateOne) SetNillableKBUngrounded(v *bool) *MessageUpdateOne {
 	return _u
 }
 
+// SetToolCalls sets the "tool_calls" field.
+func (_u *MessageUpdateOne) SetToolCalls(v []schema.MsgToolCall) *MessageUpdateOne {
+	_u.mutation.SetToolCalls(v)
+	return _u
+}
+
+// AppendToolCalls appends value to the "tool_calls" field.
+func (_u *MessageUpdateOne) AppendToolCalls(v []schema.MsgToolCall) *MessageUpdateOne {
+	_u.mutation.AppendToolCalls(v)
+	return _u
+}
+
+// ClearToolCalls clears the value of the "tool_calls" field.
+func (_u *MessageUpdateOne) ClearToolCalls() *MessageUpdateOne {
+	_u.mutation.ClearToolCalls()
+	return _u
+}
+
+// SetToolState sets the "tool_state" field.
+func (_u *MessageUpdateOne) SetToolState(v rawjson.Raw) *MessageUpdateOne {
+	_u.mutation.SetToolState(v)
+	return _u
+}
+
+// AppendToolState appends value to the "tool_state" field.
+func (_u *MessageUpdateOne) AppendToolState(v rawjson.Raw) *MessageUpdateOne {
+	_u.mutation.AppendToolState(v)
+	return _u
+}
+
+// ClearToolState clears the value of the "tool_state" field.
+func (_u *MessageUpdateOne) ClearToolState() *MessageUpdateOne {
+	_u.mutation.ClearToolState()
+	return _u
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_u *MessageUpdateOne) SetConversation(v *Conversation) *MessageUpdateOne {
 	return _u.SetConversationID(v.ID)
@@ -887,6 +982,28 @@ func (_u *MessageUpdateOne) sqlSave(ctx context.Context) (_node *Message, err er
 	}
 	if value, ok := _u.mutation.KBUngrounded(); ok {
 		_spec.SetField(message.FieldKBUngrounded, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ToolCalls(); ok {
+		_spec.SetField(message.FieldToolCalls, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedToolCalls(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, message.FieldToolCalls, value)
+		})
+	}
+	if _u.mutation.ToolCallsCleared() {
+		_spec.ClearField(message.FieldToolCalls, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ToolState(); ok {
+		_spec.SetField(message.FieldToolState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedToolState(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, message.FieldToolState, value)
+		})
+	}
+	if _u.mutation.ToolStateCleared() {
+		_spec.ClearField(message.FieldToolState, field.TypeJSON)
 	}
 	if _u.mutation.ConversationCleared() {
 		edge := &sqlgraph.EdgeSpec{

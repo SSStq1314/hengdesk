@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/SSStq1314/hengdesk/server/internal/approval"
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
 	"github.com/SSStq1314/hengdesk/server/internal/authz"
@@ -47,6 +49,9 @@ type convHandlers struct {
 	parser *docparse.Extractor
 	r      redis.UniversalClient
 	ret    *kb.Retriever
+	// az / ap 工具授权判定与审批服务（第五块 PR4）；为空时会话不提供工具。
+	az *authz.Service
+	ap *approval.Service
 }
 
 type convView struct {
@@ -54,6 +59,7 @@ type convView struct {
 	Title     string    `json:"title"`
 	ModelID   *int      `json:"model_id"`
 	KBIDs     []int     `json:"kb_ids"`
+	ToolIDs   []int     `json:"tool_ids"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -90,13 +96,17 @@ func toConv(c *ent.Conversation) convView {
 	if ids == nil {
 		ids = []int{}
 	}
-	return convView{ID: c.ID, Title: c.Title, ModelID: c.ModelID, KBIDs: ids, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt}
+	tids := c.ToolIds
+	if tids == nil {
+		tids = []int{}
+	}
+	return convView{ID: c.ID, Title: c.Title, ModelID: c.ModelID, KBIDs: ids, ToolIDs: tids, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt}
 }
 
 func toMsg(m *ent.Message) msgView {
 	return msgView{ID: m.ID, Role: string(m.Role), Content: m.Content, Status: string(m.Status), ModelName: m.ModelName,
 		FallbackFrom: m.FallbackFrom, ErrorCode: m.ErrorCode, Error: m.Error, PromptTokens: m.PromptTokens, UsageEstimated: m.UsageEstimated,
-		CompletionTokens: m.CompletionTokens, CreatedAt: m.CreatedAt, Citations: m.Citations, KBUngrounded: m.KBUngrounded}
+		CompletionTokens: m.CompletionTokens, CreatedAt: m.CreatedAt, Citations: m.Citations, KBUngrounded: m.KBUngrounded, ToolCalls: m.ToolCalls}
 }
 
 // own 取当前用户自己的、未删除的会话；其它情况记越权审计并返回 404（不区分不存在与非本人）。
@@ -143,6 +153,8 @@ type convInput struct {
 	Model string  `json:"model"`
 	// KBIDs 选用的知识库（最多 maxConvKBs 个）；传 [] 清空，不传不变。
 	KBIDs *[]int `json:"kb_ids"`
+	// ToolIDs 选用的工具（第五块 PR4，最多 maxConvTools 个，必须当前可用）；传 [] 清空，不传不变。
+	ToolIDs *[]int `json:"tool_ids"`
 }
 
 const maxConvKBs = 5
@@ -220,6 +232,13 @@ func (h *convHandlers) create(c echo.Context) error {
 		}
 		q.SetKBIds(ids)
 	}
+	if in.ToolIDs != nil {
+		ids, err := h.checkTools(c, p, *in.ToolIDs)
+		if err != nil {
+			return err
+		}
+		q.SetToolIds(ids)
+	}
 	cv, err := q.Save(c.Request().Context())
 	if err != nil {
 		return err
@@ -289,6 +308,13 @@ func (h *convHandlers) update(c echo.Context) error {
 		}
 		u.SetKBIds(ids)
 	}
+	if in.ToolIDs != nil {
+		ids, err := h.checkTools(c, p, *in.ToolIDs)
+		if err != nil {
+			return err
+		}
+		u.SetToolIds(ids)
+	}
 	cv, err = u.Save(c.Request().Context())
 	if err != nil {
 		return err
@@ -355,6 +381,12 @@ func (h *convHandlers) send(c echo.Context) error {
 		return err
 	}
 	defer unlock()
+	if aw, err := h.awaitingLast(ctx, cv.ID); err != nil || aw {
+		if err != nil {
+			return err
+		}
+		return errAwaiting
+	}
 	tgt, notice, err := h.pickModel(c, p, cv, in.Model)
 	if err != nil {
 		return err
@@ -436,6 +468,9 @@ func (h *convHandlers) regenerate(c echo.Context) error {
 			return authz.Deny(c, "message:not_found")
 		}
 		return echo.NewHTTPError(http.StatusConflict, "只能重新生成最后一条回复")
+	}
+	if last.Status == message.StatusAwaitingApproval {
+		return errAwaiting
 	}
 	if last.Role != message.RoleAssistant || last.Status == message.StatusStreaming {
 		return echo.NewHTTPError(http.StatusConflict, "只能重新生成最后一条已结束的回复")
@@ -616,6 +651,12 @@ func (h *convHandlers) lock(ctx context.Context, convID int) (func(), error) {
 // generate 组上下文、流式调用模型并落库最终状态；写 result 审计。上下文只用未被替换的消息。
 func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conversation, tgt *gateway.Target, asst *ent.Message,
 	action, notice string, skipKB bool, extra map[string]any) error {
+	return h.generateWith(c, p, cv, tgt, asst, action, notice, skipKB, extra, nil)
+}
+
+// generateWith 同 generate；rs 非空时从挂起的工具循环状态继续（审批结束后，见 convtools.go）。
+func (h *convHandlers) generateWith(c echo.Context, p *auth.Principal, cv *ent.Conversation, tgt *gateway.Target, asst *ent.Message,
+	action, notice string, skipKB bool, extra map[string]any, rs *toolState) error {
 	ctx := c.Request().Context()
 	files, err := h.files(ctx, cv.ID)
 	if err != nil {
@@ -706,14 +747,109 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 	}
 	req := gateway.ChatRequest{Model: tgt.Model.Name, Messages: msgs, Stream: true}
 
+	// 工具循环（第五块 PR4）：每轮模型调用后处理工具调用，直到模型直接作答、需要审批挂起或达到步数上限。
+	tools, tmap, err := h.convTools(ctx, p, cv)
+	if err != nil {
+		return err
+	}
+	st := rs
+	if st == nil {
+		st = &toolState{}
+	}
+	if len(tools) > 0 {
+		req.Tools = tools
+	}
+	summary := ""
+	for _, m := range hist {
+		if m.Role == message.RoleUser {
+			summary = truncRunes(m.Content, 500)
+			break
+		}
+	}
 	var buf strings.Builder
-	hk := streamHooks{delta: EventToken, prelude: prelude, tap: func(d gateway.Delta) { buf.WriteString(d.Content) },
-		done: func(res *gateway.ChatResponse, used, primary *gateway.Target) any {
-			return msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: "done", ModelName: used.Model.Name,
-				FallbackFrom: fallbackFrom(used, primary), PromptTokens: res.Usage.PromptTokens, UsageEstimated: res.Usage.Estimated,
-				CompletionTokens: res.Usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut, HistoryTruncated: histCut, Notice: notice, Citations: cites, KBUngrounded: ungrounded}
-		}}
-	res, ge, started, used, rerr := h.ch.run(c, p, &req, tgt, hk)
+	buf.WriteString(st.Content)
+	var (
+		res       *gateway.ChatResponse
+		ge        *gateway.Error
+		started   = c.Response().Committed
+		used      = tgt
+		rerr, ter error
+		awaiting  bool
+		usage     gateway.Usage
+	)
+	if len(st.Queue) > 0 {
+		awaiting, ter = h.runTools(c, p, cv, asst, tmap, st, summary)
+		started = started || c.Response().Committed
+	}
+	view := func(status string, used, primary *gateway.Target) msgView {
+		return msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: status, ModelName: used.Model.Name,
+			FallbackFrom: fallbackFrom(used, primary), PromptTokens: usage.PromptTokens, UsageEstimated: usage.Estimated,
+			CompletionTokens: usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut, HistoryTruncated: histCut,
+			Notice: notice, Citations: cites, KBUngrounded: ungrounded, ToolCalls: st.Calls}
+	}
+	for !awaiting && ter == nil {
+		req.Messages = append(msgs[:len(msgs):len(msgs)], st.Trace...)
+		last := len(tools) > 0 && st.Steps >= maxToolSteps
+		if last {
+			req.ToolChoice = json.RawMessage(`"none"`)
+			if !strings.Contains(notice, toolStepsNotice) {
+				if notice != "" {
+					notice += "；"
+				}
+				notice += toolStepsNotice
+			}
+		}
+		hk := streamHooks{delta: EventToken, prelude: prelude, tap: func(d gateway.Delta) { buf.WriteString(d.Content) },
+			done: func(r *gateway.ChatResponse, used, primary *gateway.Target) any {
+				if len(tools) > 0 && len(r.Message.ToolCalls) > 0 && !last {
+					return nil // 还要执行工具，本轮不发 done
+				}
+				usage.PromptTokens += r.Usage.PromptTokens
+				usage.CompletionTokens += r.Usage.CompletionTokens
+				usage.Estimated = usage.Estimated || r.Usage.Estimated
+				return view("done", used, primary)
+			}}
+		prelude = nil
+		var s bool
+		res, ge, s, used, rerr = h.ch.run(c, p, &req, tgt, hk)
+		if ge != nil && !s && c.Response().Committed {
+			sse(c, EventError, map[string]any{"error": ge}) // 工具轮次之后的调用失败：流已开始，只能发 error 事件
+			s = true
+		}
+		started = started || s
+		if rerr != nil || ge != nil || res == nil {
+			break
+		}
+		if len(tools) == 0 || len(res.Message.ToolCalls) == 0 || last {
+			break
+		}
+		usage.PromptTokens += res.Usage.PromptTokens
+		usage.CompletionTokens += res.Usage.CompletionTokens
+		usage.Estimated = usage.Estimated || res.Usage.Estimated
+		st.Steps++
+		am := res.Message
+		am.Role = "assistant"
+		for i := range am.ToolCalls {
+			am.ToolCalls[i].Index = nil
+			// 调用 ID 在一条回复内必须唯一（部分上游每轮复用同一个 ID）：重复时加上步数后缀，trace 与结果一致使用新 ID。
+			for _, v := range st.Calls {
+				if v.ID == am.ToolCalls[i].ID {
+					am.ToolCalls[i].ID = fmt.Sprintf("%s_s%d", am.ToolCalls[i].ID, st.Steps)
+					break
+				}
+			}
+			if am.ToolCalls[i].Type == "" {
+				am.ToolCalls[i].Type = "function"
+			}
+		}
+		st.Trace = append(st.Trace, am)
+		st.Queue = am.ToolCalls
+		awaiting, ter = h.runTools(c, p, cv, asst, tmap, st, summary)
+		started = started || c.Response().Committed
+	}
+	if res != nil && ge == nil && rerr == nil && !awaiting && ter == nil {
+		res.Usage = usage
+	}
 
 	// 落库用 WithoutCancel：客户端停止 / 断开后仍要保存已生成部分。
 	bg := context.WithoutCancel(ctx)
@@ -723,10 +859,23 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 	}
 	u.SetKBUngrounded(ungrounded)
 	stopped := errors.Is(ctx.Err(), context.Canceled)
+	if len(st.Calls) > 0 {
+		u.SetToolCalls(st.Calls)
+	}
 	switch {
+	case ter != nil && toolAuditErr(ter):
+		u.SetStatus(message.StatusError).SetErrorCode("audit_failed").SetError(toolAuditMsg).ClearToolState()
+	case ter != nil:
+		u.SetStatus(message.StatusError).SetErrorCode("tool_failed").SetError("工具调用处理失败").ClearToolState()
+	case awaiting:
+		st.Content = buf.String()
+		b, _ := json.Marshal(st)
+		u.SetStatus(message.StatusAwaitingApproval).SetToolState(b).SetPromptTokens(usage.PromptTokens).
+			SetCompletionTokens(usage.CompletionTokens).SetUsageEstimated(usage.Estimated)
 	case rerr != nil:
 		u.SetStatus(message.StatusError).SetErrorCode("audit_failed").SetError("审计写入失败，未调用模型")
 	case ge == nil && res != nil:
+		u.ClearToolState()
 		u.SetStatus(message.StatusDone).SetPromptTokens(res.Usage.PromptTokens).SetCompletionTokens(res.Usage.CompletionTokens).SetUsageEstimated(res.Usage.Estimated)
 		if buf.Len() == 0 {
 			u.SetContent(contentText(res.Message.Content))
@@ -744,8 +893,11 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 	}
 	_ = h.db.Conversation.UpdateOneID(cv.ID).SetUpdatedAt(time.Now()).Exec(bg)
 	outcome := "ok"
-	if rerr != nil || ge != nil {
+	if rerr != nil || ge != nil || ter != nil {
 		outcome = "error"
+	}
+	if awaiting {
+		outcome = "awaiting_approval"
 	}
 	if stopped {
 		outcome = "stopped"
@@ -754,6 +906,9 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 		"fallback_from": fallbackFrom(used, tgt), "chars": utf8.RuneCountInString(buf.String()),
 		"files": len(files), "context_truncated": ctxCut, "history_truncated": histCut,
 		"history_dropped": histDropped, "est_prompt_tokens": estTokens}
+	if len(tools) > 0 || len(st.Calls) > 0 {
+		detail["tools"], detail["tool_steps"], detail["tool_calls"] = len(tools), st.Steps, len(st.Calls)
+	}
 	for k, v := range kbInfo {
 		detail[k] = v
 	}
@@ -764,7 +919,29 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 		ResourceID: strconv.Itoa(cv.ID), Detail: detail}); err != nil {
 		h.ch.log.Error("chat result audit write failed", "conversation", cv.ID)
 	}
+	if awaiting {
+		sse(c, EventDone, view(string(message.StatusAwaitingApproval), used, tgt))
+		return nil
+	}
+	if ter != nil {
+		code, msg := "tool_failed", "工具调用处理失败"
+		if toolAuditErr(ter) {
+			code, msg = "audit_failed", toolAuditMsg
+		}
+		if c.Response().Committed {
+			sse(c, EventError, map[string]any{"error": map[string]string{"code": code, "message": msg}})
+			return nil
+		}
+		if toolAuditErr(ter) {
+			return audit.ErrRejected
+		}
+		return ter
+	}
 	if rerr != nil {
+		if c.Response().Committed {
+			sse(c, EventError, map[string]any{"error": map[string]string{"code": "audit_failed", "message": "审计写入失败，未调用模型"}})
+			return nil
+		}
 		return rerr
 	}
 	if ge != nil && !started && !stopped {

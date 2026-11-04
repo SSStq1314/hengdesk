@@ -13,6 +13,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
+	"github.com/SSStq1314/hengdesk/server/internal/rawjson"
 )
 
 // Message is the model entity for the Message schema.
@@ -54,6 +55,10 @@ type Message struct {
 	Citations []schema.MsgCitation `json:"citations,omitempty"`
 	// KBUngrounded holds the value of the "kb_ungrounded" field.
 	KBUngrounded bool `json:"kb_ungrounded,omitempty"`
+	// ToolCalls holds the value of the "tool_calls" field.
+	ToolCalls []schema.MsgToolCall `json:"tool_calls,omitempty"`
+	// ToolState holds the value of the "tool_state" field.
+	ToolState rawjson.Raw `json:"tool_state,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the MessageQuery when eager-loading is set.
 	Edges        MessageEdges `json:"edges"`
@@ -85,7 +90,7 @@ func (*Message) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case message.FieldCitations:
+		case message.FieldCitations, message.FieldToolCalls, message.FieldToolState:
 			values[i] = new([]byte)
 		case message.FieldUsageEstimated, message.FieldKBUngrounded:
 			values[i] = new(sql.NullBool)
@@ -221,6 +226,22 @@ func (_m *Message) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.KBUngrounded = value.Bool
 			}
+		case message.FieldToolCalls:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field tool_calls", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ToolCalls); err != nil {
+					return fmt.Errorf("unmarshal field tool_calls: %w", err)
+				}
+			}
+		case message.FieldToolState:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field tool_state", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ToolState); err != nil {
+					return fmt.Errorf("unmarshal field tool_state: %w", err)
+				}
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -314,6 +335,12 @@ func (_m *Message) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("kb_ungrounded=")
 	builder.WriteString(fmt.Sprintf("%v", _m.KBUngrounded))
+	builder.WriteString(", ")
+	builder.WriteString("tool_calls=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ToolCalls))
+	builder.WriteString(", ")
+	builder.WriteString("tool_state=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ToolState))
 	builder.WriteByte(')')
 	return builder.String()
 }

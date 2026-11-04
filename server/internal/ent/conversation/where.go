@@ -425,6 +425,16 @@ func KBIdsNotNil() predicate.Conversation {
 	return predicate.Conversation(sql.FieldNotNull(FieldKBIds))
 }
 
+// ToolIdsIsNil applies the IsNil predicate on the "tool_ids" field.
+func ToolIdsIsNil() predicate.Conversation {
+	return predicate.Conversation(sql.FieldIsNull(FieldToolIds))
+}
+
+// ToolIdsNotNil applies the NotNil predicate on the "tool_ids" field.
+func ToolIdsNotNil() predicate.Conversation {
+	return predicate.Conversation(sql.FieldNotNull(FieldToolIds))
+}
+
 // HasMessages applies the HasEdge predicate on the "messages" edge.
 func HasMessages() predicate.Conversation {
 	return predicate.Conversation(func(s *sql.Selector) {

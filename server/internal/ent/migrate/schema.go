@@ -208,6 +208,7 @@ var (
 		{Name: "model_id", Type: field.TypeInt, Nullable: true},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
 		{Name: "kb_ids", Type: field.TypeJSON, Nullable: true},
+		{Name: "tool_ids", Type: field.TypeJSON, Nullable: true},
 	}
 	// ConversationsTable holds the schema information for the "conversations" table.
 	ConversationsTable = &schema.Table{
@@ -569,7 +570,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "role", Type: field.TypeEnum, Enums: []string{"user", "assistant"}},
 		{Name: "content", Type: field.TypeString, Size: 2147483647, Default: ""},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"streaming", "done", "stopped", "error"}, Default: "done"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"streaming", "done", "stopped", "error", "awaiting_approval"}, Default: "done"},
 		{Name: "model_name", Type: field.TypeString, Default: ""},
 		{Name: "fallback_from", Type: field.TypeString, Default: ""},
 		{Name: "error_code", Type: field.TypeString, Default: ""},
@@ -581,6 +582,8 @@ var (
 		{Name: "superseded_at", Type: field.TypeTime, Nullable: true},
 		{Name: "citations", Type: field.TypeJSON, Nullable: true},
 		{Name: "kb_ungrounded", Type: field.TypeBool, Default: false},
+		{Name: "tool_calls", Type: field.TypeJSON, Nullable: true},
+		{Name: "tool_state", Type: field.TypeJSON, Nullable: true},
 		{Name: "conversation_id", Type: field.TypeInt},
 	}
 	// MessagesTable holds the schema information for the "messages" table.
@@ -591,7 +594,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "messages_conversations_messages",
-				Columns:    []*schema.Column{MessagesColumns[17]},
+				Columns:    []*schema.Column{MessagesColumns[19]},
 				RefColumns: []*schema.Column{ConversationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -600,7 +603,7 @@ var (
 			{
 				Name:    "message_conversation_id_id",
 				Unique:  false,
-				Columns: []*schema.Column{MessagesColumns[17], MessagesColumns[0]},
+				Columns: []*schema.Column{MessagesColumns[19], MessagesColumns[0]},
 			},
 		},
 	}

@@ -157,6 +157,24 @@ func (_u *ConversationUpdate) ClearKBIds() *ConversationUpdate {
 	return _u
 }
 
+// SetToolIds sets the "tool_ids" field.
+func (_u *ConversationUpdate) SetToolIds(v []int) *ConversationUpdate {
+	_u.mutation.SetToolIds(v)
+	return _u
+}
+
+// AppendToolIds appends value to the "tool_ids" field.
+func (_u *ConversationUpdate) AppendToolIds(v []int) *ConversationUpdate {
+	_u.mutation.AppendToolIds(v)
+	return _u
+}
+
+// ClearToolIds clears the value of the "tool_ids" field.
+func (_u *ConversationUpdate) ClearToolIds() *ConversationUpdate {
+	_u.mutation.ClearToolIds()
+	return _u
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by IDs.
 func (_u *ConversationUpdate) AddMessageIDs(ids ...int) *ConversationUpdate {
 	_u.mutation.AddMessageIDs(ids...)
@@ -299,6 +317,17 @@ func (_u *ConversationUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.KBIdsCleared() {
 		_spec.ClearField(conversation.FieldKBIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ToolIds(); ok {
+		_spec.SetField(conversation.FieldToolIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedToolIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, conversation.FieldToolIds, value)
+		})
+	}
+	if _u.mutation.ToolIdsCleared() {
+		_spec.ClearField(conversation.FieldToolIds, field.TypeJSON)
 	}
 	if _u.mutation.MessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -492,6 +521,24 @@ func (_u *ConversationUpdateOne) ClearKBIds() *ConversationUpdateOne {
 	return _u
 }
 
+// SetToolIds sets the "tool_ids" field.
+func (_u *ConversationUpdateOne) SetToolIds(v []int) *ConversationUpdateOne {
+	_u.mutation.SetToolIds(v)
+	return _u
+}
+
+// AppendToolIds appends value to the "tool_ids" field.
+func (_u *ConversationUpdateOne) AppendToolIds(v []int) *ConversationUpdateOne {
+	_u.mutation.AppendToolIds(v)
+	return _u
+}
+
+// ClearToolIds clears the value of the "tool_ids" field.
+func (_u *ConversationUpdateOne) ClearToolIds() *ConversationUpdateOne {
+	_u.mutation.ClearToolIds()
+	return _u
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by IDs.
 func (_u *ConversationUpdateOne) AddMessageIDs(ids ...int) *ConversationUpdateOne {
 	_u.mutation.AddMessageIDs(ids...)
@@ -664,6 +711,17 @@ func (_u *ConversationUpdateOne) sqlSave(ctx context.Context) (_node *Conversati
 	}
 	if _u.mutation.KBIdsCleared() {
 		_spec.ClearField(conversation.FieldKBIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ToolIds(); ok {
+		_spec.SetField(conversation.FieldToolIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedToolIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, conversation.FieldToolIds, value)
+		})
+	}
+	if _u.mutation.ToolIdsCleared() {
+		_spec.ClearField(conversation.FieldToolIds, field.TypeJSON)
 	}
 	if _u.mutation.MessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{
