@@ -17,7 +17,7 @@
 
 | PR | 内容 | 对应 | 状态 |
 |---|---|---|---|
-| PR1 | 本计划文档；知识库与文件的 ent schema 和迁移（含 `kb_chunks` 表与索引）；知识库 CRUD 与设置；知识库 ACL 与文件 ACL（继承 / 自定义）；文件上传（按内容判类型、按内容哈希去重、同名改名）、异步索引管线（asynq `kb:index` + 每 5 分钟 `kb:sweep` 补偿）：解析 → 切分（按标题 / 段落，大小与重叠可配）→ 网关 embedding（计量写入 usage_records，purpose=embedding）→ gse 分词 + pgvector 写入；状态与失败原因、重试、删除（同时删除 chunk 和原件）；mockupstream `/embeddings`；全部写操作先写审计，审计写失败就拒绝执行；未登录 401，越权 404 | FR-16、FR-17（元数据部分）、FR-18（入库部分） | 进行中 |
+| PR1 | 本计划文档；知识库与文件的 ent schema 和迁移（含 `kb_chunks` 表与索引）；知识库 CRUD 与设置；知识库 ACL 与文件 ACL（继承 / 自定义）；文件上传（按内容判类型、按内容哈希去重、同名改名）、异步索引管线（asynq `kb:index` + 每 5 分钟 `kb:sweep` 补偿）：解析 → 切分（按标题 / 段落，大小与重叠可配）→ 网关 embedding（计量写入 usage_records，purpose=embedding）→ gse 分词 + pgvector 写入；状态与失败原因、重试、删除（同时删除 chunk 和原件）；mockupstream `/embeddings`；全部写操作先写审计，审计写失败就拒绝执行；未登录 401，越权 404 | FR-16、FR-17（元数据部分）、FR-18（入库部分） | 已合并 #39 |
 | PR2 | ACL 预过滤分档检索与 RRF 混合召回；检索审计 `kb.retrieve`；召回回归 CI 测试（可见比例约 1% / 约 50%，要求返回满 k 条且 recall@10 ≥ 0.95） | FR-17、FR-18、D-27、AC-04 | 未开始 |
 | PR3 | 对话绑定知识库，检索结果注入上下文，`citation` 事件与消息引用；Web 知识库列表 / 详情 / 文件权限 / 设置页，对话页选择知识库并展示引用 | FR-18、§9.4 页面、演示剧本第 4 步 | 未开始 |
 | PR4 | 本地 100 万 × 1024 维性能复测工具与结果；给产品经理的 D-27 摘要 | D-27 | 未开始 |
@@ -44,3 +44,5 @@
 ## 进度记录
 
 （每个 PR 合并后在这里补一条：PR 号、squash 提交、内容摘要。）
+
+- **PR1 #39**（squash `678de73`）：知识库 / 文件 schema 与迁移（含 `kb_chunks`）、CRUD 与设置、知识库 ACL 与文件 ACL、上传去重改名、asynq 索引管线与 sweep 补偿、网关 embedding 与计量、mockupstream `/embeddings`、PGStore 集成测试进 CI。CI 全绿。
