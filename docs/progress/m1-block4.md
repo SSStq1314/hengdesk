@@ -20,8 +20,8 @@
 | PR1 | 本计划文档；知识库与文件的 ent schema 和迁移（含 `kb_chunks` 表与索引）；知识库 CRUD 与设置；知识库 ACL 与文件 ACL（继承 / 自定义）；文件上传（按内容判类型、按内容哈希去重、同名改名）、异步索引管线（asynq `kb:index` + 每 5 分钟 `kb:sweep` 补偿）：解析 → 切分（按标题 / 段落，大小与重叠可配）→ 网关 embedding（计量写入 usage_records，purpose=embedding）→ gse 分词 + pgvector 写入；状态与失败原因、重试、删除（同时删除 chunk 和原件）；mockupstream `/embeddings`；全部写操作先写审计，审计写失败就拒绝执行；未登录 401，越权 404 | FR-16、FR-17（元数据部分）、FR-18（入库部分） | 已合并 #39 |
 | PR2 | ACL 预过滤分档检索与 RRF 混合召回；检索审计 `kb.retrieve`；召回回归 CI 测试（可见比例约 1% / 约 50%，要求返回满 k 条且 recall@10 ≥ 0.95） | FR-17、FR-18、D-27、AC-04 | 已合并 #40 |
 | PR3 | 对话绑定知识库，检索结果注入上下文，`citation` 事件与消息引用；Web 知识库列表 / 详情 / 文件权限 / 设置页，对话页选择知识库并展示引用 | FR-18、§9.4 页面、演示剧本第 4 步 | 已合并 #41 |
-| PR4 | 本地 100 万 × 1024 维性能复测工具与结果；给产品经理的 D-27 摘要 | D-27 | 进行中 |
-| PR5 | 第四块完成报告 | — | 未开始 |
+| PR4 | 本地 100 万 × 1024 维性能复测工具与结果；给产品经理的 D-27 摘要 | D-27 | 已合并 #42 |
+| PR5 | 第四块完成报告 | — | 本 PR |
 
 ## 待确认（先按以下默认值实现，不阻塞开发）
 
@@ -61,6 +61,7 @@
 - **PR1 #39**（squash `678de73`）：知识库 / 文件 schema 与迁移（含 `kb_chunks`）、CRUD 与设置、知识库 ACL 与文件 ACL、上传去重改名、asynq 索引管线与 sweep 补偿、网关 embedding 与计量、mockupstream `/embeddings`、PGStore 集成测试进 CI。CI 全绿。
 - **PR2 #40**（squash `1f42222`）：ACL 预过滤分档检索（精确 / HNSW + 不足回退）、gse 全文路、RRF 合并、跨模型分组、`kb.retrieve` 审计（失败即拒绝）、1% / 50% 召回回归进 CI。CI 全绿。
 - **PR3 #41**（squash `ecd0d0b`）：对话绑定知识库（每会话最多 5 个）、检索注入上下文、`citation` SSE 事件与消息引用（读取时按当前权限重新过滤）、Web 知识库列表 / 详情 / 文件权限 / 设置页与对话页引用展示。CI 全绿。
+- **PR4 #42**（squash `7661d56`）：本地复测工具 `cmd/kbbench`（COPY 分批灌入、进度日志、`-resume` 续灌、四档可见比例、recall 抽样）、`kb.loadFiles` 分批读取（修复可见文件超过 65535 个时报错）及集成测试、D-27 复测结果与摘要 `d27-retest.md`。复测未达标，已如实记录。CI 全绿。
 
 ## PR4 性能复测结果（D-27，本地）
 
@@ -82,4 +83,42 @@ go run ./cmd/kbbench -db 'postgres://…/kbbench' -q 100 -ef 400 -out r.json   #
 | 50%（HNSW） | 400 | 532 | 427 | 0.936 | 未达标 |
 
 所有档都没有越权命中。复测中还发现并修复了一个问题：可见文件超过 65,535 个时，检索会超出参数上限而报错（改为分批读取，并补了集成测试）。
+
+## 第四块完成报告（PR5）
+
+### PR 与合并提交
+
+| PR | 内容 | squash 提交 |
+|---|---|---|
+| #39 | PR1：知识库 CRUD、ACL、上传与异步索引管线 | `678de73` |
+| #40 | PR2：按权限过滤的混合检索与召回回归 | `1f42222` |
+| #41 | PR3：对话绑定知识库、citation 事件、Web 页面 | `ecd0d0b` |
+| #42 | PR4：D-27 本地 100 万 × 1024 维性能复测 | `7661d56` |
+| PR5 | 本完成报告 | 见本 PR 合并提交 |
+
+写这份报告时，main 为 `7661d56`。
+
+### 对应需求
+
+| 需求 | 状态 |
+|---|---|
+| FR-16 知识库管理 / FR-17 文件级权限 / FR-18 检索与引用 | 已完成（#39–#41） |
+| D-14 / D-21 ACL 预过滤、继承 / 自定义 | 已完成；越权 404、未登录 401，各 PR 有测试 |
+| D-27 分档检索与召回回归 | 已完成并进 CI（1% / 50% 两档）；100 万规模性能**未达标**，见 d27-retest.md 与待确认第 25–28 条 |
+| AC-04 检索日志 | `kb.retrieve` 审计；审计写失败即拒绝检索 |
+
+### 测试情况
+
+- 每个 PR 都是 GitHub Actions 全绿后才 squash 合并：Go lint + test（-race）、PostgreSQL 17 + pgvector 集成（含 PGStore、召回回归、`TestPGLoadFilesManyIDs`）、Valkey 兼容性、govulncheck、许可证扫描 + SBOM、Web lint + typecheck + build、compose 冒烟（SeaweedFS / MinIO / HTTPS）。
+- 知识库相关测试：`internal/kb` 包，`internal/api` 中的 `kb_test.go`、`kb_retrieve_test.go`、`kb_chat_test.go`、`chatevents_test.go`、`authz_test.go`。
+- embedding 在 CI 里只用 mockupstream `/embeddings`，不读取任何真实密钥。100 万规模的性能复测只在本地跑。
+
+### 演示方式
+
+1. `cd deploy && ./install.sh && docker compose up -d`，用超级管理员登录，在「模型管理」里登记一个 1024 维的 embedding 模型（演示环境可用 mockupstream）。
+2. 「知识库」（`/kbs`）：新建知识库，选择 embedding 模型；上传 docx / PDF / md，可以看到状态从排队、解析中、索引中变为就绪。重复上传同一个文件会提示「内容相同的文件已存在」。
+3. 在知识库的「权限」里给成员 A 授予 view 权限；把某个文件改为「自定义」权限，只授权给成员 B。
+4. 用成员 A 登录：在「对话」里选择这个知识库并提问，回答带编号引用，点击可以看到文件名和片段位置；看不到成员 B 专属的文件。直接访问无权知识库的 ID，返回 404。
+5. 「审计日志」：可以按 `kb.retrieve` 过滤，查看可见文件数、命中的 file_id、所用策略和耗时（不记录问题原文）。
+6. 性能复测：按上文「PR4 性能复测结果」中的命令运行 `cmd/kbbench`。
 
