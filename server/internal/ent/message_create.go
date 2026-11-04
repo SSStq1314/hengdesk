@@ -224,6 +224,20 @@ func (_c *MessageCreate) SetCitations(v []schema.MsgCitation) *MessageCreate {
 	return _c
 }
 
+// SetKBUngrounded sets the "kb_ungrounded" field.
+func (_c *MessageCreate) SetKBUngrounded(v bool) *MessageCreate {
+	_c.mutation.SetKBUngrounded(v)
+	return _c
+}
+
+// SetNillableKBUngrounded sets the "kb_ungrounded" field if the given value is not nil.
+func (_c *MessageCreate) SetNillableKBUngrounded(v *bool) *MessageCreate {
+	if v != nil {
+		_c.SetKBUngrounded(*v)
+	}
+	return _c
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_c *MessageCreate) SetConversation(v *Conversation) *MessageCreate {
 	return _c.SetConversationID(v.ID)
@@ -312,6 +326,10 @@ func (_c *MessageCreate) defaults() {
 		v := message.DefaultRequestID
 		_c.mutation.SetRequestID(v)
 	}
+	if _, ok := _c.mutation.KBUngrounded(); !ok {
+		v := message.DefaultKBUngrounded
+		_c.mutation.SetKBUngrounded(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -372,6 +390,9 @@ func (_c *MessageCreate) check() error {
 	}
 	if _, ok := _c.mutation.RequestID(); !ok {
 		return &ValidationError{Name: "request_id", err: errors.New(`ent: missing required field "Message.request_id"`)}
+	}
+	if _, ok := _c.mutation.KBUngrounded(); !ok {
+		return &ValidationError{Name: "kb_ungrounded", err: errors.New(`ent: missing required field "Message.kb_ungrounded"`)}
 	}
 	if len(_c.mutation.ConversationIDs()) == 0 {
 		return &ValidationError{Name: "conversation", err: errors.New(`ent: missing required edge "Message.conversation"`)}
@@ -462,6 +483,10 @@ func (_c *MessageCreate) createSpec() (*Message, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Citations(); ok {
 		_spec.SetField(message.FieldCitations, field.TypeJSON, value)
 		_node.Citations = value
+	}
+	if value, ok := _c.mutation.KBUngrounded(); ok {
+		_spec.SetField(message.FieldKBUngrounded, field.TypeBool, value)
+		_node.KBUngrounded = value
 	}
 	if nodes := _c.mutation.ConversationIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -733,6 +758,18 @@ func (u *MessageUpsert) UpdateCitations() *MessageUpsert {
 // ClearCitations clears the value of the "citations" field.
 func (u *MessageUpsert) ClearCitations() *MessageUpsert {
 	u.SetNull(message.FieldCitations)
+	return u
+}
+
+// SetKBUngrounded sets the "kb_ungrounded" field.
+func (u *MessageUpsert) SetKBUngrounded(v bool) *MessageUpsert {
+	u.Set(message.FieldKBUngrounded, v)
+	return u
+}
+
+// UpdateKBUngrounded sets the "kb_ungrounded" field to the value that was provided on create.
+func (u *MessageUpsert) UpdateKBUngrounded() *MessageUpsert {
+	u.SetExcluded(message.FieldKBUngrounded)
 	return u
 }
 
@@ -1016,6 +1053,20 @@ func (u *MessageUpsertOne) UpdateCitations() *MessageUpsertOne {
 func (u *MessageUpsertOne) ClearCitations() *MessageUpsertOne {
 	return u.Update(func(s *MessageUpsert) {
 		s.ClearCitations()
+	})
+}
+
+// SetKBUngrounded sets the "kb_ungrounded" field.
+func (u *MessageUpsertOne) SetKBUngrounded(v bool) *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.SetKBUngrounded(v)
+	})
+}
+
+// UpdateKBUngrounded sets the "kb_ungrounded" field to the value that was provided on create.
+func (u *MessageUpsertOne) UpdateKBUngrounded() *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.UpdateKBUngrounded()
 	})
 }
 
@@ -1465,6 +1516,20 @@ func (u *MessageUpsertBulk) UpdateCitations() *MessageUpsertBulk {
 func (u *MessageUpsertBulk) ClearCitations() *MessageUpsertBulk {
 	return u.Update(func(s *MessageUpsert) {
 		s.ClearCitations()
+	})
+}
+
+// SetKBUngrounded sets the "kb_ungrounded" field.
+func (u *MessageUpsertBulk) SetKBUngrounded(v bool) *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.SetKBUngrounded(v)
+	})
+}
+
+// UpdateKBUngrounded sets the "kb_ungrounded" field to the value that was provided on create.
+func (u *MessageUpsertBulk) UpdateKBUngrounded() *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.UpdateKBUngrounded()
 	})
 }
 

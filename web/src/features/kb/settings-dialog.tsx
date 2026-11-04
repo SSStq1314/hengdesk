@@ -12,6 +12,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Field } from '@/features/models/fields'
 
@@ -30,6 +32,7 @@ export function KBDialog(props: {
   const [model, setModel] = useState(k?.embedding_model ?? '')
   const [size, setSize] = useState(String(k?.chunk_size ?? 800))
   const [overlap, setOverlap] = useState(String(k?.chunk_overlap ?? 100))
+  const [strict, setStrict] = useState(k?.strict_grounding ?? false)
   const save = useMutation({
     mutationFn: () => {
       const b = {
@@ -38,6 +41,7 @@ export function KBDialog(props: {
         embedding_model: model.trim() || undefined,
         chunk_size: Number(size),
         chunk_overlap: Number(overlap),
+        strict_grounding: strict,
       }
       return k ? kbApi.update(k.id, b) : kbApi.create(b)
     },
@@ -88,6 +92,17 @@ export function KBDialog(props: {
             </Field>
           </div>
           <p className='text-xs text-muted-foreground'>{t.chunkHint}</p>
+          <div className='flex items-center justify-between gap-3'>
+            <Label htmlFor='kb-strict'>{t.strictGrounding}</Label>
+            <Switch
+              id='kb-strict'
+              checked={strict}
+              onCheckedChange={setStrict}
+            />
+          </div>
+          <p className='text-xs text-muted-foreground'>
+            {t.strictGroundingHint}
+          </p>
         </div>
         <DialogFooter>
           <Button variant='outline' onClick={props.onClose}>

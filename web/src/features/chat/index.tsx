@@ -191,8 +191,13 @@ export function ChatPage() {
             if (m.notice) toast.info(m.notice)
             patch(() => ({ ...m, id: -2 }))
           },
-          onError: (_code, msg) =>
-            patch((m) => ({ ...m, status: 'error', error: msg })),
+          onError: (code, msg) =>
+            patch((m) => ({
+              ...m,
+              status: 'error',
+              error_code: code,
+              error: msg,
+            })),
         },
         ac.signal
       )
@@ -235,7 +240,7 @@ export function ChatPage() {
     )
   }
 
-  async function regenerate(m: ChatMessage) {
+  async function regenerate(m: ChatMessage, skipKB = false) {
     if (streaming || active == null) return
     const id = active
     const base = {
@@ -245,7 +250,7 @@ export function ChatPage() {
     }
     await run(
       id,
-      (h, s) => regenerateMessage(id, m.id, h, s),
+      (h, s) => regenerateMessage(id, m.id, h, s, skipKB),
       [
         {
           ...base,
@@ -370,7 +375,7 @@ export function ChatPage() {
                     m.id === lastId &&
                     !streaming &&
                     m.status !== 'streaming'
-                      ? () => regenerate(m)
+                      ? (skipKB?: boolean) => regenerate(m, skipKB)
                       : undefined
                   }
                 />
@@ -473,9 +478,11 @@ function MessageBubble({
   onRegenerate,
 }: {
   m: ChatMessage
-  onRegenerate?: () => void
+  onRegenerate?: (skipKB?: boolean) => void
 }) {
   const mine = m.role === 'user'
+  // D-42：检索失败（503 kb_failed）时说明「知识库暂时不可用」，给出重试与本次不使用知识库继续。
+  const kbDown = !mine && m.status === 'error' && m.error_code === 'kb_failed'
   return (
     <div className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
       <div
@@ -502,11 +509,39 @@ function MessageBubble({
         {!mine && m.citations && m.citations.length > 0 && (
           <Citations items={m.citations} />
         )}
+        {kbDown && (
+          <div className='mt-1 space-y-1.5 text-xs'>
+            <p className='text-destructive'>{t.kbUnavailable}</p>
+            {onRegenerate && (
+              <div className='flex gap-2'>
+                <Button
+                  size='sm'
+                  variant='outline'
+                  className='h-7'
+                  onClick={() => onRegenerate()}
+                >
+                  {t.retry}
+                </Button>
+                <Button
+                  size='sm'
+                  variant='outline'
+                  className='h-7'
+                  onClick={() => onRegenerate(true)}
+                >
+                  {t.kbSkip}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
         {!mine && (
           <div className='mt-1 flex gap-2 text-xs text-muted-foreground'>
             {m.model_name && <span>{m.model_name}</span>}
             {m.fallback_from && <span>{t.fallback(m.fallback_from)}</span>}
             {m.status === 'stopped' && <span>{t.stopped}</span>}
+            {m.kb_ungrounded && (
+              <span className='text-amber-600'>{t.kbUngrounded}</span>
+            )}
             {m.context_truncated && (
               <span className='text-amber-600'>{t.contextTruncated}</span>
             )}
@@ -514,15 +549,15 @@ function MessageBubble({
               <span className='text-amber-600'>{t.historyTruncated}</span>
             )}
             {m.usage_estimated && <span>{t.usageEstimated}</span>}
-            {m.status === 'error' && (
+            {m.status === 'error' && !kbDown && (
               <span className='text-destructive'>
                 {t.failed(m.error || m.error_code || '')}
               </span>
             )}
-            {onRegenerate && (
+            {onRegenerate && !kbDown && (
               <button
                 className='inline-flex items-center gap-1 hover:text-foreground'
-                onClick={onRegenerate}
+                onClick={() => onRegenerate()}
               >
                 <RotateCcw className='size-3' />
                 {m.status === 'error' ? t.retry : t.regenerate}
