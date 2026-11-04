@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-// 检索默认值（m1-block4.md 待确认 4；ef_search 按 D-42 改为 400）。
+// 检索默认值（m1-block4.md 待确认 4；ef_search 按 D-43 改为 1000）。
 const (
 	DefaultTopK      = 8
 	DefaultPerRoute  = 40
 	RRFK             = 60
 	ExactThreshold   = 20000 // 可见 chunk 数不超过它时走精确检索
-	DefaultEfSearch  = 400   // D-42：100 万复测中 100 时 50% 可见 recall 只有 0.78
+	DefaultEfSearch  = 1000  // D-43：100 万复测中 400 时 50% 可见 recall@10 只有 0.89，1000 时 0.953
 	StrategyExact    = "exact"
 	StrategyHNSW     = "hnsw"
 	StrategyFallback = "hnsw_fallback_exact"
@@ -148,7 +148,7 @@ func scanHits(rows *sql.Rows) ([]Hit, error) {
 }
 
 // SearchVector D-27 分档：可见 chunk 少走精确检索（file_id 索引预过滤 + 距离排序，「+0」阻止规划器走 HNSW）；
-// 多走 HNSW（「file_id + 0」阻止规划器改用 B-tree，iterative_scan=relaxed_order，ef_search 默认 400，halfvec 索引），外层按距离重排。HNSW 返回不足
+// 多走 HNSW（「file_id + 0」阻止规划器改用 B-tree，iterative_scan=relaxed_order，ef_search 默认 1000，halfvec 索引），外层按距离重排。HNSW 返回不足
 // min(k, 可见数) 时回退精确检索，不允许静默低召回。force_custom_plan 避免预编译语句用通用计划。
 func (s PGStore) SearchVector(ctx context.Context, r SearchReq) ([]Hit, string, error) {
 	r.norm()

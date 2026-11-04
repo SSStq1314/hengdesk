@@ -1,6 +1,8 @@
 # D-42 知识库检索性能定稿与 M1 第四块默认值（产品经理定）
 
 > 同步自 `decisions.md` 第 393–421 行（产品经理，2026-11-04，补充修订 D-27）。下面是原文，未作改写；实现说明在后面。
+>
+> **D-43 修订**：ef_search 默认值改为 1000；100% 可见档纳入考核；M1 验收复测不强制 32 GB（32 GB 仍为推荐）。见 [D-43-hnsw-recall.md](D-43-hnsw-recall.md)。
 
 依据：docs/progress/d27-retest.md，测试规模 100 万条 × 1024 维，测试机 8C16G，索引加数据共 13 GB，超出内存。
 
@@ -35,12 +37,12 @@
 
 | 条目 | 实现 | 测试 |
 |---|---|---|
-| ef_search 400 | `kb.DefaultEfSearch` 100 → 400（HNSW 档 `SET LOCAL hnsw.ef_search`，iterative_scan=relaxed_order 不变）。 | `kb/recall_pg_test.go` HNSW 档用默认值 |
+| ef_search 400（D-43 改为 1000） | `kb.DefaultEfSearch` 100 → 400，D-43 再改为 1000（HNSW 档 `SET LOCAL hnsw.ef_search`，iterative_scan=relaxed_order 不变）。 | `kb/recall_pg_test.go` HNSW 档用默认值 |
 | halfvec 索引 | 迁移 `20261120000000_m1_kb_d42.sql`：删除 `kbchunk_embedding_hnsw`，新建表达式索引 `kbchunk_embedding_hnsw_half ON kb_chunks USING hnsw ((embedding::halfvec(1024)) halfvec_cosine_ops)`（m=16、ef_construction=64）。列仍是 float32：精确档不变；HNSW 档内层按半精度距离走索引取候选，外层按 float32 距离重排并返回相似度。升级时重建索引（100 万条本机约 2.5 分钟，期间 HNSW 档走顺序扫描，结果仍正确）。 | `kb/recall_pg_test.go`：50% 可见 recall@10 ≥ 0.95（真值为 float32 暴力结果）、越权 0、计划使用 halfvec 索引、旧索引已删除 |
 | 启动预热 | `server` 启动后后台执行 `kb.Prewarm`：`CREATE EXTENSION IF NOT EXISTS pg_prewarm`，依次预热向量索引、`kbchunk_file_id_seq`、`kb_chunks`。失败只记 warn，不影响启动。`kbbench` 默认同样预热（`-prewarm=false` 可关）。 | `kb/recall_pg_test.go`（尽力而为调用） |
 | 索引超内存 50% 提示 | `GET /admin/system/status` 新增 `kb_index{index_bytes, memory_bytes, over_half}`；内存取 `HENGDESK_DB_MEMORY_MB`（数据库分机部署时填写），未配置时读本机 `/proc/meminfo`。超过一半时管理后台常驻告警条「知识库向量索引已超过内存的一半」。 | `kb/recall_pg_test.go`：`CheckIndex` 大 / 小内存两种情况 |
 | 可见比例高时按知识库过滤 | **列为 P1**，见下文。 | — |
-| 复测 | 见 `docs/progress/d27-retest.md`「D-42 复测」。本机（16 GB）结果：延迟、越权全部达标；**50% 可见 recall@10 = 0.890，未达到 0.95**（ef=1000 时 0.953，向量段 P95 51 ms），默认值仍按本决定保持 400，是否上调待产品经理确认。**32 GB 机器上的复测待做，是 M1 验收的前置条件。** | `cmd/kbbench`（新增 `-reindex`、`-prewarm`，输出 recall@10） |
+| 复测 | 见 `docs/progress/d27-retest.md`「D-42 复测」。本机（16 GB）结果：延迟、越权全部达标；**50% 可见 recall@10 = 0.890，未达到 0.95**（ef=1000 时 0.953，向量段 P95 51 ms），D-42 PR 时默认值保持 400；**D-43 已改为 1000**，复测见「D-43 复测」。按 D-43，M1 验收复测不强制 32 GB 机器，32 GB 仍为推荐配置。 | `cmd/kbbench`（新增 `-reindex`、`-prewarm`，输出 recall@10） |
 | 受信代理 | 未改动（D-41 实现即只看 TCP 对端）；多层代理列 P2。 | — |
 | 超管给自己授权 | 知识库与文件授权（`kb.acl.grant` / `kb.file.acl.grant`）时，若操作者是超级管理员且授权对象覆盖本人（本人、本人所在部门、包含本人所在部门的上级部门且含下级、本人持有的角色），在 attempt 审计之后写高风险审计 `alert.high_risk`（kind=`kb_self_grant_by_super_admin`，带资源与授权内容），写失败拒绝执行、权限不变。撤销不告警。 | `api/kb_d42_test.go`：`TestKBSuperAdminSelfGrantAlert` |
 | embedding 用量与告警 | 原实现只写 usage_record、**不触发预算结算，告警不会发出**。现 `kb.Retriever` 与 `kb.Indexer` 新增 `Settle` 钩子，在用量落库后调用 `budget.Service.Settle`（API 内联索引、worker 索引、会话检索三处都已接上）；仍不做预检拦截。 | `api/kb_d42_test.go`：`TestKBEmbeddingBudgetAlert`（动作为「拦截」的模型预算下，索引与检索照常执行且各触发一次 `budget.alert`） |

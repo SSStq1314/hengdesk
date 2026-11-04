@@ -13,7 +13,7 @@ import (
 )
 
 // D-27 / AC-04 召回回归：可见比例约 1%（走精确检索）与约 50%（走 HNSW + iterative_scan），
-// HNSW 档用默认 ef_search（D-42：400）与 halfvec 索引，真值为 float32 精确结果；
+// HNSW 档用默认 ef_search（D-43：1000）与 halfvec 索引，真值为 float32 精确结果；
 // 要求向量路返回满 k 条、没有越权命中、平均 recall@10 ≥ 0.95（以同一可见集合上的精确暴力结果为真值）。
 // 需要带 pgvector 的 PostgreSQL：HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL=...（会清空该库的 public schema）。
 func TestPGRecallACLTiers(t *testing.T) {
