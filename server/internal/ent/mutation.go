@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"sync"
@@ -40,6 +39,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/tool"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/usagerecord"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
+	"github.com/SSStq1314/hengdesk/server/internal/rawjson"
 )
 
 const (
@@ -17928,8 +17928,8 @@ type MessageMutation struct {
 	kb_ungrounded        *bool
 	tool_calls           *[]schema.MsgToolCall
 	appendtool_calls     []schema.MsgToolCall
-	tool_state           *jsontext.Value
-	appendtool_state     jsontext.Value
+	tool_state           *rawjson.Raw
+	appendtool_state     rawjson.Raw
 	clearedFields        map[string]struct{}
 	conversation         *int
 	clearedconversation  bool
@@ -18796,13 +18796,13 @@ func (m *MessageMutation) ResetToolCalls() {
 }
 
 // SetToolState sets the "tool_state" field.
-func (m *MessageMutation) SetToolState(j jsontext.Value) {
-	m.tool_state = &j
+func (m *MessageMutation) SetToolState(r rawjson.Raw) {
+	m.tool_state = &r
 	m.appendtool_state = nil
 }
 
 // ToolState returns the value of the "tool_state" field in the mutation.
-func (m *MessageMutation) ToolState() (r jsontext.Value, exists bool) {
+func (m *MessageMutation) ToolState() (r rawjson.Raw, exists bool) {
 	v := m.tool_state
 	if v == nil {
 		return
@@ -18813,7 +18813,7 @@ func (m *MessageMutation) ToolState() (r jsontext.Value, exists bool) {
 // OldToolState returns the old "tool_state" field's value of the Message entity.
 // If the Message object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *MessageMutation) OldToolState(ctx context.Context) (v jsontext.Value, err error) {
+func (m *MessageMutation) OldToolState(ctx context.Context) (v rawjson.Raw, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldToolState is only allowed on UpdateOne operations")
 	}
@@ -18827,13 +18827,13 @@ func (m *MessageMutation) OldToolState(ctx context.Context) (v jsontext.Value, e
 	return oldValue.ToolState, nil
 }
 
-// AppendToolState adds j to the "tool_state" field.
-func (m *MessageMutation) AppendToolState(j jsontext.Value) {
-	m.appendtool_state = append(m.appendtool_state, j...)
+// AppendToolState adds r to the "tool_state" field.
+func (m *MessageMutation) AppendToolState(r rawjson.Raw) {
+	m.appendtool_state = append(m.appendtool_state, r...)
 }
 
 // AppendedToolState returns the list of values that were appended to the "tool_state" field in this mutation.
-func (m *MessageMutation) AppendedToolState() (jsontext.Value, bool) {
+func (m *MessageMutation) AppendedToolState() (rawjson.Raw, bool) {
 	if len(m.appendtool_state) == 0 {
 		return nil, false
 	}
@@ -19208,7 +19208,7 @@ func (m *MessageMutation) SetField(name string, value ent.Value) error {
 		m.SetToolCalls(v)
 		return nil
 	case message.FieldToolState:
-		v, ok := value.(jsontext.Value)
+		v, ok := value.(rawjson.Raw)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}

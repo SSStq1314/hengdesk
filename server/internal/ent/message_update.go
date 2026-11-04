@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/predicate"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
+	"github.com/SSStq1314/hengdesk/server/internal/rawjson"
 )
 
 // MessageUpdate is the builder for updating Message entities.
@@ -291,13 +291,13 @@ func (_u *MessageUpdate) ClearToolCalls() *MessageUpdate {
 }
 
 // SetToolState sets the "tool_state" field.
-func (_u *MessageUpdate) SetToolState(v jsontext.Value) *MessageUpdate {
+func (_u *MessageUpdate) SetToolState(v rawjson.Raw) *MessageUpdate {
 	_u.mutation.SetToolState(v)
 	return _u
 }
 
 // AppendToolState appends value to the "tool_state" field.
-func (_u *MessageUpdate) AppendToolState(v jsontext.Value) *MessageUpdate {
+func (_u *MessageUpdate) AppendToolState(v rawjson.Raw) *MessageUpdate {
 	_u.mutation.AppendToolState(v)
 	return _u
 }
@@ -787,13 +787,13 @@ func (_u *MessageUpdateOne) ClearToolCalls() *MessageUpdateOne {
 }
 
 // SetToolState sets the "tool_state" field.
-func (_u *MessageUpdateOne) SetToolState(v jsontext.Value) *MessageUpdateOne {
+func (_u *MessageUpdateOne) SetToolState(v rawjson.Raw) *MessageUpdateOne {
 	_u.mutation.SetToolState(v)
 	return _u
 }
 
 // AppendToolState appends value to the "tool_state" field.
-func (_u *MessageUpdateOne) AppendToolState(v jsontext.Value) *MessageUpdateOne {
+func (_u *MessageUpdateOne) AppendToolState(v rawjson.Raw) *MessageUpdateOne {
 	_u.mutation.AppendToolState(v)
 	return _u
 }
