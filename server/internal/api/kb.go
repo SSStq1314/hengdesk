@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/docparse"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/kbfile"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/knowledgebase"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
@@ -47,6 +49,7 @@ type kbHandlers struct {
 	log    *slog.Logger
 	now    func() time.Time
 	detect func(name string, data []byte) (string, error)
+	auth   *auth.Service
 }
 
 type kbView struct {
@@ -722,6 +725,26 @@ func (h *kbHandlers) grant(c echo.Context, p *auth.Principal, resType, resID str
 	if err := audit.Record(c, audit.Entry{Action: action, Phase: "attempt", ResourceType: resType, ResourceID: resID, Detail: detail}); err != nil {
 		return err
 	}
+	// D-42：超级管理员给自己授权（本人、所在部门或上级部门含下级、自己持有的角色）记高风险审计，写失败拒绝执行。
+	if p.IsSuperAdmin && bits != 0 {
+		self, err := h.coversSelf(ctx, p, sub)
+		if err != nil {
+			return err
+		}
+		if self {
+			if h.auth == nil {
+				return audit.ErrRejected
+			}
+			extra := map[string]any{"resource_type": resType, "resource_id": resID}
+			for k, v := range detail {
+				extra[k] = v
+			}
+			if err := h.auth.RaiseAlertDetail(c, audit.Entry{OrgID: p.OrgID, ActorID: p.ID, ActorEmail: p.Email, IP: c.RealIP(),
+				UserAgent: c.Request().UserAgent()}, auth.AlertKBSelfGrant, extra); err != nil {
+				return err
+			}
+		}
+	}
 	if err := h.az.Grant(ctx, p.OrgID, p.ID, resType, resID, sub, bits); err != nil {
 		if errors.Is(err, authz.ErrBadSubject) {
 			return bad("授权对象不合法")
@@ -729,6 +752,26 @@ func (h *kbHandlers) grant(c echo.Context, p *auth.Principal, resType, resID str
 		return err
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+// coversSelf 授权对象是否覆盖操作者本人。
+func (h *kbHandlers) coversSelf(ctx context.Context, p *auth.Principal, sub authz.Subject) (bool, error) {
+	switch sub.Type {
+	case "user":
+		return sub.ID == p.ID, nil
+	case "role":
+		return slices.Contains(p.RoleIDs, sub.ID), nil
+	case "dept":
+		if slices.Contains(p.DeptIDs, sub.ID) {
+			return true, nil
+		}
+		if !sub.IncludeChildren || len(p.DeptIDs) == 0 {
+			return false, nil
+		}
+		return h.db.DeptClosure.Query().Where(deptclosure.OrgID(p.OrgID), deptclosure.AncestorID(sub.ID),
+			deptclosure.DescendantIDIn(p.DeptIDs...)).Exist(ctx)
+	}
+	return false, nil
 }
 
 func (h *kbHandlers) grantACL(c echo.Context) error {
@@ -847,13 +890,13 @@ func mountKB(g *echo.Group, d Deps, az *authz.Service, gw *gateway.Service) {
 		if d.Files != nil {
 			objs = d.Files
 		}
-		enq = kb.InlineEnqueuer{X: &kb.Indexer{DB: d.DB, Objects: objs, Store: store, GW: gw, Parser: docparse.New(), Log: d.Log}}
+		enq = kb.InlineEnqueuer{X: &kb.Indexer{DB: d.DB, Objects: objs, Store: store, GW: gw, Parser: docparse.New(), Log: d.Log, Settle: d.Budget.Settle}}
 	}
 	lg := d.Log
 	if lg == nil {
 		lg = slog.Default()
 	}
-	h := &kbHandlers{db: d.DB, az: az, gw: gw, fs: d.Files, store: store, enq: enq, maxB: maxB, log: lg,
+	h := &kbHandlers{db: d.DB, az: az, gw: gw, fs: d.Files, store: store, enq: enq, maxB: maxB, log: lg, auth: d.Auth,
 		now: time.Now, detect: docparse.Detect}
 	g.GET("/kbs", h.list)
 	g.POST("/kbs", h.create, authz.Require(rbac.KBCreate))

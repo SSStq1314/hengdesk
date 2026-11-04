@@ -13,6 +13,7 @@ import (
 )
 
 // D-27 / AC-04 召回回归：可见比例约 1%（走精确检索）与约 50%（走 HNSW + iterative_scan），
+// HNSW 档用默认 ef_search（D-42：400）与 halfvec 索引，真值为 float32 精确结果；
 // 要求向量路返回满 k 条、没有越权命中、平均 recall@10 ≥ 0.95（以同一可见集合上的精确暴力结果为真值）。
 // 需要带 pgvector 的 PostgreSQL：HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL=...（会清空该库的 public schema）。
 func TestPGRecallACLTiers(t *testing.T) {
@@ -113,7 +114,7 @@ func TestPGRecallACLTiers(t *testing.T) {
 		var plan string
 		sqlText, idx := sqlExact, "kbchunk_file_id_seq"
 		if tier.want == StrategyHNSW {
-			sqlText, idx = sqlHNSW, "kbchunk_embedding_hnsw"
+			sqlText, idx = sqlHNSW, HNSWIndexName
 		}
 		prow, err := db.Query(`EXPLAIN `+sqlText, vecLiteral(centers[0]), int64s(ids), k)
 		if err != nil {
@@ -133,6 +134,25 @@ func TestPGRecallACLTiers(t *testing.T) {
 		if rec < tier.minRec {
 			t.Fatalf("%s: recall@%d %.4f < %.3f", tier.name, k, rec, tier.minRec)
 		}
+	}
+	// D-42：索引为 halfvec 表达式索引，旧 float 索引已删除；预热可执行
+	var def string
+	if err := db.QueryRow(`SELECT indexdef FROM pg_indexes WHERE indexname = $1`, HNSWIndexName).Scan(&def); err != nil || !strings.Contains(def, "halfvec") {
+		t.Fatalf("halfvec 索引: %q %v", def, err)
+	}
+	var old bool
+	_ = db.QueryRow(`SELECT to_regclass('kbchunk_embedding_hnsw') IS NOT NULL`).Scan(&old)
+	if old {
+		t.Fatal("旧 vector HNSW 索引未删除")
+	}
+	if err := Prewarm(ctx, db); err != nil {
+		t.Logf("pg_prewarm 不可用（尽力而为）：%v", err)
+	}
+	if st, err := CheckIndex(ctx, db, 1<<40); err != nil || st.IndexBytes == 0 || st.OverHalf {
+		t.Fatalf("CheckIndex %+v %v", st, err)
+	}
+	if st, _ := CheckIndex(ctx, db, 1024); !st.OverHalf {
+		t.Fatalf("小内存应提示 %+v", st)
 	}
 	// 全文路同样预过滤
 	if _, err := db.Exec(`UPDATE kb_chunks SET tsv = to_tsvector('simple', 'hello') WHERE file_id IN (1, 2)`); err != nil {

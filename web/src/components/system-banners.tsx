@@ -68,6 +68,14 @@ export function SystemBanners() {
       ),
     })
   }
+  const ki = data.kb_index
+  if (ki?.over_half) {
+    const gb = (b: number) => `${(b / 1024 ** 3).toFixed(1)} GB`
+    items.push({
+      title: zh.banners.kbIndexTitle,
+      desc: zh.banners.kbIndexDesc(gb(ki.index_bytes), gb(ki.memory_bytes)),
+    })
+  }
   const mk = data.master_key
   const mkPending = !!mk?.configured && !mk.acknowledged
   if (items.length === 0 && !mkPending) return null

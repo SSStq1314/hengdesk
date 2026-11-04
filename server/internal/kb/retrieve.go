@@ -56,6 +56,8 @@ type Retriever struct {
 	Audit audit.Writer
 	// Embed 非空时代替网关嵌入问题（仅供性能复测工具 cmd/kbbench 使用，不计量）。
 	Embed func(ctx context.Context, model, q string) ([]float32, error)
+	// Settle 用量落库后的预算结算（D-42：嵌入不受预算拦截，但计入用量并触发告警）。
+	Settle func(ctx context.Context, rec *ent.UsageRecord)
 }
 
 // Retrieve kbIDs 为空表示全部可见知识库。审计写失败返回 ErrRetrieveAudit。
@@ -188,7 +190,9 @@ func (r *Retriever) embedQuery(ctx context.Context, p *auth.Principal, model, q,
 		if err != nil {
 			rec.ErrorCode = ErrCodeEmbed
 		}
-		_, _ = usage.Write(context.WithoutCancel(ctx), r.DB, rec)
+		if row, werr := usage.Write(context.WithoutCancel(ctx), r.DB, rec); werr == nil && r.Settle != nil {
+			r.Settle(context.WithoutCancel(ctx), row)
+		}
 	}
 	return vec, err
 }

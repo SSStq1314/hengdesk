@@ -50,6 +50,8 @@ type Config struct {
 	ChatFileMaxMB int
 	// KBFileMaxMB 知识库单文件大小上限（MB，默认 50，范围 1~90）。
 	KBFileMaxMB int
+	// DBMemoryMB 数据库所在机器内存（MB），用于向量索引超过内存一半的提示（D-42）；0 表示读本机内存（同机部署）。
+	DBMemoryMB int
 	// TrustedProxies 允许读取 X-Forwarded-For 的上游代理网段；为空时只用 TCP 对端地址。
 	TrustedProxies []*net.IPNet
 	// TraceTrustedProxies 受信代理 IP 列表（D-41 第 1 条）：只有来源 IP 在其中的请求才接受传入的 traceparent，
@@ -168,6 +170,10 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	dbMemMB, err := intEnv("DB_MEMORY_MB", "0", 0, 1<<22)
+	if err != nil {
+		return nil, err
+	}
 	kbFileMB, err := intEnv("KB_FILE_MAX_MB", "50", 1, 90)
 	if err != nil {
 		return nil, err
@@ -245,6 +251,7 @@ func Load() (*Config, error) {
 		LoginIPLimit:            ipLimit,
 		ChatFileMaxMB:           chatFileMB,
 		KBFileMaxMB:             kbFileMB,
+		DBMemoryMB:              dbMemMB,
 		LoginIPWindow:           ipWin,
 		TrustedProxies:          proxies,
 		TraceTrustedProxies:     traceProxies,

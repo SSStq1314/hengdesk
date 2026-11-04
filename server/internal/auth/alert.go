@@ -17,6 +17,8 @@ const (
 	AlertBreakGlassLogin = "break_glass_login"
 	// AlertLegalHoldByAdmin 超级管理员设置了法律保全（D-41 第 3 条），通知审计员。
 	AlertLegalHoldByAdmin = "legal_hold_set_by_admin"
+	// AlertKBSelfGrant 超级管理员给自己（本人 / 自己所在部门 / 自己持有的角色）授予知识库或文件权限（D-42），通知审计员。
+	AlertKBSelfGrant = "kb_self_grant_by_super_admin"
 )
 
 // Alert 高风险事件。

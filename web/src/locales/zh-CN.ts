@@ -254,6 +254,9 @@ export const zh = {
     certExpiryDesc: (date: string) =>
       `到期时间 ${date}。请替换 deploy/tls/ 下的证书后执行 docker compose restart web；自签证书可重新执行 install.sh --self-signed。`,
     backupLowTitle: '备份盘空间不足',
+    kbIndexTitle: '知识库向量索引已超过内存的一半',
+    kbIndexDesc: (index: string, mem: string) =>
+      `向量索引 ${index}，数据库所在机器内存 ${mem}。索引无法整体驻留内存时检索延迟会明显上升，建议扩容内存（推荐 32 GB）或清理不再使用的知识库。`,
     backupLowDesc: (free: string, threshold: number, keep: number) =>
       `备份目录剩余空间 ${free}%，低于 ${threshold}% 阈值。升级前备份失败会中止升级，请尽快清理或扩容（系统自动保留最近 ${keep} 份备份）。`,
   },

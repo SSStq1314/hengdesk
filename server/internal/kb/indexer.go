@@ -47,6 +47,8 @@ type Indexer struct {
 	GW      *gateway.Service
 	Parser  *docparse.Extractor
 	Log     *slog.Logger
+	// Settle 用量落库后的预算结算（D-42：嵌入不受预算拦截，但计入用量并触发告警）。
+	Settle func(ctx context.Context, rec *ent.UsageRecord)
 }
 
 type failure struct{ code, msg string }
@@ -218,8 +220,10 @@ func (x *Indexer) embed(ctx context.Context, f *ent.KBFile, model string, pieces
 		}
 	}
 	if total.TotalTokens > 0 || embErr != nil {
-		if _, err := usage.Write(context.WithoutCancel(ctx), x.DB, rec); err != nil {
+		if row, err := usage.Write(context.WithoutCancel(ctx), x.DB, rec); err != nil {
 			x.log().Error("embedding usage write failed", "file", f.ID, "err", err)
+		} else if x.Settle != nil {
+			x.Settle(context.WithoutCancel(ctx), row)
 		}
 	}
 	if embErr != nil {
