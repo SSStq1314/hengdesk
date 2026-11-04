@@ -19,6 +19,7 @@ require (
 	github.com/klippa-app/go-pdfium v1.21.4
 	github.com/labstack/echo/v4 v4.16.3
 	github.com/ledongthuc/pdf v0.0.0-20261020125853-5e46805f718e
+	github.com/mark3labs/mcp-go v1.5.0
 	github.com/redis/go-redis/v9 v9.23.0
 	github.com/spf13/cobra v1.10.2
 	github.com/xuri/excelize/v2 v2.11.1
@@ -45,6 +46,7 @@ require (
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/go-openapi/inflect v1.0.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/hcl/v2 v2.25.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -62,6 +64,7 @@ require (
 	github.com/richardlehane/msoleps v1.0.6 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/tetratelabs/wazero v1.12.0 // indirect
@@ -71,6 +74,7 @@ require (
 	github.com/vcaesar/cedar v0.50.1 // indirect
 	github.com/xuri/efp v0.0.3-0.20260924042702-217b81952dec // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	github.com/zclconf/go-cty v1.19.0 // indirect
 	github.com/zclconf/go-cty-yaml v1.2.0 // indirect

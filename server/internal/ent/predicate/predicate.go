@@ -45,6 +45,9 @@ type KnowledgeBase func(*sql.Selector)
 // LegalHold is the predicate function for legalhold builders.
 type LegalHold func(*sql.Selector)
 
+// McpServer is the predicate function for mcpserver builders.
+type McpServer func(*sql.Selector)
+
 // Membership is the predicate function for membership builders.
 type Membership func(*sql.Selector)
 

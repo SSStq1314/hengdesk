@@ -180,6 +180,7 @@ func Mount(e *echo.Echo, d Deps) {
 	g.DELETE("/conversations/:id/files/:fid", cvh.removeFile)
 
 	mountKB(g, d, az, gw)
+	mountMCP(admin, d, gw)
 
 	bh := &budgetHandlers{db: d.DB, bs: bs, az: az}
 	admin.GET("/budgets", bh.list, authz.Require(rbac.BudgetRead))

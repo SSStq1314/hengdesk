@@ -84,6 +84,41 @@ func Enabled(v bool) predicate.Tool {
 	return predicate.Tool(sql.FieldEQ(FieldEnabled, v))
 }
 
+// OrgID applies equality check predicate on the "org_id" field. It's identical to OrgIDEQ.
+func OrgID(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldOrgID, v))
+}
+
+// ServerID applies equality check predicate on the "server_id" field. It's identical to ServerIDEQ.
+func ServerID(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldServerID, v))
+}
+
+// Description applies equality check predicate on the "description" field. It's identical to DescriptionEQ.
+func Description(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldDescription, v))
+}
+
+// SchemaHash applies equality check predicate on the "schema_hash" field. It's identical to SchemaHashEQ.
+func SchemaHash(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldSchemaHash, v))
+}
+
+// ApprovalTimeoutSec applies equality check predicate on the "approval_timeout_sec" field. It's identical to ApprovalTimeoutSecEQ.
+func ApprovalTimeoutSec(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldApprovalTimeoutSec, v))
+}
+
+// NeedsReview applies equality check predicate on the "needs_review" field. It's identical to NeedsReviewEQ.
+func NeedsReview(v bool) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldNeedsReview, v))
+}
+
+// Removed applies equality check predicate on the "removed" field. It's identical to RemovedEQ.
+func Removed(v bool) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldRemoved, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Tool {
 	return predicate.Tool(sql.FieldEQ(FieldCreatedAt, v))
@@ -387,6 +422,356 @@ func ExecModeIn(vs ...ExecMode) predicate.Tool {
 // ExecModeNotIn applies the NotIn predicate on the "exec_mode" field.
 func ExecModeNotIn(vs ...ExecMode) predicate.Tool {
 	return predicate.Tool(sql.FieldNotIn(FieldExecMode, vs...))
+}
+
+// OrgIDEQ applies the EQ predicate on the "org_id" field.
+func OrgIDEQ(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldOrgID, v))
+}
+
+// OrgIDNEQ applies the NEQ predicate on the "org_id" field.
+func OrgIDNEQ(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldNEQ(FieldOrgID, v))
+}
+
+// OrgIDIn applies the In predicate on the "org_id" field.
+func OrgIDIn(vs ...int) predicate.Tool {
+	return predicate.Tool(sql.FieldIn(FieldOrgID, vs...))
+}
+
+// OrgIDNotIn applies the NotIn predicate on the "org_id" field.
+func OrgIDNotIn(vs ...int) predicate.Tool {
+	return predicate.Tool(sql.FieldNotIn(FieldOrgID, vs...))
+}
+
+// OrgIDGT applies the GT predicate on the "org_id" field.
+func OrgIDGT(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldGT(FieldOrgID, v))
+}
+
+// OrgIDGTE applies the GTE predicate on the "org_id" field.
+func OrgIDGTE(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldGTE(FieldOrgID, v))
+}
+
+// OrgIDLT applies the LT predicate on the "org_id" field.
+func OrgIDLT(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldLT(FieldOrgID, v))
+}
+
+// OrgIDLTE applies the LTE predicate on the "org_id" field.
+func OrgIDLTE(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldLTE(FieldOrgID, v))
+}
+
+// ServerIDEQ applies the EQ predicate on the "server_id" field.
+func ServerIDEQ(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldServerID, v))
+}
+
+// ServerIDNEQ applies the NEQ predicate on the "server_id" field.
+func ServerIDNEQ(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldNEQ(FieldServerID, v))
+}
+
+// ServerIDIn applies the In predicate on the "server_id" field.
+func ServerIDIn(vs ...int) predicate.Tool {
+	return predicate.Tool(sql.FieldIn(FieldServerID, vs...))
+}
+
+// ServerIDNotIn applies the NotIn predicate on the "server_id" field.
+func ServerIDNotIn(vs ...int) predicate.Tool {
+	return predicate.Tool(sql.FieldNotIn(FieldServerID, vs...))
+}
+
+// ServerIDGT applies the GT predicate on the "server_id" field.
+func ServerIDGT(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldGT(FieldServerID, v))
+}
+
+// ServerIDGTE applies the GTE predicate on the "server_id" field.
+func ServerIDGTE(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldGTE(FieldServerID, v))
+}
+
+// ServerIDLT applies the LT predicate on the "server_id" field.
+func ServerIDLT(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldLT(FieldServerID, v))
+}
+
+// ServerIDLTE applies the LTE predicate on the "server_id" field.
+func ServerIDLTE(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldLTE(FieldServerID, v))
+}
+
+// ServerIDIsNil applies the IsNil predicate on the "server_id" field.
+func ServerIDIsNil() predicate.Tool {
+	return predicate.Tool(sql.FieldIsNull(FieldServerID))
+}
+
+// ServerIDNotNil applies the NotNil predicate on the "server_id" field.
+func ServerIDNotNil() predicate.Tool {
+	return predicate.Tool(sql.FieldNotNull(FieldServerID))
+}
+
+// DescriptionEQ applies the EQ predicate on the "description" field.
+func DescriptionEQ(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldDescription, v))
+}
+
+// DescriptionNEQ applies the NEQ predicate on the "description" field.
+func DescriptionNEQ(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldNEQ(FieldDescription, v))
+}
+
+// DescriptionIn applies the In predicate on the "description" field.
+func DescriptionIn(vs ...string) predicate.Tool {
+	return predicate.Tool(sql.FieldIn(FieldDescription, vs...))
+}
+
+// DescriptionNotIn applies the NotIn predicate on the "description" field.
+func DescriptionNotIn(vs ...string) predicate.Tool {
+	return predicate.Tool(sql.FieldNotIn(FieldDescription, vs...))
+}
+
+// DescriptionGT applies the GT predicate on the "description" field.
+func DescriptionGT(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldGT(FieldDescription, v))
+}
+
+// DescriptionGTE applies the GTE predicate on the "description" field.
+func DescriptionGTE(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldGTE(FieldDescription, v))
+}
+
+// DescriptionLT applies the LT predicate on the "description" field.
+func DescriptionLT(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldLT(FieldDescription, v))
+}
+
+// DescriptionLTE applies the LTE predicate on the "description" field.
+func DescriptionLTE(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldLTE(FieldDescription, v))
+}
+
+// DescriptionContains applies the Contains predicate on the "description" field.
+func DescriptionContains(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldContains(FieldDescription, v))
+}
+
+// DescriptionHasPrefix applies the HasPrefix predicate on the "description" field.
+func DescriptionHasPrefix(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldHasPrefix(FieldDescription, v))
+}
+
+// DescriptionHasSuffix applies the HasSuffix predicate on the "description" field.
+func DescriptionHasSuffix(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldHasSuffix(FieldDescription, v))
+}
+
+// DescriptionEqualFold applies the EqualFold predicate on the "description" field.
+func DescriptionEqualFold(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldEqualFold(FieldDescription, v))
+}
+
+// DescriptionContainsFold applies the ContainsFold predicate on the "description" field.
+func DescriptionContainsFold(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldContainsFold(FieldDescription, v))
+}
+
+// InputSchemaIsNil applies the IsNil predicate on the "input_schema" field.
+func InputSchemaIsNil() predicate.Tool {
+	return predicate.Tool(sql.FieldIsNull(FieldInputSchema))
+}
+
+// InputSchemaNotNil applies the NotNil predicate on the "input_schema" field.
+func InputSchemaNotNil() predicate.Tool {
+	return predicate.Tool(sql.FieldNotNull(FieldInputSchema))
+}
+
+// SchemaHashEQ applies the EQ predicate on the "schema_hash" field.
+func SchemaHashEQ(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldSchemaHash, v))
+}
+
+// SchemaHashNEQ applies the NEQ predicate on the "schema_hash" field.
+func SchemaHashNEQ(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldNEQ(FieldSchemaHash, v))
+}
+
+// SchemaHashIn applies the In predicate on the "schema_hash" field.
+func SchemaHashIn(vs ...string) predicate.Tool {
+	return predicate.Tool(sql.FieldIn(FieldSchemaHash, vs...))
+}
+
+// SchemaHashNotIn applies the NotIn predicate on the "schema_hash" field.
+func SchemaHashNotIn(vs ...string) predicate.Tool {
+	return predicate.Tool(sql.FieldNotIn(FieldSchemaHash, vs...))
+}
+
+// SchemaHashGT applies the GT predicate on the "schema_hash" field.
+func SchemaHashGT(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldGT(FieldSchemaHash, v))
+}
+
+// SchemaHashGTE applies the GTE predicate on the "schema_hash" field.
+func SchemaHashGTE(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldGTE(FieldSchemaHash, v))
+}
+
+// SchemaHashLT applies the LT predicate on the "schema_hash" field.
+func SchemaHashLT(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldLT(FieldSchemaHash, v))
+}
+
+// SchemaHashLTE applies the LTE predicate on the "schema_hash" field.
+func SchemaHashLTE(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldLTE(FieldSchemaHash, v))
+}
+
+// SchemaHashContains applies the Contains predicate on the "schema_hash" field.
+func SchemaHashContains(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldContains(FieldSchemaHash, v))
+}
+
+// SchemaHashHasPrefix applies the HasPrefix predicate on the "schema_hash" field.
+func SchemaHashHasPrefix(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldHasPrefix(FieldSchemaHash, v))
+}
+
+// SchemaHashHasSuffix applies the HasSuffix predicate on the "schema_hash" field.
+func SchemaHashHasSuffix(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldHasSuffix(FieldSchemaHash, v))
+}
+
+// SchemaHashEqualFold applies the EqualFold predicate on the "schema_hash" field.
+func SchemaHashEqualFold(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldEqualFold(FieldSchemaHash, v))
+}
+
+// SchemaHashContainsFold applies the ContainsFold predicate on the "schema_hash" field.
+func SchemaHashContainsFold(v string) predicate.Tool {
+	return predicate.Tool(sql.FieldContainsFold(FieldSchemaHash, v))
+}
+
+// RiskLevelEQ applies the EQ predicate on the "risk_level" field.
+func RiskLevelEQ(v RiskLevel) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldRiskLevel, v))
+}
+
+// RiskLevelNEQ applies the NEQ predicate on the "risk_level" field.
+func RiskLevelNEQ(v RiskLevel) predicate.Tool {
+	return predicate.Tool(sql.FieldNEQ(FieldRiskLevel, v))
+}
+
+// RiskLevelIn applies the In predicate on the "risk_level" field.
+func RiskLevelIn(vs ...RiskLevel) predicate.Tool {
+	return predicate.Tool(sql.FieldIn(FieldRiskLevel, vs...))
+}
+
+// RiskLevelNotIn applies the NotIn predicate on the "risk_level" field.
+func RiskLevelNotIn(vs ...RiskLevel) predicate.Tool {
+	return predicate.Tool(sql.FieldNotIn(FieldRiskLevel, vs...))
+}
+
+// SuggestedRiskEQ applies the EQ predicate on the "suggested_risk" field.
+func SuggestedRiskEQ(v SuggestedRisk) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldSuggestedRisk, v))
+}
+
+// SuggestedRiskNEQ applies the NEQ predicate on the "suggested_risk" field.
+func SuggestedRiskNEQ(v SuggestedRisk) predicate.Tool {
+	return predicate.Tool(sql.FieldNEQ(FieldSuggestedRisk, v))
+}
+
+// SuggestedRiskIn applies the In predicate on the "suggested_risk" field.
+func SuggestedRiskIn(vs ...SuggestedRisk) predicate.Tool {
+	return predicate.Tool(sql.FieldIn(FieldSuggestedRisk, vs...))
+}
+
+// SuggestedRiskNotIn applies the NotIn predicate on the "suggested_risk" field.
+func SuggestedRiskNotIn(vs ...SuggestedRisk) predicate.Tool {
+	return predicate.Tool(sql.FieldNotIn(FieldSuggestedRisk, vs...))
+}
+
+// AnnotationsIsNil applies the IsNil predicate on the "annotations" field.
+func AnnotationsIsNil() predicate.Tool {
+	return predicate.Tool(sql.FieldIsNull(FieldAnnotations))
+}
+
+// AnnotationsNotNil applies the NotNil predicate on the "annotations" field.
+func AnnotationsNotNil() predicate.Tool {
+	return predicate.Tool(sql.FieldNotNull(FieldAnnotations))
+}
+
+// ApproverIdsIsNil applies the IsNil predicate on the "approver_ids" field.
+func ApproverIdsIsNil() predicate.Tool {
+	return predicate.Tool(sql.FieldIsNull(FieldApproverIds))
+}
+
+// ApproverIdsNotNil applies the NotNil predicate on the "approver_ids" field.
+func ApproverIdsNotNil() predicate.Tool {
+	return predicate.Tool(sql.FieldNotNull(FieldApproverIds))
+}
+
+// ApprovalTimeoutSecEQ applies the EQ predicate on the "approval_timeout_sec" field.
+func ApprovalTimeoutSecEQ(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldApprovalTimeoutSec, v))
+}
+
+// ApprovalTimeoutSecNEQ applies the NEQ predicate on the "approval_timeout_sec" field.
+func ApprovalTimeoutSecNEQ(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldNEQ(FieldApprovalTimeoutSec, v))
+}
+
+// ApprovalTimeoutSecIn applies the In predicate on the "approval_timeout_sec" field.
+func ApprovalTimeoutSecIn(vs ...int) predicate.Tool {
+	return predicate.Tool(sql.FieldIn(FieldApprovalTimeoutSec, vs...))
+}
+
+// ApprovalTimeoutSecNotIn applies the NotIn predicate on the "approval_timeout_sec" field.
+func ApprovalTimeoutSecNotIn(vs ...int) predicate.Tool {
+	return predicate.Tool(sql.FieldNotIn(FieldApprovalTimeoutSec, vs...))
+}
+
+// ApprovalTimeoutSecGT applies the GT predicate on the "approval_timeout_sec" field.
+func ApprovalTimeoutSecGT(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldGT(FieldApprovalTimeoutSec, v))
+}
+
+// ApprovalTimeoutSecGTE applies the GTE predicate on the "approval_timeout_sec" field.
+func ApprovalTimeoutSecGTE(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldGTE(FieldApprovalTimeoutSec, v))
+}
+
+// ApprovalTimeoutSecLT applies the LT predicate on the "approval_timeout_sec" field.
+func ApprovalTimeoutSecLT(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldLT(FieldApprovalTimeoutSec, v))
+}
+
+// ApprovalTimeoutSecLTE applies the LTE predicate on the "approval_timeout_sec" field.
+func ApprovalTimeoutSecLTE(v int) predicate.Tool {
+	return predicate.Tool(sql.FieldLTE(FieldApprovalTimeoutSec, v))
+}
+
+// NeedsReviewEQ applies the EQ predicate on the "needs_review" field.
+func NeedsReviewEQ(v bool) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldNeedsReview, v))
+}
+
+// NeedsReviewNEQ applies the NEQ predicate on the "needs_review" field.
+func NeedsReviewNEQ(v bool) predicate.Tool {
+	return predicate.Tool(sql.FieldNEQ(FieldNeedsReview, v))
+}
+
+// RemovedEQ applies the EQ predicate on the "removed" field.
+func RemovedEQ(v bool) predicate.Tool {
+	return predicate.Tool(sql.FieldEQ(FieldRemoved, v))
+}
+
+// RemovedNEQ applies the NEQ predicate on the "removed" field.
+func RemovedNEQ(v bool) predicate.Tool {
+	return predicate.Tool(sql.FieldNEQ(FieldRemoved, v))
 }
 
 // And groups predicates with the AND operator between them.

@@ -165,6 +165,18 @@ func (f LegalHoldFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LegalHoldMutation", m)
 }
 
+// The McpServerFunc type is an adapter to allow the use of ordinary
+// function as McpServer mutator.
+type McpServerFunc func(context.Context, *ent.McpServerMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f McpServerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.McpServerMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.McpServerMutation", m)
+}
+
 // The MembershipFunc type is an adapter to allow the use of ordinary
 // function as Membership mutator.
 type MembershipFunc func(context.Context, *ent.MembershipMutation) (ent.Value, error)

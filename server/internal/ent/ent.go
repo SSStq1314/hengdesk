@@ -25,6 +25,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/kbfile"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/knowledgebase"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/legalhold"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/mcpserver"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
@@ -109,6 +110,7 @@ func checkColumn(t, c string) error {
 			kbfile.Table:           kbfile.ValidColumn,
 			knowledgebase.Table:    knowledgebase.ValidColumn,
 			legalhold.Table:        legalhold.ValidColumn,
+			mcpserver.Table:        mcpserver.ValidColumn,
 			membership.Table:       membership.ValidColumn,
 			message.Table:          message.ValidColumn,
 			model.Table:            model.ValidColumn,

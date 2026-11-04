@@ -104,6 +104,150 @@ func (_c *ToolCreate) SetNillableExecMode(v *tool.ExecMode) *ToolCreate {
 	return _c
 }
 
+// SetOrgID sets the "org_id" field.
+func (_c *ToolCreate) SetOrgID(v int) *ToolCreate {
+	_c.mutation.SetOrgID(v)
+	return _c
+}
+
+// SetNillableOrgID sets the "org_id" field if the given value is not nil.
+func (_c *ToolCreate) SetNillableOrgID(v *int) *ToolCreate {
+	if v != nil {
+		_c.SetOrgID(*v)
+	}
+	return _c
+}
+
+// SetServerID sets the "server_id" field.
+func (_c *ToolCreate) SetServerID(v int) *ToolCreate {
+	_c.mutation.SetServerID(v)
+	return _c
+}
+
+// SetNillableServerID sets the "server_id" field if the given value is not nil.
+func (_c *ToolCreate) SetNillableServerID(v *int) *ToolCreate {
+	if v != nil {
+		_c.SetServerID(*v)
+	}
+	return _c
+}
+
+// SetDescription sets the "description" field.
+func (_c *ToolCreate) SetDescription(v string) *ToolCreate {
+	_c.mutation.SetDescription(v)
+	return _c
+}
+
+// SetNillableDescription sets the "description" field if the given value is not nil.
+func (_c *ToolCreate) SetNillableDescription(v *string) *ToolCreate {
+	if v != nil {
+		_c.SetDescription(*v)
+	}
+	return _c
+}
+
+// SetInputSchema sets the "input_schema" field.
+func (_c *ToolCreate) SetInputSchema(v map[string]interface{}) *ToolCreate {
+	_c.mutation.SetInputSchema(v)
+	return _c
+}
+
+// SetSchemaHash sets the "schema_hash" field.
+func (_c *ToolCreate) SetSchemaHash(v string) *ToolCreate {
+	_c.mutation.SetSchemaHash(v)
+	return _c
+}
+
+// SetNillableSchemaHash sets the "schema_hash" field if the given value is not nil.
+func (_c *ToolCreate) SetNillableSchemaHash(v *string) *ToolCreate {
+	if v != nil {
+		_c.SetSchemaHash(*v)
+	}
+	return _c
+}
+
+// SetRiskLevel sets the "risk_level" field.
+func (_c *ToolCreate) SetRiskLevel(v tool.RiskLevel) *ToolCreate {
+	_c.mutation.SetRiskLevel(v)
+	return _c
+}
+
+// SetNillableRiskLevel sets the "risk_level" field if the given value is not nil.
+func (_c *ToolCreate) SetNillableRiskLevel(v *tool.RiskLevel) *ToolCreate {
+	if v != nil {
+		_c.SetRiskLevel(*v)
+	}
+	return _c
+}
+
+// SetSuggestedRisk sets the "suggested_risk" field.
+func (_c *ToolCreate) SetSuggestedRisk(v tool.SuggestedRisk) *ToolCreate {
+	_c.mutation.SetSuggestedRisk(v)
+	return _c
+}
+
+// SetNillableSuggestedRisk sets the "suggested_risk" field if the given value is not nil.
+func (_c *ToolCreate) SetNillableSuggestedRisk(v *tool.SuggestedRisk) *ToolCreate {
+	if v != nil {
+		_c.SetSuggestedRisk(*v)
+	}
+	return _c
+}
+
+// SetAnnotations sets the "annotations" field.
+func (_c *ToolCreate) SetAnnotations(v map[string]interface{}) *ToolCreate {
+	_c.mutation.SetAnnotations(v)
+	return _c
+}
+
+// SetApproverIds sets the "approver_ids" field.
+func (_c *ToolCreate) SetApproverIds(v []int) *ToolCreate {
+	_c.mutation.SetApproverIds(v)
+	return _c
+}
+
+// SetApprovalTimeoutSec sets the "approval_timeout_sec" field.
+func (_c *ToolCreate) SetApprovalTimeoutSec(v int) *ToolCreate {
+	_c.mutation.SetApprovalTimeoutSec(v)
+	return _c
+}
+
+// SetNillableApprovalTimeoutSec sets the "approval_timeout_sec" field if the given value is not nil.
+func (_c *ToolCreate) SetNillableApprovalTimeoutSec(v *int) *ToolCreate {
+	if v != nil {
+		_c.SetApprovalTimeoutSec(*v)
+	}
+	return _c
+}
+
+// SetNeedsReview sets the "needs_review" field.
+func (_c *ToolCreate) SetNeedsReview(v bool) *ToolCreate {
+	_c.mutation.SetNeedsReview(v)
+	return _c
+}
+
+// SetNillableNeedsReview sets the "needs_review" field if the given value is not nil.
+func (_c *ToolCreate) SetNillableNeedsReview(v *bool) *ToolCreate {
+	if v != nil {
+		_c.SetNeedsReview(*v)
+	}
+	return _c
+}
+
+// SetRemoved sets the "removed" field.
+func (_c *ToolCreate) SetRemoved(v bool) *ToolCreate {
+	_c.mutation.SetRemoved(v)
+	return _c
+}
+
+// SetNillableRemoved sets the "removed" field if the given value is not nil.
+func (_c *ToolCreate) SetNillableRemoved(v *bool) *ToolCreate {
+	if v != nil {
+		_c.SetRemoved(*v)
+	}
+	return _c
+}
+
 // Mutation returns the ToolMutation object of the builder.
 func (_c *ToolCreate) Mutation() *ToolMutation {
 	return _c.mutation
@@ -159,6 +303,38 @@ func (_c *ToolCreate) defaults() {
 		v := tool.DefaultExecMode
 		_c.mutation.SetExecMode(v)
 	}
+	if _, ok := _c.mutation.OrgID(); !ok {
+		v := tool.DefaultOrgID
+		_c.mutation.SetOrgID(v)
+	}
+	if _, ok := _c.mutation.Description(); !ok {
+		v := tool.DefaultDescription
+		_c.mutation.SetDescription(v)
+	}
+	if _, ok := _c.mutation.SchemaHash(); !ok {
+		v := tool.DefaultSchemaHash
+		_c.mutation.SetSchemaHash(v)
+	}
+	if _, ok := _c.mutation.RiskLevel(); !ok {
+		v := tool.DefaultRiskLevel
+		_c.mutation.SetRiskLevel(v)
+	}
+	if _, ok := _c.mutation.SuggestedRisk(); !ok {
+		v := tool.DefaultSuggestedRisk
+		_c.mutation.SetSuggestedRisk(v)
+	}
+	if _, ok := _c.mutation.ApprovalTimeoutSec(); !ok {
+		v := tool.DefaultApprovalTimeoutSec
+		_c.mutation.SetApprovalTimeoutSec(v)
+	}
+	if _, ok := _c.mutation.NeedsReview(); !ok {
+		v := tool.DefaultNeedsReview
+		_c.mutation.SetNeedsReview(v)
+	}
+	if _, ok := _c.mutation.Removed(); !ok {
+		v := tool.DefaultRemoved
+		_c.mutation.SetRemoved(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -198,6 +374,40 @@ func (_c *ToolCreate) check() error {
 		if err := tool.ExecModeValidator(v); err != nil {
 			return &ValidationError{Name: "exec_mode", err: fmt.Errorf(`ent: validator failed for field "Tool.exec_mode": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.OrgID(); !ok {
+		return &ValidationError{Name: "org_id", err: errors.New(`ent: missing required field "Tool.org_id"`)}
+	}
+	if _, ok := _c.mutation.Description(); !ok {
+		return &ValidationError{Name: "description", err: errors.New(`ent: missing required field "Tool.description"`)}
+	}
+	if _, ok := _c.mutation.SchemaHash(); !ok {
+		return &ValidationError{Name: "schema_hash", err: errors.New(`ent: missing required field "Tool.schema_hash"`)}
+	}
+	if _, ok := _c.mutation.RiskLevel(); !ok {
+		return &ValidationError{Name: "risk_level", err: errors.New(`ent: missing required field "Tool.risk_level"`)}
+	}
+	if v, ok := _c.mutation.RiskLevel(); ok {
+		if err := tool.RiskLevelValidator(v); err != nil {
+			return &ValidationError{Name: "risk_level", err: fmt.Errorf(`ent: validator failed for field "Tool.risk_level": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.SuggestedRisk(); !ok {
+		return &ValidationError{Name: "suggested_risk", err: errors.New(`ent: missing required field "Tool.suggested_risk"`)}
+	}
+	if v, ok := _c.mutation.SuggestedRisk(); ok {
+		if err := tool.SuggestedRiskValidator(v); err != nil {
+			return &ValidationError{Name: "suggested_risk", err: fmt.Errorf(`ent: validator failed for field "Tool.suggested_risk": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ApprovalTimeoutSec(); !ok {
+		return &ValidationError{Name: "approval_timeout_sec", err: errors.New(`ent: missing required field "Tool.approval_timeout_sec"`)}
+	}
+	if _, ok := _c.mutation.NeedsReview(); !ok {
+		return &ValidationError{Name: "needs_review", err: errors.New(`ent: missing required field "Tool.needs_review"`)}
+	}
+	if _, ok := _c.mutation.Removed(); !ok {
+		return &ValidationError{Name: "removed", err: errors.New(`ent: missing required field "Tool.removed"`)}
 	}
 	return nil
 }
@@ -253,6 +463,54 @@ func (_c *ToolCreate) createSpec() (*Tool, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ExecMode(); ok {
 		_spec.SetField(tool.FieldExecMode, field.TypeEnum, value)
 		_node.ExecMode = value
+	}
+	if value, ok := _c.mutation.OrgID(); ok {
+		_spec.SetField(tool.FieldOrgID, field.TypeInt, value)
+		_node.OrgID = value
+	}
+	if value, ok := _c.mutation.ServerID(); ok {
+		_spec.SetField(tool.FieldServerID, field.TypeInt, value)
+		_node.ServerID = &value
+	}
+	if value, ok := _c.mutation.Description(); ok {
+		_spec.SetField(tool.FieldDescription, field.TypeString, value)
+		_node.Description = value
+	}
+	if value, ok := _c.mutation.InputSchema(); ok {
+		_spec.SetField(tool.FieldInputSchema, field.TypeJSON, value)
+		_node.InputSchema = value
+	}
+	if value, ok := _c.mutation.SchemaHash(); ok {
+		_spec.SetField(tool.FieldSchemaHash, field.TypeString, value)
+		_node.SchemaHash = value
+	}
+	if value, ok := _c.mutation.RiskLevel(); ok {
+		_spec.SetField(tool.FieldRiskLevel, field.TypeEnum, value)
+		_node.RiskLevel = value
+	}
+	if value, ok := _c.mutation.SuggestedRisk(); ok {
+		_spec.SetField(tool.FieldSuggestedRisk, field.TypeEnum, value)
+		_node.SuggestedRisk = value
+	}
+	if value, ok := _c.mutation.Annotations(); ok {
+		_spec.SetField(tool.FieldAnnotations, field.TypeJSON, value)
+		_node.Annotations = value
+	}
+	if value, ok := _c.mutation.ApproverIds(); ok {
+		_spec.SetField(tool.FieldApproverIds, field.TypeJSON, value)
+		_node.ApproverIds = value
+	}
+	if value, ok := _c.mutation.ApprovalTimeoutSec(); ok {
+		_spec.SetField(tool.FieldApprovalTimeoutSec, field.TypeInt, value)
+		_node.ApprovalTimeoutSec = value
+	}
+	if value, ok := _c.mutation.NeedsReview(); ok {
+		_spec.SetField(tool.FieldNeedsReview, field.TypeBool, value)
+		_node.NeedsReview = value
+	}
+	if value, ok := _c.mutation.Removed(); ok {
+		_spec.SetField(tool.FieldRemoved, field.TypeBool, value)
+		_node.Removed = value
 	}
 	return _node, _spec
 }
@@ -375,6 +633,192 @@ func (u *ToolUpsert) SetExecMode(v tool.ExecMode) *ToolUpsert {
 // UpdateExecMode sets the "exec_mode" field to the value that was provided on create.
 func (u *ToolUpsert) UpdateExecMode() *ToolUpsert {
 	u.SetExcluded(tool.FieldExecMode)
+	return u
+}
+
+// SetOrgID sets the "org_id" field.
+func (u *ToolUpsert) SetOrgID(v int) *ToolUpsert {
+	u.Set(tool.FieldOrgID, v)
+	return u
+}
+
+// UpdateOrgID sets the "org_id" field to the value that was provided on create.
+func (u *ToolUpsert) UpdateOrgID() *ToolUpsert {
+	u.SetExcluded(tool.FieldOrgID)
+	return u
+}
+
+// AddOrgID adds v to the "org_id" field.
+func (u *ToolUpsert) AddOrgID(v int) *ToolUpsert {
+	u.Add(tool.FieldOrgID, v)
+	return u
+}
+
+// SetServerID sets the "server_id" field.
+func (u *ToolUpsert) SetServerID(v int) *ToolUpsert {
+	u.Set(tool.FieldServerID, v)
+	return u
+}
+
+// UpdateServerID sets the "server_id" field to the value that was provided on create.
+func (u *ToolUpsert) UpdateServerID() *ToolUpsert {
+	u.SetExcluded(tool.FieldServerID)
+	return u
+}
+
+// AddServerID adds v to the "server_id" field.
+func (u *ToolUpsert) AddServerID(v int) *ToolUpsert {
+	u.Add(tool.FieldServerID, v)
+	return u
+}
+
+// ClearServerID clears the value of the "server_id" field.
+func (u *ToolUpsert) ClearServerID() *ToolUpsert {
+	u.SetNull(tool.FieldServerID)
+	return u
+}
+
+// SetDescription sets the "description" field.
+func (u *ToolUpsert) SetDescription(v string) *ToolUpsert {
+	u.Set(tool.FieldDescription, v)
+	return u
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *ToolUpsert) UpdateDescription() *ToolUpsert {
+	u.SetExcluded(tool.FieldDescription)
+	return u
+}
+
+// SetInputSchema sets the "input_schema" field.
+func (u *ToolUpsert) SetInputSchema(v map[string]interface{}) *ToolUpsert {
+	u.Set(tool.FieldInputSchema, v)
+	return u
+}
+
+// UpdateInputSchema sets the "input_schema" field to the value that was provided on create.
+func (u *ToolUpsert) UpdateInputSchema() *ToolUpsert {
+	u.SetExcluded(tool.FieldInputSchema)
+	return u
+}
+
+// ClearInputSchema clears the value of the "input_schema" field.
+func (u *ToolUpsert) ClearInputSchema() *ToolUpsert {
+	u.SetNull(tool.FieldInputSchema)
+	return u
+}
+
+// SetSchemaHash sets the "schema_hash" field.
+func (u *ToolUpsert) SetSchemaHash(v string) *ToolUpsert {
+	u.Set(tool.FieldSchemaHash, v)
+	return u
+}
+
+// UpdateSchemaHash sets the "schema_hash" field to the value that was provided on create.
+func (u *ToolUpsert) UpdateSchemaHash() *ToolUpsert {
+	u.SetExcluded(tool.FieldSchemaHash)
+	return u
+}
+
+// SetRiskLevel sets the "risk_level" field.
+func (u *ToolUpsert) SetRiskLevel(v tool.RiskLevel) *ToolUpsert {
+	u.Set(tool.FieldRiskLevel, v)
+	return u
+}
+
+// UpdateRiskLevel sets the "risk_level" field to the value that was provided on create.
+func (u *ToolUpsert) UpdateRiskLevel() *ToolUpsert {
+	u.SetExcluded(tool.FieldRiskLevel)
+	return u
+}
+
+// SetSuggestedRisk sets the "suggested_risk" field.
+func (u *ToolUpsert) SetSuggestedRisk(v tool.SuggestedRisk) *ToolUpsert {
+	u.Set(tool.FieldSuggestedRisk, v)
+	return u
+}
+
+// UpdateSuggestedRisk sets the "suggested_risk" field to the value that was provided on create.
+func (u *ToolUpsert) UpdateSuggestedRisk() *ToolUpsert {
+	u.SetExcluded(tool.FieldSuggestedRisk)
+	return u
+}
+
+// SetAnnotations sets the "annotations" field.
+func (u *ToolUpsert) SetAnnotations(v map[string]interface{}) *ToolUpsert {
+	u.Set(tool.FieldAnnotations, v)
+	return u
+}
+
+// UpdateAnnotations sets the "annotations" field to the value that was provided on create.
+func (u *ToolUpsert) UpdateAnnotations() *ToolUpsert {
+	u.SetExcluded(tool.FieldAnnotations)
+	return u
+}
+
+// ClearAnnotations clears the value of the "annotations" field.
+func (u *ToolUpsert) ClearAnnotations() *ToolUpsert {
+	u.SetNull(tool.FieldAnnotations)
+	return u
+}
+
+// SetApproverIds sets the "approver_ids" field.
+func (u *ToolUpsert) SetApproverIds(v []int) *ToolUpsert {
+	u.Set(tool.FieldApproverIds, v)
+	return u
+}
+
+// UpdateApproverIds sets the "approver_ids" field to the value that was provided on create.
+func (u *ToolUpsert) UpdateApproverIds() *ToolUpsert {
+	u.SetExcluded(tool.FieldApproverIds)
+	return u
+}
+
+// ClearApproverIds clears the value of the "approver_ids" field.
+func (u *ToolUpsert) ClearApproverIds() *ToolUpsert {
+	u.SetNull(tool.FieldApproverIds)
+	return u
+}
+
+// SetApprovalTimeoutSec sets the "approval_timeout_sec" field.
+func (u *ToolUpsert) SetApprovalTimeoutSec(v int) *ToolUpsert {
+	u.Set(tool.FieldApprovalTimeoutSec, v)
+	return u
+}
+
+// UpdateApprovalTimeoutSec sets the "approval_timeout_sec" field to the value that was provided on create.
+func (u *ToolUpsert) UpdateApprovalTimeoutSec() *ToolUpsert {
+	u.SetExcluded(tool.FieldApprovalTimeoutSec)
+	return u
+}
+
+// AddApprovalTimeoutSec adds v to the "approval_timeout_sec" field.
+func (u *ToolUpsert) AddApprovalTimeoutSec(v int) *ToolUpsert {
+	u.Add(tool.FieldApprovalTimeoutSec, v)
+	return u
+}
+
+// SetNeedsReview sets the "needs_review" field.
+func (u *ToolUpsert) SetNeedsReview(v bool) *ToolUpsert {
+	u.Set(tool.FieldNeedsReview, v)
+	return u
+}
+
+// UpdateNeedsReview sets the "needs_review" field to the value that was provided on create.
+func (u *ToolUpsert) UpdateNeedsReview() *ToolUpsert {
+	u.SetExcluded(tool.FieldNeedsReview)
+	return u
+}
+
+// SetRemoved sets the "removed" field.
+func (u *ToolUpsert) SetRemoved(v bool) *ToolUpsert {
+	u.Set(tool.FieldRemoved, v)
+	return u
+}
+
+// UpdateRemoved sets the "removed" field to the value that was provided on create.
+func (u *ToolUpsert) UpdateRemoved() *ToolUpsert {
+	u.SetExcluded(tool.FieldRemoved)
 	return u
 }
 
@@ -504,6 +948,223 @@ func (u *ToolUpsertOne) SetExecMode(v tool.ExecMode) *ToolUpsertOne {
 func (u *ToolUpsertOne) UpdateExecMode() *ToolUpsertOne {
 	return u.Update(func(s *ToolUpsert) {
 		s.UpdateExecMode()
+	})
+}
+
+// SetOrgID sets the "org_id" field.
+func (u *ToolUpsertOne) SetOrgID(v int) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetOrgID(v)
+	})
+}
+
+// AddOrgID adds v to the "org_id" field.
+func (u *ToolUpsertOne) AddOrgID(v int) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.AddOrgID(v)
+	})
+}
+
+// UpdateOrgID sets the "org_id" field to the value that was provided on create.
+func (u *ToolUpsertOne) UpdateOrgID() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateOrgID()
+	})
+}
+
+// SetServerID sets the "server_id" field.
+func (u *ToolUpsertOne) SetServerID(v int) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetServerID(v)
+	})
+}
+
+// AddServerID adds v to the "server_id" field.
+func (u *ToolUpsertOne) AddServerID(v int) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.AddServerID(v)
+	})
+}
+
+// UpdateServerID sets the "server_id" field to the value that was provided on create.
+func (u *ToolUpsertOne) UpdateServerID() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateServerID()
+	})
+}
+
+// ClearServerID clears the value of the "server_id" field.
+func (u *ToolUpsertOne) ClearServerID() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.ClearServerID()
+	})
+}
+
+// SetDescription sets the "description" field.
+func (u *ToolUpsertOne) SetDescription(v string) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetDescription(v)
+	})
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *ToolUpsertOne) UpdateDescription() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateDescription()
+	})
+}
+
+// SetInputSchema sets the "input_schema" field.
+func (u *ToolUpsertOne) SetInputSchema(v map[string]interface{}) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetInputSchema(v)
+	})
+}
+
+// UpdateInputSchema sets the "input_schema" field to the value that was provided on create.
+func (u *ToolUpsertOne) UpdateInputSchema() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateInputSchema()
+	})
+}
+
+// ClearInputSchema clears the value of the "input_schema" field.
+func (u *ToolUpsertOne) ClearInputSchema() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.ClearInputSchema()
+	})
+}
+
+// SetSchemaHash sets the "schema_hash" field.
+func (u *ToolUpsertOne) SetSchemaHash(v string) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetSchemaHash(v)
+	})
+}
+
+// UpdateSchemaHash sets the "schema_hash" field to the value that was provided on create.
+func (u *ToolUpsertOne) UpdateSchemaHash() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateSchemaHash()
+	})
+}
+
+// SetRiskLevel sets the "risk_level" field.
+func (u *ToolUpsertOne) SetRiskLevel(v tool.RiskLevel) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetRiskLevel(v)
+	})
+}
+
+// UpdateRiskLevel sets the "risk_level" field to the value that was provided on create.
+func (u *ToolUpsertOne) UpdateRiskLevel() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateRiskLevel()
+	})
+}
+
+// SetSuggestedRisk sets the "suggested_risk" field.
+func (u *ToolUpsertOne) SetSuggestedRisk(v tool.SuggestedRisk) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetSuggestedRisk(v)
+	})
+}
+
+// UpdateSuggestedRisk sets the "suggested_risk" field to the value that was provided on create.
+func (u *ToolUpsertOne) UpdateSuggestedRisk() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateSuggestedRisk()
+	})
+}
+
+// SetAnnotations sets the "annotations" field.
+func (u *ToolUpsertOne) SetAnnotations(v map[string]interface{}) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetAnnotations(v)
+	})
+}
+
+// UpdateAnnotations sets the "annotations" field to the value that was provided on create.
+func (u *ToolUpsertOne) UpdateAnnotations() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateAnnotations()
+	})
+}
+
+// ClearAnnotations clears the value of the "annotations" field.
+func (u *ToolUpsertOne) ClearAnnotations() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.ClearAnnotations()
+	})
+}
+
+// SetApproverIds sets the "approver_ids" field.
+func (u *ToolUpsertOne) SetApproverIds(v []int) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetApproverIds(v)
+	})
+}
+
+// UpdateApproverIds sets the "approver_ids" field to the value that was provided on create.
+func (u *ToolUpsertOne) UpdateApproverIds() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateApproverIds()
+	})
+}
+
+// ClearApproverIds clears the value of the "approver_ids" field.
+func (u *ToolUpsertOne) ClearApproverIds() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.ClearApproverIds()
+	})
+}
+
+// SetApprovalTimeoutSec sets the "approval_timeout_sec" field.
+func (u *ToolUpsertOne) SetApprovalTimeoutSec(v int) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetApprovalTimeoutSec(v)
+	})
+}
+
+// AddApprovalTimeoutSec adds v to the "approval_timeout_sec" field.
+func (u *ToolUpsertOne) AddApprovalTimeoutSec(v int) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.AddApprovalTimeoutSec(v)
+	})
+}
+
+// UpdateApprovalTimeoutSec sets the "approval_timeout_sec" field to the value that was provided on create.
+func (u *ToolUpsertOne) UpdateApprovalTimeoutSec() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateApprovalTimeoutSec()
+	})
+}
+
+// SetNeedsReview sets the "needs_review" field.
+func (u *ToolUpsertOne) SetNeedsReview(v bool) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetNeedsReview(v)
+	})
+}
+
+// UpdateNeedsReview sets the "needs_review" field to the value that was provided on create.
+func (u *ToolUpsertOne) UpdateNeedsReview() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateNeedsReview()
+	})
+}
+
+// SetRemoved sets the "removed" field.
+func (u *ToolUpsertOne) SetRemoved(v bool) *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetRemoved(v)
+	})
+}
+
+// UpdateRemoved sets the "removed" field to the value that was provided on create.
+func (u *ToolUpsertOne) UpdateRemoved() *ToolUpsertOne {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateRemoved()
 	})
 }
 
@@ -799,6 +1460,223 @@ func (u *ToolUpsertBulk) SetExecMode(v tool.ExecMode) *ToolUpsertBulk {
 func (u *ToolUpsertBulk) UpdateExecMode() *ToolUpsertBulk {
 	return u.Update(func(s *ToolUpsert) {
 		s.UpdateExecMode()
+	})
+}
+
+// SetOrgID sets the "org_id" field.
+func (u *ToolUpsertBulk) SetOrgID(v int) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetOrgID(v)
+	})
+}
+
+// AddOrgID adds v to the "org_id" field.
+func (u *ToolUpsertBulk) AddOrgID(v int) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.AddOrgID(v)
+	})
+}
+
+// UpdateOrgID sets the "org_id" field to the value that was provided on create.
+func (u *ToolUpsertBulk) UpdateOrgID() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateOrgID()
+	})
+}
+
+// SetServerID sets the "server_id" field.
+func (u *ToolUpsertBulk) SetServerID(v int) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetServerID(v)
+	})
+}
+
+// AddServerID adds v to the "server_id" field.
+func (u *ToolUpsertBulk) AddServerID(v int) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.AddServerID(v)
+	})
+}
+
+// UpdateServerID sets the "server_id" field to the value that was provided on create.
+func (u *ToolUpsertBulk) UpdateServerID() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateServerID()
+	})
+}
+
+// ClearServerID clears the value of the "server_id" field.
+func (u *ToolUpsertBulk) ClearServerID() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.ClearServerID()
+	})
+}
+
+// SetDescription sets the "description" field.
+func (u *ToolUpsertBulk) SetDescription(v string) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetDescription(v)
+	})
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *ToolUpsertBulk) UpdateDescription() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateDescription()
+	})
+}
+
+// SetInputSchema sets the "input_schema" field.
+func (u *ToolUpsertBulk) SetInputSchema(v map[string]interface{}) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetInputSchema(v)
+	})
+}
+
+// UpdateInputSchema sets the "input_schema" field to the value that was provided on create.
+func (u *ToolUpsertBulk) UpdateInputSchema() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateInputSchema()
+	})
+}
+
+// ClearInputSchema clears the value of the "input_schema" field.
+func (u *ToolUpsertBulk) ClearInputSchema() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.ClearInputSchema()
+	})
+}
+
+// SetSchemaHash sets the "schema_hash" field.
+func (u *ToolUpsertBulk) SetSchemaHash(v string) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetSchemaHash(v)
+	})
+}
+
+// UpdateSchemaHash sets the "schema_hash" field to the value that was provided on create.
+func (u *ToolUpsertBulk) UpdateSchemaHash() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateSchemaHash()
+	})
+}
+
+// SetRiskLevel sets the "risk_level" field.
+func (u *ToolUpsertBulk) SetRiskLevel(v tool.RiskLevel) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetRiskLevel(v)
+	})
+}
+
+// UpdateRiskLevel sets the "risk_level" field to the value that was provided on create.
+func (u *ToolUpsertBulk) UpdateRiskLevel() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateRiskLevel()
+	})
+}
+
+// SetSuggestedRisk sets the "suggested_risk" field.
+func (u *ToolUpsertBulk) SetSuggestedRisk(v tool.SuggestedRisk) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetSuggestedRisk(v)
+	})
+}
+
+// UpdateSuggestedRisk sets the "suggested_risk" field to the value that was provided on create.
+func (u *ToolUpsertBulk) UpdateSuggestedRisk() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateSuggestedRisk()
+	})
+}
+
+// SetAnnotations sets the "annotations" field.
+func (u *ToolUpsertBulk) SetAnnotations(v map[string]interface{}) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetAnnotations(v)
+	})
+}
+
+// UpdateAnnotations sets the "annotations" field to the value that was provided on create.
+func (u *ToolUpsertBulk) UpdateAnnotations() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateAnnotations()
+	})
+}
+
+// ClearAnnotations clears the value of the "annotations" field.
+func (u *ToolUpsertBulk) ClearAnnotations() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.ClearAnnotations()
+	})
+}
+
+// SetApproverIds sets the "approver_ids" field.
+func (u *ToolUpsertBulk) SetApproverIds(v []int) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetApproverIds(v)
+	})
+}
+
+// UpdateApproverIds sets the "approver_ids" field to the value that was provided on create.
+func (u *ToolUpsertBulk) UpdateApproverIds() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateApproverIds()
+	})
+}
+
+// ClearApproverIds clears the value of the "approver_ids" field.
+func (u *ToolUpsertBulk) ClearApproverIds() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.ClearApproverIds()
+	})
+}
+
+// SetApprovalTimeoutSec sets the "approval_timeout_sec" field.
+func (u *ToolUpsertBulk) SetApprovalTimeoutSec(v int) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetApprovalTimeoutSec(v)
+	})
+}
+
+// AddApprovalTimeoutSec adds v to the "approval_timeout_sec" field.
+func (u *ToolUpsertBulk) AddApprovalTimeoutSec(v int) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.AddApprovalTimeoutSec(v)
+	})
+}
+
+// UpdateApprovalTimeoutSec sets the "approval_timeout_sec" field to the value that was provided on create.
+func (u *ToolUpsertBulk) UpdateApprovalTimeoutSec() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateApprovalTimeoutSec()
+	})
+}
+
+// SetNeedsReview sets the "needs_review" field.
+func (u *ToolUpsertBulk) SetNeedsReview(v bool) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetNeedsReview(v)
+	})
+}
+
+// UpdateNeedsReview sets the "needs_review" field to the value that was provided on create.
+func (u *ToolUpsertBulk) UpdateNeedsReview() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateNeedsReview()
+	})
+}
+
+// SetRemoved sets the "removed" field.
+func (u *ToolUpsertBulk) SetRemoved(v bool) *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.SetRemoved(v)
+	})
+}
+
+// UpdateRemoved sets the "removed" field to the value that was provided on create.
+func (u *ToolUpsertBulk) UpdateRemoved() *ToolUpsertBulk {
+	return u.Update(func(s *ToolUpsert) {
+		s.UpdateRemoved()
 	})
 }
 

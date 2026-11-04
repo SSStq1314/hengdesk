@@ -28,6 +28,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/kbfile"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/knowledgebase"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/legalhold"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/mcpserver"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
@@ -72,6 +73,8 @@ type Client struct {
 	KnowledgeBase *KnowledgeBaseClient
 	// LegalHold is the client for interacting with the LegalHold builders.
 	LegalHold *LegalHoldClient
+	// McpServer is the client for interacting with the McpServer builders.
+	McpServer *McpServerClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
 	// Message is the client for interacting with the Message builders.
@@ -118,6 +121,7 @@ func (c *Client) init() {
 	c.KBFile = NewKBFileClient(c.config)
 	c.KnowledgeBase = NewKnowledgeBaseClient(c.config)
 	c.LegalHold = NewLegalHoldClient(c.config)
+	c.McpServer = NewMcpServerClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
 	c.Message = NewMessageClient(c.config)
 	c.Model = NewModelClient(c.config)
@@ -234,6 +238,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		KBFile:           NewKBFileClient(cfg),
 		KnowledgeBase:    NewKnowledgeBaseClient(cfg),
 		LegalHold:        NewLegalHoldClient(cfg),
+		McpServer:        NewMcpServerClient(cfg),
 		Membership:       NewMembershipClient(cfg),
 		Message:          NewMessageClient(cfg),
 		Model:            NewModelClient(cfg),
@@ -277,6 +282,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		KBFile:           NewKBFileClient(cfg),
 		KnowledgeBase:    NewKnowledgeBaseClient(cfg),
 		LegalHold:        NewLegalHoldClient(cfg),
+		McpServer:        NewMcpServerClient(cfg),
 		Membership:       NewMembershipClient(cfg),
 		Message:          NewMessageClient(cfg),
 		Model:            NewModelClient(cfg),
@@ -319,9 +325,9 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Conversation,
 		c.ConversationFile, c.Department, c.DeptClosure, c.EgressLog, c.EgressRule,
-		c.KBFile, c.KnowledgeBase, c.LegalHold, c.Membership, c.Message, c.Model,
-		c.ModelProvider, c.Notification, c.Organization, c.Role, c.SystemSetting,
-		c.Tool, c.UsageRecord, c.User,
+		c.KBFile, c.KnowledgeBase, c.LegalHold, c.McpServer, c.Membership, c.Message,
+		c.Model, c.ModelProvider, c.Notification, c.Organization, c.Role,
+		c.SystemSetting, c.Tool, c.UsageRecord, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -333,9 +339,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Conversation,
 		c.ConversationFile, c.Department, c.DeptClosure, c.EgressLog, c.EgressRule,
-		c.KBFile, c.KnowledgeBase, c.LegalHold, c.Membership, c.Message, c.Model,
-		c.ModelProvider, c.Notification, c.Organization, c.Role, c.SystemSetting,
-		c.Tool, c.UsageRecord, c.User,
+		c.KBFile, c.KnowledgeBase, c.LegalHold, c.McpServer, c.Membership, c.Message,
+		c.Model, c.ModelProvider, c.Notification, c.Organization, c.Role,
+		c.SystemSetting, c.Tool, c.UsageRecord, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -370,6 +376,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.KnowledgeBase.mutate(ctx, m)
 	case *LegalHoldMutation:
 		return c.LegalHold.mutate(ctx, m)
+	case *McpServerMutation:
+		return c.McpServer.mutate(ctx, m)
 	case *MembershipMutation:
 		return c.Membership.mutate(ctx, m)
 	case *MessageMutation:
@@ -2207,6 +2215,139 @@ func (c *LegalHoldClient) mutate(ctx context.Context, m *LegalHoldMutation) (Val
 	}
 }
 
+// McpServerClient is a client for the McpServer schema.
+type McpServerClient struct {
+	config
+}
+
+// NewMcpServerClient returns a client for the McpServer from the given config.
+func NewMcpServerClient(c config) *McpServerClient {
+	return &McpServerClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mcpserver.Hooks(f(g(h())))`.
+func (c *McpServerClient) Use(hooks ...Hook) {
+	c.hooks.McpServer = append(c.hooks.McpServer, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mcpserver.Intercept(f(g(h())))`.
+func (c *McpServerClient) Intercept(interceptors ...Interceptor) {
+	c.inters.McpServer = append(c.inters.McpServer, interceptors...)
+}
+
+// Create returns a builder for creating a McpServer entity.
+func (c *McpServerClient) Create() *McpServerCreate {
+	mutation := newMcpServerMutation(c.config, OpCreate)
+	return &McpServerCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of McpServer entities.
+func (c *McpServerClient) CreateBulk(builders ...*McpServerCreate) *McpServerCreateBulk {
+	return &McpServerCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *McpServerClient) MapCreateBulk(slice any, setFunc func(*McpServerCreate, int)) *McpServerCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &McpServerCreateBulk{err: fmt.Errorf("calling to McpServerClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*McpServerCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &McpServerCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for McpServer.
+func (c *McpServerClient) Update() *McpServerUpdate {
+	mutation := newMcpServerMutation(c.config, OpUpdate)
+	return &McpServerUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *McpServerClient) UpdateOne(_m *McpServer) *McpServerUpdateOne {
+	mutation := newMcpServerMutation(c.config, OpUpdateOne, withMcpServer(_m))
+	return &McpServerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *McpServerClient) UpdateOneID(id int) *McpServerUpdateOne {
+	mutation := newMcpServerMutation(c.config, OpUpdateOne, withMcpServerID(id))
+	return &McpServerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for McpServer.
+func (c *McpServerClient) Delete() *McpServerDelete {
+	mutation := newMcpServerMutation(c.config, OpDelete)
+	return &McpServerDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *McpServerClient) DeleteOne(_m *McpServer) *McpServerDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *McpServerClient) DeleteOneID(id int) *McpServerDeleteOne {
+	builder := c.Delete().Where(mcpserver.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &McpServerDeleteOne{builder}
+}
+
+// Query returns a query builder for McpServer.
+func (c *McpServerClient) Query() *McpServerQuery {
+	return &McpServerQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMcpServer},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a McpServer entity by its id.
+func (c *McpServerClient) Get(ctx context.Context, id int) (*McpServer, error) {
+	return c.Query().Where(mcpserver.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *McpServerClient) GetX(ctx context.Context, id int) *McpServer {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *McpServerClient) Hooks() []Hook {
+	return c.hooks.McpServer
+}
+
+// Interceptors returns the client interceptors.
+func (c *McpServerClient) Interceptors() []Interceptor {
+	return c.inters.McpServer
+}
+
+func (c *McpServerClient) mutate(ctx context.Context, m *McpServerMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&McpServerCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&McpServerUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&McpServerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&McpServerDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown McpServer mutation op: %q", m.Op())
+	}
+}
+
 // MembershipClient is a client for the Membership schema.
 type MembershipClient struct {
 	config
@@ -3851,13 +3992,13 @@ type (
 	hooks struct {
 		ACL, AuditLog, Budget, BudgetAlertState, Conversation, ConversationFile,
 		Department, DeptClosure, EgressLog, EgressRule, KBFile, KnowledgeBase,
-		LegalHold, Membership, Message, Model, ModelProvider, Notification,
+		LegalHold, McpServer, Membership, Message, Model, ModelProvider, Notification,
 		Organization, Role, SystemSetting, Tool, UsageRecord, User []ent.Hook
 	}
 	inters struct {
 		ACL, AuditLog, Budget, BudgetAlertState, Conversation, ConversationFile,
 		Department, DeptClosure, EgressLog, EgressRule, KBFile, KnowledgeBase,
-		LegalHold, Membership, Message, Model, ModelProvider, Notification,
+		LegalHold, McpServer, Membership, Message, Model, ModelProvider, Notification,
 		Organization, Role, SystemSetting, Tool, UsageRecord, User []ent.Interceptor
 	}
 )

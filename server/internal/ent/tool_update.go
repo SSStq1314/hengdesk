@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/predicate"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/tool"
@@ -104,6 +105,201 @@ func (_u *ToolUpdate) SetNillableExecMode(v *tool.ExecMode) *ToolUpdate {
 	return _u
 }
 
+// SetOrgID sets the "org_id" field.
+func (_u *ToolUpdate) SetOrgID(v int) *ToolUpdate {
+	_u.mutation.ResetOrgID()
+	_u.mutation.SetOrgID(v)
+	return _u
+}
+
+// SetNillableOrgID sets the "org_id" field if the given value is not nil.
+func (_u *ToolUpdate) SetNillableOrgID(v *int) *ToolUpdate {
+	if v != nil {
+		_u.SetOrgID(*v)
+	}
+	return _u
+}
+
+// AddOrgID adds value to the "org_id" field.
+func (_u *ToolUpdate) AddOrgID(v int) *ToolUpdate {
+	_u.mutation.AddOrgID(v)
+	return _u
+}
+
+// SetServerID sets the "server_id" field.
+func (_u *ToolUpdate) SetServerID(v int) *ToolUpdate {
+	_u.mutation.ResetServerID()
+	_u.mutation.SetServerID(v)
+	return _u
+}
+
+// SetNillableServerID sets the "server_id" field if the given value is not nil.
+func (_u *ToolUpdate) SetNillableServerID(v *int) *ToolUpdate {
+	if v != nil {
+		_u.SetServerID(*v)
+	}
+	return _u
+}
+
+// AddServerID adds value to the "server_id" field.
+func (_u *ToolUpdate) AddServerID(v int) *ToolUpdate {
+	_u.mutation.AddServerID(v)
+	return _u
+}
+
+// ClearServerID clears the value of the "server_id" field.
+func (_u *ToolUpdate) ClearServerID() *ToolUpdate {
+	_u.mutation.ClearServerID()
+	return _u
+}
+
+// SetDescription sets the "description" field.
+func (_u *ToolUpdate) SetDescription(v string) *ToolUpdate {
+	_u.mutation.SetDescription(v)
+	return _u
+}
+
+// SetNillableDescription sets the "description" field if the given value is not nil.
+func (_u *ToolUpdate) SetNillableDescription(v *string) *ToolUpdate {
+	if v != nil {
+		_u.SetDescription(*v)
+	}
+	return _u
+}
+
+// SetInputSchema sets the "input_schema" field.
+func (_u *ToolUpdate) SetInputSchema(v map[string]interface{}) *ToolUpdate {
+	_u.mutation.SetInputSchema(v)
+	return _u
+}
+
+// ClearInputSchema clears the value of the "input_schema" field.
+func (_u *ToolUpdate) ClearInputSchema() *ToolUpdate {
+	_u.mutation.ClearInputSchema()
+	return _u
+}
+
+// SetSchemaHash sets the "schema_hash" field.
+func (_u *ToolUpdate) SetSchemaHash(v string) *ToolUpdate {
+	_u.mutation.SetSchemaHash(v)
+	return _u
+}
+
+// SetNillableSchemaHash sets the "schema_hash" field if the given value is not nil.
+func (_u *ToolUpdate) SetNillableSchemaHash(v *string) *ToolUpdate {
+	if v != nil {
+		_u.SetSchemaHash(*v)
+	}
+	return _u
+}
+
+// SetRiskLevel sets the "risk_level" field.
+func (_u *ToolUpdate) SetRiskLevel(v tool.RiskLevel) *ToolUpdate {
+	_u.mutation.SetRiskLevel(v)
+	return _u
+}
+
+// SetNillableRiskLevel sets the "risk_level" field if the given value is not nil.
+func (_u *ToolUpdate) SetNillableRiskLevel(v *tool.RiskLevel) *ToolUpdate {
+	if v != nil {
+		_u.SetRiskLevel(*v)
+	}
+	return _u
+}
+
+// SetSuggestedRisk sets the "suggested_risk" field.
+func (_u *ToolUpdate) SetSuggestedRisk(v tool.SuggestedRisk) *ToolUpdate {
+	_u.mutation.SetSuggestedRisk(v)
+	return _u
+}
+
+// SetNillableSuggestedRisk sets the "suggested_risk" field if the given value is not nil.
+func (_u *ToolUpdate) SetNillableSuggestedRisk(v *tool.SuggestedRisk) *ToolUpdate {
+	if v != nil {
+		_u.SetSuggestedRisk(*v)
+	}
+	return _u
+}
+
+// SetAnnotations sets the "annotations" field.
+func (_u *ToolUpdate) SetAnnotations(v map[string]interface{}) *ToolUpdate {
+	_u.mutation.SetAnnotations(v)
+	return _u
+}
+
+// ClearAnnotations clears the value of the "annotations" field.
+func (_u *ToolUpdate) ClearAnnotations() *ToolUpdate {
+	_u.mutation.ClearAnnotations()
+	return _u
+}
+
+// SetApproverIds sets the "approver_ids" field.
+func (_u *ToolUpdate) SetApproverIds(v []int) *ToolUpdate {
+	_u.mutation.SetApproverIds(v)
+	return _u
+}
+
+// AppendApproverIds appends value to the "approver_ids" field.
+func (_u *ToolUpdate) AppendApproverIds(v []int) *ToolUpdate {
+	_u.mutation.AppendApproverIds(v)
+	return _u
+}
+
+// ClearApproverIds clears the value of the "approver_ids" field.
+func (_u *ToolUpdate) ClearApproverIds() *ToolUpdate {
+	_u.mutation.ClearApproverIds()
+	return _u
+}
+
+// SetApprovalTimeoutSec sets the "approval_timeout_sec" field.
+func (_u *ToolUpdate) SetApprovalTimeoutSec(v int) *ToolUpdate {
+	_u.mutation.ResetApprovalTimeoutSec()
+	_u.mutation.SetApprovalTimeoutSec(v)
+	return _u
+}
+
+// SetNillableApprovalTimeoutSec sets the "approval_timeout_sec" field if the given value is not nil.
+func (_u *ToolUpdate) SetNillableApprovalTimeoutSec(v *int) *ToolUpdate {
+	if v != nil {
+		_u.SetApprovalTimeoutSec(*v)
+	}
+	return _u
+}
+
+// AddApprovalTimeoutSec adds value to the "approval_timeout_sec" field.
+func (_u *ToolUpdate) AddApprovalTimeoutSec(v int) *ToolUpdate {
+	_u.mutation.AddApprovalTimeoutSec(v)
+	return _u
+}
+
+// SetNeedsReview sets the "needs_review" field.
+func (_u *ToolUpdate) SetNeedsReview(v bool) *ToolUpdate {
+	_u.mutation.SetNeedsReview(v)
+	return _u
+}
+
+// SetNillableNeedsReview sets the "needs_review" field if the given value is not nil.
+func (_u *ToolUpdate) SetNillableNeedsReview(v *bool) *ToolUpdate {
+	if v != nil {
+		_u.SetNeedsReview(*v)
+	}
+	return _u
+}
+
+// SetRemoved sets the "removed" field.
+func (_u *ToolUpdate) SetRemoved(v bool) *ToolUpdate {
+	_u.mutation.SetRemoved(v)
+	return _u
+}
+
+// SetNillableRemoved sets the "removed" field if the given value is not nil.
+func (_u *ToolUpdate) SetNillableRemoved(v *bool) *ToolUpdate {
+	if v != nil {
+		_u.SetRemoved(*v)
+	}
+	return _u
+}
+
 // Mutation returns the ToolMutation object of the builder.
 func (_u *ToolUpdate) Mutation() *ToolMutation {
 	return _u.mutation
@@ -162,6 +358,16 @@ func (_u *ToolUpdate) check() error {
 			return &ValidationError{Name: "exec_mode", err: fmt.Errorf(`ent: validator failed for field "Tool.exec_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RiskLevel(); ok {
+		if err := tool.RiskLevelValidator(v); err != nil {
+			return &ValidationError{Name: "risk_level", err: fmt.Errorf(`ent: validator failed for field "Tool.risk_level": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SuggestedRisk(); ok {
+		if err := tool.SuggestedRiskValidator(v); err != nil {
+			return &ValidationError{Name: "suggested_risk", err: fmt.Errorf(`ent: validator failed for field "Tool.suggested_risk": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -194,6 +400,68 @@ func (_u *ToolUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.ExecMode(); ok {
 		_spec.SetField(tool.FieldExecMode, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.OrgID(); ok {
+		_spec.SetField(tool.FieldOrgID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedOrgID(); ok {
+		_spec.AddField(tool.FieldOrgID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ServerID(); ok {
+		_spec.SetField(tool.FieldServerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedServerID(); ok {
+		_spec.AddField(tool.FieldServerID, field.TypeInt, value)
+	}
+	if _u.mutation.ServerIDCleared() {
+		_spec.ClearField(tool.FieldServerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Description(); ok {
+		_spec.SetField(tool.FieldDescription, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.InputSchema(); ok {
+		_spec.SetField(tool.FieldInputSchema, field.TypeJSON, value)
+	}
+	if _u.mutation.InputSchemaCleared() {
+		_spec.ClearField(tool.FieldInputSchema, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.SchemaHash(); ok {
+		_spec.SetField(tool.FieldSchemaHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RiskLevel(); ok {
+		_spec.SetField(tool.FieldRiskLevel, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.SuggestedRisk(); ok {
+		_spec.SetField(tool.FieldSuggestedRisk, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Annotations(); ok {
+		_spec.SetField(tool.FieldAnnotations, field.TypeJSON, value)
+	}
+	if _u.mutation.AnnotationsCleared() {
+		_spec.ClearField(tool.FieldAnnotations, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ApproverIds(); ok {
+		_spec.SetField(tool.FieldApproverIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedApproverIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, tool.FieldApproverIds, value)
+		})
+	}
+	if _u.mutation.ApproverIdsCleared() {
+		_spec.ClearField(tool.FieldApproverIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ApprovalTimeoutSec(); ok {
+		_spec.SetField(tool.FieldApprovalTimeoutSec, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedApprovalTimeoutSec(); ok {
+		_spec.AddField(tool.FieldApprovalTimeoutSec, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.NeedsReview(); ok {
+		_spec.SetField(tool.FieldNeedsReview, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Removed(); ok {
+		_spec.SetField(tool.FieldRemoved, field.TypeBool, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -291,6 +559,201 @@ func (_u *ToolUpdateOne) SetNillableExecMode(v *tool.ExecMode) *ToolUpdateOne {
 	return _u
 }
 
+// SetOrgID sets the "org_id" field.
+func (_u *ToolUpdateOne) SetOrgID(v int) *ToolUpdateOne {
+	_u.mutation.ResetOrgID()
+	_u.mutation.SetOrgID(v)
+	return _u
+}
+
+// SetNillableOrgID sets the "org_id" field if the given value is not nil.
+func (_u *ToolUpdateOne) SetNillableOrgID(v *int) *ToolUpdateOne {
+	if v != nil {
+		_u.SetOrgID(*v)
+	}
+	return _u
+}
+
+// AddOrgID adds value to the "org_id" field.
+func (_u *ToolUpdateOne) AddOrgID(v int) *ToolUpdateOne {
+	_u.mutation.AddOrgID(v)
+	return _u
+}
+
+// SetServerID sets the "server_id" field.
+func (_u *ToolUpdateOne) SetServerID(v int) *ToolUpdateOne {
+	_u.mutation.ResetServerID()
+	_u.mutation.SetServerID(v)
+	return _u
+}
+
+// SetNillableServerID sets the "server_id" field if the given value is not nil.
+func (_u *ToolUpdateOne) SetNillableServerID(v *int) *ToolUpdateOne {
+	if v != nil {
+		_u.SetServerID(*v)
+	}
+	return _u
+}
+
+// AddServerID adds value to the "server_id" field.
+func (_u *ToolUpdateOne) AddServerID(v int) *ToolUpdateOne {
+	_u.mutation.AddServerID(v)
+	return _u
+}
+
+// ClearServerID clears the value of the "server_id" field.
+func (_u *ToolUpdateOne) ClearServerID() *ToolUpdateOne {
+	_u.mutation.ClearServerID()
+	return _u
+}
+
+// SetDescription sets the "description" field.
+func (_u *ToolUpdateOne) SetDescription(v string) *ToolUpdateOne {
+	_u.mutation.SetDescription(v)
+	return _u
+}
+
+// SetNillableDescription sets the "description" field if the given value is not nil.
+func (_u *ToolUpdateOne) SetNillableDescription(v *string) *ToolUpdateOne {
+	if v != nil {
+		_u.SetDescription(*v)
+	}
+	return _u
+}
+
+// SetInputSchema sets the "input_schema" field.
+func (_u *ToolUpdateOne) SetInputSchema(v map[string]interface{}) *ToolUpdateOne {
+	_u.mutation.SetInputSchema(v)
+	return _u
+}
+
+// ClearInputSchema clears the value of the "input_schema" field.
+func (_u *ToolUpdateOne) ClearInputSchema() *ToolUpdateOne {
+	_u.mutation.ClearInputSchema()
+	return _u
+}
+
+// SetSchemaHash sets the "schema_hash" field.
+func (_u *ToolUpdateOne) SetSchemaHash(v string) *ToolUpdateOne {
+	_u.mutation.SetSchemaHash(v)
+	return _u
+}
+
+// SetNillableSchemaHash sets the "schema_hash" field if the given value is not nil.
+func (_u *ToolUpdateOne) SetNillableSchemaHash(v *string) *ToolUpdateOne {
+	if v != nil {
+		_u.SetSchemaHash(*v)
+	}
+	return _u
+}
+
+// SetRiskLevel sets the "risk_level" field.
+func (_u *ToolUpdateOne) SetRiskLevel(v tool.RiskLevel) *ToolUpdateOne {
+	_u.mutation.SetRiskLevel(v)
+	return _u
+}
+
+// SetNillableRiskLevel sets the "risk_level" field if the given value is not nil.
+func (_u *ToolUpdateOne) SetNillableRiskLevel(v *tool.RiskLevel) *ToolUpdateOne {
+	if v != nil {
+		_u.SetRiskLevel(*v)
+	}
+	return _u
+}
+
+// SetSuggestedRisk sets the "suggested_risk" field.
+func (_u *ToolUpdateOne) SetSuggestedRisk(v tool.SuggestedRisk) *ToolUpdateOne {
+	_u.mutation.SetSuggestedRisk(v)
+	return _u
+}
+
+// SetNillableSuggestedRisk sets the "suggested_risk" field if the given value is not nil.
+func (_u *ToolUpdateOne) SetNillableSuggestedRisk(v *tool.SuggestedRisk) *ToolUpdateOne {
+	if v != nil {
+		_u.SetSuggestedRisk(*v)
+	}
+	return _u
+}
+
+// SetAnnotations sets the "annotations" field.
+func (_u *ToolUpdateOne) SetAnnotations(v map[string]interface{}) *ToolUpdateOne {
+	_u.mutation.SetAnnotations(v)
+	return _u
+}
+
+// ClearAnnotations clears the value of the "annotations" field.
+func (_u *ToolUpdateOne) ClearAnnotations() *ToolUpdateOne {
+	_u.mutation.ClearAnnotations()
+	return _u
+}
+
+// SetApproverIds sets the "approver_ids" field.
+func (_u *ToolUpdateOne) SetApproverIds(v []int) *ToolUpdateOne {
+	_u.mutation.SetApproverIds(v)
+	return _u
+}
+
+// AppendApproverIds appends value to the "approver_ids" field.
+func (_u *ToolUpdateOne) AppendApproverIds(v []int) *ToolUpdateOne {
+	_u.mutation.AppendApproverIds(v)
+	return _u
+}
+
+// ClearApproverIds clears the value of the "approver_ids" field.
+func (_u *ToolUpdateOne) ClearApproverIds() *ToolUpdateOne {
+	_u.mutation.ClearApproverIds()
+	return _u
+}
+
+// SetApprovalTimeoutSec sets the "approval_timeout_sec" field.
+func (_u *ToolUpdateOne) SetApprovalTimeoutSec(v int) *ToolUpdateOne {
+	_u.mutation.ResetApprovalTimeoutSec()
+	_u.mutation.SetApprovalTimeoutSec(v)
+	return _u
+}
+
+// SetNillableApprovalTimeoutSec sets the "approval_timeout_sec" field if the given value is not nil.
+func (_u *ToolUpdateOne) SetNillableApprovalTimeoutSec(v *int) *ToolUpdateOne {
+	if v != nil {
+		_u.SetApprovalTimeoutSec(*v)
+	}
+	return _u
+}
+
+// AddApprovalTimeoutSec adds value to the "approval_timeout_sec" field.
+func (_u *ToolUpdateOne) AddApprovalTimeoutSec(v int) *ToolUpdateOne {
+	_u.mutation.AddApprovalTimeoutSec(v)
+	return _u
+}
+
+// SetNeedsReview sets the "needs_review" field.
+func (_u *ToolUpdateOne) SetNeedsReview(v bool) *ToolUpdateOne {
+	_u.mutation.SetNeedsReview(v)
+	return _u
+}
+
+// SetNillableNeedsReview sets the "needs_review" field if the given value is not nil.
+func (_u *ToolUpdateOne) SetNillableNeedsReview(v *bool) *ToolUpdateOne {
+	if v != nil {
+		_u.SetNeedsReview(*v)
+	}
+	return _u
+}
+
+// SetRemoved sets the "removed" field.
+func (_u *ToolUpdateOne) SetRemoved(v bool) *ToolUpdateOne {
+	_u.mutation.SetRemoved(v)
+	return _u
+}
+
+// SetNillableRemoved sets the "removed" field if the given value is not nil.
+func (_u *ToolUpdateOne) SetNillableRemoved(v *bool) *ToolUpdateOne {
+	if v != nil {
+		_u.SetRemoved(*v)
+	}
+	return _u
+}
+
 // Mutation returns the ToolMutation object of the builder.
 func (_u *ToolUpdateOne) Mutation() *ToolMutation {
 	return _u.mutation
@@ -362,6 +825,16 @@ func (_u *ToolUpdateOne) check() error {
 			return &ValidationError{Name: "exec_mode", err: fmt.Errorf(`ent: validator failed for field "Tool.exec_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RiskLevel(); ok {
+		if err := tool.RiskLevelValidator(v); err != nil {
+			return &ValidationError{Name: "risk_level", err: fmt.Errorf(`ent: validator failed for field "Tool.risk_level": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SuggestedRisk(); ok {
+		if err := tool.SuggestedRiskValidator(v); err != nil {
+			return &ValidationError{Name: "suggested_risk", err: fmt.Errorf(`ent: validator failed for field "Tool.suggested_risk": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -411,6 +884,68 @@ func (_u *ToolUpdateOne) sqlSave(ctx context.Context) (_node *Tool, err error) {
 	}
 	if value, ok := _u.mutation.ExecMode(); ok {
 		_spec.SetField(tool.FieldExecMode, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.OrgID(); ok {
+		_spec.SetField(tool.FieldOrgID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedOrgID(); ok {
+		_spec.AddField(tool.FieldOrgID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ServerID(); ok {
+		_spec.SetField(tool.FieldServerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedServerID(); ok {
+		_spec.AddField(tool.FieldServerID, field.TypeInt, value)
+	}
+	if _u.mutation.ServerIDCleared() {
+		_spec.ClearField(tool.FieldServerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Description(); ok {
+		_spec.SetField(tool.FieldDescription, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.InputSchema(); ok {
+		_spec.SetField(tool.FieldInputSchema, field.TypeJSON, value)
+	}
+	if _u.mutation.InputSchemaCleared() {
+		_spec.ClearField(tool.FieldInputSchema, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.SchemaHash(); ok {
+		_spec.SetField(tool.FieldSchemaHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RiskLevel(); ok {
+		_spec.SetField(tool.FieldRiskLevel, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.SuggestedRisk(); ok {
+		_spec.SetField(tool.FieldSuggestedRisk, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Annotations(); ok {
+		_spec.SetField(tool.FieldAnnotations, field.TypeJSON, value)
+	}
+	if _u.mutation.AnnotationsCleared() {
+		_spec.ClearField(tool.FieldAnnotations, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ApproverIds(); ok {
+		_spec.SetField(tool.FieldApproverIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedApproverIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, tool.FieldApproverIds, value)
+		})
+	}
+	if _u.mutation.ApproverIdsCleared() {
+		_spec.ClearField(tool.FieldApproverIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ApprovalTimeoutSec(); ok {
+		_spec.SetField(tool.FieldApprovalTimeoutSec, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedApprovalTimeoutSec(); ok {
+		_spec.AddField(tool.FieldApprovalTimeoutSec, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.NeedsReview(); ok {
+		_spec.SetField(tool.FieldNeedsReview, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Removed(); ok {
+		_spec.SetField(tool.FieldRemoved, field.TypeBool, value)
 	}
 	_node = &Tool{config: _u.config}
 	_spec.Assign = _node.assignValues

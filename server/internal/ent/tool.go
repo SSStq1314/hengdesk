@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -30,7 +31,31 @@ type Tool struct {
 	// 新工具默认禁用
 	Enabled bool `json:"enabled,omitempty"`
 	// ExecMode holds the value of the "exec_mode" field.
-	ExecMode     tool.ExecMode `json:"exec_mode,omitempty"`
+	ExecMode tool.ExecMode `json:"exec_mode,omitempty"`
+	// OrgID holds the value of the "org_id" field.
+	OrgID int `json:"org_id,omitempty"`
+	// ServerID holds the value of the "server_id" field.
+	ServerID *int `json:"server_id,omitempty"`
+	// Description holds the value of the "description" field.
+	Description string `json:"description,omitempty"`
+	// InputSchema holds the value of the "input_schema" field.
+	InputSchema map[string]interface{} `json:"input_schema,omitempty"`
+	// SchemaHash holds the value of the "schema_hash" field.
+	SchemaHash string `json:"schema_hash,omitempty"`
+	// RiskLevel holds the value of the "risk_level" field.
+	RiskLevel tool.RiskLevel `json:"risk_level,omitempty"`
+	// SuggestedRisk holds the value of the "suggested_risk" field.
+	SuggestedRisk tool.SuggestedRisk `json:"suggested_risk,omitempty"`
+	// Annotations holds the value of the "annotations" field.
+	Annotations map[string]interface{} `json:"annotations,omitempty"`
+	// ApproverIds holds the value of the "approver_ids" field.
+	ApproverIds []int `json:"approver_ids,omitempty"`
+	// ApprovalTimeoutSec holds the value of the "approval_timeout_sec" field.
+	ApprovalTimeoutSec int `json:"approval_timeout_sec,omitempty"`
+	// NeedsReview holds the value of the "needs_review" field.
+	NeedsReview bool `json:"needs_review,omitempty"`
+	// Removed holds the value of the "removed" field.
+	Removed      bool `json:"removed,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -39,11 +64,13 @@ func (*Tool) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case tool.FieldEnabled:
+		case tool.FieldInputSchema, tool.FieldAnnotations, tool.FieldApproverIds:
+			values[i] = new([]byte)
+		case tool.FieldEnabled, tool.FieldNeedsReview, tool.FieldRemoved:
 			values[i] = new(sql.NullBool)
-		case tool.FieldID:
+		case tool.FieldID, tool.FieldOrgID, tool.FieldServerID, tool.FieldApprovalTimeoutSec:
 			values[i] = new(sql.NullInt64)
-		case tool.FieldKey, tool.FieldName, tool.FieldSource, tool.FieldExecMode:
+		case tool.FieldKey, tool.FieldName, tool.FieldSource, tool.FieldExecMode, tool.FieldDescription, tool.FieldSchemaHash, tool.FieldRiskLevel, tool.FieldSuggestedRisk:
 			values[i] = new(sql.NullString)
 		case tool.FieldCreatedAt, tool.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -110,6 +137,85 @@ func (_m *Tool) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ExecMode = tool.ExecMode(value.String)
 			}
+		case tool.FieldOrgID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field org_id", values[i])
+			} else if value.Valid {
+				_m.OrgID = int(value.Int64)
+			}
+		case tool.FieldServerID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field server_id", values[i])
+			} else if value.Valid {
+				_m.ServerID = new(int)
+				*_m.ServerID = int(value.Int64)
+			}
+		case tool.FieldDescription:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field description", values[i])
+			} else if value.Valid {
+				_m.Description = value.String
+			}
+		case tool.FieldInputSchema:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field input_schema", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.InputSchema); err != nil {
+					return fmt.Errorf("unmarshal field input_schema: %w", err)
+				}
+			}
+		case tool.FieldSchemaHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field schema_hash", values[i])
+			} else if value.Valid {
+				_m.SchemaHash = value.String
+			}
+		case tool.FieldRiskLevel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field risk_level", values[i])
+			} else if value.Valid {
+				_m.RiskLevel = tool.RiskLevel(value.String)
+			}
+		case tool.FieldSuggestedRisk:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field suggested_risk", values[i])
+			} else if value.Valid {
+				_m.SuggestedRisk = tool.SuggestedRisk(value.String)
+			}
+		case tool.FieldAnnotations:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field annotations", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Annotations); err != nil {
+					return fmt.Errorf("unmarshal field annotations: %w", err)
+				}
+			}
+		case tool.FieldApproverIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field approver_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ApproverIds); err != nil {
+					return fmt.Errorf("unmarshal field approver_ids: %w", err)
+				}
+			}
+		case tool.FieldApprovalTimeoutSec:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field approval_timeout_sec", values[i])
+			} else if value.Valid {
+				_m.ApprovalTimeoutSec = int(value.Int64)
+			}
+		case tool.FieldNeedsReview:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field needs_review", values[i])
+			} else if value.Valid {
+				_m.NeedsReview = value.Bool
+			}
+		case tool.FieldRemoved:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field removed", values[i])
+			} else if value.Valid {
+				_m.Removed = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -166,6 +272,44 @@ func (_m *Tool) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("exec_mode=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ExecMode))
+	builder.WriteString(", ")
+	builder.WriteString("org_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OrgID))
+	builder.WriteString(", ")
+	if v := _m.ServerID; v != nil {
+		builder.WriteString("server_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("description=")
+	builder.WriteString(_m.Description)
+	builder.WriteString(", ")
+	builder.WriteString("input_schema=")
+	builder.WriteString(fmt.Sprintf("%v", _m.InputSchema))
+	builder.WriteString(", ")
+	builder.WriteString("schema_hash=")
+	builder.WriteString(_m.SchemaHash)
+	builder.WriteString(", ")
+	builder.WriteString("risk_level=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RiskLevel))
+	builder.WriteString(", ")
+	builder.WriteString("suggested_risk=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SuggestedRisk))
+	builder.WriteString(", ")
+	builder.WriteString("annotations=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Annotations))
+	builder.WriteString(", ")
+	builder.WriteString("approver_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ApproverIds))
+	builder.WriteString(", ")
+	builder.WriteString("approval_timeout_sec=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ApprovalTimeoutSec))
+	builder.WriteString(", ")
+	builder.WriteString("needs_review=")
+	builder.WriteString(fmt.Sprintf("%v", _m.NeedsReview))
+	builder.WriteString(", ")
+	builder.WriteString("removed=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Removed))
 	builder.WriteByte(')')
 	return builder.String()
 }
