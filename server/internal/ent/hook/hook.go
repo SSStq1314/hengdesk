@@ -21,6 +21,30 @@ func (f ACLFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ACLMutation", m)
 }
 
+// The AgentFunc type is an adapter to allow the use of ordinary
+// function as Agent mutator.
+type AgentFunc func(context.Context, *ent.AgentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AgentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AgentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AgentMutation", m)
+}
+
+// The AgentVersionFunc type is an adapter to allow the use of ordinary
+// function as AgentVersion mutator.
+type AgentVersionFunc func(context.Context, *ent.AgentVersionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AgentVersionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AgentVersionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AgentVersionMutation", m)
+}
+
 // The ApprovalFunc type is an adapter to allow the use of ordinary
 // function as Approval mutator.
 type ApprovalFunc func(context.Context, *ent.ApprovalMutation) (ent.Value, error)

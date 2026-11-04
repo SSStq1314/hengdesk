@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/agent"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/agentversion"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/approval"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
@@ -60,6 +62,79 @@ func init() {
 	aclDescCreatedAt := aclFields[8].Descriptor()
 	// acl.DefaultCreatedAt holds the default value on creation for the created_at field.
 	acl.DefaultCreatedAt = aclDescCreatedAt.Default.(func() time.Time)
+	agentMixin := schema.Agent{}.Mixin()
+	agentMixinFields0 := agentMixin[0].Fields()
+	_ = agentMixinFields0
+	agentFields := schema.Agent{}.Fields()
+	_ = agentFields
+	// agentDescCreatedAt is the schema descriptor for created_at field.
+	agentDescCreatedAt := agentMixinFields0[0].Descriptor()
+	// agent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	agent.DefaultCreatedAt = agentDescCreatedAt.Default.(func() time.Time)
+	// agentDescUpdatedAt is the schema descriptor for updated_at field.
+	agentDescUpdatedAt := agentMixinFields0[1].Descriptor()
+	// agent.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	agent.DefaultUpdatedAt = agentDescUpdatedAt.Default.(func() time.Time)
+	// agent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	agent.UpdateDefaultUpdatedAt = agentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// agentDescName is the schema descriptor for name field.
+	agentDescName := agentFields[1].Descriptor()
+	// agent.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	agent.NameValidator = func() func(string) error {
+		validators := agentDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// agentDescDescription is the schema descriptor for description field.
+	agentDescDescription := agentFields[2].Descriptor()
+	// agent.DefaultDescription holds the default value on creation for the description field.
+	agent.DefaultDescription = agentDescDescription.Default.(string)
+	// agent.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	agent.DescriptionValidator = agentDescDescription.Validators[0].(func(string) error)
+	// agentDescSystemPrompt is the schema descriptor for system_prompt field.
+	agentDescSystemPrompt := agentFields[3].Descriptor()
+	// agent.DefaultSystemPrompt holds the default value on creation for the system_prompt field.
+	agent.DefaultSystemPrompt = agentDescSystemPrompt.Default.(string)
+	// agentDescOpening is the schema descriptor for opening field.
+	agentDescOpening := agentFields[4].Descriptor()
+	// agent.DefaultOpening holds the default value on creation for the opening field.
+	agent.DefaultOpening = agentDescOpening.Default.(string)
+	// agent.OpeningValidator is a validator for the "opening" field. It is called by the builders before save.
+	agent.OpeningValidator = agentDescOpening.Validators[0].(func(string) error)
+	// agentDescMaxSteps is the schema descriptor for max_steps field.
+	agentDescMaxSteps := agentFields[8].Descriptor()
+	// agent.DefaultMaxSteps holds the default value on creation for the max_steps field.
+	agent.DefaultMaxSteps = agentDescMaxSteps.Default.(int)
+	// agentDescPublishedVersion is the schema descriptor for published_version field.
+	agentDescPublishedVersion := agentFields[9].Descriptor()
+	// agent.DefaultPublishedVersion holds the default value on creation for the published_version field.
+	agent.DefaultPublishedVersion = agentDescPublishedVersion.Default.(int)
+	// agentDescDraftDirty is the schema descriptor for draft_dirty field.
+	agentDescDraftDirty := agentFields[10].Descriptor()
+	// agent.DefaultDraftDirty holds the default value on creation for the draft_dirty field.
+	agent.DefaultDraftDirty = agentDescDraftDirty.Default.(bool)
+	agentversionFields := schema.AgentVersion{}.Fields()
+	_ = agentversionFields
+	// agentversionDescNote is the schema descriptor for note field.
+	agentversionDescNote := agentversionFields[4].Descriptor()
+	// agentversion.DefaultNote holds the default value on creation for the note field.
+	agentversion.DefaultNote = agentversionDescNote.Default.(string)
+	// agentversion.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	agentversion.NoteValidator = agentversionDescNote.Validators[0].(func(string) error)
+	// agentversionDescCreatedAt is the schema descriptor for created_at field.
+	agentversionDescCreatedAt := agentversionFields[6].Descriptor()
+	// agentversion.DefaultCreatedAt holds the default value on creation for the created_at field.
+	agentversion.DefaultCreatedAt = agentversionDescCreatedAt.Default.(func() time.Time)
 	approvalMixin := schema.Approval{}.Mixin()
 	approvalMixinFields0 := approvalMixin[0].Fields()
 	_ = approvalMixinFields0

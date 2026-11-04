@@ -40,6 +40,62 @@ var (
 			},
 		},
 	}
+	// AgentsColumns holds the columns for the "agents" table.
+	AgentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "name", Type: field.TypeString, Size: 100},
+		{Name: "description", Type: field.TypeString, Size: 500, Default: ""},
+		{Name: "system_prompt", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "opening", Type: field.TypeString, Size: 1000, Default: ""},
+		{Name: "model_id", Type: field.TypeInt, Nullable: true},
+		{Name: "kb_ids", Type: field.TypeJSON, Nullable: true},
+		{Name: "tool_ids", Type: field.TypeJSON, Nullable: true},
+		{Name: "max_steps", Type: field.TypeInt, Default: 5},
+		{Name: "published_version", Type: field.TypeInt, Default: 0},
+		{Name: "draft_dirty", Type: field.TypeBool, Default: true},
+		{Name: "created_by", Type: field.TypeInt},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+	}
+	// AgentsTable holds the schema information for the "agents" table.
+	AgentsTable = &schema.Table{
+		Name:       "agents",
+		Columns:    AgentsColumns,
+		PrimaryKey: []*schema.Column{AgentsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "agent_org_id_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{AgentsColumns[3], AgentsColumns[15]},
+			},
+		},
+	}
+	// AgentVersionsColumns holds the columns for the "agent_versions" table.
+	AgentVersionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "agent_id", Type: field.TypeInt},
+		{Name: "version", Type: field.TypeInt},
+		{Name: "config", Type: field.TypeJSON},
+		{Name: "note", Type: field.TypeString, Size: 200, Default: ""},
+		{Name: "published_by", Type: field.TypeInt},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// AgentVersionsTable holds the schema information for the "agent_versions" table.
+	AgentVersionsTable = &schema.Table{
+		Name:       "agent_versions",
+		Columns:    AgentVersionsColumns,
+		PrimaryKey: []*schema.Column{AgentVersionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "agentversion_agent_id_version",
+				Unique:  true,
+				Columns: []*schema.Column{AgentVersionsColumns[2], AgentVersionsColumns[3]},
+			},
+		},
+	}
 	// ApprovalsColumns holds the columns for the "approvals" table.
 	ApprovalsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -881,6 +937,8 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		ACLTable,
+		AgentsTable,
+		AgentVersionsTable,
 		ApprovalsTable,
 		AuditLogsTable,
 		BudgetsTable,

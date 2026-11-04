@@ -700,7 +700,7 @@ func (h *kbHandlers) grant(c echo.Context, p *auth.Principal, resType, resID str
 	if name == "" && bits != 0 {
 		return bad("授权对象不存在")
 	}
-	if resType == rbac.ResKB && rbac.Normalize(bits)&rbac.BitManage == 0 {
+	if (resType == rbac.ResKB || resType == rbac.ResAgent) && rbac.Normalize(bits)&rbac.BitManage == 0 {
 		others, err := h.db.ACL.Query().Where(acl.OrgID(p.OrgID), acl.ResourceType(resType), acl.ResourceID(resID),
 			acl.Not(acl.And(acl.SubjectTypeEQ(acl.SubjectType(in.SubjectType)), acl.SubjectID(in.SubjectID)))).All(ctx)
 		if err != nil {
@@ -718,12 +718,16 @@ func (h *kbHandlers) grant(c echo.Context, p *auth.Principal, resType, resID str
 	}
 	sub := authz.Subject{Type: in.SubjectType, ID: in.SubjectID, IncludeChildren: in.IncludeChildren}
 	if bits != 0 {
-		ok, err := h.az.CanShareTo(ctx, p, rbac.ResKB, sub)
+		shareRes := rbac.ResKB
+		if resType == rbac.ResAgent {
+			shareRes = rbac.ResAgent
+		}
+		ok, err := h.az.CanShareTo(ctx, p, shareRes, sub)
 		if err != nil {
 			return err
 		}
 		if !ok {
-			return authz.Deny(c, "kb:share_scope")
+			return authz.Deny(c, shareRes+":share_scope")
 		}
 	}
 	for k, v := range map[string]any{"subject_type": in.SubjectType, "subject_id": in.SubjectID, "subject_name": name,
