@@ -257,6 +257,20 @@ func (_u *MessageUpdate) ClearCitations() *MessageUpdate {
 	return _u
 }
 
+// SetKBUngrounded sets the "kb_ungrounded" field.
+func (_u *MessageUpdate) SetKBUngrounded(v bool) *MessageUpdate {
+	_u.mutation.SetKBUngrounded(v)
+	return _u
+}
+
+// SetNillableKBUngrounded sets the "kb_ungrounded" field if the given value is not nil.
+func (_u *MessageUpdate) SetNillableKBUngrounded(v *bool) *MessageUpdate {
+	if v != nil {
+		_u.SetKBUngrounded(*v)
+	}
+	return _u
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_u *MessageUpdate) SetConversation(v *Conversation) *MessageUpdate {
 	return _u.SetConversationID(v.ID)
@@ -402,6 +416,9 @@ func (_u *MessageUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.CitationsCleared() {
 		_spec.ClearField(message.FieldCitations, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.KBUngrounded(); ok {
+		_spec.SetField(message.FieldKBUngrounded, field.TypeBool, value)
 	}
 	if _u.mutation.ConversationCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -678,6 +695,20 @@ func (_u *MessageUpdateOne) ClearCitations() *MessageUpdateOne {
 	return _u
 }
 
+// SetKBUngrounded sets the "kb_ungrounded" field.
+func (_u *MessageUpdateOne) SetKBUngrounded(v bool) *MessageUpdateOne {
+	_u.mutation.SetKBUngrounded(v)
+	return _u
+}
+
+// SetNillableKBUngrounded sets the "kb_ungrounded" field if the given value is not nil.
+func (_u *MessageUpdateOne) SetNillableKBUngrounded(v *bool) *MessageUpdateOne {
+	if v != nil {
+		_u.SetKBUngrounded(*v)
+	}
+	return _u
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_u *MessageUpdateOne) SetConversation(v *Conversation) *MessageUpdateOne {
 	return _u.SetConversationID(v.ID)
@@ -853,6 +884,9 @@ func (_u *MessageUpdateOne) sqlSave(ctx context.Context) (_node *Message, err er
 	}
 	if _u.mutation.CitationsCleared() {
 		_spec.ClearField(message.FieldCitations, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.KBUngrounded(); ok {
+		_spec.SetField(message.FieldKBUngrounded, field.TypeBool, value)
 	}
 	if _u.mutation.ConversationCleared() {
 		edge := &sqlgraph.EdgeSpec{

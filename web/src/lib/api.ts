@@ -727,6 +727,8 @@ export type ChatMessage = {
   notice?: string
   // 知识库引用（第四块 PR3）；tool_calls 为第五块预留，当前始终不返回。
   citations?: ChatCitation[]
+  /** D-42：绑定了知识库但本条回答未引用知识库资料 */
+  kb_ungrounded?: boolean
   tool_calls?: ChatToolCall[]
 }
 // 对话 SSE 扩展事件：citation 自第四块 PR3 起生效（在 token 之前逐条发出），
@@ -850,11 +852,13 @@ export function regenerateMessage(
   id: number,
   messageId: number,
   h: StreamHandlers,
-  signal: AbortSignal
+  signal: AbortSignal,
+  skipKB = false
 ): Promise<void> {
+  // skipKB：知识库检索失败后用户选择「本次不使用知识库继续」（D-42）。
   return streamPost(
     `/api/v1/conversations/${id}/regenerate`,
-    { message_id: messageId },
+    { message_id: messageId, skip_kb: skipKB || undefined },
     h,
     signal
   )
@@ -940,6 +944,8 @@ export type KB = {
   embedding_model: string
   chunk_size: number
   chunk_overlap: number
+  /** D-42：仅依据资料回答 */
+  strict_grounding?: boolean
   perms: KBPerm[]
   file_count: number
   created_at: string
@@ -988,6 +994,7 @@ export type KBInput = {
   embedding_model?: string
   chunk_size?: number
   chunk_overlap?: number
+  strict_grounding?: boolean
 }
 
 export const kbApi = {

@@ -78,7 +78,9 @@ type msgView struct {
 	Notice string `json:"notice,omitempty"`
 	// Citations 本条回复引用的知识库片段（读取时按当前权限过滤）；ToolCalls 为第五块预留，当前始终为空。
 	Citations []Citation `json:"citations,omitempty"`
-	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+	// KBUngrounded 绑定了知识库但本条回答未引用知识库资料（D-42）。
+	KBUngrounded bool       `json:"kb_ungrounded,omitempty"`
+	ToolCalls    []ToolCall `json:"tool_calls,omitempty"`
 	// UsageEstimated 上游未返回 usage，token 为估算值（D-41 第 4 条，界面标「估算」）。
 	UsageEstimated bool `json:"usage_estimated,omitempty"`
 }
@@ -94,7 +96,7 @@ func toConv(c *ent.Conversation) convView {
 func toMsg(m *ent.Message) msgView {
 	return msgView{ID: m.ID, Role: string(m.Role), Content: m.Content, Status: string(m.Status), ModelName: m.ModelName,
 		FallbackFrom: m.FallbackFrom, ErrorCode: m.ErrorCode, Error: m.Error, PromptTokens: m.PromptTokens, UsageEstimated: m.UsageEstimated,
-		CompletionTokens: m.CompletionTokens, CreatedAt: m.CreatedAt, Citations: m.Citations}
+		CompletionTokens: m.CompletionTokens, CreatedAt: m.CreatedAt, Citations: m.Citations, KBUngrounded: m.KBUngrounded}
 }
 
 // own 取当前用户自己的、未删除的会话；其它情况记越权审计并返回 404（不区分不存在与非本人）。
@@ -386,11 +388,13 @@ func (h *convHandlers) send(c echo.Context) error {
 	}); err != nil {
 		return err
 	}
-	return h.generate(c, p, cv, tgt, asst, "chat.message.send", notice, nil)
+	return h.generate(c, p, cv, tgt, asst, "chat.message.send", notice, false, nil)
 }
 
 type regenInput struct {
 	MessageID int `json:"message_id"`
+	// SkipKB 本次不使用知识库继续（D-42）：检索失败后用户确认跳过，本轮不检索、回答标注「未引用知识库资料」。
+	SkipKB bool `json:"skip_kb"`
 }
 
 // regenerate POST /conversations/:id/regenerate：重新生成 / 重试最后一条回复（D-40 第 6 条）。
@@ -449,7 +453,7 @@ func (h *convHandlers) regenerate(c echo.Context) error {
 	}
 	if err := audit.Record(c, audit.Entry{Action: "chat.message.regenerate", Phase: "attempt", ResourceType: "conversation",
 		ResourceID: strconv.Itoa(cv.ID), Detail: map[string]any{"model": tgt.Model.Name, "kind": kind,
-			"replaces_message_id": last.ID, "model_reset": notice != ""}}); err != nil {
+			"replaces_message_id": last.ID, "model_reset": notice != "", "skip_kb": in.SkipKB}}); err != nil {
 		return err // fail-closed
 	}
 	reqID := c.Response().Header().Get(echo.HeaderXRequestID)
@@ -471,7 +475,7 @@ func (h *convHandlers) regenerate(c echo.Context) error {
 	}); err != nil {
 		return err
 	}
-	return h.generate(c, p, cv, tgt, asst, "chat.message.regenerate", notice, map[string]any{"kind": kind, "replaces_message_id": last.ID})
+	return h.generate(c, p, cv, tgt, asst, "chat.message.regenerate", notice, in.SkipKB, map[string]any{"kind": kind, "replaces_message_id": last.ID, "skip_kb": in.SkipKB})
 }
 
 // filterCitations 读取历史消息时按当前权限过滤引用：文件已删除、知识库已删除或已失去 view 的引用整条去掉（不暴露文件名）。
@@ -611,7 +615,7 @@ func (h *convHandlers) lock(ctx context.Context, convID int) (func(), error) {
 
 // generate 组上下文、流式调用模型并落库最终状态；写 result 审计。上下文只用未被替换的消息。
 func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conversation, tgt *gateway.Target, asst *ent.Message,
-	action, notice string, extra map[string]any) error {
+	action, notice string, skipKB bool, extra map[string]any) error {
 	ctx := c.Request().Context()
 	files, err := h.files(ctx, cv.ID)
 	if err != nil {
@@ -631,41 +635,64 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 	var cites []Citation
 	var prelude []sseEvent
 	kbInfo := map[string]any{}
+	ungrounded := false
 	if len(cv.KBIds) > 0 && h.ret != nil {
-		q := ""
-		for _, m := range hist {
-			if m.Role == message.RoleUser {
-				q = m.Content
-				break
-			}
+		strict, err := h.strictKBs(ctx, p, cv.KBIds)
+		if err != nil {
+			return err
 		}
-		reqID := c.Response().Header().Get(echo.HeaderXRequestID)
-		kr, kerr := h.ret.Retrieve(ctx, p, cv.KBIds, q, reqID, 0)
-		if kerr != nil {
-			code, msg := "kb_failed", "知识库检索失败"
-			if errors.Is(kerr, kb.ErrRetrieveAudit) {
-				code, msg = "audit_failed", "审计写入失败，未检索知识库，也未调用模型"
+		if skipKB {
+			// D-42：本次不使用知识库继续。开启了「仅依据资料回答」的库不允许跳过。
+			if len(strict) > 0 {
+				_ = h.db.Message.UpdateOneID(asst.ID).SetStatus(message.StatusError).SetErrorCode("kb_strict").
+					SetError(kbStrictSkipMsg).Exec(context.WithoutCancel(ctx))
+				return echo.NewHTTPError(http.StatusConflict, kbStrictSkipMsg)
 			}
-			_ = h.db.Message.UpdateOneID(asst.ID).SetStatus(message.StatusError).SetErrorCode(code).SetError(msg).Exec(context.WithoutCancel(ctx))
-			h.ch.log.Error("kb retrieve failed", "conversation", cv.ID, "err", kerr)
-			return echo.NewHTTPError(http.StatusServiceUnavailable, msg)
-		}
-		kbInfo = map[string]any{"kb_ids": cv.KBIds, "kb_allowed_files": kr.AllowedFiles, "kb_hits": len(kr.Citations), "kb_strategy": kr.Strategy}
-		if len(kr.Citations) == 0 {
-			cms = append(cms, ctxMsg{Role: "system", Content: kbEmptyPrompt})
-			if notice != "" {
-				notice += "；"
-			}
-			notice += "所选知识库中没有可用资料"
+			ungrounded = true
+			kbInfo = map[string]any{"kb_ids": cv.KBIds, "kb_skipped": true}
+			cms = append(cms, ctxMsg{Role: "system", Content: kbSkippedPrompt})
 		} else {
-			cms = append(cms, ctxMsg{Role: "system", Content: kbContext(kr.Citations)})
-			for _, ci := range kr.Citations {
-				mc := Citation{Index: ci.Index, KBID: ci.KBID, KBName: ci.KBName, FileID: ci.FileID, FileName: ci.FileName,
-					Seq: ci.Seq, Start: ci.Start, End: ci.End, Heading: ci.Heading, Snippet: ci.Snippet, Score: ci.Score}
-				cites = append(cites, mc)
-				prelude = append(prelude, sseEvent{event: EventCitation, data: mc})
+			q := ""
+			for _, m := range hist {
+				if m.Role == message.RoleUser {
+					q = m.Content
+					break
+				}
+			}
+			reqID := c.Response().Header().Get(echo.HeaderXRequestID)
+			kr, kerr := h.ret.Retrieve(ctx, p, cv.KBIds, q, reqID, 0)
+			if kerr != nil {
+				// D-42：检索失败仍返回 503（不自动降级）；前端提示「知识库暂时不可用」，由用户选择重试或本次不使用知识库继续。
+				code, msg := "kb_failed", "知识库暂时不可用"
+				if errors.Is(kerr, kb.ErrRetrieveAudit) {
+					code, msg = "audit_failed", "审计写入失败，未检索知识库，也未调用模型"
+				}
+				_ = h.db.Message.UpdateOneID(asst.ID).SetStatus(message.StatusError).SetErrorCode(code).SetError(msg).Exec(context.WithoutCancel(ctx))
+				h.ch.log.Error("kb retrieve failed", "conversation", cv.ID, "err", kerr)
+				return c.JSON(http.StatusServiceUnavailable, map[string]any{"message": msg, "error": map[string]string{"code": code, "message": msg}})
+			}
+			kbInfo = map[string]any{"kb_ids": cv.KBIds, "kb_allowed_files": kr.AllowedFiles, "kb_hits": len(kr.Citations), "kb_strategy": kr.Strategy}
+			if len(kr.Citations) == 0 {
+				if len(strict) > 0 {
+					return h.refuseStrict(c, cv, asst, action, notice, strict, kbInfo, extra)
+				}
+				ungrounded = true
+				cms = append(cms, ctxMsg{Role: "system", Content: kbEmptyPrompt})
+				if notice != "" {
+					notice += "；"
+				}
+				notice += "所选知识库中没有可用资料"
+			} else {
+				cms = append(cms, ctxMsg{Role: "system", Content: kbContext(kr.Citations)})
+				for _, ci := range kr.Citations {
+					mc := Citation{Index: ci.Index, KBID: ci.KBID, KBName: ci.KBName, FileID: ci.FileID, FileName: ci.FileName,
+						Seq: ci.Seq, Start: ci.Start, End: ci.End, Heading: ci.Heading, Snippet: ci.Snippet, Score: ci.Score}
+					cites = append(cites, mc)
+					prelude = append(prelude, sseEvent{event: EventCitation, data: mc})
+				}
 			}
 		}
+		kbInfo["kb_ungrounded"] = ungrounded
 	}
 	for i := len(hist) - 1; i >= 0; i-- {
 		cms = append(cms, ctxMsg{Role: string(hist[i].Role), Content: hist[i].Content})
@@ -684,7 +711,7 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 		done: func(res *gateway.ChatResponse, used, primary *gateway.Target) any {
 			return msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: "done", ModelName: used.Model.Name,
 				FallbackFrom: fallbackFrom(used, primary), PromptTokens: res.Usage.PromptTokens, UsageEstimated: res.Usage.Estimated,
-				CompletionTokens: res.Usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut, HistoryTruncated: histCut, Notice: notice, Citations: cites}
+				CompletionTokens: res.Usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut, HistoryTruncated: histCut, Notice: notice, Citations: cites, KBUngrounded: ungrounded}
 		}}
 	res, ge, started, used, rerr := h.ch.run(c, p, &req, tgt, hk)
 
@@ -694,6 +721,7 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 	if len(cites) > 0 {
 		u.SetCitations(cites)
 	}
+	u.SetKBUngrounded(ungrounded)
 	stopped := errors.Is(ctx.Err(), context.Canceled)
 	switch {
 	case rerr != nil:

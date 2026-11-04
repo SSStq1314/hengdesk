@@ -40,11 +40,13 @@
 | 启动预热 | `server` 启动后后台执行 `kb.Prewarm`：`CREATE EXTENSION IF NOT EXISTS pg_prewarm`，依次预热向量索引、`kbchunk_file_id_seq`、`kb_chunks`。失败只记 warn，不影响启动。`kbbench` 默认同样预热（`-prewarm=false` 可关）。 | `kb/recall_pg_test.go`（尽力而为调用） |
 | 索引超内存 50% 提示 | `GET /admin/system/status` 新增 `kb_index{index_bytes, memory_bytes, over_half}`；内存取 `HENGDESK_DB_MEMORY_MB`（数据库分机部署时填写），未配置时读本机 `/proc/meminfo`。超过一半时管理后台常驻告警条「知识库向量索引已超过内存的一半」。 | `kb/recall_pg_test.go`：`CheckIndex` 大 / 小内存两种情况 |
 | 可见比例高时按知识库过滤 | **列为 P1**，见下文。 | — |
-| 复测 | 见 `docs/progress/d27-retest.md`「D-42 复测」。**32 GB 机器上的复测待做，是 M1 验收的前置条件。** | `cmd/kbbench`（新增 `-reindex`、`-prewarm`，输出 recall@10） |
+| 复测 | 见 `docs/progress/d27-retest.md`「D-42 复测」。本机（16 GB）结果：延迟、越权全部达标；**50% 可见 recall@10 = 0.890，未达到 0.95**（ef=1000 时 0.953，向量段 P95 51 ms），默认值仍按本决定保持 400，是否上调待产品经理确认。**32 GB 机器上的复测待做，是 M1 验收的前置条件。** | `cmd/kbbench`（新增 `-reindex`、`-prewarm`，输出 recall@10） |
 | 受信代理 | 未改动（D-41 实现即只看 TCP 对端）；多层代理列 P2。 | — |
 | 超管给自己授权 | 知识库与文件授权（`kb.acl.grant` / `kb.file.acl.grant`）时，若操作者是超级管理员且授权对象覆盖本人（本人、本人所在部门、包含本人所在部门的上级部门且含下级、本人持有的角色），在 attempt 审计之后写高风险审计 `alert.high_risk`（kind=`kb_self_grant_by_super_admin`，带资源与授权内容），写失败拒绝执行、权限不变。撤销不告警。 | `api/kb_d42_test.go`：`TestKBSuperAdminSelfGrantAlert` |
 | embedding 用量与告警 | 原实现只写 usage_record、**不触发预算结算，告警不会发出**。现 `kb.Retriever` 与 `kb.Indexer` 新增 `Settle` 钩子，在用量落库后调用 `budget.Service.Settle`（API 内联索引、worker 索引、会话检索三处都已接上）；仍不做预检拦截。 | `api/kb_d42_test.go`：`TestKBEmbeddingBudgetAlert`（动作为「拦截」的模型预算下，索引与检索照常执行且各触发一次 `budget.alert`） |
-| 检索失败 / 未检索到 / 仅依据资料回答 | 见第二个 PR（对话侧）。 | — |
+| 检索失败 | 仍返回 503（不自动降级），响应体 `error.code=kb_failed`、`message=知识库暂时不可用`，消息落库为 error。前端在该条回复下显示「知识库暂时不可用」与「重试」「本次不使用知识库继续」两个按钮；后者调用 `regenerate` 并带 `skip_kb:true`，本轮不检索，审计记 `skip_kb` / `kb_skipped`。审计写失败仍是 `audit_failed`，不提供跳过。 | `api/kb_d42_chat_test.go`：`TestChatKBD42Unavailable` |
+| 未检索到资料 | 默认照旧提示并允许通用知识回答；消息新增 `kb_ungrounded` 字段（迁移 `20261121000000_m1_kb_d42_chat.sql`），界面标注「未引用知识库资料」。跳过知识库的回答同样标注。 | `TestChatKBD42NoHits`、`TestChatKBD42Unavailable` |
+| 仅依据资料回答 | 知识库新增 `strict_grounding`（默认关，知识库设置对话框里的开关，修改写入 `kb.update` 审计）。会话绑定的库中任一开启且本轮没有可用资料时：不调用模型，返回固定回复「……该知识库设置为「仅依据资料回答」，因此本次不作答」，审计记 `kb_strict_refused`；也不允许「本次不使用知识库继续」（409）。 | `TestChatKBD42NoHits`、`TestChatKBD42Unavailable` |
 | 结合上下文改写追问 | 列 P1；M1 只用最新一条用户消息检索（现状）。 | — |
 
 ### 「可见比例高时按知识库过滤」列为 P1 的原因

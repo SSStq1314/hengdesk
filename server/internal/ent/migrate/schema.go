@@ -396,6 +396,7 @@ var (
 		{Name: "chunk_overlap", Type: field.TypeInt, Default: 100},
 		{Name: "created_by", Type: field.TypeInt},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "strict_grounding", Type: field.TypeBool, Default: false},
 	}
 	// KnowledgeBasesTable holds the schema information for the "knowledge_bases" table.
 	KnowledgeBasesTable = &schema.Table{
@@ -495,6 +496,7 @@ var (
 		{Name: "request_id", Type: field.TypeString, Default: ""},
 		{Name: "superseded_at", Type: field.TypeTime, Nullable: true},
 		{Name: "citations", Type: field.TypeJSON, Nullable: true},
+		{Name: "kb_ungrounded", Type: field.TypeBool, Default: false},
 		{Name: "conversation_id", Type: field.TypeInt},
 	}
 	// MessagesTable holds the schema information for the "messages" table.
@@ -505,7 +507,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "messages_conversations_messages",
-				Columns:    []*schema.Column{MessagesColumns[16]},
+				Columns:    []*schema.Column{MessagesColumns[17]},
 				RefColumns: []*schema.Column{ConversationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -514,7 +516,7 @@ var (
 			{
 				Name:    "message_conversation_id_id",
 				Unique:  false,
-				Columns: []*schema.Column{MessagesColumns[16], MessagesColumns[0]},
+				Columns: []*schema.Column{MessagesColumns[17], MessagesColumns[0]},
 			},
 		},
 	}

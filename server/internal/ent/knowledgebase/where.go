@@ -104,6 +104,11 @@ func DeletedAt(v time.Time) predicate.KnowledgeBase {
 	return predicate.KnowledgeBase(sql.FieldEQ(FieldDeletedAt, v))
 }
 
+// StrictGrounding applies equality check predicate on the "strict_grounding" field. It's identical to StrictGroundingEQ.
+func StrictGrounding(v bool) predicate.KnowledgeBase {
+	return predicate.KnowledgeBase(sql.FieldEQ(FieldStrictGrounding, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.KnowledgeBase {
 	return predicate.KnowledgeBase(sql.FieldEQ(FieldCreatedAt, v))
@@ -587,6 +592,16 @@ func DeletedAtIsNil() predicate.KnowledgeBase {
 // DeletedAtNotNil applies the NotNil predicate on the "deleted_at" field.
 func DeletedAtNotNil() predicate.KnowledgeBase {
 	return predicate.KnowledgeBase(sql.FieldNotNull(FieldDeletedAt))
+}
+
+// StrictGroundingEQ applies the EQ predicate on the "strict_grounding" field.
+func StrictGroundingEQ(v bool) predicate.KnowledgeBase {
+	return predicate.KnowledgeBase(sql.FieldEQ(FieldStrictGrounding, v))
+}
+
+// StrictGroundingNEQ applies the NEQ predicate on the "strict_grounding" field.
+func StrictGroundingNEQ(v bool) predicate.KnowledgeBase {
+	return predicate.KnowledgeBase(sql.FieldNEQ(FieldStrictGrounding, v))
 }
 
 // And groups predicates with the AND operator between them.

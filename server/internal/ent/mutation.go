@@ -11949,6 +11949,7 @@ type KnowledgeBaseMutation struct {
 	created_by       *int
 	addcreated_by    *int
 	deleted_at       *time.Time
+	strict_grounding *bool
 	clearedFields    map[string]struct{}
 	done             bool
 	oldValue         func(context.Context) (*KnowledgeBase, error)
@@ -12506,6 +12507,42 @@ func (m *KnowledgeBaseMutation) ResetDeletedAt() {
 	delete(m.clearedFields, knowledgebase.FieldDeletedAt)
 }
 
+// SetStrictGrounding sets the "strict_grounding" field.
+func (m *KnowledgeBaseMutation) SetStrictGrounding(b bool) {
+	m.strict_grounding = &b
+}
+
+// StrictGrounding returns the value of the "strict_grounding" field in the mutation.
+func (m *KnowledgeBaseMutation) StrictGrounding() (r bool, exists bool) {
+	v := m.strict_grounding
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStrictGrounding returns the old "strict_grounding" field's value of the KnowledgeBase entity.
+// If the KnowledgeBase object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeBaseMutation) OldStrictGrounding(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStrictGrounding is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStrictGrounding requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStrictGrounding: %w", err)
+	}
+	return oldValue.StrictGrounding, nil
+}
+
+// ResetStrictGrounding resets all changes to the "strict_grounding" field.
+func (m *KnowledgeBaseMutation) ResetStrictGrounding() {
+	m.strict_grounding = nil
+}
+
 // Where appends a list predicates to the KnowledgeBaseMutation builder.
 func (m *KnowledgeBaseMutation) Where(ps ...predicate.KnowledgeBase) {
 	m.predicates = append(m.predicates, ps...)
@@ -12540,7 +12577,7 @@ func (m *KnowledgeBaseMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KnowledgeBaseMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 11)
 	if m.created_at != nil {
 		fields = append(fields, knowledgebase.FieldCreatedAt)
 	}
@@ -12571,6 +12608,9 @@ func (m *KnowledgeBaseMutation) Fields() []string {
 	if m.deleted_at != nil {
 		fields = append(fields, knowledgebase.FieldDeletedAt)
 	}
+	if m.strict_grounding != nil {
+		fields = append(fields, knowledgebase.FieldStrictGrounding)
+	}
 	return fields
 }
 
@@ -12599,6 +12639,8 @@ func (m *KnowledgeBaseMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedBy()
 	case knowledgebase.FieldDeletedAt:
 		return m.DeletedAt()
+	case knowledgebase.FieldStrictGrounding:
+		return m.StrictGrounding()
 	}
 	return nil, false
 }
@@ -12628,6 +12670,8 @@ func (m *KnowledgeBaseMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldCreatedBy(ctx)
 	case knowledgebase.FieldDeletedAt:
 		return m.OldDeletedAt(ctx)
+	case knowledgebase.FieldStrictGrounding:
+		return m.OldStrictGrounding(ctx)
 	}
 	return nil, fmt.Errorf("unknown KnowledgeBase field %s", name)
 }
@@ -12706,6 +12750,13 @@ func (m *KnowledgeBaseMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDeletedAt(v)
+		return nil
+	case knowledgebase.FieldStrictGrounding:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStrictGrounding(v)
 		return nil
 	}
 	return fmt.Errorf("unknown KnowledgeBase field %s", name)
@@ -12845,6 +12896,9 @@ func (m *KnowledgeBaseMutation) ResetField(name string) error {
 		return nil
 	case knowledgebase.FieldDeletedAt:
 		m.ResetDeletedAt()
+		return nil
+	case knowledgebase.FieldStrictGrounding:
+		m.ResetStrictGrounding()
 		return nil
 	}
 	return fmt.Errorf("unknown KnowledgeBase field %s", name)
@@ -14536,6 +14590,7 @@ type MessageMutation struct {
 	superseded_at        *time.Time
 	citations            *[]schema.MsgCitation
 	appendcitations      []schema.MsgCitation
+	kb_ungrounded        *bool
 	clearedFields        map[string]struct{}
 	conversation         *int
 	clearedconversation  bool
@@ -15300,6 +15355,42 @@ func (m *MessageMutation) ResetCitations() {
 	delete(m.clearedFields, message.FieldCitations)
 }
 
+// SetKBUngrounded sets the "kb_ungrounded" field.
+func (m *MessageMutation) SetKBUngrounded(b bool) {
+	m.kb_ungrounded = &b
+}
+
+// KBUngrounded returns the value of the "kb_ungrounded" field in the mutation.
+func (m *MessageMutation) KBUngrounded() (r bool, exists bool) {
+	v := m.kb_ungrounded
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKBUngrounded returns the old "kb_ungrounded" field's value of the Message entity.
+// If the Message object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageMutation) OldKBUngrounded(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKBUngrounded is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKBUngrounded requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKBUngrounded: %w", err)
+	}
+	return oldValue.KBUngrounded, nil
+}
+
+// ResetKBUngrounded resets all changes to the "kb_ungrounded" field.
+func (m *MessageMutation) ResetKBUngrounded() {
+	m.kb_ungrounded = nil
+}
+
 // ClearConversation clears the "conversation" edge to the Conversation entity.
 func (m *MessageMutation) ClearConversation() {
 	m.clearedconversation = true
@@ -15361,7 +15452,7 @@ func (m *MessageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MessageMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.created_at != nil {
 		fields = append(fields, message.FieldCreatedAt)
 	}
@@ -15410,6 +15501,9 @@ func (m *MessageMutation) Fields() []string {
 	if m.citations != nil {
 		fields = append(fields, message.FieldCitations)
 	}
+	if m.kb_ungrounded != nil {
+		fields = append(fields, message.FieldKBUngrounded)
+	}
 	return fields
 }
 
@@ -15450,6 +15544,8 @@ func (m *MessageMutation) Field(name string) (ent.Value, bool) {
 		return m.SupersededAt()
 	case message.FieldCitations:
 		return m.Citations()
+	case message.FieldKBUngrounded:
+		return m.KBUngrounded()
 	}
 	return nil, false
 }
@@ -15491,6 +15587,8 @@ func (m *MessageMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldSupersededAt(ctx)
 	case message.FieldCitations:
 		return m.OldCitations(ctx)
+	case message.FieldKBUngrounded:
+		return m.OldKBUngrounded(ctx)
 	}
 	return nil, fmt.Errorf("unknown Message field %s", name)
 }
@@ -15611,6 +15709,13 @@ func (m *MessageMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCitations(v)
+		return nil
+	case message.FieldKBUngrounded:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKBUngrounded(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Message field %s", name)
@@ -15750,6 +15855,9 @@ func (m *MessageMutation) ResetField(name string) error {
 		return nil
 	case message.FieldCitations:
 		m.ResetCitations()
+		return nil
+	case message.FieldKBUngrounded:
+		m.ResetKBUngrounded()
 		return nil
 	}
 	return fmt.Errorf("unknown Message field %s", name)
