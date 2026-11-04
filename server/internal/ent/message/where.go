@@ -790,6 +790,16 @@ func SupersededAtNotNil() predicate.Message {
 	return predicate.Message(sql.FieldNotNull(FieldSupersededAt))
 }
 
+// CitationsIsNil applies the IsNil predicate on the "citations" field.
+func CitationsIsNil() predicate.Message {
+	return predicate.Message(sql.FieldIsNull(FieldCitations))
+}
+
+// CitationsNotNil applies the NotNil predicate on the "citations" field.
+func CitationsNotNil() predicate.Message {
+	return predicate.Message(sql.FieldNotNull(FieldCitations))
+}
+
 // HasConversation applies the HasEdge predicate on the "conversation" edge.
 func HasConversation() predicate.Message {
 	return predicate.Message(func(s *sql.Selector) {

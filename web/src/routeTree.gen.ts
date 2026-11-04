@@ -26,6 +26,8 @@ import { Route as errors404RouteImport } from './routes/(errors)/404'
 import { Route as errors403RouteImport } from './routes/(errors)/403'
 import { Route as errors401RouteImport } from './routes/(errors)/401'
 import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
+import { Route as AuthenticatedKbsIndexRouteImport } from './routes/_authenticated/kbs/index'
+import { Route as AuthenticatedKbsIdRouteImport } from './routes/_authenticated/kbs/$id'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -113,6 +115,16 @@ const authSignInRoute = authSignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedKbsIndexRoute = AuthenticatedKbsIndexRouteImport.update({
+  id: '/kbs/',
+  path: '/kbs/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKbsIdRoute = AuthenticatedKbsIdRouteImport.update({
+  id: '/kbs/$id',
+  path: '/kbs/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedErrorsErrorRoute =
   AuthenticatedErrorsErrorRouteImport.update({
     id: '/errors/$error',
@@ -138,6 +150,8 @@ export interface FileRoutesByFullPath {
   '/retention': typeof AuthenticatedRetentionRoute
   '/roles': typeof AuthenticatedRolesRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
+  '/kbs/$id': typeof AuthenticatedKbsIdRoute
+  '/kbs/': typeof AuthenticatedKbsIndexRoute
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof authSignInRoute
@@ -157,6 +171,8 @@ export interface FileRoutesByTo {
   '/roles': typeof AuthenticatedRolesRoute
   '/': typeof AuthenticatedIndexRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
+  '/kbs/$id': typeof AuthenticatedKbsIdRoute
+  '/kbs': typeof AuthenticatedKbsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -178,6 +194,8 @@ export interface FileRoutesById {
   '/_authenticated/roles': typeof AuthenticatedRolesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
+  '/_authenticated/kbs/$id': typeof AuthenticatedKbsIdRoute
+  '/_authenticated/kbs/': typeof AuthenticatedKbsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -199,6 +217,8 @@ export interface FileRouteTypes {
     | '/retention'
     | '/roles'
     | '/errors/$error'
+    | '/kbs/$id'
+    | '/kbs/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/sign-in'
@@ -218,6 +238,8 @@ export interface FileRouteTypes {
     | '/roles'
     | '/'
     | '/errors/$error'
+    | '/kbs/$id'
+    | '/kbs'
   id:
     | '__root__'
     | '/_authenticated'
@@ -238,6 +260,8 @@ export interface FileRouteTypes {
     | '/_authenticated/roles'
     | '/_authenticated/'
     | '/_authenticated/errors/$error'
+    | '/_authenticated/kbs/$id'
+    | '/_authenticated/kbs/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -371,6 +395,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authSignInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/kbs/': {
+      id: '/_authenticated/kbs/'
+      path: '/kbs'
+      fullPath: '/kbs/'
+      preLoaderRoute: typeof AuthenticatedKbsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/kbs/$id': {
+      id: '/_authenticated/kbs/$id'
+      path: '/kbs/$id'
+      fullPath: '/kbs/$id'
+      preLoaderRoute: typeof AuthenticatedKbsIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/errors/$error': {
       id: '/_authenticated/errors/$error'
       path: '/errors/$error'
@@ -393,6 +431,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRolesRoute: typeof AuthenticatedRolesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
+  AuthenticatedKbsIdRoute: typeof AuthenticatedKbsIdRoute
+  AuthenticatedKbsIndexRoute: typeof AuthenticatedKbsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -407,6 +447,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRolesRoute: AuthenticatedRolesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
+  AuthenticatedKbsIdRoute: AuthenticatedKbsIdRoute,
+  AuthenticatedKbsIndexRoute: AuthenticatedKbsIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

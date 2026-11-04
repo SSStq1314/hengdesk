@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -31,6 +32,8 @@ type Conversation struct {
 	ModelID *int `json:"model_id,omitempty"`
 	// DeletedAt holds the value of the "deleted_at" field.
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	// KBIds holds the value of the "kb_ids" field.
+	KBIds []int `json:"kb_ids,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ConversationQuery when eager-loading is set.
 	Edges        ConversationEdges `json:"edges"`
@@ -60,6 +63,8 @@ func (*Conversation) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case conversation.FieldKBIds:
+			values[i] = new([]byte)
 		case conversation.FieldID, conversation.FieldOrgID, conversation.FieldUserID, conversation.FieldModelID:
 			values[i] = new(sql.NullInt64)
 		case conversation.FieldTitle:
@@ -131,6 +136,14 @@ func (_m *Conversation) assignValues(columns []string, values []any) error {
 				_m.DeletedAt = new(time.Time)
 				*_m.DeletedAt = value.Time
 			}
+		case conversation.FieldKBIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field kb_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.KBIds); err != nil {
+					return fmt.Errorf("unmarshal field kb_ids: %w", err)
+				}
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -196,6 +209,9 @@ func (_m *Conversation) String() string {
 		builder.WriteString("deleted_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("kb_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.KBIds))
 	builder.WriteByte(')')
 	return builder.String()
 }

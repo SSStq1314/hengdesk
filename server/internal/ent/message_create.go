@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
 )
 
 // MessageCreate is the builder for creating a Message entity.
@@ -214,6 +215,12 @@ func (_c *MessageCreate) SetNillableSupersededAt(v *time.Time) *MessageCreate {
 	if v != nil {
 		_c.SetSupersededAt(*v)
 	}
+	return _c
+}
+
+// SetCitations sets the "citations" field.
+func (_c *MessageCreate) SetCitations(v []schema.MsgCitation) *MessageCreate {
+	_c.mutation.SetCitations(v)
 	return _c
 }
 
@@ -451,6 +458,10 @@ func (_c *MessageCreate) createSpec() (*Message, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.SupersededAt(); ok {
 		_spec.SetField(message.FieldSupersededAt, field.TypeTime, value)
 		_node.SupersededAt = &value
+	}
+	if value, ok := _c.mutation.Citations(); ok {
+		_spec.SetField(message.FieldCitations, field.TypeJSON, value)
+		_node.Citations = value
 	}
 	if nodes := _c.mutation.ConversationIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -704,6 +715,24 @@ func (u *MessageUpsert) UpdateSupersededAt() *MessageUpsert {
 // ClearSupersededAt clears the value of the "superseded_at" field.
 func (u *MessageUpsert) ClearSupersededAt() *MessageUpsert {
 	u.SetNull(message.FieldSupersededAt)
+	return u
+}
+
+// SetCitations sets the "citations" field.
+func (u *MessageUpsert) SetCitations(v []schema.MsgCitation) *MessageUpsert {
+	u.Set(message.FieldCitations, v)
+	return u
+}
+
+// UpdateCitations sets the "citations" field to the value that was provided on create.
+func (u *MessageUpsert) UpdateCitations() *MessageUpsert {
+	u.SetExcluded(message.FieldCitations)
+	return u
+}
+
+// ClearCitations clears the value of the "citations" field.
+func (u *MessageUpsert) ClearCitations() *MessageUpsert {
+	u.SetNull(message.FieldCitations)
 	return u
 }
 
@@ -966,6 +995,27 @@ func (u *MessageUpsertOne) UpdateSupersededAt() *MessageUpsertOne {
 func (u *MessageUpsertOne) ClearSupersededAt() *MessageUpsertOne {
 	return u.Update(func(s *MessageUpsert) {
 		s.ClearSupersededAt()
+	})
+}
+
+// SetCitations sets the "citations" field.
+func (u *MessageUpsertOne) SetCitations(v []schema.MsgCitation) *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.SetCitations(v)
+	})
+}
+
+// UpdateCitations sets the "citations" field to the value that was provided on create.
+func (u *MessageUpsertOne) UpdateCitations() *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.UpdateCitations()
+	})
+}
+
+// ClearCitations clears the value of the "citations" field.
+func (u *MessageUpsertOne) ClearCitations() *MessageUpsertOne {
+	return u.Update(func(s *MessageUpsert) {
+		s.ClearCitations()
 	})
 }
 
@@ -1394,6 +1444,27 @@ func (u *MessageUpsertBulk) UpdateSupersededAt() *MessageUpsertBulk {
 func (u *MessageUpsertBulk) ClearSupersededAt() *MessageUpsertBulk {
 	return u.Update(func(s *MessageUpsert) {
 		s.ClearSupersededAt()
+	})
+}
+
+// SetCitations sets the "citations" field.
+func (u *MessageUpsertBulk) SetCitations(v []schema.MsgCitation) *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.SetCitations(v)
+	})
+}
+
+// UpdateCitations sets the "citations" field to the value that was provided on create.
+func (u *MessageUpsertBulk) UpdateCitations() *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.UpdateCitations()
+	})
+}
+
+// ClearCitations clears the value of the "citations" field.
+func (u *MessageUpsertBulk) ClearCitations() *MessageUpsertBulk {
+	return u.Update(func(s *MessageUpsert) {
+		s.ClearCitations()
 	})
 }
 

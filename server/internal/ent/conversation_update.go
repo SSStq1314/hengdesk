@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
@@ -135,6 +136,24 @@ func (_u *ConversationUpdate) SetNillableDeletedAt(v *time.Time) *ConversationUp
 // ClearDeletedAt clears the value of the "deleted_at" field.
 func (_u *ConversationUpdate) ClearDeletedAt() *ConversationUpdate {
 	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
+// SetKBIds sets the "kb_ids" field.
+func (_u *ConversationUpdate) SetKBIds(v []int) *ConversationUpdate {
+	_u.mutation.SetKBIds(v)
+	return _u
+}
+
+// AppendKBIds appends value to the "kb_ids" field.
+func (_u *ConversationUpdate) AppendKBIds(v []int) *ConversationUpdate {
+	_u.mutation.AppendKBIds(v)
+	return _u
+}
+
+// ClearKBIds clears the value of the "kb_ids" field.
+func (_u *ConversationUpdate) ClearKBIds() *ConversationUpdate {
+	_u.mutation.ClearKBIds()
 	return _u
 }
 
@@ -269,6 +288,17 @@ func (_u *ConversationUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(conversation.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.KBIds(); ok {
+		_spec.SetField(conversation.FieldKBIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedKBIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, conversation.FieldKBIds, value)
+		})
+	}
+	if _u.mutation.KBIdsCleared() {
+		_spec.ClearField(conversation.FieldKBIds, field.TypeJSON)
 	}
 	if _u.mutation.MessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -444,6 +474,24 @@ func (_u *ConversationUpdateOne) ClearDeletedAt() *ConversationUpdateOne {
 	return _u
 }
 
+// SetKBIds sets the "kb_ids" field.
+func (_u *ConversationUpdateOne) SetKBIds(v []int) *ConversationUpdateOne {
+	_u.mutation.SetKBIds(v)
+	return _u
+}
+
+// AppendKBIds appends value to the "kb_ids" field.
+func (_u *ConversationUpdateOne) AppendKBIds(v []int) *ConversationUpdateOne {
+	_u.mutation.AppendKBIds(v)
+	return _u
+}
+
+// ClearKBIds clears the value of the "kb_ids" field.
+func (_u *ConversationUpdateOne) ClearKBIds() *ConversationUpdateOne {
+	_u.mutation.ClearKBIds()
+	return _u
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by IDs.
 func (_u *ConversationUpdateOne) AddMessageIDs(ids ...int) *ConversationUpdateOne {
 	_u.mutation.AddMessageIDs(ids...)
@@ -605,6 +653,17 @@ func (_u *ConversationUpdateOne) sqlSave(ctx context.Context) (_node *Conversati
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(conversation.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.KBIds(); ok {
+		_spec.SetField(conversation.FieldKBIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedKBIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, conversation.FieldKBIds, value)
+		})
+	}
+	if _u.mutation.KBIdsCleared() {
+		_spec.ClearField(conversation.FieldKBIds, field.TypeJSON)
 	}
 	if _u.mutation.MessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{

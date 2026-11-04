@@ -1,5 +1,6 @@
 import { zh } from '@/locales/zh-CN'
 import {
+  BookOpen,
   Bot,
   Building2,
   LayoutDashboard,
@@ -21,6 +22,7 @@ export const sidebarData: SidebarData = {
       items: [
         { title: zh.nav.dashboard, url: '/', icon: LayoutDashboard },
         { title: zh.nav.chat, url: '/chat', icon: MessagesSquare },
+        { title: zh.nav.kb, url: '/kbs', icon: BookOpen },
       ],
     },
     {

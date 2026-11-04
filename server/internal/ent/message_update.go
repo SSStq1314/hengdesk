@@ -10,10 +10,12 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/predicate"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
 )
 
 // MessageUpdate is the builder for updating Message entities.
@@ -237,6 +239,24 @@ func (_u *MessageUpdate) ClearSupersededAt() *MessageUpdate {
 	return _u
 }
 
+// SetCitations sets the "citations" field.
+func (_u *MessageUpdate) SetCitations(v []schema.MsgCitation) *MessageUpdate {
+	_u.mutation.SetCitations(v)
+	return _u
+}
+
+// AppendCitations appends value to the "citations" field.
+func (_u *MessageUpdate) AppendCitations(v []schema.MsgCitation) *MessageUpdate {
+	_u.mutation.AppendCitations(v)
+	return _u
+}
+
+// ClearCitations clears the value of the "citations" field.
+func (_u *MessageUpdate) ClearCitations() *MessageUpdate {
+	_u.mutation.ClearCitations()
+	return _u
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_u *MessageUpdate) SetConversation(v *Conversation) *MessageUpdate {
 	return _u.SetConversationID(v.ID)
@@ -371,6 +391,17 @@ func (_u *MessageUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.SupersededAtCleared() {
 		_spec.ClearField(message.FieldSupersededAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Citations(); ok {
+		_spec.SetField(message.FieldCitations, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedCitations(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, message.FieldCitations, value)
+		})
+	}
+	if _u.mutation.CitationsCleared() {
+		_spec.ClearField(message.FieldCitations, field.TypeJSON)
 	}
 	if _u.mutation.ConversationCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -629,6 +660,24 @@ func (_u *MessageUpdateOne) ClearSupersededAt() *MessageUpdateOne {
 	return _u
 }
 
+// SetCitations sets the "citations" field.
+func (_u *MessageUpdateOne) SetCitations(v []schema.MsgCitation) *MessageUpdateOne {
+	_u.mutation.SetCitations(v)
+	return _u
+}
+
+// AppendCitations appends value to the "citations" field.
+func (_u *MessageUpdateOne) AppendCitations(v []schema.MsgCitation) *MessageUpdateOne {
+	_u.mutation.AppendCitations(v)
+	return _u
+}
+
+// ClearCitations clears the value of the "citations" field.
+func (_u *MessageUpdateOne) ClearCitations() *MessageUpdateOne {
+	_u.mutation.ClearCitations()
+	return _u
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_u *MessageUpdateOne) SetConversation(v *Conversation) *MessageUpdateOne {
 	return _u.SetConversationID(v.ID)
@@ -793,6 +842,17 @@ func (_u *MessageUpdateOne) sqlSave(ctx context.Context) (_node *Message, err er
 	}
 	if _u.mutation.SupersededAtCleared() {
 		_spec.ClearField(message.FieldSupersededAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Citations(); ok {
+		_spec.SetField(message.FieldCitations, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedCitations(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, message.FieldCitations, value)
+		})
+	}
+	if _u.mutation.CitationsCleared() {
+		_spec.ClearField(message.FieldCitations, field.TypeJSON)
 	}
 	if _u.mutation.ConversationCleared() {
 		edge := &sqlgraph.EdgeSpec{

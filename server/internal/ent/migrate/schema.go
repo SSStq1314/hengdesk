@@ -155,6 +155,7 @@ var (
 		{Name: "title", Type: field.TypeString, Size: 200, Default: ""},
 		{Name: "model_id", Type: field.TypeInt, Nullable: true},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "kb_ids", Type: field.TypeJSON, Nullable: true},
 	}
 	// ConversationsTable holds the schema information for the "conversations" table.
 	ConversationsTable = &schema.Table{
@@ -493,6 +494,7 @@ var (
 		{Name: "usage_estimated", Type: field.TypeBool, Default: false},
 		{Name: "request_id", Type: field.TypeString, Default: ""},
 		{Name: "superseded_at", Type: field.TypeTime, Nullable: true},
+		{Name: "citations", Type: field.TypeJSON, Nullable: true},
 		{Name: "conversation_id", Type: field.TypeInt},
 	}
 	// MessagesTable holds the schema information for the "messages" table.
@@ -503,7 +505,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "messages_conversations_messages",
-				Columns:    []*schema.Column{MessagesColumns[15]},
+				Columns:    []*schema.Column{MessagesColumns[16]},
 				RefColumns: []*schema.Column{ConversationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -512,7 +514,7 @@ var (
 			{
 				Name:    "message_conversation_id_id",
 				Unique:  false,
-				Columns: []*schema.Column{MessagesColumns[15], MessagesColumns[0]},
+				Columns: []*schema.Column{MessagesColumns[16], MessagesColumns[0]},
 			},
 		},
 	}

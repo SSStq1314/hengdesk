@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
 )
 
 // Message is the model entity for the Message schema.
@@ -48,6 +50,8 @@ type Message struct {
 	RequestID string `json:"request_id,omitempty"`
 	// SupersededAt holds the value of the "superseded_at" field.
 	SupersededAt *time.Time `json:"superseded_at,omitempty"`
+	// Citations holds the value of the "citations" field.
+	Citations []schema.MsgCitation `json:"citations,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the MessageQuery when eager-loading is set.
 	Edges        MessageEdges `json:"edges"`
@@ -79,6 +83,8 @@ func (*Message) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case message.FieldCitations:
+			values[i] = new([]byte)
 		case message.FieldUsageEstimated:
 			values[i] = new(sql.NullBool)
 		case message.FieldID, message.FieldConversationID, message.FieldPromptTokens, message.FieldCompletionTokens:
@@ -199,6 +205,14 @@ func (_m *Message) assignValues(columns []string, values []any) error {
 				_m.SupersededAt = new(time.Time)
 				*_m.SupersededAt = value.Time
 			}
+		case message.FieldCitations:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field citations", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Citations); err != nil {
+					return fmt.Errorf("unmarshal field citations: %w", err)
+				}
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -286,6 +300,9 @@ func (_m *Message) String() string {
 		builder.WriteString("superseded_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("citations=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Citations))
 	builder.WriteByte(')')
 	return builder.String()
 }

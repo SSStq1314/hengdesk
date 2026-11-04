@@ -696,6 +696,7 @@ export type Conversation = {
   id: number
   title: string
   model_id?: number | null
+  kb_ids?: number[]
   created_at: string
   updated_at: string
 }
@@ -716,12 +717,12 @@ export type ChatMessage = {
   /** D-41：上游未返回 usage，token 为估算值 */
   usage_estimated?: boolean
   notice?: string
-  // 预留（第四、五块）：当前服务端始终不返回。
+  // 知识库引用（第四块 PR3）；tool_calls 为第五块预留，当前始终不返回。
   citations?: ChatCitation[]
   tool_calls?: ChatToolCall[]
 }
-// 对话 SSE 预留事件（PR4，只定义不实现）：citation 留给知识库，tool_call / approval_pending 留给 MCP 与审批。
-// 解析器遇到不认识的事件一律忽略。
+// 对话 SSE 扩展事件：citation 自第四块 PR3 起生效（在 token 之前逐条发出），
+// tool_call / approval_pending 留给 MCP 与审批。解析器遇到不认识的事件一律忽略。
 export const CHAT_RESERVED_EVENTS = [
   'citation',
   'tool_call',
@@ -730,12 +731,15 @@ export const CHAT_RESERVED_EVENTS = [
 export type ChatCitation = {
   index: number
   kb_id: number
-  document_id: number
-  document_name: string
-  chunk_id: string
-  snippet?: string
-  page?: number
-  score?: number
+  kb_name: string
+  file_id: number
+  file_name: string
+  seq: number
+  start: number
+  end: number
+  heading?: string
+  snippet: string
+  score: number
 }
 export type ChatToolCallStatus =
   | 'pending'
@@ -774,7 +778,7 @@ export type MyModel = { id: number; name: string; is_default: boolean }
 export const chatApi = {
   models: () => api<{ items: MyModel[] }>('/models'),
   list: () => api<{ items: Conversation[] }>('/conversations'),
-  create: (b: { title?: string; model?: string }) =>
+  create: (b: { title?: string; model?: string; kb_ids?: number[] }) =>
     api<Conversation>('/conversations', json('POST', b)),
   get: (id: number) =>
     api<Conversation & { messages: ChatMessage[]; files: ConvFile[] }>(
@@ -811,10 +815,13 @@ export const chatApi = {
     api<Conversation>(`/conversations/${id}`, json('PATCH', { title })),
   remove: (id: number) =>
     api<void>(`/conversations/${id}`, { method: 'DELETE' }),
+  setKBs: (id: number, kb_ids: number[]) =>
+    api<Conversation>(`/conversations/${id}`, json('PATCH', { kb_ids })),
 }
 
 export type StreamHandlers = {
   onToken: (t: string) => void
+  onCitation?: (c: ChatCitation) => void
   onDone: (m: ChatMessage) => void
   onError: (code: string, message: string) => void
 }
@@ -903,13 +910,126 @@ async function streamPost(
       }
       if (event === 'token') {
         h.onToken((p as { content?: string }).content ?? '')
+      } else if (event === 'citation') {
+        h.onCitation?.(p as ChatCitation)
       } else if (event === 'done') {
         h.onDone(p as ChatMessage)
       } else if (event === 'error') {
         const e = (p as { error?: { code?: string; message?: string } }).error
         h.onError(e?.code ?? 'error', e?.message ?? '')
       }
-      // 其余事件（含预留的 citation / tool_call / approval_pending）暂时忽略。
+      // 其余事件（含预留的 tool_call / approval_pending）暂时忽略。
     }
   }
+}
+
+// ---- 知识库（M1 第四块）----
+export type KBPerm = 'view' | 'use' | 'edit' | 'manage'
+export type KB = {
+  id: number
+  name: string
+  description: string
+  embedding_model: string
+  chunk_size: number
+  chunk_overlap: number
+  perms: KBPerm[]
+  file_count: number
+  created_at: string
+  updated_at: string
+}
+export type KBFileStatus =
+  | 'pending'
+  | 'parsing'
+  | 'indexing'
+  | 'ready'
+  | 'failed'
+export type KBFile = {
+  id: number
+  kb_id: number
+  name: string
+  kind: string
+  size: number
+  sha256: string
+  status: KBFileStatus
+  error_code?: string
+  error?: string
+  chars: number
+  chunk_count: number
+  acl_custom: boolean
+  embedding_model?: string
+  attempts: number
+  indexed_at?: string
+  created_at: string
+}
+export type KBACLRow = {
+  subject_type: 'user' | 'dept' | 'role'
+  subject_id: number
+  subject_name: string
+  include_children: boolean
+  perms: KBPerm[]
+}
+export type KBACLInput = {
+  subject_type: 'user' | 'dept' | 'role'
+  subject_id: number
+  include_children?: boolean
+  perm: KBPerm
+}
+export type KBInput = {
+  name?: string
+  description?: string
+  embedding_model?: string
+  chunk_size?: number
+  chunk_overlap?: number
+}
+
+export const kbApi = {
+  list: () => api<{ items: KB[]; can_create: boolean }>('/kbs'),
+  get: (id: number) => api<KB>(`/kbs/${id}`),
+  create: (b: KBInput) => api<KB>('/kbs', json('POST', b)),
+  update: (id: number, b: KBInput) => api<KB>(`/kbs/${id}`, json('PATCH', b)),
+  remove: (id: number) => api<void>(`/kbs/${id}`, { method: 'DELETE' }),
+  acl: (id: number) => api<{ items: KBACLRow[] }>(`/kbs/${id}/acl`),
+  grant: (id: number, b: KBACLInput) =>
+    api<void>(`/kbs/${id}/acl`, json('POST', b)),
+  revoke: (id: number, t: string, sid: number) =>
+    api<void>(`/kbs/${id}/acl/${t}/${sid}`, { method: 'DELETE' }),
+  files: (id: number) => api<{ items: KBFile[] }>(`/kbs/${id}/files`),
+  upload: async (
+    id: number,
+    file: File
+  ): Promise<{ duplicate?: boolean; message?: string; file: KBFile }> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch(`/api/v1/kbs/${id}/files`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-CSRF-Token': csrfToken() },
+      body: fd,
+    })
+    if (!res.ok) {
+      let msg = res.statusText
+      try {
+        const b = (await res.json()) as { message?: string }
+        if (b.message) msg = b.message
+      } catch {
+        /* 非 JSON 响应 */
+      }
+      throw new ApiError(res.status, msg)
+    }
+    return await res.json()
+  },
+  removeFile: (id: number, fid: number) =>
+    api<void>(`/kbs/${id}/files/${fid}`, { method: 'DELETE' }),
+  retryFile: (id: number, fid: number) =>
+    api<KBFile>(`/kbs/${id}/files/${fid}/retry`, { method: 'POST' }),
+  fileACL: (id: number, fid: number) =>
+    api<{ items: KBACLRow[] }>(`/kbs/${id}/files/${fid}/acl`),
+  grantFile: (id: number, fid: number, b: KBACLInput) =>
+    api<void>(`/kbs/${id}/files/${fid}/acl`, json('POST', b)),
+  revokeFile: (id: number, fid: number, t: string, sid: number) =>
+    api<void>(`/kbs/${id}/files/${fid}/acl/${t}/${sid}`, {
+      method: 'DELETE',
+    }),
+  setACLMode: (id: number, fid: number, custom: boolean) =>
+    api<KBFile>(`/kbs/${id}/files/${fid}/acl-mode`, json('PUT', { custom })),
 }

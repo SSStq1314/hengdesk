@@ -34,6 +34,8 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { NativeSelect } from '@/features/models/fields'
+import { Citations } from './citations'
+import { KBPicker } from './kb-picker'
 
 const t = zh.chat
 const ACCEPT = '.pdf,.docx,.xlsx,.pptx,.txt,.md,.markdown'
@@ -48,6 +50,7 @@ export function ChatPage() {
   const qc = useQueryClient()
   const [active, setActive] = useState<number | null>(null)
   const [model, setModel] = useState('')
+  const [draftKBs, setDraftKBs] = useState<number[]>([])
   const [input, setInput] = useState('')
   const [live, setLive] = useState<ChatMessage[]>([])
   const [hidden, setHidden] = useState<number | null>(null)
@@ -68,6 +71,19 @@ export function ChatPage() {
   })
 
   const modelItems = models.data?.items ?? []
+  const kbIDs = active != null ? (conv.data?.kb_ids ?? []) : draftKBs
+  const setKBs = useMutation({
+    mutationFn: (ids: number[]) => chatApi.setKBs(active!, ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['conversation', active] })
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const changeKBs = (ids: number[]) => {
+    if (streaming) return
+    if (active == null) setDraftKBs(ids)
+    else setKBs.mutate(ids)
+  }
   const effectiveModel =
     model ||
     modelItems.find((m) => m.id === conv.data?.model_id)?.name ||
@@ -86,7 +102,11 @@ export function ChatPage() {
   }, [messages.length, live])
 
   const create = useMutation({
-    mutationFn: () => chatApi.create({ model: effectiveModel || undefined }),
+    mutationFn: () =>
+      chatApi.create({
+        model: effectiveModel || undefined,
+        kb_ids: active == null ? draftKBs : undefined,
+      }),
     onSuccess: (c) => {
       qc.invalidateQueries({ queryKey: ['conversations'] })
       setActive(c.id)
@@ -113,7 +133,10 @@ export function ChatPage() {
 
   async function ensureConv() {
     if (active != null) return active
-    const c = await chatApi.create({ model: effectiveModel || undefined })
+    const c = await chatApi.create({
+      model: effectiveModel || undefined,
+      kb_ids: active == null ? draftKBs : undefined,
+    })
     setActive(c.id)
     qc.invalidateQueries({ queryKey: ['conversations'] })
     return c.id
@@ -162,6 +185,8 @@ export function ChatPage() {
       await call(
         {
           onToken: (tok) => patch((m) => ({ ...m, content: m.content + tok })),
+          onCitation: (c) =>
+            patch((m) => ({ ...m, citations: [...(m.citations ?? []), c] })),
           onDone: (m) => {
             if (m.notice) toast.info(m.notice)
             patch(() => ({ ...m, id: -2 }))
@@ -323,6 +348,11 @@ export function ChatPage() {
                   }))}
                 />
               )}
+              <KBPicker
+                value={kbIDs}
+                onChange={changeKBs}
+                disabled={streaming || setKBs.isPending}
+              />
             </div>
             <div className='flex-1 space-y-4 overflow-y-auto py-4'>
               {active == null && live.length === 0 && (
@@ -468,6 +498,9 @@ function MessageBubble({
               )
             )}
           </div>
+        )}
+        {!mine && m.citations && m.citations.length > 0 && (
+          <Citations items={m.citations} />
         )}
         {!mine && (
           <div className='mt-1 flex gap-2 text-xs text-muted-foreground'>

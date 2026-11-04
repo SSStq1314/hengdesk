@@ -19,6 +19,8 @@ func (Conversation) Fields() []ent.Field {
 		// 最近一次选用的模型（快照 ID；模型删除或失去权限后发消息时重新校验）。
 		field.Int("model_id").Optional().Nillable(),
 		field.Time("deleted_at").Optional().Nillable(),
+		// 本会话选用的知识库（最多 5 个，待确认 8）。每次发消息都按当前权限重新过滤，失去 view 的不再参与检索。
+		field.JSON("kb_ids", []int{}).Optional(),
 	}
 }
 
@@ -55,7 +57,24 @@ func (Message) Fields() []ent.Field {
 		field.String("request_id").Default(""),
 		// superseded_at 被「重新生成 / 重试」替换的旧回复（D-40 第 6 条）：软保留供审计，UI 与后续上下文不再使用。
 		field.Time("superseded_at").Optional().Nillable(),
+		// citations 本条回复引用的知识库片段（FR-18）。读取时按当前权限再过滤，失去权限的文件整条不返回。
+		field.JSON("citations", []MsgCitation{}).Optional(),
 	}
+}
+
+// MsgCitation 落库的引用（不含片段全文，只存定位与 200 字摘要）。
+type MsgCitation struct {
+	Index    int     `json:"index"`
+	KBID     int     `json:"kb_id"`
+	KBName   string  `json:"kb_name"`
+	FileID   int     `json:"file_id"`
+	FileName string  `json:"file_name"`
+	Seq      int     `json:"seq"`
+	Start    int     `json:"start"`
+	End      int     `json:"end"`
+	Heading  string  `json:"heading,omitempty"`
+	Snippet  string  `json:"snippet"`
+	Score    float64 `json:"score"`
 }
 
 func (Message) Mixin() []ent.Mixin { return []ent.Mixin{TimeMixin{}} }

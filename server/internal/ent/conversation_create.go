@@ -105,6 +105,12 @@ func (_c *ConversationCreate) SetNillableDeletedAt(v *time.Time) *ConversationCr
 	return _c
 }
 
+// SetKBIds sets the "kb_ids" field.
+func (_c *ConversationCreate) SetKBIds(v []int) *ConversationCreate {
+	_c.mutation.SetKBIds(v)
+	return _c
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by IDs.
 func (_c *ConversationCreate) AddMessageIDs(ids ...int) *ConversationCreate {
 	_c.mutation.AddMessageIDs(ids...)
@@ -245,6 +251,10 @@ func (_c *ConversationCreate) createSpec() (*Conversation, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(conversation.FieldDeletedAt, field.TypeTime, value)
 		_node.DeletedAt = &value
+	}
+	if value, ok := _c.mutation.KBIds(); ok {
+		_spec.SetField(conversation.FieldKBIds, field.TypeJSON, value)
+		_node.KBIds = value
 	}
 	if nodes := _c.mutation.MessagesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -416,6 +426,24 @@ func (u *ConversationUpsert) ClearDeletedAt() *ConversationUpsert {
 	return u
 }
 
+// SetKBIds sets the "kb_ids" field.
+func (u *ConversationUpsert) SetKBIds(v []int) *ConversationUpsert {
+	u.Set(conversation.FieldKBIds, v)
+	return u
+}
+
+// UpdateKBIds sets the "kb_ids" field to the value that was provided on create.
+func (u *ConversationUpsert) UpdateKBIds() *ConversationUpsert {
+	u.SetExcluded(conversation.FieldKBIds)
+	return u
+}
+
+// ClearKBIds clears the value of the "kb_ids" field.
+func (u *ConversationUpsert) ClearKBIds() *ConversationUpsert {
+	u.SetNull(conversation.FieldKBIds)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -577,6 +605,27 @@ func (u *ConversationUpsertOne) UpdateDeletedAt() *ConversationUpsertOne {
 func (u *ConversationUpsertOne) ClearDeletedAt() *ConversationUpsertOne {
 	return u.Update(func(s *ConversationUpsert) {
 		s.ClearDeletedAt()
+	})
+}
+
+// SetKBIds sets the "kb_ids" field.
+func (u *ConversationUpsertOne) SetKBIds(v []int) *ConversationUpsertOne {
+	return u.Update(func(s *ConversationUpsert) {
+		s.SetKBIds(v)
+	})
+}
+
+// UpdateKBIds sets the "kb_ids" field to the value that was provided on create.
+func (u *ConversationUpsertOne) UpdateKBIds() *ConversationUpsertOne {
+	return u.Update(func(s *ConversationUpsert) {
+		s.UpdateKBIds()
+	})
+}
+
+// ClearKBIds clears the value of the "kb_ids" field.
+func (u *ConversationUpsertOne) ClearKBIds() *ConversationUpsertOne {
+	return u.Update(func(s *ConversationUpsert) {
+		s.ClearKBIds()
 	})
 }
 
@@ -907,6 +956,27 @@ func (u *ConversationUpsertBulk) UpdateDeletedAt() *ConversationUpsertBulk {
 func (u *ConversationUpsertBulk) ClearDeletedAt() *ConversationUpsertBulk {
 	return u.Update(func(s *ConversationUpsert) {
 		s.ClearDeletedAt()
+	})
+}
+
+// SetKBIds sets the "kb_ids" field.
+func (u *ConversationUpsertBulk) SetKBIds(v []int) *ConversationUpsertBulk {
+	return u.Update(func(s *ConversationUpsert) {
+		s.SetKBIds(v)
+	})
+}
+
+// UpdateKBIds sets the "kb_ids" field to the value that was provided on create.
+func (u *ConversationUpsertBulk) UpdateKBIds() *ConversationUpsertBulk {
+	return u.Update(func(s *ConversationUpsert) {
+		s.UpdateKBIds()
+	})
+}
+
+// ClearKBIds clears the value of the "kb_ids" field.
+func (u *ConversationUpsertBulk) ClearKBIds() *ConversationUpsertBulk {
+	return u.Update(func(s *ConversationUpsert) {
+		s.ClearKBIds()
 	})
 }
 

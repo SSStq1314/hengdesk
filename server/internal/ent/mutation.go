@@ -32,6 +32,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/organization"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/predicate"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/systemsetting"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/tool"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/usagerecord"
@@ -4199,6 +4200,8 @@ type ConversationMutation struct {
 	model_id        *int
 	addmodel_id     *int
 	deleted_at      *time.Time
+	kb_ids          *[]int
+	appendkb_ids    []int
 	clearedFields   map[string]struct{}
 	messages        map[int]struct{}
 	removedmessages map[int]struct{}
@@ -4645,6 +4648,71 @@ func (m *ConversationMutation) ResetDeletedAt() {
 	delete(m.clearedFields, conversation.FieldDeletedAt)
 }
 
+// SetKBIds sets the "kb_ids" field.
+func (m *ConversationMutation) SetKBIds(i []int) {
+	m.kb_ids = &i
+	m.appendkb_ids = nil
+}
+
+// KBIds returns the value of the "kb_ids" field in the mutation.
+func (m *ConversationMutation) KBIds() (r []int, exists bool) {
+	v := m.kb_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKBIds returns the old "kb_ids" field's value of the Conversation entity.
+// If the Conversation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationMutation) OldKBIds(ctx context.Context) (v []int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKBIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKBIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKBIds: %w", err)
+	}
+	return oldValue.KBIds, nil
+}
+
+// AppendKBIds adds i to the "kb_ids" field.
+func (m *ConversationMutation) AppendKBIds(i []int) {
+	m.appendkb_ids = append(m.appendkb_ids, i...)
+}
+
+// AppendedKBIds returns the list of values that were appended to the "kb_ids" field in this mutation.
+func (m *ConversationMutation) AppendedKBIds() ([]int, bool) {
+	if len(m.appendkb_ids) == 0 {
+		return nil, false
+	}
+	return m.appendkb_ids, true
+}
+
+// ClearKBIds clears the value of the "kb_ids" field.
+func (m *ConversationMutation) ClearKBIds() {
+	m.kb_ids = nil
+	m.appendkb_ids = nil
+	m.clearedFields[conversation.FieldKBIds] = struct{}{}
+}
+
+// KBIdsCleared returns if the "kb_ids" field was cleared in this mutation.
+func (m *ConversationMutation) KBIdsCleared() bool {
+	_, ok := m.clearedFields[conversation.FieldKBIds]
+	return ok
+}
+
+// ResetKBIds resets all changes to the "kb_ids" field.
+func (m *ConversationMutation) ResetKBIds() {
+	m.kb_ids = nil
+	m.appendkb_ids = nil
+	delete(m.clearedFields, conversation.FieldKBIds)
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by ids.
 func (m *ConversationMutation) AddMessageIDs(ids ...int) {
 	if m.messages == nil {
@@ -4733,7 +4801,7 @@ func (m *ConversationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ConversationMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.created_at != nil {
 		fields = append(fields, conversation.FieldCreatedAt)
 	}
@@ -4754,6 +4822,9 @@ func (m *ConversationMutation) Fields() []string {
 	}
 	if m.deleted_at != nil {
 		fields = append(fields, conversation.FieldDeletedAt)
+	}
+	if m.kb_ids != nil {
+		fields = append(fields, conversation.FieldKBIds)
 	}
 	return fields
 }
@@ -4777,6 +4848,8 @@ func (m *ConversationMutation) Field(name string) (ent.Value, bool) {
 		return m.ModelID()
 	case conversation.FieldDeletedAt:
 		return m.DeletedAt()
+	case conversation.FieldKBIds:
+		return m.KBIds()
 	}
 	return nil, false
 }
@@ -4800,6 +4873,8 @@ func (m *ConversationMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldModelID(ctx)
 	case conversation.FieldDeletedAt:
 		return m.OldDeletedAt(ctx)
+	case conversation.FieldKBIds:
+		return m.OldKBIds(ctx)
 	}
 	return nil, fmt.Errorf("unknown Conversation field %s", name)
 }
@@ -4857,6 +4932,13 @@ func (m *ConversationMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDeletedAt(v)
+		return nil
+	case conversation.FieldKBIds:
+		v, ok := value.([]int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKBIds(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Conversation field %s", name)
@@ -4933,6 +5015,9 @@ func (m *ConversationMutation) ClearedFields() []string {
 	if m.FieldCleared(conversation.FieldDeletedAt) {
 		fields = append(fields, conversation.FieldDeletedAt)
 	}
+	if m.FieldCleared(conversation.FieldKBIds) {
+		fields = append(fields, conversation.FieldKBIds)
+	}
 	return fields
 }
 
@@ -4952,6 +5037,9 @@ func (m *ConversationMutation) ClearField(name string) error {
 		return nil
 	case conversation.FieldDeletedAt:
 		m.ClearDeletedAt()
+		return nil
+	case conversation.FieldKBIds:
+		m.ClearKBIds()
 		return nil
 	}
 	return fmt.Errorf("unknown Conversation nullable field %s", name)
@@ -4981,6 +5069,9 @@ func (m *ConversationMutation) ResetField(name string) error {
 		return nil
 	case conversation.FieldDeletedAt:
 		m.ResetDeletedAt()
+		return nil
+	case conversation.FieldKBIds:
+		m.ResetKBIds()
 		return nil
 	}
 	return fmt.Errorf("unknown Conversation field %s", name)
@@ -14443,6 +14534,8 @@ type MessageMutation struct {
 	usage_estimated      *bool
 	request_id           *string
 	superseded_at        *time.Time
+	citations            *[]schema.MsgCitation
+	appendcitations      []schema.MsgCitation
 	clearedFields        map[string]struct{}
 	conversation         *int
 	clearedconversation  bool
@@ -15142,6 +15235,71 @@ func (m *MessageMutation) ResetSupersededAt() {
 	delete(m.clearedFields, message.FieldSupersededAt)
 }
 
+// SetCitations sets the "citations" field.
+func (m *MessageMutation) SetCitations(sc []schema.MsgCitation) {
+	m.citations = &sc
+	m.appendcitations = nil
+}
+
+// Citations returns the value of the "citations" field in the mutation.
+func (m *MessageMutation) Citations() (r []schema.MsgCitation, exists bool) {
+	v := m.citations
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCitations returns the old "citations" field's value of the Message entity.
+// If the Message object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageMutation) OldCitations(ctx context.Context) (v []schema.MsgCitation, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCitations is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCitations requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCitations: %w", err)
+	}
+	return oldValue.Citations, nil
+}
+
+// AppendCitations adds sc to the "citations" field.
+func (m *MessageMutation) AppendCitations(sc []schema.MsgCitation) {
+	m.appendcitations = append(m.appendcitations, sc...)
+}
+
+// AppendedCitations returns the list of values that were appended to the "citations" field in this mutation.
+func (m *MessageMutation) AppendedCitations() ([]schema.MsgCitation, bool) {
+	if len(m.appendcitations) == 0 {
+		return nil, false
+	}
+	return m.appendcitations, true
+}
+
+// ClearCitations clears the value of the "citations" field.
+func (m *MessageMutation) ClearCitations() {
+	m.citations = nil
+	m.appendcitations = nil
+	m.clearedFields[message.FieldCitations] = struct{}{}
+}
+
+// CitationsCleared returns if the "citations" field was cleared in this mutation.
+func (m *MessageMutation) CitationsCleared() bool {
+	_, ok := m.clearedFields[message.FieldCitations]
+	return ok
+}
+
+// ResetCitations resets all changes to the "citations" field.
+func (m *MessageMutation) ResetCitations() {
+	m.citations = nil
+	m.appendcitations = nil
+	delete(m.clearedFields, message.FieldCitations)
+}
+
 // ClearConversation clears the "conversation" edge to the Conversation entity.
 func (m *MessageMutation) ClearConversation() {
 	m.clearedconversation = true
@@ -15203,7 +15361,7 @@ func (m *MessageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MessageMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.created_at != nil {
 		fields = append(fields, message.FieldCreatedAt)
 	}
@@ -15249,6 +15407,9 @@ func (m *MessageMutation) Fields() []string {
 	if m.superseded_at != nil {
 		fields = append(fields, message.FieldSupersededAt)
 	}
+	if m.citations != nil {
+		fields = append(fields, message.FieldCitations)
+	}
 	return fields
 }
 
@@ -15287,6 +15448,8 @@ func (m *MessageMutation) Field(name string) (ent.Value, bool) {
 		return m.RequestID()
 	case message.FieldSupersededAt:
 		return m.SupersededAt()
+	case message.FieldCitations:
+		return m.Citations()
 	}
 	return nil, false
 }
@@ -15326,6 +15489,8 @@ func (m *MessageMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldRequestID(ctx)
 	case message.FieldSupersededAt:
 		return m.OldSupersededAt(ctx)
+	case message.FieldCitations:
+		return m.OldCitations(ctx)
 	}
 	return nil, fmt.Errorf("unknown Message field %s", name)
 }
@@ -15440,6 +15605,13 @@ func (m *MessageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSupersededAt(v)
 		return nil
+	case message.FieldCitations:
+		v, ok := value.([]schema.MsgCitation)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCitations(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Message field %s", name)
 }
@@ -15500,6 +15672,9 @@ func (m *MessageMutation) ClearedFields() []string {
 	if m.FieldCleared(message.FieldSupersededAt) {
 		fields = append(fields, message.FieldSupersededAt)
 	}
+	if m.FieldCleared(message.FieldCitations) {
+		fields = append(fields, message.FieldCitations)
+	}
 	return fields
 }
 
@@ -15516,6 +15691,9 @@ func (m *MessageMutation) ClearField(name string) error {
 	switch name {
 	case message.FieldSupersededAt:
 		m.ClearSupersededAt()
+		return nil
+	case message.FieldCitations:
+		m.ClearCitations()
 		return nil
 	}
 	return fmt.Errorf("unknown Message nullable field %s", name)
@@ -15569,6 +15747,9 @@ func (m *MessageMutation) ResetField(name string) error {
 		return nil
 	case message.FieldSupersededAt:
 		m.ResetSupersededAt()
+		return nil
+	case message.FieldCitations:
+		m.ResetCitations()
 		return nil
 	}
 	return fmt.Errorf("unknown Message field %s", name)
