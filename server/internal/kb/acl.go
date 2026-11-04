@@ -72,7 +72,7 @@ func (a *Access) KBIDs(bit int) []int {
 }
 
 // AllowedFiles D-27：检索前先算出「本人可见且已就绪」的文件 ID，再在同一条 SQL 里 file_id = ANY(...) 过滤。
-// kbIDs 为空表示所有可见知识库。只返回未删除知识库下 status=ready 的文件。
+// kbIDs 为空表示所有可见知识库。只返回未删除知识库下可检索（就绪或重建中）的文件。
 func AllowedFiles(ctx context.Context, db *ent.Client, a *Access, orgID int, kbIDs []int) ([]int, error) {
 	view := map[int]bool{}
 	for _, id := range a.KBIDs(rbac.BitView) {
@@ -110,7 +110,10 @@ func AllowedFiles(ctx context.Context, db *ent.Client, a *Access, orgID int, kbI
 	for id := range a.Files {
 		custom = append(custom, id)
 	}
-	q := db.KBFile.Query().Where(kbfile.OrgID(orgID), kbfile.StatusEQ(kbfile.StatusReady), kbfile.Or(
+	// 已就绪，或曾经建好索引、正在重建（换模型 / 改切片参数）的文件：旧切片在新切片写入前继续可检索（待确认 2）。
+	usable := kbfile.Or(kbfile.StatusEQ(kbfile.StatusReady), kbfile.And(
+		kbfile.StatusIn(kbfile.StatusPending, kbfile.StatusParsing, kbfile.StatusIndexing), kbfile.IndexedAtNotNil()))
+	q := db.KBFile.Query().Where(kbfile.OrgID(orgID), usable, kbfile.Or(
 		kbfile.KBIDIn(manage...),
 		kbfile.And(kbfile.KBIDIn(plain...), kbfile.Or(kbfile.ACLCustom(false), kbfile.IDIn(custom...))),
 	))

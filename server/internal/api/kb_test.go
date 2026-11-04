@@ -17,6 +17,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/kbfile"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/usagerecord"
+	"github.com/SSStq1314/hengdesk/server/internal/gateway"
 	"github.com/SSStq1314/hengdesk/server/internal/kb"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 )
@@ -36,13 +37,15 @@ type kbEnv struct {
 	store *kb.MemStore
 	owner *client
 	kbID  int
+	gw    *gateway.Service
 }
 
 func newKBEnv(t *testing.T, opts ...func(*api.Deps)) *kbEnv {
 	objs := &memStore{m: map[string][]byte{}}
 	ms := kb.NewMemStore()
+	var gws *gateway.Service
 	g := newGW(t, false, append([]func(*api.Deps){func(d *api.Deps) {
-		d.Files, d.KBStore = objs, ms
+		d.Files, d.KBStore, gws = objs, ms, d.Gateway
 	}}, opts...)...)
 	for _, m := range []struct{ name, up string }{{"emb", "mock-embed"}, {"emb768", "mock-embed-768"}} {
 		pid := g.c.ModelProvider.Query().OnlyX(context.Background()).ID
@@ -54,7 +57,7 @@ func newKBEnv(t *testing.T, opts ...func(*api.Deps)) *kbEnv {
 	}
 	org := g.c.Organization.Query().FirstX(context.Background())
 	g.addUser(t, "kbowner@x.local", org, rbac.OrgAdmin, nil)
-	e := &kbEnv{gwEnv: g, objs: objs, store: ms, owner: g.loginAs(t, "kbowner@x.local", "password123")}
+	e := &kbEnv{gwEnv: g, objs: objs, store: ms, owner: g.loginAs(t, "kbowner@x.local", "password123"), gw: gws}
 	rec := e.owner.do(http.MethodPost, "/api/v1/kbs", `{"name":"制度库","description":"公司制度","embedding_model":"emb"}`, true)
 	if rec.Code != 201 {
 		t.Fatalf("create kb %d %s", rec.Code, rec.Body)
