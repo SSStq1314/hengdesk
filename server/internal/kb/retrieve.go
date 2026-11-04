@@ -54,6 +54,8 @@ type Retriever struct {
 	Store ChunkStore
 	GW    *gateway.Service
 	Audit audit.Writer
+	// Embed 非空时代替网关嵌入问题（仅供性能复测工具 cmd/kbbench 使用，不计量）。
+	Embed func(ctx context.Context, model, q string) ([]float32, error)
 }
 
 // Retrieve kbIDs 为空表示全部可见知识库。审计写失败返回 ErrRetrieveAudit。
@@ -73,8 +75,7 @@ func (r *Retriever) Retrieve(ctx context.Context, p *auth.Principal, kbIDs []int
 	res := &Result{AllowedFiles: len(ids), Strategy: "none"}
 	var fails []string
 	if len(ids) > 0 {
-		files, err := r.DB.KBFile.Query().Where(kbfile.IDIn(ids...)).
-			Select(kbfile.FieldID, kbfile.FieldKBID, kbfile.FieldName, kbfile.FieldChunkCount, kbfile.FieldEmbeddingModel).All(ctx)
+		files, err := loadFiles(ctx, r.DB, ids)
 		if err != nil {
 			return nil, err
 		}
@@ -173,6 +174,9 @@ func kbIDsOf(fs []*ent.KBFile) []int {
 }
 
 func (r *Retriever) embedQuery(ctx context.Context, p *auth.Principal, model, q, requestID string) ([]float32, error) {
+	if r.Embed != nil {
+		return r.Embed(ctx, model, q)
+	}
 	start := time.Now()
 	vec, u, m, err := EmbedQuery(ctx, r.GW, model, q)
 	if m != nil {
@@ -187,4 +191,21 @@ func (r *Retriever) embedQuery(ctx context.Context, p *auth.Principal, model, q,
 		_, _ = usage.Write(context.WithoutCancel(ctx), r.DB, rec)
 	}
 	return vec, err
+}
+
+// fileBatch 单条 SQL 的 IN 参数上限（PostgreSQL 扩展协议最多 65535 个参数）。
+const fileBatch = 20000
+
+// loadFiles 分批读取可见文件的元数据；可见文件可能有十万级（PR4 复测发现）。
+func loadFiles(ctx context.Context, db *ent.Client, ids []int) ([]*ent.KBFile, error) {
+	var out []*ent.KBFile
+	for i := 0; i < len(ids); i += fileBatch {
+		part, err := db.KBFile.Query().Where(kbfile.IDIn(ids[i:min(i+fileBatch, len(ids))]...)).
+			Select(kbfile.FieldID, kbfile.FieldKBID, kbfile.FieldName, kbfile.FieldChunkCount, kbfile.FieldEmbeddingModel).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, part...)
+	}
+	return out, nil
 }
