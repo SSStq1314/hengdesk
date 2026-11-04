@@ -158,7 +158,11 @@ func Mount(e *echo.Echo, d Deps) {
 	g.GET("/usage/me", mdh.myUsage)
 	ch := &chatHandlers{gw: gw, az: az, log: d.Log, bs: bs}
 	g.POST("/chat/completions", ch.complete)
-	cvh := &convHandlers{db: d.DB, ch: ch, fs: d.Files, lim: d.FileLimits.withDefaults(), parser: docparse.New(), r: d.Auth.Sessions.R}
+	if d.KBStore == nil {
+		d.KBStore = kb.NewMemStore()
+	}
+	ret := &kb.Retriever{DB: d.DB, AZ: az, Store: d.KBStore, GW: gw, Audit: d.Audit}
+	cvh := &convHandlers{db: d.DB, ch: ch, fs: d.Files, lim: d.FileLimits.withDefaults(), parser: docparse.New(), r: d.Auth.Sessions.R, ret: ret}
 	g.GET("/conversations", cvh.list)
 	g.POST("/conversations", cvh.create)
 	g.GET("/conversations/:id", cvh.get)

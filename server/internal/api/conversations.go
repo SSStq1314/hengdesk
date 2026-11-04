@@ -22,8 +22,11 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversationfile"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/kbfile"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/knowledgebase"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
+	"github.com/SSStq1314/hengdesk/server/internal/kb"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 )
 
@@ -43,12 +46,14 @@ type convHandlers struct {
 	lim    FileLimits
 	parser *docparse.Extractor
 	r      redis.UniversalClient
+	ret    *kb.Retriever
 }
 
 type convView struct {
 	ID        int       `json:"id"`
 	Title     string    `json:"title"`
 	ModelID   *int      `json:"model_id"`
+	KBIDs     []int     `json:"kb_ids"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -71,7 +76,7 @@ type msgView struct {
 	HistoryTruncated bool `json:"history_truncated,omitempty"`
 	// Notice 仅出现在 done 事件：记住的模型已不可用、已回退默认模型等需要告知用户的提示（D-40 第 8 条）。
 	Notice string `json:"notice,omitempty"`
-	// Citations / ToolCalls 为第四、五块预留（见 chatevents.go），当前始终为空、不序列化。
+	// Citations 本条回复引用的知识库片段（读取时按当前权限过滤）；ToolCalls 为第五块预留，当前始终为空。
 	Citations []Citation `json:"citations,omitempty"`
 	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
 	// UsageEstimated 上游未返回 usage，token 为估算值（D-41 第 4 条，界面标「估算」）。
@@ -79,13 +84,17 @@ type msgView struct {
 }
 
 func toConv(c *ent.Conversation) convView {
-	return convView{ID: c.ID, Title: c.Title, ModelID: c.ModelID, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt}
+	ids := c.KBIds
+	if ids == nil {
+		ids = []int{}
+	}
+	return convView{ID: c.ID, Title: c.Title, ModelID: c.ModelID, KBIDs: ids, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt}
 }
 
 func toMsg(m *ent.Message) msgView {
 	return msgView{ID: m.ID, Role: string(m.Role), Content: m.Content, Status: string(m.Status), ModelName: m.ModelName,
 		FallbackFrom: m.FallbackFrom, ErrorCode: m.ErrorCode, Error: m.Error, PromptTokens: m.PromptTokens, UsageEstimated: m.UsageEstimated,
-		CompletionTokens: m.CompletionTokens, CreatedAt: m.CreatedAt}
+		CompletionTokens: m.CompletionTokens, CreatedAt: m.CreatedAt, Citations: m.Citations}
 }
 
 // own 取当前用户自己的、未删除的会话；其它情况记越权审计并返回 404（不区分不存在与非本人）。
@@ -130,6 +139,48 @@ func (h *convHandlers) list(c echo.Context) error {
 type convInput struct {
 	Title *string `json:"title"`
 	Model string  `json:"model"`
+	// KBIDs 选用的知识库（最多 maxConvKBs 个）；传 [] 清空，不传不变。
+	KBIDs *[]int `json:"kb_ids"`
+}
+
+const maxConvKBs = 5
+
+// checkKBs 校验会话要选用的知识库：去重、最多 5 个、每个都必须本人有 view 且未删除（否则 404，不区分不存在与无权）。
+func (h *convHandlers) checkKBs(c echo.Context, p *auth.Principal, ids []int) ([]int, error) {
+	seen, out := map[int]bool{}, []int{}
+	for _, id := range ids {
+		if id > 0 && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	if len(out) > maxConvKBs {
+		return nil, bad("最多选择 " + strconv.Itoa(maxConvKBs) + " 个知识库")
+	}
+	if len(out) == 0 {
+		return out, nil
+	}
+	if h.ret == nil {
+		return nil, authz.Deny(c, "kb:unavailable")
+	}
+	ctx := c.Request().Context()
+	a, err := kb.LoadAccess(ctx, h.ret.AZ, p)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range out {
+		if !a.Has(id, rbac.BitView) {
+			return nil, authz.Deny(c, "kb:view")
+		}
+	}
+	n, err := h.db.KnowledgeBase.Query().Where(knowledgebase.IDIn(out...), knowledgebase.OrgID(p.OrgID), knowledgebase.DeletedAtIsNil()).Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if n != len(out) {
+		return nil, authz.Deny(c, "kb:not_found")
+	}
+	return out, nil
 }
 
 func cleanTitle(s string) string {
@@ -160,6 +211,13 @@ func (h *convHandlers) create(c echo.Context) error {
 		}
 		q.SetModelID(tgt.Model.ID)
 	}
+	if in.KBIDs != nil {
+		ids, err := h.checkKBs(c, p, *in.KBIDs)
+		if err != nil {
+			return err
+		}
+		q.SetKBIds(ids)
+	}
 	cv, err := q.Save(c.Request().Context())
 	if err != nil {
 		return err
@@ -183,6 +241,9 @@ func (h *convHandlers) get(c echo.Context) error {
 	out := make([]msgView, len(ms))
 	for i, m := range ms {
 		out[i] = toMsg(m)
+	}
+	if err := h.filterCitations(c.Request().Context(), p, out); err != nil {
+		return err
 	}
 	fs, err := h.files(c.Request().Context(), cv.ID)
 	if err != nil {
@@ -218,6 +279,13 @@ func (h *convHandlers) update(c echo.Context) error {
 			return err
 		}
 		u.SetModelID(tgt.Model.ID)
+	}
+	if in.KBIDs != nil {
+		ids, err := h.checkKBs(c, p, *in.KBIDs)
+		if err != nil {
+			return err
+		}
+		u.SetKBIds(ids)
 	}
 	cv, err = u.Save(c.Request().Context())
 	if err != nil {
@@ -406,6 +474,64 @@ func (h *convHandlers) regenerate(c echo.Context) error {
 	return h.generate(c, p, cv, tgt, asst, "chat.message.regenerate", notice, map[string]any{"kind": kind, "replaces_message_id": last.ID})
 }
 
+// filterCitations 读取历史消息时按当前权限过滤引用：文件已删除、知识库已删除或已失去 view 的引用整条去掉（不暴露文件名）。
+func (h *convHandlers) filterCitations(ctx context.Context, p *auth.Principal, ms []msgView) error {
+	need := false
+	for _, m := range ms {
+		need = need || len(m.Citations) > 0
+	}
+	if !need {
+		return nil
+	}
+	ok := map[int]bool{}
+	if h.ret != nil {
+		a, err := kb.LoadAccess(ctx, h.ret.AZ, p)
+		if err != nil {
+			return err
+		}
+		var fids []int
+		for _, m := range ms {
+			for _, ci := range m.Citations {
+				fids = append(fids, ci.FileID)
+			}
+		}
+		fs, err := h.db.KBFile.Query().Where(kbfile.IDIn(fids...), kbfile.OrgID(p.OrgID)).All(ctx)
+		if err != nil {
+			return err
+		}
+		live, err := h.db.KnowledgeBase.Query().Where(knowledgebase.OrgID(p.OrgID), knowledgebase.DeletedAtIsNil(),
+			knowledgebase.IDIn(kbOfFiles(fs)...)).IDs(ctx)
+		if err != nil {
+			return err
+		}
+		alive := map[int]bool{}
+		for _, id := range live {
+			alive[id] = true
+		}
+		for _, f := range fs {
+			ok[f.ID] = alive[f.KBID] && a.CanSeeFile(f)
+		}
+	}
+	for i := range ms {
+		var keep []Citation
+		for _, ci := range ms[i].Citations {
+			if ok[ci.FileID] {
+				keep = append(keep, ci)
+			}
+		}
+		ms[i].Citations = keep
+	}
+	return nil
+}
+
+func kbOfFiles(fs []*ent.KBFile) []int {
+	out := make([]int, 0, len(fs))
+	for _, f := range fs {
+		out = append(out, f.KBID)
+	}
+	return out
+}
+
 // pickModel 选本轮模型。显式指定的模型按权限校验（无权限 404）。未指定时用会话记住的模型；
 // 若它已不可用（被删 / 停用 / 收回权限），回退到默认模型并返回提示（D-40 第 8 条）；默认模型也不可用时返回明确错误。
 func (h *convHandlers) pickModel(c echo.Context, p *auth.Principal, cv *ent.Conversation, explicit string) (*gateway.Target, string, error) {
@@ -496,10 +622,50 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 	if err != nil {
 		return err
 	}
-	cms := make([]ctxMsg, 0, len(hist)+1)
+	cms := make([]ctxMsg, 0, len(hist)+2)
 	fctx, ctxCut := fileContext(files, h.lim.TotalChars)
 	if fctx != "" {
 		cms = append(cms, ctxMsg{Role: "system", Content: fctx})
+	}
+	// 知识库检索（FR-17/18）：问题取本轮最新一条用户消息；ACL 每次现算。审计写失败则拒绝（不调用模型）。
+	var cites []Citation
+	var prelude []sseEvent
+	kbInfo := map[string]any{}
+	if len(cv.KBIds) > 0 && h.ret != nil {
+		q := ""
+		for _, m := range hist {
+			if m.Role == message.RoleUser {
+				q = m.Content
+				break
+			}
+		}
+		reqID := c.Response().Header().Get(echo.HeaderXRequestID)
+		kr, kerr := h.ret.Retrieve(ctx, p, cv.KBIds, q, reqID, 0)
+		if kerr != nil {
+			code, msg := "kb_failed", "知识库检索失败"
+			if errors.Is(kerr, kb.ErrRetrieveAudit) {
+				code, msg = "audit_failed", "审计写入失败，未检索知识库，也未调用模型"
+			}
+			_ = h.db.Message.UpdateOneID(asst.ID).SetStatus(message.StatusError).SetErrorCode(code).SetError(msg).Exec(context.WithoutCancel(ctx))
+			h.ch.log.Error("kb retrieve failed", "conversation", cv.ID, "err", kerr)
+			return echo.NewHTTPError(http.StatusServiceUnavailable, msg)
+		}
+		kbInfo = map[string]any{"kb_ids": cv.KBIds, "kb_allowed_files": kr.AllowedFiles, "kb_hits": len(kr.Citations), "kb_strategy": kr.Strategy}
+		if len(kr.Citations) == 0 {
+			cms = append(cms, ctxMsg{Role: "system", Content: kbEmptyPrompt})
+			if notice != "" {
+				notice += "；"
+			}
+			notice += "所选知识库中没有可用资料"
+		} else {
+			cms = append(cms, ctxMsg{Role: "system", Content: kbContext(kr.Citations)})
+			for _, ci := range kr.Citations {
+				mc := Citation{Index: ci.Index, KBID: ci.KBID, KBName: ci.KBName, FileID: ci.FileID, FileName: ci.FileName,
+					Seq: ci.Seq, Start: ci.Start, End: ci.End, Heading: ci.Heading, Snippet: ci.Snippet, Score: ci.Score}
+				cites = append(cites, mc)
+				prelude = append(prelude, sseEvent{event: EventCitation, data: mc})
+			}
+		}
 	}
 	for i := len(hist) - 1; i >= 0; i-- {
 		cms = append(cms, ctxMsg{Role: string(hist[i].Role), Content: hist[i].Content})
@@ -514,17 +680,20 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 	req := gateway.ChatRequest{Model: tgt.Model.Name, Messages: msgs, Stream: true}
 
 	var buf strings.Builder
-	hk := streamHooks{delta: EventToken, tap: func(d gateway.Delta) { buf.WriteString(d.Content) },
+	hk := streamHooks{delta: EventToken, prelude: prelude, tap: func(d gateway.Delta) { buf.WriteString(d.Content) },
 		done: func(res *gateway.ChatResponse, used, primary *gateway.Target) any {
 			return msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: "done", ModelName: used.Model.Name,
 				FallbackFrom: fallbackFrom(used, primary), PromptTokens: res.Usage.PromptTokens, UsageEstimated: res.Usage.Estimated,
-				CompletionTokens: res.Usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut, HistoryTruncated: histCut, Notice: notice}
+				CompletionTokens: res.Usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut, HistoryTruncated: histCut, Notice: notice, Citations: cites}
 		}}
 	res, ge, started, used, rerr := h.ch.run(c, p, &req, tgt, hk)
 
 	// 落库用 WithoutCancel：客户端停止 / 断开后仍要保存已生成部分。
 	bg := context.WithoutCancel(ctx)
 	u := h.db.Message.UpdateOneID(asst.ID).SetModelName(used.Model.Name).SetFallbackFrom(fallbackFrom(used, tgt)).SetContent(buf.String())
+	if len(cites) > 0 {
+		u.SetCitations(cites)
+	}
 	stopped := errors.Is(ctx.Err(), context.Canceled)
 	switch {
 	case rerr != nil:
@@ -557,6 +726,9 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 		"fallback_from": fallbackFrom(used, tgt), "chars": utf8.RuneCountInString(buf.String()),
 		"files": len(files), "context_truncated": ctxCut, "history_truncated": histCut,
 		"history_dropped": histDropped, "est_prompt_tokens": estTokens}
+	for k, v := range kbInfo {
+		detail[k] = v
+	}
 	for k, v := range extra {
 		detail[k] = v
 	}
@@ -613,4 +785,23 @@ func (h *chatHandlers) allowed(c echo.Context, p *auth.Principal, name string) (
 		}
 	}
 	return tgt, nil
+}
+
+// kbEmptyPrompt 选了知识库但没有可用资料（无权限、未就绪或没有命中）时的系统提示。
+const kbEmptyPrompt = "用户为本次对话选择了知识库，但其中没有与问题相关、且用户有权访问的资料。请先明确告诉用户「没有可用资料」，" +
+	"再视情况基于通用知识回答，并说明该回答不来自知识库。"
+
+// kbContext 把检索结果编号注入系统提示，要求模型用 [n] 角标引用。
+func kbContext(cs []kb.Citation) string {
+	var b strings.Builder
+	b.WriteString("以下是从用户所选知识库中检索到的资料，按编号列出。回答时优先依据这些资料，引用处用 [编号] 标注（如 [1]、[2]）；" +
+		"资料不足以回答时如实说明，不要编造出处。\n")
+	for _, ci := range cs {
+		b.WriteString("\n[" + strconv.Itoa(ci.Index) + "] 《" + ci.FileName + "》")
+		if ci.Heading != "" {
+			b.WriteString(" · " + ci.Heading)
+		}
+		b.WriteString("\n" + ci.Content + "\n")
+	}
+	return b.String()
 }

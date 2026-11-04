@@ -103,7 +103,9 @@ func (h *chatHandlers) complete(c echo.Context) error {
 type streamHooks struct {
 	delta string
 	tap   func(gateway.Delta)
-	done  func(res *gateway.ChatResponse, used, primary *gateway.Target) any
+	// prelude 流开始时（第一段增量之前）依次发出的事件，例如知识库引用。
+	prelude []sseEvent
+	done    func(res *gateway.ChatResponse, used, primary *gateway.Target) any
 }
 
 var apiHooks = streamHooks{delta: "delta", done: func(res *gateway.ChatResponse, used, primary *gateway.Target) any {
@@ -174,6 +176,11 @@ loop:
 		}
 	}
 	return res, ge, started, used, nil
+}
+
+type sseEvent struct {
+	event string
+	data  any
 }
 
 func fallbackFrom(used, primary *gateway.Target) string {
@@ -260,6 +267,7 @@ func (h *chatHandlers) recordUsage(c echo.Context, p *auth.Principal, tgt *gatew
 func (h *chatHandlers) stream(c echo.Context, req *gateway.ChatRequest, tgt, primary *gateway.Target, hk streamHooks) (*gateway.ChatResponse, *gateway.Error, bool) {
 	w := c.Response()
 	started := false
+	var send func(event string, v any) error
 	start := func() {
 		if started {
 			return
@@ -269,8 +277,11 @@ func (h *chatHandlers) stream(c echo.Context, req *gateway.ChatRequest, tgt, pri
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("X-Accel-Buffering", "no")
 		w.WriteHeader(http.StatusOK)
+		for _, ev := range hk.prelude {
+			_ = send(ev.event, ev.data)
+		}
 	}
-	send := func(event string, v any) error {
+	send = func(event string, v any) error {
 		b, err := json.Marshal(v)
 		if err != nil {
 			return err

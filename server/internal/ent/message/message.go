@@ -45,6 +45,8 @@ const (
 	FieldRequestID = "request_id"
 	// FieldSupersededAt holds the string denoting the superseded_at field in the database.
 	FieldSupersededAt = "superseded_at"
+	// FieldCitations holds the string denoting the citations field in the database.
+	FieldCitations = "citations"
 	// EdgeConversation holds the string denoting the conversation edge name in mutations.
 	EdgeConversation = "conversation"
 	// Table holds the table name of the message in the database.
@@ -76,6 +78,7 @@ var Columns = []string{
 	FieldUsageEstimated,
 	FieldRequestID,
 	FieldSupersededAt,
+	FieldCitations,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

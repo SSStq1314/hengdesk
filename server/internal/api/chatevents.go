@@ -1,9 +1,11 @@
 package api
 
+import "github.com/SSStq1314/hengdesk/server/internal/ent/schema"
+
 // 对话 SSE 事件与消息扩展结构（M1 第三块 PR4，§9.3）。
 //
-// 本文件只定义接口，不实现：citation 留给第四块（知识库 FR-16–18），tool_call、approval_pending 留给第五块（MCP 工具、审批 FR-22/25）。
-// 当前服务端不会发出这三类事件，消息上的 citations / tool_calls 也始终为空（不持久化）。
+// citation 自第四块 PR3 起生效：选了知识库的会话，在第一段 token 之前逐条发出引用，并随消息落库。
+// tool_call、approval_pending 留给第五块（MCP 工具、审批 FR-22/25），当前不会发出，消息上的 tool_calls 始终为空。
 // 客户端必须忽略不认识的事件名，这样后续模块上线时旧版前端不会出错。
 
 // SSE 事件名。
@@ -11,23 +13,14 @@ const (
 	EventToken           = "token"            // 增量文本：{"content":"..."}
 	EventDone            = "done"             // 生成结束：msgView
 	EventError           = "error"            // 生成失败：{"error":{"code","message"}}
-	EventCitation        = "citation"         // 预留：Citation，引用到的知识库片段
+	EventCitation        = "citation"         // Citation，引用到的知识库片段（在 token 之前发出）
 	EventToolCall        = "tool_call"        // 预留：ToolCall，工具调用开始 / 状态变化
 	EventApprovalPending = "approval_pending" // 预留：ApprovalPending，工具调用等待审批
 )
 
-// Citation 是一条回复引用的知识库片段（预留）。Index 对应正文中的 [n] 角标。
+// Citation 是一条回复引用的知识库片段（第四块 PR3 起生效）。Index 对应正文中的 [n] 角标。
 // 只返回当前用户有权读取的片段；无权时整条不返回，不暴露标题。
-type Citation struct {
-	Index        int     `json:"index"`
-	KBID         int     `json:"kb_id"`
-	DocumentID   int     `json:"document_id"`
-	DocumentName string  `json:"document_name"`
-	ChunkID      string  `json:"chunk_id"`
-	Snippet      string  `json:"snippet,omitempty"`
-	Page         int     `json:"page,omitempty"`
-	Score        float64 `json:"score,omitempty"`
-}
+type Citation = schema.MsgCitation
 
 // 工具调用状态（预留）。
 const (

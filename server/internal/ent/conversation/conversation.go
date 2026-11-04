@@ -28,6 +28,8 @@ const (
 	FieldModelID = "model_id"
 	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
 	FieldDeletedAt = "deleted_at"
+	// FieldKBIds holds the string denoting the kb_ids field in the database.
+	FieldKBIds = "kb_ids"
 	// EdgeMessages holds the string denoting the messages edge name in mutations.
 	EdgeMessages = "messages"
 	// Table holds the table name of the conversation in the database.
@@ -51,6 +53,7 @@ var Columns = []string{
 	FieldTitle,
 	FieldModelID,
 	FieldDeletedAt,
+	FieldKBIds,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
