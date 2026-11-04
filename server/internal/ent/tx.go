@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// ACL is the client for interacting with the ACL builders.
 	ACL *ACLClient
+	// Approval is the client for interacting with the Approval builders.
+	Approval *ApprovalClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
 	// Budget is the client for interacting with the Budget builders.
@@ -194,6 +196,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.ACL = NewACLClient(tx.config)
+	tx.Approval = NewApprovalClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
 	tx.Budget = NewBudgetClient(tx.config)
 	tx.BudgetAlertState = NewBudgetAlertStateClient(tx.config)

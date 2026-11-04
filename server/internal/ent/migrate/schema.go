@@ -40,6 +40,58 @@ var (
 			},
 		},
 	}
+	// ApprovalsColumns holds the columns for the "approvals" table.
+	ApprovalsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "tool_id", Type: field.TypeInt},
+		{Name: "tool_key", Type: field.TypeString},
+		{Name: "tool_name", Type: field.TypeString},
+		{Name: "risk_level", Type: field.TypeString, Default: "high_risk"},
+		{Name: "requester_id", Type: field.TypeInt},
+		{Name: "conversation_id", Type: field.TypeInt, Nullable: true},
+		{Name: "message_id", Type: field.TypeInt, Nullable: true},
+		{Name: "tool_call_id", Type: field.TypeString, Size: 200, Default: ""},
+		{Name: "args", Type: field.TypeJSON, Nullable: true},
+		{Name: "args_hash", Type: field.TypeString, Default: ""},
+		{Name: "context_summary", Type: field.TypeString, Size: 2000, Default: ""},
+		{Name: "approver_ids", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected", "expired", "withdrawn"}, Default: "pending"},
+		{Name: "decided_by", Type: field.TypeInt, Nullable: true},
+		{Name: "decision_comment", Type: field.TypeString, Size: 1000, Default: ""},
+		{Name: "decided_at", Type: field.TypeTime, Nullable: true},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "exec_status", Type: field.TypeEnum, Enums: []string{"none", "running", "succeeded", "failed"}, Default: "none"},
+		{Name: "result", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "result_is_error", Type: field.TypeBool, Default: false},
+		{Name: "executed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "trace_id", Type: field.TypeString, Default: ""},
+	}
+	// ApprovalsTable holds the schema information for the "approvals" table.
+	ApprovalsTable = &schema.Table{
+		Name:       "approvals",
+		Columns:    ApprovalsColumns,
+		PrimaryKey: []*schema.Column{ApprovalsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "approval_org_id_status_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{ApprovalsColumns[3], ApprovalsColumns[16], ApprovalsColumns[20]},
+			},
+			{
+				Name:    "approval_requester_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ApprovalsColumns[8], ApprovalsColumns[1]},
+			},
+			{
+				Name:    "approval_conversation_id",
+				Unique:  false,
+				Columns: []*schema.Column{ApprovalsColumns[9]},
+			},
+		},
+	}
 	// AuditLogsColumns holds the columns for the "audit_logs" table.
 	AuditLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -826,6 +878,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		ACLTable,
+		ApprovalsTable,
 		AuditLogsTable,
 		BudgetsTable,
 		BudgetAlertStatesTable,
@@ -856,6 +909,9 @@ var (
 func init() {
 	ACLTable.Annotation = &entsql.Annotation{
 		Table: "acl",
+	}
+	ApprovalsTable.Annotation = &entsql.Annotation{
+		Table: "approvals",
 	}
 	DepartmentsTable.ForeignKeys[0].RefTable = DepartmentsTable
 	DepartmentsTable.ForeignKeys[1].RefTable = OrganizationsTable
