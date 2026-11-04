@@ -28,6 +28,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/auditarchive"
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
 	"github.com/SSStq1314/hengdesk/server/internal/backup"
+	"github.com/SSStq1314/hengdesk/server/internal/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/chatretention"
 	"github.com/SSStq1314/hengdesk/server/internal/config"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
@@ -133,9 +134,18 @@ func serverCmd() *cobra.Command {
 				Passwords: auth.PasswordPolicy{MinLen: cfg.PasswordMinLen},
 			}, TraceTrustedProxies: cfg.TraceTrustedProxies, System: api.SystemConfig{BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, DiskLowPercent: cfg.DiskLowPercent,
 				PublicHTTPS: cfg.PublicHTTPS, TrustedProxies: cfg.TrustedProxies, TLSCertFile: cfg.TLSCertFile,
-				AuditRetentionDays: cfg.AuditRetentionDays, MasterKeyPath: masterKeyHostPath(cfg), MasterKeyFingerprint: keys.Fingerprint()}})
+				AuditRetentionDays: cfg.AuditRetentionDays, MasterKeyPath: masterKeyHostPath(cfg), MasterKeyFingerprint: keys.Fingerprint(), MemoryBytes: int64(cfg.DBMemoryMB) << 20}})
 		ctx, stop := signalCtx()
 		defer stop()
+		// D-42：启动后后台用 pg_prewarm 预热向量索引；失败只告警，不影响服务。
+		go func() {
+			t0 := time.Now()
+			if err := kb.Prewarm(ctx, sqlDB); err != nil {
+				lg.Warn("kb prewarm failed", "err", err)
+				return
+			}
+			lg.Info("kb prewarm done", "took", time.Since(t0).Round(time.Millisecond))
+		}()
 		go func() {
 			lg.Info("server listening", "addr", cfg.HTTPAddr)
 			if err := e.Start(cfg.HTTPAddr); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -210,8 +220,12 @@ func workerCmd() *cobra.Command {
 		}
 		aq := asynq.NewClient(queue.RedisOpt(cfg.RedisAddr))
 		defer func() { _ = aq.Close() }()
+		// D-42：嵌入不受预算拦截，但计入用量并触发预算告警。
+		wrdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+		defer func() { _ = wrdb.Close() }()
+		wbs := &budget.Service{DB: client, R: wrdb, Log: lg, Loc: cfg.Timezone}
 		kbx := &kb.Indexer{DB: client, Objects: kbObjs, Store: kb.PGStore{DB: sqlDB},
-			GW: &gateway.Service{DB: client, Keys: keys, Client: &gateway.Client{HTTP: eg.HTTP()}}, Parser: docparse.New(), Log: lg}
+			GW: &gateway.Service{DB: client, Keys: keys, Client: &gateway.Client{HTTP: eg.HTTP()}}, Parser: docparse.New(), Log: lg, Settle: wbs.Settle}
 		mux.HandleFunc(kb.TaskIndex, kbx.HandleIndex)
 		mux.HandleFunc(kb.TaskSweep, func(ctx context.Context, _ *asynq.Task) error {
 			n, err := kb.Sweep(ctx, client, kb.AsynqEnqueuer{C: aq}, time.Now())

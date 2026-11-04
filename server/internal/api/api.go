@@ -90,6 +90,9 @@ func Mount(e *echo.Echo, d Deps) {
 	d.Auth.RegisterAdmin(admin.Group("", authz.Require(rbac.MemberManage)))
 
 	sh := &systemHandlers{db: d.DB, cfg: d.System}
+	if ps, ok := d.KBStore.(kb.PGStore); ok {
+		sh.kbDB = ps.DB
+	}
 	admin.GET("/system/status", sh.status, authz.Require(rbac.SettingsManage))
 	admin.GET("/system/tls", sh.tls, authz.Require(rbac.SettingsManage))
 	admin.POST("/system/master-key/ack", sh.ackMasterKey, authz.Require(rbac.SettingsManage))
@@ -126,6 +129,7 @@ func Mount(e *echo.Echo, d Deps) {
 	bs := d.Budget
 	if bs == nil {
 		bs = &budget.Service{DB: d.DB, R: d.Auth.Sessions.R, Log: d.Log, Loc: d.Timezone}
+		d.Budget = bs
 	}
 	mdh := &modelHandlers{db: d.DB, gw: gw, bs: bs, eg: d.Egress}
 	eh := &egressHandlers{db: d.DB, client: d.Egress, policy: d.EgressPolicy}
@@ -161,7 +165,7 @@ func Mount(e *echo.Echo, d Deps) {
 	if d.KBStore == nil {
 		d.KBStore = kb.NewMemStore()
 	}
-	ret := &kb.Retriever{DB: d.DB, AZ: az, Store: d.KBStore, GW: gw, Audit: d.Audit}
+	ret := &kb.Retriever{DB: d.DB, AZ: az, Store: d.KBStore, GW: gw, Audit: d.Audit, Settle: bs.Settle}
 	cvh := &convHandlers{db: d.DB, ch: ch, fs: d.Files, lim: d.FileLimits.withDefaults(), parser: docparse.New(), r: d.Auth.Sessions.R, ret: ret}
 	g.GET("/conversations", cvh.list)
 	g.POST("/conversations", cvh.create)

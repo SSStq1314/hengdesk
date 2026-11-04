@@ -191,6 +191,14 @@ export type SystemStatus = {
   https: boolean
   tls: TLSInfo | null
   master_key?: MasterKeyStatus
+  kb_index?: KBIndexStatus | null
+}
+
+// 向量索引体积（D-42）：超过内存一半时提示检索延迟可能明显上升。
+export type KBIndexStatus = {
+  index_bytes: number
+  memory_bytes: number
+  over_half: boolean
 }
 
 // 主密钥备份确认（D-36）：configured 且未 acknowledged 时常驻提示。

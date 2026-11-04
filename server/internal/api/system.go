@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"net"
 	"net/http"
 	"time"
@@ -17,12 +18,15 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/systemsetting"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
 	"github.com/SSStq1314/hengdesk/server/internal/httpserver"
+	"github.com/SSStq1314/hengdesk/server/internal/kb"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 	"github.com/SSStq1314/hengdesk/server/internal/tlsinfo"
 )
 
 // SystemConfig 管理后台常驻提示所需的配置。
 type SystemConfig struct {
+	// MemoryBytes 数据库所在机器内存，用于向量索引体积提示（D-42）；0 时读本机 /proc/meminfo（同机部署）。
+	MemoryBytes    int64
 	BackupDir      string
 	BackupKeep     int
 	DiskLowPercent int
@@ -44,6 +48,8 @@ type SystemConfig struct {
 type systemHandlers struct {
 	db  *ent.Client
 	cfg SystemConfig
+	// kbDB 知识库切片所在的 PostgreSQL；为 nil（内存实现）时不提示索引体积。
+	kbDB *sql.DB
 }
 
 // SystemStatus GET /admin/system/status 的响应，前端据此显示常驻告警条。
@@ -58,6 +64,8 @@ type SystemStatus struct {
 	TLS *tlsinfo.Info `json:"tls"`
 	// MasterKey 主密钥备份提示（D-36）：configured 且未 acknowledged 时前端显示常驻告警条。
 	MasterKey MasterKeyStatus `json:"master_key"`
+	// KBIndex 向量索引体积（D-42）：over_half 时前端提示索引超过内存一半、检索延迟可能明显上升。读取失败为 nil。
+	KBIndex *kb.IndexStatus `json:"kb_index"`
 }
 
 // MasterKeyStatus 主密钥状态。不含密钥本身。
@@ -179,6 +187,11 @@ func (h *systemHandlers) status(c echo.Context) error {
 		if f, err := backup.FreePercent(h.cfg.BackupDir); err == nil {
 			st.DiskFreePercent = &f
 			st.DiskLow = h.cfg.DiskLowPercent > 0 && f < float64(h.cfg.DiskLowPercent)
+		}
+	}
+	if h.kbDB != nil {
+		if ks, err := kb.CheckIndex(ctx, h.kbDB, h.cfg.MemoryBytes); err == nil {
+			st.KBIndex = &ks
 		}
 	}
 	return c.JSON(http.StatusOK, st)

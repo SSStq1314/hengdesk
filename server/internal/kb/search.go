@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-// 检索默认值（m1-block4.md 待确认 4）。
+// 检索默认值（m1-block4.md 待确认 4；ef_search 按 D-42 改为 400）。
 const (
 	DefaultTopK      = 8
 	DefaultPerRoute  = 40
 	RRFK             = 60
 	ExactThreshold   = 20000 // 可见 chunk 数不超过它时走精确检索
-	DefaultEfSearch  = 100
+	DefaultEfSearch  = 400   // D-42：100 万复测中 100 时 50% 可见 recall 只有 0.78
 	StrategyExact    = "exact"
 	StrategyHNSW     = "hnsw"
 	StrategyFallback = "hnsw_fallback_exact"
@@ -126,10 +126,12 @@ const hitCols = `id, file_id, kb_id, seq, content, heading, char_start, char_end
 const (
 	sqlExact = `SELECT ` + hitCols + `, 1 - (embedding <=> $1::vector) AS sim FROM kb_chunks
 		WHERE file_id = ANY($2) ORDER BY (embedding <=> $1::vector) + 0 LIMIT $3`
+	// sqlHNSW D-42：HNSW 建在 halfvec 表达式上（索引约减半），内层按半精度距离走索引取候选，
+	// 外层按原始 float32 距离重排并返回相似度。
 	sqlHNSW = `WITH c AS MATERIALIZED (
-		SELECT ` + hitCols + `, embedding <=> $1::vector AS dist FROM kb_chunks
-		WHERE file_id + 0 = ANY($2) ORDER BY embedding <=> $1::vector LIMIT $3)
-		SELECT ` + hitCols + `, 1 - dist FROM c ORDER BY dist`
+		SELECT ` + hitCols + `, embedding FROM kb_chunks
+		WHERE file_id + 0 = ANY($2) ORDER BY embedding::halfvec(1024) <=> $1::text::halfvec(1024) LIMIT $3)
+		SELECT ` + hitCols + `, 1 - (embedding <=> $1::text::vector) AS sim FROM c ORDER BY embedding <=> $1::text::vector, id`
 )
 
 func scanHits(rows *sql.Rows) ([]Hit, error) {
@@ -146,7 +148,7 @@ func scanHits(rows *sql.Rows) ([]Hit, error) {
 }
 
 // SearchVector D-27 分档：可见 chunk 少走精确检索（file_id 索引预过滤 + 距离排序，「+0」阻止规划器走 HNSW）；
-// 多走 HNSW（「file_id + 0」阻止规划器改用 B-tree，iterative_scan=relaxed_order，ef_search ≥ 100），外层按距离重排。HNSW 返回不足
+// 多走 HNSW（「file_id + 0」阻止规划器改用 B-tree，iterative_scan=relaxed_order，ef_search 默认 400，halfvec 索引），外层按距离重排。HNSW 返回不足
 // min(k, 可见数) 时回退精确检索，不允许静默低召回。force_custom_plan 避免预编译语句用通用计划。
 func (s PGStore) SearchVector(ctx context.Context, r SearchReq) ([]Hit, string, error) {
 	r.norm()

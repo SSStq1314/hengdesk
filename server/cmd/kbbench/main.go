@@ -53,6 +53,8 @@ var (
 	out      = flag.String("out", "", "结果 JSON 输出路径")
 	mwm      = flag.String("mwm", "4GB", "建 HNSW 索引时的 maintenance_work_mem")
 	seedFlag = flag.Uint64("seed", 27, "随机种子")
+	reindex  = flag.Bool("reindex", false, "不灌数据，只按当前迁移重建 halfvec HNSW 索引（D-42）")
+	prewarm  = flag.Bool("prewarm", true, "跑基准前用 pg_prewarm 预热索引与表（D-42，模拟服务启动后的热缓存）")
 	noiseF   = flag.Float64("noise", 0.03, "每维噪声标准差（0.03 时切片与簇中心余弦约 0.7，接近真实 embedding 的聚类程度；0.35 近似纯随机）")
 )
 
@@ -126,7 +128,7 @@ func initSchema(ctx context.Context, db *sql.DB, files, filesPerKB int) {
 	if _, err := store.ApplyMigrations(ctx, db); err != nil {
 		log.Fatal(err)
 	}
-	if _, err := db.ExecContext(ctx, `DROP INDEX IF EXISTS kbchunk_embedding_hnsw`); err != nil {
+	if _, err := db.ExecContext(ctx, `DROP INDEX IF EXISTS kbchunk_embedding_hnsw_half`); err != nil {
 		log.Fatal(err)
 	}
 	now := time.Now()
@@ -157,7 +159,7 @@ func loadChunks(ctx context.Context, db *sql.DB, from, filesPerKB int) {
 		log.Fatal(err)
 	}
 	defer func() { _ = conn.Close(ctx) }()
-	if _, err := conn.Exec(ctx, `DROP INDEX IF EXISTS kbchunk_embedding_hnsw`); err != nil { // 续灌时先去掉索引，灌完再建
+	if _, err := conn.Exec(ctx, `DROP INDEX IF EXISTS kbchunk_embedding_hnsw_half`); err != nil { // 续灌时先去掉索引，灌完再建
 		log.Fatal(err)
 	}
 	cs := centers()
@@ -187,7 +189,7 @@ func loadChunks(ctx context.Context, db *sql.DB, from, filesPerKB int) {
 	for _, s := range []string{
 		`SET maintenance_work_mem = '` + *mwm + `'`,
 		`SET max_parallel_maintenance_workers = 7`,
-		`CREATE INDEX kbchunk_embedding_hnsw ON kb_chunks USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64)`,
+		kb.HNSWIndexDDL,
 		`VACUUM ANALYZE kb_chunks`, `ANALYZE kb_files`, `ANALYZE acl`, `ANALYZE knowledge_bases`,
 		`SELECT setval(pg_get_serial_sequence('kb_chunks','id'), $1)`,
 	} {
@@ -225,6 +227,7 @@ type tierResult struct {
 	E2E           stat           `json:"e2e_ms"`
 	Vector        stat           `json:"vector_ms"`
 	RecallVec     float64        `json:"vector_recall_at_k"`
+	Recall10      float64        `json:"vector_recall_at_10"`
 	Leaks         int            `json:"leaks"`
 }
 
@@ -241,6 +244,23 @@ func main() {
 	defer func() { _ = c.Close() }()
 	if *load {
 		doLoad(ctx, db)
+	} else if *reindex {
+		t0 := time.Now()
+		for _, q := range []string{`DROP INDEX IF EXISTS kbchunk_embedding_hnsw`, `DROP INDEX IF EXISTS kbchunk_embedding_hnsw_half`,
+			`SET maintenance_work_mem = '` + *mwm + `'`, `SET max_parallel_maintenance_workers = 7`, kb.HNSWIndexDDL} {
+			if _, err := db.ExecContext(ctx, q); err != nil {
+				log.Fatalf("%s: %v", q, err)
+			}
+		}
+		log.Printf("重建 halfvec HNSW：%s", time.Since(t0).Round(time.Second))
+	}
+	if *prewarm {
+		t0 := time.Now()
+		if err := kb.Prewarm(ctx, db); err != nil {
+			log.Printf("预热失败（继续）：%v", err)
+		} else {
+			log.Printf("预热完成：%s", time.Since(t0).Round(time.Second))
+		}
 	}
 	var total int
 	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM kb_chunks`).Scan(&total); err != nil {
@@ -260,7 +280,7 @@ func main() {
 		r := tierResult{VisiblePct: t.pct, Strategy: map[string]int{}}
 		var e2e, vec []time.Duration
 		maxFile := *nKB * t.pct / 100 * filesPerKB
-		var recallSum float64
+		var recallSum, recall10Sum float64
 		for i := 0; i < *queries+5; i++ {
 			lastVec = nil
 			q := fmt.Sprintf("t%d w%d", qrng.IntN(nCenter), qrng.IntN(5000))
@@ -280,13 +300,16 @@ func main() {
 			r.Strategy[res.Strategy]++
 			e2e, vec = append(e2e, res.Total), append(vec, res.VectorDur)
 			if i-5 < *recallN && lastVec != nil {
-				recallSum += vecRecall(ctx, db, lastVec, maxFile)
+				a, b := vecRecall(ctx, db, lastVec, maxFile)
+				recallSum += a
+				recall10Sum += b
 			}
 		}
 		r.E2E, r.Vector = pct(e2e), pct(vec)
 		r.RecallVec = recallSum / float64(min(*recallN, *queries))
-		log.Printf("可见 %3d%%（%d 切片）策略 %v：端到端 P50 %.1f / P95 %.1f / P99 %.1f ms；向量阶段 P50 %.1f / P95 %.1f / P99 %.1f ms；向量 recall@%d %.4f；越权 %d",
-			t.pct, r.VisibleChunks, r.Strategy, r.E2E.P50, r.E2E.P95, r.E2E.P99, r.Vector.P50, r.Vector.P95, r.Vector.P99, *perRouteK(), r.RecallVec, r.Leaks)
+		r.Recall10 = recall10Sum / float64(min(*recallN, *queries))
+		log.Printf("可见 %3d%%（%d 切片）策略 %v：端到端 P50 %.1f / P95 %.1f / P99 %.1f ms；向量阶段 P50 %.1f / P95 %.1f / P99 %.1f ms；向量 recall@%d %.4f / recall@10 %.4f；越权 %d",
+			t.pct, r.VisibleChunks, r.Strategy, r.E2E.P50, r.E2E.P95, r.E2E.P99, r.Vector.P50, r.Vector.P95, r.Vector.P99, *perRouteK(), r.RecallVec, r.Recall10, r.Leaks)
 		results = append(results, r)
 	}
 	if *out != "" {
@@ -315,8 +338,8 @@ func (s benchStore) SearchVector(ctx context.Context, r kb.SearchReq) ([]kb.Hit,
 	return h, st, err
 }
 
-// vecRecall 向量路 recall@PerRoute：与同一可见范围内的精确 top-N 比较（file_id ≤ maxFile 即可见集合）。
-func vecRecall(ctx context.Context, db *sql.DB, v []float32, maxFile int) float64 {
+// vecRecall 向量路 recall@PerRoute 与 recall@10：与同一可见范围内的精确（float32）top-N 比较（file_id ≤ maxFile 即可见集合）。
+func vecRecall(ctx context.Context, db *sql.DB, v []float32, maxFile int) (float64, float64) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -332,20 +355,26 @@ func vecRecall(ctx context.Context, db *sql.DB, v []float32, maxFile int) float6
 	if err != nil {
 		log.Fatal(err)
 	}
-	want := map[int64]bool{}
+	want, want10 := map[int64]bool{}, map[int64]bool{}
 	for rows.Next() {
 		var id int64
 		if err := rows.Scan(&id); err != nil {
 			log.Fatal(err)
 		}
+		if len(want) < 10 {
+			want10[id] = true
+		}
 		want[id] = true
 	}
 	_ = rows.Close()
-	got := 0
-	for _, h := range lastHits {
+	got, got10 := 0, 0
+	for i, h := range lastHits {
 		if want[int64(h.ChunkID)] {
 			got++
 		}
+		if i < 10 && want10[int64(h.ChunkID)] {
+			got10++
+		}
 	}
-	return float64(got) / float64(len(want))
+	return float64(got) / float64(len(want)), float64(got10) / float64(len(want10))
 }
