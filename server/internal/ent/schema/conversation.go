@@ -1,12 +1,11 @@
 package schema
 
 import (
-	"encoding/json"
-
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	"github.com/SSStq1314/hengdesk/server/internal/rawjson"
 )
 
 // Conversation 对话会话（FR-14）。只属于创建人本人：所有读写都按 user_id 过滤，非本人一律 404。
@@ -67,7 +66,7 @@ func (Message) Fields() []ent.Field {
 		field.Bool("kb_ungrounded").Default(false),
 		// tool_calls 本条回复中的工具调用（摘要，界面展示用）；tool_state 等待审批时挂起的工具循环状态（重启后可续跑）。
 		field.JSON("tool_calls", []MsgToolCall{}).Optional(),
-		field.JSON("tool_state", json.RawMessage{}).Optional(),
+		field.JSON("tool_state", rawjson.Raw{}).Optional(),
 	}
 }
 

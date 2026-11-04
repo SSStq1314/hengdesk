@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
+	"github.com/SSStq1314/hengdesk/server/internal/rawjson"
 )
 
 // MessageCreate is the builder for creating a Message entity.
@@ -246,7 +246,7 @@ func (_c *MessageCreate) SetToolCalls(v []schema.MsgToolCall) *MessageCreate {
 }
 
 // SetToolState sets the "tool_state" field.
-func (_c *MessageCreate) SetToolState(v jsontext.Value) *MessageCreate {
+func (_c *MessageCreate) SetToolState(v rawjson.Raw) *MessageCreate {
 	_c.mutation.SetToolState(v)
 	return _c
 }
@@ -813,7 +813,7 @@ func (u *MessageUpsert) ClearToolCalls() *MessageUpsert {
 }
 
 // SetToolState sets the "tool_state" field.
-func (u *MessageUpsert) SetToolState(v jsontext.Value) *MessageUpsert {
+func (u *MessageUpsert) SetToolState(v rawjson.Raw) *MessageUpsert {
 	u.Set(message.FieldToolState, v)
 	return u
 }
@@ -1149,7 +1149,7 @@ func (u *MessageUpsertOne) ClearToolCalls() *MessageUpsertOne {
 }
 
 // SetToolState sets the "tool_state" field.
-func (u *MessageUpsertOne) SetToolState(v jsontext.Value) *MessageUpsertOne {
+func (u *MessageUpsertOne) SetToolState(v rawjson.Raw) *MessageUpsertOne {
 	return u.Update(func(s *MessageUpsert) {
 		s.SetToolState(v)
 	})
@@ -1654,7 +1654,7 @@ func (u *MessageUpsertBulk) ClearToolCalls() *MessageUpsertBulk {
 }
 
 // SetToolState sets the "tool_state" field.
-func (u *MessageUpsertBulk) SetToolState(v jsontext.Value) *MessageUpsertBulk {
+func (u *MessageUpsertBulk) SetToolState(v rawjson.Raw) *MessageUpsertBulk {
 	return u.Update(func(s *MessageUpsert) {
 		s.SetToolState(v)
 	})

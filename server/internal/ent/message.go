@@ -4,7 +4,6 @@ package ent
 
 import (
 	"encoding/json"
-	"encoding/json/jsontext"
 	"fmt"
 	"strings"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
+	"github.com/SSStq1314/hengdesk/server/internal/rawjson"
 )
 
 // Message is the model entity for the Message schema.
@@ -58,7 +58,7 @@ type Message struct {
 	// ToolCalls holds the value of the "tool_calls" field.
 	ToolCalls []schema.MsgToolCall `json:"tool_calls,omitempty"`
 	// ToolState holds the value of the "tool_state" field.
-	ToolState jsontext.Value `json:"tool_state,omitempty"`
+	ToolState rawjson.Raw `json:"tool_state,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the MessageQuery when eager-loading is set.
 	Edges        MessageEdges `json:"edges"`
