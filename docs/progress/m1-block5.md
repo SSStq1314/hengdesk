@@ -22,8 +22,8 @@
 | PR2 | 工具治理：风险等级 / 执行策略 / 审批人 / 超时 / 启用（高危不可自动、待复核须确认）；工具 ACL（成员 / 部门含下级 / 角色）；`policy.Decide` 与 `authz.ToolUsable` 收口；员工可用工具列表 | FR-23、FR-25（策略部分）、D-21 | 已合并 #47 |
 | PR3 | 审批与工具执行后端：`approvals` 表；工具执行器（审计 fail-closed、参数脱敏、出站、超时与错误回传）；审批 API（待我审批 / 我发起的 / 详情 / 通过 / 拒绝 / 撤回）、不可自批、超时扫描；审批人站内提醒 | FR-25、FR-28、AC-06/07 | 已合并 #49 |
 | PR4 | 对话接入：会话选择工具、工具调用循环（最多 5 步）、`tool_call` / `approval_pending` 事件、挂起与「继续」接口、拒绝 / 超时结果回传模型、重启恢复（状态全部落库，未单独写重启测试）、trace 串联 | FR-25、AC-06/07/08/11 | 已合并 #50 |
-| PR5 | Web：连接器目录与详情、工具治理与授权、审批中心、对话页工具选择 / 工具卡片 / 审批卡片 | §9.6 / §9.7 页面、演示剧本第 6、9、10 步 | 进行中 |
-| PR6 | 第五块完成报告 | — | 未开始 |
+| PR5 | Web：连接器目录与详情、工具治理与授权、审批中心、对话页工具选择 / 工具卡片 / 审批卡片 | §9.6 / §9.7 页面、演示剧本第 6、9、10 步 | 已合并 #51 |
+| PR6 | 第五块完成报告 | — | 本 PR |
 
 ## 待确认（先按以下默认值实现，不阻塞开发）
 
@@ -56,3 +56,46 @@
 - PR2 #47 → `80f55f6`：工具治理（风险等级 / 执行策略 / 审批人 / 超时 / 启用；高危不可自动、待复核须确认）、工具 ACL（成员 / 部门含下级 / 角色）、`policy.Decide` + `authz.ToolAccess` 收口、员工可用工具列表。CI 全绿。
 - PR3 #49 → `b47501f`：MCP 工具发现（tools/list 同步，新增 / 变更 / 下线标记待复核）、审批单（待办 / 我发起、通过即执行、驳回 / 撤回 / 超时落库）、工具调用审计（参数脱敏、审计写失败拒绝执行）。CI 全绿。
 - PR4 #50 → `6ad8f7b`：会话选择工具（≤20 个）、工具调用循环（≤5 步，超限 tool_choice=none）、`tool_call` / `approval_pending` 事件、挂起与「继续」接口、拒绝 / 超时 / 撤回结果交回模型、审计写失败拒绝执行；`tool_state` 改用 `rawjson.Raw`（新版 Go 下 ent 会把 json.RawMessage 生成为 jsontext 导入，CI 的 Go 1.26 编译失败）。CI 全绿。
+- PR5 #51 → `7dfc283`：Web 连接器与工具页（服务器登记 / 发现、工具治理、工具授权）、审批中心（待我审批 / 我发起的 / 详情 / 通过 / 驳回 / 撤回）、对话页工具选择、工具调用卡片与「继续」。CI 全绿。
+
+## 第五块完成报告（PR6）
+
+### PR 与合并提交
+
+| PR | 内容 | squash 提交 |
+|---|---|---|
+| #46 | PR1：计划、`mcp_servers` 表、MCP 客户端（Streamable HTTP / SSE）、本地假 MCP server、服务器登记与工具发现 | `4b9d10c` |
+| #47 | PR2：工具治理、工具 ACL、`policy.Decide` / `authz.ToolAccess` | `80f55f6` |
+| #49 | PR3：工具发现同步、审批单与通过即执行、工具调用审计 | `b47501f` |
+| #50 | PR4：对话工具调用循环、审批挂起与「继续」 | `6ad8f7b` |
+| #51 | PR5：Web 连接器与工具、审批中心、对话工具卡片 | `7dfc283` |
+| PR6 | 本完成报告 | 见本 PR 合并提交 |
+
+写这份报告时，main 为 `7dfc283`。
+
+### 对应需求
+
+| 需求 | 状态 |
+|---|---|
+| FR-22 MCP 服务器登记 / FR-23 工具发现与治理 | 已完成（#46、#47、#49、#51）；新工具默认禁用，schema 变化标记待复核 |
+| FR-25 执行策略与审批 / FR-28 审批中心 | 已完成（#47、#49、#50、#51）；高危不可自动执行，不可自批 |
+| FR-27 工具调用审计 | 已完成；参数脱敏，审计写失败即拒绝执行（API 与对话两条路径都有测试） |
+| AC-06 / AC-07 审批通过 / 拒绝 | 已完成，有后端测试；拒绝 / 超时 / 撤回结果交回模型 |
+| AC-08 重启恢复 | 状态全部落库（`tool_state`、审批单），**未单独写重启测试** |
+| 越权 404 / 未登录 401 | 各接口有测试 |
+
+### 测试情况
+
+- 每个 PR 都是 GitHub Actions 全绿后才 squash 合并：Go lint + test（-race）、PostgreSQL 17 + pgvector 集成、govulncheck、许可证扫描 + SBOM、Web lint + typecheck + build、compose 冒烟（SeaweedFS / MinIO / HTTPS）。
+- 第五块新增测试：`internal/mcp/client_test.go`、`internal/policy/policy_test.go`、`internal/approval/approval_test.go`，`internal/api` 中的 `mcp_test.go`、`tools_test.go`、`approvals_test.go`、`convtools_test.go`。
+- CI 只用 mockupstream 与本地假 MCP server（`cmd/mockmcp`），不读取任何真实密钥。前端页面只有 lint / typecheck / build，没有端到端测试。
+- 未引入新的第三方依赖（MCP 客户端沿用 PR1 已过许可扫描的依赖）；AGPL/GPL 项目只参考设计。
+
+### 演示方式
+
+1. 启动环境（`cd deploy && docker compose up -d`），另起本地假 MCP server：`cd server && go run ./cmd/mockmcp -addr :18090`（Streamable HTTP 地址 `http://<host>:18090/mcp`，SSE 为 `/sse`），并把该地址加入出站白名单。演示模型可用 `go run ./cmd/mockupstream`。
+2. 「连接器与工具」（`/mcp`，需 `tool.manage`）：登记服务器并点「发现」，看到 `create_ticket`、`query_ticket` 两个工具，状态为禁用。
+3. 把 `query_ticket` 设为只读 / 自动执行并启用；把 `create_ticket` 设为写入 / 需要审批，指定审批人 B 并启用；在「授权」里把两个工具授权给成员 A。
+4. 成员 A 在「对话」里选择这两个工具并提问：只读工具直接执行，卡片显示结果；写入工具卡片显示「等待审批」，发送按钮禁用。
+5. 成员 B 打开「审批中心」（`/approvals`，或点卡片链接）通过 / 驳回；A 回到对话点「继续」，模型根据结果作答。
+6. 「审计日志」里可按 `tool.call`、`approval.*` 过滤查看（参数已脱敏）。
