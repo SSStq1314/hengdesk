@@ -186,6 +186,7 @@ func Mount(e *echo.Echo, d Deps) {
 	apsvc := newApprovalService(d, mcph)
 	mountApprovals(g, apsvc)
 	cvh.az, cvh.ap = az, apsvc
+	mountAgents(g, d, az, cvh)
 
 	bh := &budgetHandlers{db: d.DB, bs: bs, az: az}
 	admin.GET("/budgets", bh.list, authz.Require(rbac.BudgetRead))
