@@ -15,6 +15,8 @@ const (
 	AlertAction          = "alert.high_risk"
 	SeverityHigh         = "high"
 	AlertBreakGlassLogin = "break_glass_login"
+	// AlertLegalHoldByAdmin 超级管理员设置了法律保全（D-41 第 3 条），通知审计员。
+	AlertLegalHoldByAdmin = "legal_hold_set_by_admin"
 )
 
 // Alert 高风险事件。
@@ -34,11 +36,20 @@ type Notifier interface {
 
 // RaiseAlert 写一条高风险审计（fail-closed），再尽力推送外部通知。
 func (s *Service) RaiseAlert(c echo.Context, base audit.Entry, kind string) error {
+	return s.RaiseAlertDetail(c, base, kind, nil)
+}
+
+// RaiseAlertDetail 同 RaiseAlert，detail 里附加 extra（不覆盖 kind / severity）。
+func (s *Service) RaiseAlertDetail(c echo.Context, base audit.Entry, kind string, extra map[string]any) error {
 	ctx := c.Request().Context()
 	ae := base
 	ae.Action, ae.Outcome = AlertAction, "success"
 	ae.ResourceType, ae.ResourceID = "user", base.ActorEmail
-	ae.Detail = map[string]any{"kind": kind, "severity": SeverityHigh}
+	ae.Detail = map[string]any{}
+	for k, v := range extra {
+		ae.Detail[k] = v
+	}
+	ae.Detail["kind"], ae.Detail["severity"] = kind, SeverityHigh
 	if err := s.Audit.Write(ctx, ae); err != nil {
 		return audit.ErrRejected
 	}

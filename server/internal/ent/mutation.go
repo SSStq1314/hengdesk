@@ -21,6 +21,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/legalhold"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
@@ -54,6 +55,7 @@ const (
 	TypeDeptClosure      = "DeptClosure"
 	TypeEgressLog        = "EgressLog"
 	TypeEgressRule       = "EgressRule"
+	TypeLegalHold        = "LegalHold"
 	TypeMembership       = "Membership"
 	TypeMessage          = "Message"
 	TypeModel            = "Model"
@@ -986,31 +988,32 @@ func (m *ACLMutation) ResetEdge(name string) error {
 // AuditLogMutation represents an operation that mutates the AuditLog nodes in the graph.
 type AuditLogMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	ts            *time.Time
-	org_id        *int
-	addorg_id     *int
-	actor_id      *int
-	addactor_id   *int
-	actor_email   *string
-	action        *string
-	resource_type *string
-	resource_id   *string
-	phase         *auditlog.Phase
-	outcome       *string
-	ip            *string
-	user_agent    *string
-	request_id    *string
-	trace_id      *string
-	detail        *map[string]interface{}
-	prev_hash     *string
-	hash          *string
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*AuditLog, error)
-	predicates    []predicate.AuditLog
+	op                Op
+	typ               string
+	id                *int
+	ts                *time.Time
+	org_id            *int
+	addorg_id         *int
+	actor_id          *int
+	addactor_id       *int
+	actor_email       *string
+	action            *string
+	resource_type     *string
+	resource_id       *string
+	phase             *auditlog.Phase
+	outcome           *string
+	ip                *string
+	user_agent        *string
+	request_id        *string
+	trace_id          *string
+	upstream_trace_id *string
+	detail            *map[string]interface{}
+	prev_hash         *string
+	hash              *string
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*AuditLog, error)
+	predicates        []predicate.AuditLog
 }
 
 var _ ent.Mutation = (*AuditLogMutation)(nil)
@@ -1647,6 +1650,42 @@ func (m *AuditLogMutation) ResetTraceID() {
 	m.trace_id = nil
 }
 
+// SetUpstreamTraceID sets the "upstream_trace_id" field.
+func (m *AuditLogMutation) SetUpstreamTraceID(s string) {
+	m.upstream_trace_id = &s
+}
+
+// UpstreamTraceID returns the value of the "upstream_trace_id" field in the mutation.
+func (m *AuditLogMutation) UpstreamTraceID() (r string, exists bool) {
+	v := m.upstream_trace_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpstreamTraceID returns the old "upstream_trace_id" field's value of the AuditLog entity.
+// If the AuditLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AuditLogMutation) OldUpstreamTraceID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpstreamTraceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpstreamTraceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpstreamTraceID: %w", err)
+	}
+	return oldValue.UpstreamTraceID, nil
+}
+
+// ResetUpstreamTraceID resets all changes to the "upstream_trace_id" field.
+func (m *AuditLogMutation) ResetUpstreamTraceID() {
+	m.upstream_trace_id = nil
+}
+
 // SetDetail sets the "detail" field.
 func (m *AuditLogMutation) SetDetail(value map[string]interface{}) {
 	m.detail = &value
@@ -1802,7 +1841,7 @@ func (m *AuditLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AuditLogMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.ts != nil {
 		fields = append(fields, auditlog.FieldTs)
 	}
@@ -1841,6 +1880,9 @@ func (m *AuditLogMutation) Fields() []string {
 	}
 	if m.trace_id != nil {
 		fields = append(fields, auditlog.FieldTraceID)
+	}
+	if m.upstream_trace_id != nil {
+		fields = append(fields, auditlog.FieldUpstreamTraceID)
 	}
 	if m.detail != nil {
 		fields = append(fields, auditlog.FieldDetail)
@@ -1885,6 +1927,8 @@ func (m *AuditLogMutation) Field(name string) (ent.Value, bool) {
 		return m.RequestID()
 	case auditlog.FieldTraceID:
 		return m.TraceID()
+	case auditlog.FieldUpstreamTraceID:
+		return m.UpstreamTraceID()
 	case auditlog.FieldDetail:
 		return m.Detail()
 	case auditlog.FieldPrevHash:
@@ -1926,6 +1970,8 @@ func (m *AuditLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldRequestID(ctx)
 	case auditlog.FieldTraceID:
 		return m.OldTraceID(ctx)
+	case auditlog.FieldUpstreamTraceID:
+		return m.OldUpstreamTraceID(ctx)
 	case auditlog.FieldDetail:
 		return m.OldDetail(ctx)
 	case auditlog.FieldPrevHash:
@@ -2031,6 +2077,13 @@ func (m *AuditLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTraceID(v)
+		return nil
+	case auditlog.FieldUpstreamTraceID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpstreamTraceID(v)
 		return nil
 	case auditlog.FieldDetail:
 		v, ok := value.(map[string]interface{})
@@ -2188,6 +2241,9 @@ func (m *AuditLogMutation) ResetField(name string) error {
 		return nil
 	case auditlog.FieldTraceID:
 		m.ResetTraceID()
+		return nil
+	case auditlog.FieldUpstreamTraceID:
+		m.ResetUpstreamTraceID()
 		return nil
 	case auditlog.FieldDetail:
 		m.ResetDetail()
@@ -10224,6 +10280,853 @@ func (m *EgressRuleMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EgressRule edge %s", name)
 }
 
+// LegalHoldMutation represents an operation that mutates the LegalHold nodes in the graph.
+type LegalHoldMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	org_id         *int
+	addorg_id      *int
+	user_id        *int
+	adduser_id     *int
+	reason         *string
+	created_by     *int
+	addcreated_by  *int
+	created_at     *time.Time
+	released_at    *time.Time
+	released_by    *int
+	addreleased_by *int
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*LegalHold, error)
+	predicates     []predicate.LegalHold
+}
+
+var _ ent.Mutation = (*LegalHoldMutation)(nil)
+
+// legalholdOption allows management of the mutation configuration using functional options.
+type legalholdOption func(*LegalHoldMutation)
+
+// newLegalHoldMutation creates new mutation for the LegalHold entity.
+func newLegalHoldMutation(c config, op Op, opts ...legalholdOption) *LegalHoldMutation {
+	m := &LegalHoldMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLegalHold,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLegalHoldID sets the ID field of the mutation.
+func withLegalHoldID(id int) legalholdOption {
+	return func(m *LegalHoldMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LegalHold
+		)
+		m.oldValue = func(ctx context.Context) (*LegalHold, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LegalHold.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLegalHold sets the old LegalHold of the mutation.
+func withLegalHold(node *LegalHold) legalholdOption {
+	return func(m *LegalHoldMutation) {
+		m.oldValue = func(context.Context) (*LegalHold, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LegalHoldMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LegalHoldMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LegalHoldMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LegalHoldMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LegalHold.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetOrgID sets the "org_id" field.
+func (m *LegalHoldMutation) SetOrgID(i int) {
+	m.org_id = &i
+	m.addorg_id = nil
+}
+
+// OrgID returns the value of the "org_id" field in the mutation.
+func (m *LegalHoldMutation) OrgID() (r int, exists bool) {
+	v := m.org_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrgID returns the old "org_id" field's value of the LegalHold entity.
+// If the LegalHold object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LegalHoldMutation) OldOrgID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrgID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrgID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrgID: %w", err)
+	}
+	return oldValue.OrgID, nil
+}
+
+// AddOrgID adds i to the "org_id" field.
+func (m *LegalHoldMutation) AddOrgID(i int) {
+	if m.addorg_id != nil {
+		*m.addorg_id += i
+	} else {
+		m.addorg_id = &i
+	}
+}
+
+// AddedOrgID returns the value that was added to the "org_id" field in this mutation.
+func (m *LegalHoldMutation) AddedOrgID() (r int, exists bool) {
+	v := m.addorg_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrgID resets all changes to the "org_id" field.
+func (m *LegalHoldMutation) ResetOrgID() {
+	m.org_id = nil
+	m.addorg_id = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *LegalHoldMutation) SetUserID(i int) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *LegalHoldMutation) UserID() (r int, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the LegalHold entity.
+// If the LegalHold object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LegalHoldMutation) OldUserID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *LegalHoldMutation) AddUserID(i int) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *LegalHoldMutation) AddedUserID() (r int, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (m *LegalHoldMutation) ClearUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+	m.clearedFields[legalhold.FieldUserID] = struct{}{}
+}
+
+// UserIDCleared returns if the "user_id" field was cleared in this mutation.
+func (m *LegalHoldMutation) UserIDCleared() bool {
+	_, ok := m.clearedFields[legalhold.FieldUserID]
+	return ok
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *LegalHoldMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+	delete(m.clearedFields, legalhold.FieldUserID)
+}
+
+// SetReason sets the "reason" field.
+func (m *LegalHoldMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *LegalHoldMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the LegalHold entity.
+// If the LegalHold object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LegalHoldMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *LegalHoldMutation) ResetReason() {
+	m.reason = nil
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *LegalHoldMutation) SetCreatedBy(i int) {
+	m.created_by = &i
+	m.addcreated_by = nil
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *LegalHoldMutation) CreatedBy() (r int, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the LegalHold entity.
+// If the LegalHold object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LegalHoldMutation) OldCreatedBy(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// AddCreatedBy adds i to the "created_by" field.
+func (m *LegalHoldMutation) AddCreatedBy(i int) {
+	if m.addcreated_by != nil {
+		*m.addcreated_by += i
+	} else {
+		m.addcreated_by = &i
+	}
+}
+
+// AddedCreatedBy returns the value that was added to the "created_by" field in this mutation.
+func (m *LegalHoldMutation) AddedCreatedBy() (r int, exists bool) {
+	v := m.addcreated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *LegalHoldMutation) ResetCreatedBy() {
+	m.created_by = nil
+	m.addcreated_by = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *LegalHoldMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *LegalHoldMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the LegalHold entity.
+// If the LegalHold object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LegalHoldMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *LegalHoldMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetReleasedAt sets the "released_at" field.
+func (m *LegalHoldMutation) SetReleasedAt(t time.Time) {
+	m.released_at = &t
+}
+
+// ReleasedAt returns the value of the "released_at" field in the mutation.
+func (m *LegalHoldMutation) ReleasedAt() (r time.Time, exists bool) {
+	v := m.released_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReleasedAt returns the old "released_at" field's value of the LegalHold entity.
+// If the LegalHold object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LegalHoldMutation) OldReleasedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReleasedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReleasedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReleasedAt: %w", err)
+	}
+	return oldValue.ReleasedAt, nil
+}
+
+// ClearReleasedAt clears the value of the "released_at" field.
+func (m *LegalHoldMutation) ClearReleasedAt() {
+	m.released_at = nil
+	m.clearedFields[legalhold.FieldReleasedAt] = struct{}{}
+}
+
+// ReleasedAtCleared returns if the "released_at" field was cleared in this mutation.
+func (m *LegalHoldMutation) ReleasedAtCleared() bool {
+	_, ok := m.clearedFields[legalhold.FieldReleasedAt]
+	return ok
+}
+
+// ResetReleasedAt resets all changes to the "released_at" field.
+func (m *LegalHoldMutation) ResetReleasedAt() {
+	m.released_at = nil
+	delete(m.clearedFields, legalhold.FieldReleasedAt)
+}
+
+// SetReleasedBy sets the "released_by" field.
+func (m *LegalHoldMutation) SetReleasedBy(i int) {
+	m.released_by = &i
+	m.addreleased_by = nil
+}
+
+// ReleasedBy returns the value of the "released_by" field in the mutation.
+func (m *LegalHoldMutation) ReleasedBy() (r int, exists bool) {
+	v := m.released_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReleasedBy returns the old "released_by" field's value of the LegalHold entity.
+// If the LegalHold object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LegalHoldMutation) OldReleasedBy(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReleasedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReleasedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReleasedBy: %w", err)
+	}
+	return oldValue.ReleasedBy, nil
+}
+
+// AddReleasedBy adds i to the "released_by" field.
+func (m *LegalHoldMutation) AddReleasedBy(i int) {
+	if m.addreleased_by != nil {
+		*m.addreleased_by += i
+	} else {
+		m.addreleased_by = &i
+	}
+}
+
+// AddedReleasedBy returns the value that was added to the "released_by" field in this mutation.
+func (m *LegalHoldMutation) AddedReleasedBy() (r int, exists bool) {
+	v := m.addreleased_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearReleasedBy clears the value of the "released_by" field.
+func (m *LegalHoldMutation) ClearReleasedBy() {
+	m.released_by = nil
+	m.addreleased_by = nil
+	m.clearedFields[legalhold.FieldReleasedBy] = struct{}{}
+}
+
+// ReleasedByCleared returns if the "released_by" field was cleared in this mutation.
+func (m *LegalHoldMutation) ReleasedByCleared() bool {
+	_, ok := m.clearedFields[legalhold.FieldReleasedBy]
+	return ok
+}
+
+// ResetReleasedBy resets all changes to the "released_by" field.
+func (m *LegalHoldMutation) ResetReleasedBy() {
+	m.released_by = nil
+	m.addreleased_by = nil
+	delete(m.clearedFields, legalhold.FieldReleasedBy)
+}
+
+// Where appends a list predicates to the LegalHoldMutation builder.
+func (m *LegalHoldMutation) Where(ps ...predicate.LegalHold) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LegalHoldMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LegalHoldMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LegalHold, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LegalHoldMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LegalHoldMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LegalHold).
+func (m *LegalHoldMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LegalHoldMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.org_id != nil {
+		fields = append(fields, legalhold.FieldOrgID)
+	}
+	if m.user_id != nil {
+		fields = append(fields, legalhold.FieldUserID)
+	}
+	if m.reason != nil {
+		fields = append(fields, legalhold.FieldReason)
+	}
+	if m.created_by != nil {
+		fields = append(fields, legalhold.FieldCreatedBy)
+	}
+	if m.created_at != nil {
+		fields = append(fields, legalhold.FieldCreatedAt)
+	}
+	if m.released_at != nil {
+		fields = append(fields, legalhold.FieldReleasedAt)
+	}
+	if m.released_by != nil {
+		fields = append(fields, legalhold.FieldReleasedBy)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LegalHoldMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case legalhold.FieldOrgID:
+		return m.OrgID()
+	case legalhold.FieldUserID:
+		return m.UserID()
+	case legalhold.FieldReason:
+		return m.Reason()
+	case legalhold.FieldCreatedBy:
+		return m.CreatedBy()
+	case legalhold.FieldCreatedAt:
+		return m.CreatedAt()
+	case legalhold.FieldReleasedAt:
+		return m.ReleasedAt()
+	case legalhold.FieldReleasedBy:
+		return m.ReleasedBy()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LegalHoldMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case legalhold.FieldOrgID:
+		return m.OldOrgID(ctx)
+	case legalhold.FieldUserID:
+		return m.OldUserID(ctx)
+	case legalhold.FieldReason:
+		return m.OldReason(ctx)
+	case legalhold.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case legalhold.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case legalhold.FieldReleasedAt:
+		return m.OldReleasedAt(ctx)
+	case legalhold.FieldReleasedBy:
+		return m.OldReleasedBy(ctx)
+	}
+	return nil, fmt.Errorf("unknown LegalHold field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LegalHoldMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case legalhold.FieldOrgID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrgID(v)
+		return nil
+	case legalhold.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case legalhold.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case legalhold.FieldCreatedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case legalhold.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case legalhold.FieldReleasedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReleasedAt(v)
+		return nil
+	case legalhold.FieldReleasedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReleasedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LegalHold field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LegalHoldMutation) AddedFields() []string {
+	var fields []string
+	if m.addorg_id != nil {
+		fields = append(fields, legalhold.FieldOrgID)
+	}
+	if m.adduser_id != nil {
+		fields = append(fields, legalhold.FieldUserID)
+	}
+	if m.addcreated_by != nil {
+		fields = append(fields, legalhold.FieldCreatedBy)
+	}
+	if m.addreleased_by != nil {
+		fields = append(fields, legalhold.FieldReleasedBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LegalHoldMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case legalhold.FieldOrgID:
+		return m.AddedOrgID()
+	case legalhold.FieldUserID:
+		return m.AddedUserID()
+	case legalhold.FieldCreatedBy:
+		return m.AddedCreatedBy()
+	case legalhold.FieldReleasedBy:
+		return m.AddedReleasedBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LegalHoldMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case legalhold.FieldOrgID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrgID(v)
+		return nil
+	case legalhold.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case legalhold.FieldCreatedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreatedBy(v)
+		return nil
+	case legalhold.FieldReleasedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReleasedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LegalHold numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LegalHoldMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(legalhold.FieldUserID) {
+		fields = append(fields, legalhold.FieldUserID)
+	}
+	if m.FieldCleared(legalhold.FieldReleasedAt) {
+		fields = append(fields, legalhold.FieldReleasedAt)
+	}
+	if m.FieldCleared(legalhold.FieldReleasedBy) {
+		fields = append(fields, legalhold.FieldReleasedBy)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LegalHoldMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LegalHoldMutation) ClearField(name string) error {
+	switch name {
+	case legalhold.FieldUserID:
+		m.ClearUserID()
+		return nil
+	case legalhold.FieldReleasedAt:
+		m.ClearReleasedAt()
+		return nil
+	case legalhold.FieldReleasedBy:
+		m.ClearReleasedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown LegalHold nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LegalHoldMutation) ResetField(name string) error {
+	switch name {
+	case legalhold.FieldOrgID:
+		m.ResetOrgID()
+		return nil
+	case legalhold.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case legalhold.FieldReason:
+		m.ResetReason()
+		return nil
+	case legalhold.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case legalhold.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case legalhold.FieldReleasedAt:
+		m.ResetReleasedAt()
+		return nil
+	case legalhold.FieldReleasedBy:
+		m.ResetReleasedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown LegalHold field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LegalHoldMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LegalHoldMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LegalHoldMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LegalHoldMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LegalHoldMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LegalHoldMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LegalHoldMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LegalHold unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LegalHoldMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LegalHold edge %s", name)
+}
+
 // MembershipMutation represents an operation that mutates the Membership nodes in the graph.
 type MembershipMutation struct {
 	config
@@ -11010,6 +11913,7 @@ type MessageMutation struct {
 	addprompt_tokens     *int
 	completion_tokens    *int
 	addcompletion_tokens *int
+	usage_estimated      *bool
 	request_id           *string
 	superseded_at        *time.Time
 	clearedFields        map[string]struct{}
@@ -11590,6 +12494,42 @@ func (m *MessageMutation) ResetCompletionTokens() {
 	m.addcompletion_tokens = nil
 }
 
+// SetUsageEstimated sets the "usage_estimated" field.
+func (m *MessageMutation) SetUsageEstimated(b bool) {
+	m.usage_estimated = &b
+}
+
+// UsageEstimated returns the value of the "usage_estimated" field in the mutation.
+func (m *MessageMutation) UsageEstimated() (r bool, exists bool) {
+	v := m.usage_estimated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsageEstimated returns the old "usage_estimated" field's value of the Message entity.
+// If the Message object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageMutation) OldUsageEstimated(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsageEstimated is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsageEstimated requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsageEstimated: %w", err)
+	}
+	return oldValue.UsageEstimated, nil
+}
+
+// ResetUsageEstimated resets all changes to the "usage_estimated" field.
+func (m *MessageMutation) ResetUsageEstimated() {
+	m.usage_estimated = nil
+}
+
 // SetRequestID sets the "request_id" field.
 func (m *MessageMutation) SetRequestID(s string) {
 	m.request_id = &s
@@ -11736,7 +12676,7 @@ func (m *MessageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MessageMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.created_at != nil {
 		fields = append(fields, message.FieldCreatedAt)
 	}
@@ -11772,6 +12712,9 @@ func (m *MessageMutation) Fields() []string {
 	}
 	if m.completion_tokens != nil {
 		fields = append(fields, message.FieldCompletionTokens)
+	}
+	if m.usage_estimated != nil {
+		fields = append(fields, message.FieldUsageEstimated)
 	}
 	if m.request_id != nil {
 		fields = append(fields, message.FieldRequestID)
@@ -11811,6 +12754,8 @@ func (m *MessageMutation) Field(name string) (ent.Value, bool) {
 		return m.PromptTokens()
 	case message.FieldCompletionTokens:
 		return m.CompletionTokens()
+	case message.FieldUsageEstimated:
+		return m.UsageEstimated()
 	case message.FieldRequestID:
 		return m.RequestID()
 	case message.FieldSupersededAt:
@@ -11848,6 +12793,8 @@ func (m *MessageMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldPromptTokens(ctx)
 	case message.FieldCompletionTokens:
 		return m.OldCompletionTokens(ctx)
+	case message.FieldUsageEstimated:
+		return m.OldUsageEstimated(ctx)
 	case message.FieldRequestID:
 		return m.OldRequestID(ctx)
 	case message.FieldSupersededAt:
@@ -11944,6 +12891,13 @@ func (m *MessageMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCompletionTokens(v)
+		return nil
+	case message.FieldUsageEstimated:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsageEstimated(v)
 		return nil
 	case message.FieldRequestID:
 		v, ok := value.(string)
@@ -12079,6 +13033,9 @@ func (m *MessageMutation) ResetField(name string) error {
 		return nil
 	case message.FieldCompletionTokens:
 		m.ResetCompletionTokens()
+		return nil
+	case message.FieldUsageEstimated:
+		m.ResetUsageEstimated()
 		return nil
 	case message.FieldRequestID:
 		m.ResetRequestID()

@@ -36,6 +36,9 @@ type EgressLog func(*sql.Selector)
 // EgressRule is the predicate function for egressrule builders.
 type EgressRule func(*sql.Selector)
 
+// LegalHold is the predicate function for legalhold builders.
+type LegalHold func(*sql.Selector)
+
 // Membership is the predicate function for membership builders.
 type Membership func(*sql.Selector)
 

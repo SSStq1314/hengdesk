@@ -27,7 +27,7 @@ docker compose exec server hengdesk audit archive --auditor auditor@example.com 
 如果在第 2、3 步之后失败，可以直接重跑：多出来的检查点无害，数据仍在线上。删除后 `GET /admin/audit-logs/verify` 仍为 `ok`：剩余链的第一条由最新检查点锚定（返回 `anchor_id`）。
 
 ## 归档包与离线校验
-包内文件：`records.jsonl`（每行一条原始记录，含 hash / prev_hash）、`manifest.json`（格式 `hengdesk-audit-archive/v1`、首尾 id、首尾哈希、条数）、`SHA256SUMS`、`VERIFY.md`，以及可选的 `manifest.sig`。
+包内文件：`records.jsonl`（每行一条原始记录，含 hash / prev_hash）、`manifest.json`（格式 `hengdesk-audit-archive/v1`、首尾 id、首尾哈希、条数）、`SHA256SUMS`、`VERIFY.md`，以及可选的 `manifest.sig`。记录中的 `upstream_trace_id`（D-41）只在非空时出现并参与哈希，旧记录哈希格式不变。
 
 ```sh
 hengdesk audit fetch-archive audit-archives/<archive_id>.tar.gz --out a.tar.gz   # 从对象存储取回

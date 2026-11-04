@@ -17,6 +17,13 @@ function describe(a: HighRiskAlert) {
       : ''
     return zh.alerts.auditRetentionDue(due, a.detail.days_left ?? 0)
   }
+  if (a.detail?.kind === 'legal_hold_set_by_admin') {
+    return zh.alerts.legalHoldByAdmin(
+      a.actor_email,
+      ts,
+      String(a.detail.user_email ?? '')
+    )
+  }
   return zh.alerts.other(a.detail?.kind ?? '', a.actor_email, ts)
 }
 

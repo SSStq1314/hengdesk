@@ -35,6 +35,8 @@ type Server struct {
 	StallAfter int
 	// Delay 返回前等待（用于超时测试）。
 	Delay time.Duration
+	// TokenDelay 流式输出时每个内容片段之间等待（压测模拟出字速度）。
+	TokenDelay time.Duration
 	// OmitUsage 不返回 usage（用于估算测试）。
 	OmitUsage bool
 	// CutAfter 非 0 时流式回答输出 CutAfter 个字符后直接断开连接（用于首 token 之后失败的测试）。
@@ -222,7 +224,7 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request, id, model, reaso
 		finish = "tool_calls"
 	} else {
 		s.mu.Lock()
-		cut, stall := s.CutAfter, s.StallAfter
+		cut, stall, td := s.CutAfter, s.StallAfter, s.TokenDelay
 		s.mu.Unlock()
 		n := 0
 		for _, ch := range content {
@@ -232,6 +234,9 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request, id, model, reaso
 			if stall > 0 && n == stall {
 				<-r.Context().Done()
 				return
+			}
+			if td > 0 && n > 0 {
+				time.Sleep(td)
 			}
 			send(map[string]any{"content": string(ch), "reasoning_content": nil}, nil, nil)
 			n++

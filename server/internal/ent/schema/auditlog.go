@@ -33,6 +33,8 @@ func (AuditLog) Fields() []ent.Field {
 		field.String("user_agent").Default("").Immutable(),
 		field.String("request_id").Default("").Immutable(),
 		field.String("trace_id").Default("").Immutable(),
+		// upstream_trace_id 受信代理传入的 traceparent 中的 trace-id（D-41 第 1 条），仅用于与外部链路关联排查；审计主键仍是 trace_id。
+		field.String("upstream_trace_id").Default("").Immutable(),
 		field.JSON("detail", map[string]any{}).Optional().Immutable(),
 		field.String("prev_hash").Default("").Immutable().Comment("上一条的 hash；链首为空"),
 		field.String("hash").Default("").Immutable().Comment("sha256(prev_hash + 规范化内容)；M1 之前的旧行为空"),

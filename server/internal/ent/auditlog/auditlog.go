@@ -41,6 +41,8 @@ const (
 	FieldRequestID = "request_id"
 	// FieldTraceID holds the string denoting the trace_id field in the database.
 	FieldTraceID = "trace_id"
+	// FieldUpstreamTraceID holds the string denoting the upstream_trace_id field in the database.
+	FieldUpstreamTraceID = "upstream_trace_id"
 	// FieldDetail holds the string denoting the detail field in the database.
 	FieldDetail = "detail"
 	// FieldPrevHash holds the string denoting the prev_hash field in the database.
@@ -67,6 +69,7 @@ var Columns = []string{
 	FieldUserAgent,
 	FieldRequestID,
 	FieldTraceID,
+	FieldUpstreamTraceID,
 	FieldDetail,
 	FieldPrevHash,
 	FieldHash,
@@ -109,6 +112,8 @@ var (
 	DefaultRequestID string
 	// DefaultTraceID holds the default value on creation for the "trace_id" field.
 	DefaultTraceID string
+	// DefaultUpstreamTraceID holds the default value on creation for the "upstream_trace_id" field.
+	DefaultUpstreamTraceID string
 	// DefaultPrevHash holds the default value on creation for the "prev_hash" field.
 	DefaultPrevHash string
 	// DefaultHash holds the default value on creation for the "hash" field.
@@ -212,6 +217,11 @@ func ByRequestID(opts ...sql.OrderTermOption) OrderOption {
 // ByTraceID orders the results by the trace_id field.
 func ByTraceID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTraceID, opts...).ToFunc()
+}
+
+// ByUpstreamTraceID orders the results by the upstream_trace_id field.
+func ByUpstreamTraceID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpstreamTraceID, opts...).ToFunc()
 }
 
 // ByPrevHash orders the results by the prev_hash field.

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedRolesRouteImport } from './routes/_authenticated/roles'
+import { Route as AuthenticatedRetentionRouteImport } from './routes/_authenticated/retention'
 import { Route as AuthenticatedModelsRouteImport } from './routes/_authenticated/models'
 import { Route as AuthenticatedMembersRouteImport } from './routes/_authenticated/members'
 import { Route as AuthenticatedEgressRouteImport } from './routes/_authenticated/egress'
@@ -39,6 +40,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
 const AuthenticatedRolesRoute = AuthenticatedRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedRetentionRoute = AuthenticatedRetentionRouteImport.update({
+  id: '/retention',
+  path: '/retention',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedModelsRoute = AuthenticatedModelsRouteImport.update({
@@ -129,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/egress': typeof AuthenticatedEgressRoute
   '/members': typeof AuthenticatedMembersRoute
   '/models': typeof AuthenticatedModelsRoute
+  '/retention': typeof AuthenticatedRetentionRoute
   '/roles': typeof AuthenticatedRolesRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
 }
@@ -146,6 +153,7 @@ export interface FileRoutesByTo {
   '/egress': typeof AuthenticatedEgressRoute
   '/members': typeof AuthenticatedMembersRoute
   '/models': typeof AuthenticatedModelsRoute
+  '/retention': typeof AuthenticatedRetentionRoute
   '/roles': typeof AuthenticatedRolesRoute
   '/': typeof AuthenticatedIndexRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
@@ -166,6 +174,7 @@ export interface FileRoutesById {
   '/_authenticated/egress': typeof AuthenticatedEgressRoute
   '/_authenticated/members': typeof AuthenticatedMembersRoute
   '/_authenticated/models': typeof AuthenticatedModelsRoute
+  '/_authenticated/retention': typeof AuthenticatedRetentionRoute
   '/_authenticated/roles': typeof AuthenticatedRolesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
@@ -187,6 +196,7 @@ export interface FileRouteTypes {
     | '/egress'
     | '/members'
     | '/models'
+    | '/retention'
     | '/roles'
     | '/errors/$error'
   fileRoutesByTo: FileRoutesByTo
@@ -204,6 +214,7 @@ export interface FileRouteTypes {
     | '/egress'
     | '/members'
     | '/models'
+    | '/retention'
     | '/roles'
     | '/'
     | '/errors/$error'
@@ -223,6 +234,7 @@ export interface FileRouteTypes {
     | '/_authenticated/egress'
     | '/_authenticated/members'
     | '/_authenticated/models'
+    | '/_authenticated/retention'
     | '/_authenticated/roles'
     | '/_authenticated/'
     | '/_authenticated/errors/$error'
@@ -259,6 +271,13 @@ declare module '@tanstack/react-router' {
       path: '/roles'
       fullPath: '/roles'
       preLoaderRoute: typeof AuthenticatedRolesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/retention': {
+      id: '/_authenticated/retention'
+      path: '/retention'
+      fullPath: '/retention'
+      preLoaderRoute: typeof AuthenticatedRetentionRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/models': {
@@ -370,6 +389,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEgressRoute: typeof AuthenticatedEgressRoute
   AuthenticatedMembersRoute: typeof AuthenticatedMembersRoute
   AuthenticatedModelsRoute: typeof AuthenticatedModelsRoute
+  AuthenticatedRetentionRoute: typeof AuthenticatedRetentionRoute
   AuthenticatedRolesRoute: typeof AuthenticatedRolesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
@@ -383,6 +403,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEgressRoute: AuthenticatedEgressRoute,
   AuthenticatedMembersRoute: AuthenticatedMembersRoute,
   AuthenticatedModelsRoute: AuthenticatedModelsRoute,
+  AuthenticatedRetentionRoute: AuthenticatedRetentionRoute,
   AuthenticatedRolesRoute: AuthenticatedRolesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,

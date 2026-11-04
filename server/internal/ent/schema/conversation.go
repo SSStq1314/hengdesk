@@ -8,7 +8,7 @@ import (
 )
 
 // Conversation 对话会话（FR-14）。只属于创建人本人：所有读写都按 user_id 过滤，非本人一律 404。
-// 删除为软删除（deleted_at），保留消息供审计链路还原（FR-28）；M1 默认不自动删除（保留期待产品确认）。
+// 删除为软删除（deleted_at），保留消息供审计链路还原（FR-28）；物理删除只经保留期清理（D-40 第 2 条，默认不开启，见 chatretention）。
 type Conversation struct{ ent.Schema }
 
 func (Conversation) Fields() []ent.Field {
@@ -49,6 +49,8 @@ func (Message) Fields() []ent.Field {
 		field.String("error").Default("").MaxLen(500),
 		field.Int("prompt_tokens").Default(0),
 		field.Int("completion_tokens").Default(0),
+		// usage_estimated 上游未返回 usage、token 为网关估算值（D-41 第 4 条，界面标「估算」）。
+		field.Bool("usage_estimated").Default(false),
 		// request_id 关联审计与 usage_records（同一次请求的所有尝试）。
 		field.String("request_id").Default(""),
 		// superseded_at 被「重新生成 / 重试」替换的旧回复（D-40 第 6 条）：软保留供审计，UI 与后续上下文不再使用。

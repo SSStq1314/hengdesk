@@ -15,6 +15,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/legalhold"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
@@ -99,12 +100,16 @@ func init() {
 	auditlogDescTraceID := auditlogFields[12].Descriptor()
 	// auditlog.DefaultTraceID holds the default value on creation for the trace_id field.
 	auditlog.DefaultTraceID = auditlogDescTraceID.Default.(string)
+	// auditlogDescUpstreamTraceID is the schema descriptor for upstream_trace_id field.
+	auditlogDescUpstreamTraceID := auditlogFields[13].Descriptor()
+	// auditlog.DefaultUpstreamTraceID holds the default value on creation for the upstream_trace_id field.
+	auditlog.DefaultUpstreamTraceID = auditlogDescUpstreamTraceID.Default.(string)
 	// auditlogDescPrevHash is the schema descriptor for prev_hash field.
-	auditlogDescPrevHash := auditlogFields[14].Descriptor()
+	auditlogDescPrevHash := auditlogFields[15].Descriptor()
 	// auditlog.DefaultPrevHash holds the default value on creation for the prev_hash field.
 	auditlog.DefaultPrevHash = auditlogDescPrevHash.Default.(string)
 	// auditlogDescHash is the schema descriptor for hash field.
-	auditlogDescHash := auditlogFields[15].Descriptor()
+	auditlogDescHash := auditlogFields[16].Descriptor()
 	// auditlog.DefaultHash holds the default value on creation for the hash field.
 	auditlog.DefaultHash = auditlogDescHash.Default.(string)
 	budgetMixin := schema.Budget{}.Mixin()
@@ -368,6 +373,30 @@ func init() {
 	egressruleDescReviewRequired := egressruleFields[9].Descriptor()
 	// egressrule.DefaultReviewRequired holds the default value on creation for the review_required field.
 	egressrule.DefaultReviewRequired = egressruleDescReviewRequired.Default.(bool)
+	legalholdFields := schema.LegalHold{}.Fields()
+	_ = legalholdFields
+	// legalholdDescReason is the schema descriptor for reason field.
+	legalholdDescReason := legalholdFields[2].Descriptor()
+	// legalhold.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	legalhold.ReasonValidator = func() func(string) error {
+		validators := legalholdDescReason.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(reason string) error {
+			for _, fn := range fns {
+				if err := fn(reason); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// legalholdDescCreatedAt is the schema descriptor for created_at field.
+	legalholdDescCreatedAt := legalholdFields[4].Descriptor()
+	// legalhold.DefaultCreatedAt holds the default value on creation for the created_at field.
+	legalhold.DefaultCreatedAt = legalholdDescCreatedAt.Default.(func() time.Time)
 	membershipMixin := schema.Membership{}.Mixin()
 	membershipMixinFields0 := membershipMixin[0].Fields()
 	_ = membershipMixinFields0
@@ -432,8 +461,12 @@ func init() {
 	messageDescCompletionTokens := messageFields[9].Descriptor()
 	// message.DefaultCompletionTokens holds the default value on creation for the completion_tokens field.
 	message.DefaultCompletionTokens = messageDescCompletionTokens.Default.(int)
+	// messageDescUsageEstimated is the schema descriptor for usage_estimated field.
+	messageDescUsageEstimated := messageFields[10].Descriptor()
+	// message.DefaultUsageEstimated holds the default value on creation for the usage_estimated field.
+	message.DefaultUsageEstimated = messageDescUsageEstimated.Default.(bool)
 	// messageDescRequestID is the schema descriptor for request_id field.
-	messageDescRequestID := messageFields[10].Descriptor()
+	messageDescRequestID := messageFields[11].Descriptor()
 	// message.DefaultRequestID holds the default value on creation for the request_id field.
 	message.DefaultRequestID = messageDescRequestID.Default.(string)
 	modelMixin := schema.Model{}.Mixin()

@@ -42,6 +42,8 @@ type Message struct {
 	PromptTokens int `json:"prompt_tokens,omitempty"`
 	// CompletionTokens holds the value of the "completion_tokens" field.
 	CompletionTokens int `json:"completion_tokens,omitempty"`
+	// UsageEstimated holds the value of the "usage_estimated" field.
+	UsageEstimated bool `json:"usage_estimated,omitempty"`
 	// RequestID holds the value of the "request_id" field.
 	RequestID string `json:"request_id,omitempty"`
 	// SupersededAt holds the value of the "superseded_at" field.
@@ -77,6 +79,8 @@ func (*Message) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case message.FieldUsageEstimated:
+			values[i] = new(sql.NullBool)
 		case message.FieldID, message.FieldConversationID, message.FieldPromptTokens, message.FieldCompletionTokens:
 			values[i] = new(sql.NullInt64)
 		case message.FieldRole, message.FieldContent, message.FieldStatus, message.FieldModelName, message.FieldFallbackFrom, message.FieldErrorCode, message.FieldError, message.FieldRequestID:
@@ -176,6 +180,12 @@ func (_m *Message) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CompletionTokens = int(value.Int64)
 			}
+		case message.FieldUsageEstimated:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field usage_estimated", values[i])
+			} else if value.Valid {
+				_m.UsageEstimated = value.Bool
+			}
 		case message.FieldRequestID:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field request_id", values[i])
@@ -265,6 +275,9 @@ func (_m *Message) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("completion_tokens=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CompletionTokens))
+	builder.WriteString(", ")
+	builder.WriteString("usage_estimated=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UsageEstimated))
 	builder.WriteString(", ")
 	builder.WriteString("request_id=")
 	builder.WriteString(_m.RequestID)
