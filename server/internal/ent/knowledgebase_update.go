@@ -180,6 +180,20 @@ func (_u *KnowledgeBaseUpdate) ClearDeletedAt() *KnowledgeBaseUpdate {
 	return _u
 }
 
+// SetStrictGrounding sets the "strict_grounding" field.
+func (_u *KnowledgeBaseUpdate) SetStrictGrounding(v bool) *KnowledgeBaseUpdate {
+	_u.mutation.SetStrictGrounding(v)
+	return _u
+}
+
+// SetNillableStrictGrounding sets the "strict_grounding" field if the given value is not nil.
+func (_u *KnowledgeBaseUpdate) SetNillableStrictGrounding(v *bool) *KnowledgeBaseUpdate {
+	if v != nil {
+		_u.SetStrictGrounding(*v)
+	}
+	return _u
+}
+
 // Mutation returns the KnowledgeBaseMutation object of the builder.
 func (_u *KnowledgeBaseUpdate) Mutation() *KnowledgeBaseMutation {
 	return _u.mutation
@@ -294,6 +308,9 @@ func (_u *KnowledgeBaseUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(knowledgebase.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.StrictGrounding(); ok {
+		_spec.SetField(knowledgebase.FieldStrictGrounding, field.TypeBool, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -467,6 +484,20 @@ func (_u *KnowledgeBaseUpdateOne) ClearDeletedAt() *KnowledgeBaseUpdateOne {
 	return _u
 }
 
+// SetStrictGrounding sets the "strict_grounding" field.
+func (_u *KnowledgeBaseUpdateOne) SetStrictGrounding(v bool) *KnowledgeBaseUpdateOne {
+	_u.mutation.SetStrictGrounding(v)
+	return _u
+}
+
+// SetNillableStrictGrounding sets the "strict_grounding" field if the given value is not nil.
+func (_u *KnowledgeBaseUpdateOne) SetNillableStrictGrounding(v *bool) *KnowledgeBaseUpdateOne {
+	if v != nil {
+		_u.SetStrictGrounding(*v)
+	}
+	return _u
+}
+
 // Mutation returns the KnowledgeBaseMutation object of the builder.
 func (_u *KnowledgeBaseUpdateOne) Mutation() *KnowledgeBaseMutation {
 	return _u.mutation
@@ -611,6 +642,9 @@ func (_u *KnowledgeBaseUpdateOne) sqlSave(ctx context.Context) (_node *Knowledge
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(knowledgebase.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.StrictGrounding(); ok {
+		_spec.SetField(knowledgebase.FieldStrictGrounding, field.TypeBool, value)
 	}
 	_node = &KnowledgeBase{config: _u.config}
 	_spec.Assign = _node.assignValues

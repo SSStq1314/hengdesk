@@ -59,6 +59,8 @@ func (Message) Fields() []ent.Field {
 		field.Time("superseded_at").Optional().Nillable(),
 		// citations 本条回复引用的知识库片段（FR-18）。读取时按当前权限再过滤，失去权限的文件整条不返回。
 		field.JSON("citations", []MsgCitation{}).Optional(),
+		// kb_ungrounded 绑定了知识库但本条回答没有引用任何知识库资料（无命中或用户选择本次不使用知识库，D-42），界面标注「未引用知识库资料」。
+		field.Bool("kb_ungrounded").Default(false),
 	}
 }
 

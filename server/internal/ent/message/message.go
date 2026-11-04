@@ -47,6 +47,8 @@ const (
 	FieldSupersededAt = "superseded_at"
 	// FieldCitations holds the string denoting the citations field in the database.
 	FieldCitations = "citations"
+	// FieldKBUngrounded holds the string denoting the kb_ungrounded field in the database.
+	FieldKBUngrounded = "kb_ungrounded"
 	// EdgeConversation holds the string denoting the conversation edge name in mutations.
 	EdgeConversation = "conversation"
 	// Table holds the table name of the message in the database.
@@ -79,6 +81,7 @@ var Columns = []string{
 	FieldRequestID,
 	FieldSupersededAt,
 	FieldCitations,
+	FieldKBUngrounded,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -118,6 +121,8 @@ var (
 	DefaultUsageEstimated bool
 	// DefaultRequestID holds the default value on creation for the "request_id" field.
 	DefaultRequestID string
+	// DefaultKBUngrounded holds the default value on creation for the "kb_ungrounded" field.
+	DefaultKBUngrounded bool
 )
 
 // Role defines the type for the "role" enum field.
@@ -252,6 +257,11 @@ func ByRequestID(opts ...sql.OrderTermOption) OrderOption {
 // BySupersededAt orders the results by the superseded_at field.
 func BySupersededAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSupersededAt, opts...).ToFunc()
+}
+
+// ByKBUngrounded orders the results by the kb_ungrounded field.
+func ByKBUngrounded(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKBUngrounded, opts...).ToFunc()
 }
 
 // ByConversationField orders the results by conversation field.

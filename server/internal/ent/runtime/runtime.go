@@ -476,6 +476,10 @@ func init() {
 	knowledgebaseDescChunkOverlap := knowledgebaseFields[5].Descriptor()
 	// knowledgebase.DefaultChunkOverlap holds the default value on creation for the chunk_overlap field.
 	knowledgebase.DefaultChunkOverlap = knowledgebaseDescChunkOverlap.Default.(int)
+	// knowledgebaseDescStrictGrounding is the schema descriptor for strict_grounding field.
+	knowledgebaseDescStrictGrounding := knowledgebaseFields[8].Descriptor()
+	// knowledgebase.DefaultStrictGrounding holds the default value on creation for the strict_grounding field.
+	knowledgebase.DefaultStrictGrounding = knowledgebaseDescStrictGrounding.Default.(bool)
 	legalholdFields := schema.LegalHold{}.Fields()
 	_ = legalholdFields
 	// legalholdDescReason is the schema descriptor for reason field.
@@ -647,6 +651,10 @@ func init() {
 	messageDescRequestID := messageFields[11].Descriptor()
 	// message.DefaultRequestID holds the default value on creation for the request_id field.
 	message.DefaultRequestID = messageDescRequestID.Default.(string)
+	// messageDescKBUngrounded is the schema descriptor for kb_ungrounded field.
+	messageDescKBUngrounded := messageFields[14].Descriptor()
+	// message.DefaultKBUngrounded holds the default value on creation for the kb_ungrounded field.
+	message.DefaultKBUngrounded = messageDescKBUngrounded.Default.(bool)
 	modelMixin := schema.Model{}.Mixin()
 	modelMixinFields0 := modelMixin[0].Fields()
 	_ = modelMixinFields0

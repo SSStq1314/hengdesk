@@ -130,6 +130,20 @@ func (_c *KnowledgeBaseCreate) SetNillableDeletedAt(v *time.Time) *KnowledgeBase
 	return _c
 }
 
+// SetStrictGrounding sets the "strict_grounding" field.
+func (_c *KnowledgeBaseCreate) SetStrictGrounding(v bool) *KnowledgeBaseCreate {
+	_c.mutation.SetStrictGrounding(v)
+	return _c
+}
+
+// SetNillableStrictGrounding sets the "strict_grounding" field if the given value is not nil.
+func (_c *KnowledgeBaseCreate) SetNillableStrictGrounding(v *bool) *KnowledgeBaseCreate {
+	if v != nil {
+		_c.SetStrictGrounding(*v)
+	}
+	return _c
+}
+
 // Mutation returns the KnowledgeBaseMutation object of the builder.
 func (_c *KnowledgeBaseCreate) Mutation() *KnowledgeBaseMutation {
 	return _c.mutation
@@ -185,6 +199,10 @@ func (_c *KnowledgeBaseCreate) defaults() {
 		v := knowledgebase.DefaultChunkOverlap
 		_c.mutation.SetChunkOverlap(v)
 	}
+	if _, ok := _c.mutation.StrictGrounding(); !ok {
+		v := knowledgebase.DefaultStrictGrounding
+		_c.mutation.SetStrictGrounding(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -230,6 +248,9 @@ func (_c *KnowledgeBaseCreate) check() error {
 	}
 	if _, ok := _c.mutation.CreatedBy(); !ok {
 		return &ValidationError{Name: "created_by", err: errors.New(`ent: missing required field "KnowledgeBase.created_by"`)}
+	}
+	if _, ok := _c.mutation.StrictGrounding(); !ok {
+		return &ValidationError{Name: "strict_grounding", err: errors.New(`ent: missing required field "KnowledgeBase.strict_grounding"`)}
 	}
 	return nil
 }
@@ -297,6 +318,10 @@ func (_c *KnowledgeBaseCreate) createSpec() (*KnowledgeBase, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(knowledgebase.FieldDeletedAt, field.TypeTime, value)
 		_node.DeletedAt = &value
+	}
+	if value, ok := _c.mutation.StrictGrounding(); ok {
+		_spec.SetField(knowledgebase.FieldStrictGrounding, field.TypeBool, value)
+		_node.StrictGrounding = value
 	}
 	return _node, _spec
 }
@@ -485,6 +510,18 @@ func (u *KnowledgeBaseUpsert) UpdateDeletedAt() *KnowledgeBaseUpsert {
 // ClearDeletedAt clears the value of the "deleted_at" field.
 func (u *KnowledgeBaseUpsert) ClearDeletedAt() *KnowledgeBaseUpsert {
 	u.SetNull(knowledgebase.FieldDeletedAt)
+	return u
+}
+
+// SetStrictGrounding sets the "strict_grounding" field.
+func (u *KnowledgeBaseUpsert) SetStrictGrounding(v bool) *KnowledgeBaseUpsert {
+	u.Set(knowledgebase.FieldStrictGrounding, v)
+	return u
+}
+
+// UpdateStrictGrounding sets the "strict_grounding" field to the value that was provided on create.
+func (u *KnowledgeBaseUpsert) UpdateStrictGrounding() *KnowledgeBaseUpsert {
+	u.SetExcluded(knowledgebase.FieldStrictGrounding)
 	return u
 }
 
@@ -691,6 +728,20 @@ func (u *KnowledgeBaseUpsertOne) UpdateDeletedAt() *KnowledgeBaseUpsertOne {
 func (u *KnowledgeBaseUpsertOne) ClearDeletedAt() *KnowledgeBaseUpsertOne {
 	return u.Update(func(s *KnowledgeBaseUpsert) {
 		s.ClearDeletedAt()
+	})
+}
+
+// SetStrictGrounding sets the "strict_grounding" field.
+func (u *KnowledgeBaseUpsertOne) SetStrictGrounding(v bool) *KnowledgeBaseUpsertOne {
+	return u.Update(func(s *KnowledgeBaseUpsert) {
+		s.SetStrictGrounding(v)
+	})
+}
+
+// UpdateStrictGrounding sets the "strict_grounding" field to the value that was provided on create.
+func (u *KnowledgeBaseUpsertOne) UpdateStrictGrounding() *KnowledgeBaseUpsertOne {
+	return u.Update(func(s *KnowledgeBaseUpsert) {
+		s.UpdateStrictGrounding()
 	})
 }
 
@@ -1063,6 +1114,20 @@ func (u *KnowledgeBaseUpsertBulk) UpdateDeletedAt() *KnowledgeBaseUpsertBulk {
 func (u *KnowledgeBaseUpsertBulk) ClearDeletedAt() *KnowledgeBaseUpsertBulk {
 	return u.Update(func(s *KnowledgeBaseUpsert) {
 		s.ClearDeletedAt()
+	})
+}
+
+// SetStrictGrounding sets the "strict_grounding" field.
+func (u *KnowledgeBaseUpsertBulk) SetStrictGrounding(v bool) *KnowledgeBaseUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseUpsert) {
+		s.SetStrictGrounding(v)
+	})
+}
+
+// UpdateStrictGrounding sets the "strict_grounding" field to the value that was provided on create.
+func (u *KnowledgeBaseUpsertBulk) UpdateStrictGrounding() *KnowledgeBaseUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseUpsert) {
+		s.UpdateStrictGrounding()
 	})
 }
 

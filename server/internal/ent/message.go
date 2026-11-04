@@ -52,6 +52,8 @@ type Message struct {
 	SupersededAt *time.Time `json:"superseded_at,omitempty"`
 	// Citations holds the value of the "citations" field.
 	Citations []schema.MsgCitation `json:"citations,omitempty"`
+	// KBUngrounded holds the value of the "kb_ungrounded" field.
+	KBUngrounded bool `json:"kb_ungrounded,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the MessageQuery when eager-loading is set.
 	Edges        MessageEdges `json:"edges"`
@@ -85,7 +87,7 @@ func (*Message) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case message.FieldCitations:
 			values[i] = new([]byte)
-		case message.FieldUsageEstimated:
+		case message.FieldUsageEstimated, message.FieldKBUngrounded:
 			values[i] = new(sql.NullBool)
 		case message.FieldID, message.FieldConversationID, message.FieldPromptTokens, message.FieldCompletionTokens:
 			values[i] = new(sql.NullInt64)
@@ -213,6 +215,12 @@ func (_m *Message) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field citations: %w", err)
 				}
 			}
+		case message.FieldKBUngrounded:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field kb_ungrounded", values[i])
+			} else if value.Valid {
+				_m.KBUngrounded = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -303,6 +311,9 @@ func (_m *Message) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("citations=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Citations))
+	builder.WriteString(", ")
+	builder.WriteString("kb_ungrounded=")
+	builder.WriteString(fmt.Sprintf("%v", _m.KBUngrounded))
 	builder.WriteByte(')')
 	return builder.String()
 }

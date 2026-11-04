@@ -53,16 +53,18 @@ type kbHandlers struct {
 }
 
 type kbView struct {
-	ID             int       `json:"id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	EmbeddingModel string    `json:"embedding_model"`
-	ChunkSize      int       `json:"chunk_size"`
-	ChunkOverlap   int       `json:"chunk_overlap"`
-	Perms          []string  `json:"perms"`
-	FileCount      int       `json:"file_count"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             int    `json:"id"`
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	EmbeddingModel string `json:"embedding_model"`
+	ChunkSize      int    `json:"chunk_size"`
+	ChunkOverlap   int    `json:"chunk_overlap"`
+	// StrictGrounding「仅依据资料回答」（D-42）。
+	StrictGrounding bool      `json:"strict_grounding"`
+	Perms           []string  `json:"perms"`
+	FileCount       int       `json:"file_count"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type kbFileView struct {
@@ -146,7 +148,7 @@ func (h *kbHandlers) fileOr404(c echo.Context, k *ent.KnowledgeBase, a *kb.Acces
 func (h *kbHandlers) view(ctx context.Context, k *ent.KnowledgeBase, a *kb.Access) kbView {
 	n, _ := h.db.KBFile.Query().Where(kbfile.KBID(k.ID)).Count(ctx)
 	return kbView{ID: k.ID, Name: k.Name, Description: k.Description, EmbeddingModel: k.EmbeddingModel, ChunkSize: k.ChunkSize,
-		ChunkOverlap: k.ChunkOverlap, Perms: permNames(a.KB[k.ID]), FileCount: n, CreatedAt: k.CreatedAt, UpdatedAt: k.UpdatedAt}
+		ChunkOverlap: k.ChunkOverlap, StrictGrounding: k.StrictGrounding, Perms: permNames(a.KB[k.ID]), FileCount: n, CreatedAt: k.CreatedAt, UpdatedAt: k.UpdatedAt}
 }
 
 func (h *kbHandlers) record(c echo.Context, action, phase, outcome, resType string, id int, detail map[string]any) error {
@@ -178,11 +180,12 @@ func (h *kbHandlers) list(c echo.Context) error {
 }
 
 type kbInput struct {
-	Name           *string `json:"name"`
-	Description    *string `json:"description"`
-	EmbeddingModel *string `json:"embedding_model"`
-	ChunkSize      *int    `json:"chunk_size"`
-	ChunkOverlap   *int    `json:"chunk_overlap"`
+	Name            *string `json:"name"`
+	Description     *string `json:"description"`
+	EmbeddingModel  *string `json:"embedding_model"`
+	ChunkSize       *int    `json:"chunk_size"`
+	ChunkOverlap    *int    `json:"chunk_overlap"`
+	StrictGrounding *bool   `json:"strict_grounding"`
 }
 
 func (h *kbHandlers) checkModel(ctx context.Context, name string) error {
@@ -234,7 +237,8 @@ func (h *kbHandlers) create(c echo.Context) error {
 	if !kb.ValidChunking(size, overlap) {
 		return bad(fmt.Sprintf("切片长度需在 %d–%d 字之间，重叠需小于切片长度的一半", kb.MinChunkSize, kb.MaxChunkSize))
 	}
-	detail := map[string]any{"name": name, "embedding_model": model, "chunk_size": size, "chunk_overlap": overlap}
+	strict := in.StrictGrounding != nil && *in.StrictGrounding
+	detail := map[string]any{"name": name, "embedding_model": model, "chunk_size": size, "chunk_overlap": overlap, "strict_grounding": strict}
 	if err := audit.Record(c, audit.Entry{Action: "kb.create", Phase: "attempt", ResourceType: "kb", Detail: detail}); err != nil {
 		return err
 	}
@@ -244,7 +248,7 @@ func (h *kbHandlers) create(c echo.Context) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 	k, err := tx.KnowledgeBase.Create().SetOrgID(p.OrgID).SetName(name).SetDescription(desc).SetEmbeddingModel(model).
-		SetChunkSize(size).SetChunkOverlap(overlap).SetCreatedBy(p.ID).Save(ctx)
+		SetChunkSize(size).SetChunkOverlap(overlap).SetStrictGrounding(strict).SetCreatedBy(p.ID).Save(ctx)
 	if err != nil {
 		return err
 	}
@@ -329,6 +333,10 @@ func (h *kbHandlers) update(c echo.Context) error {
 		u.SetChunkSize(size).SetChunkOverlap(overlap)
 		detail["chunk_size"], detail["chunk_overlap"] = size, overlap
 		reindex = true
+	}
+	if in.StrictGrounding != nil && *in.StrictGrounding != k.StrictGrounding {
+		u.SetStrictGrounding(*in.StrictGrounding)
+		detail["strict_grounding"], detail["old_strict_grounding"] = *in.StrictGrounding, k.StrictGrounding
 	}
 	detail["reindex"] = reindex
 	if err := h.record(c, "kb.update", "attempt", "", "kb", k.ID, detail); err != nil {

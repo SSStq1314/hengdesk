@@ -36,8 +36,10 @@ type KnowledgeBase struct {
 	// CreatedBy holds the value of the "created_by" field.
 	CreatedBy int `json:"created_by,omitempty"`
 	// DeletedAt holds the value of the "deleted_at" field.
-	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
-	selectValues sql.SelectValues
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	// StrictGrounding holds the value of the "strict_grounding" field.
+	StrictGrounding bool `json:"strict_grounding,omitempty"`
+	selectValues    sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -45,6 +47,8 @@ func (*KnowledgeBase) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case knowledgebase.FieldStrictGrounding:
+			values[i] = new(sql.NullBool)
 		case knowledgebase.FieldID, knowledgebase.FieldOrgID, knowledgebase.FieldChunkSize, knowledgebase.FieldChunkOverlap, knowledgebase.FieldCreatedBy:
 			values[i] = new(sql.NullInt64)
 		case knowledgebase.FieldName, knowledgebase.FieldDescription, knowledgebase.FieldEmbeddingModel:
@@ -133,6 +137,12 @@ func (_m *KnowledgeBase) assignValues(columns []string, values []any) error {
 				_m.DeletedAt = new(time.Time)
 				*_m.DeletedAt = value.Time
 			}
+		case knowledgebase.FieldStrictGrounding:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field strict_grounding", values[i])
+			} else if value.Valid {
+				_m.StrictGrounding = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -200,6 +210,9 @@ func (_m *KnowledgeBase) String() string {
 		builder.WriteString("deleted_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("strict_grounding=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StrictGrounding))
 	builder.WriteByte(')')
 	return builder.String()
 }

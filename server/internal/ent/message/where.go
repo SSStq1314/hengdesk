@@ -120,6 +120,11 @@ func SupersededAt(v time.Time) predicate.Message {
 	return predicate.Message(sql.FieldEQ(FieldSupersededAt, v))
 }
 
+// KBUngrounded applies equality check predicate on the "kb_ungrounded" field. It's identical to KBUngroundedEQ.
+func KBUngrounded(v bool) predicate.Message {
+	return predicate.Message(sql.FieldEQ(FieldKBUngrounded, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Message {
 	return predicate.Message(sql.FieldEQ(FieldCreatedAt, v))
@@ -798,6 +803,16 @@ func CitationsIsNil() predicate.Message {
 // CitationsNotNil applies the NotNil predicate on the "citations" field.
 func CitationsNotNil() predicate.Message {
 	return predicate.Message(sql.FieldNotNull(FieldCitations))
+}
+
+// KBUngroundedEQ applies the EQ predicate on the "kb_ungrounded" field.
+func KBUngroundedEQ(v bool) predicate.Message {
+	return predicate.Message(sql.FieldEQ(FieldKBUngrounded, v))
+}
+
+// KBUngroundedNEQ applies the NEQ predicate on the "kb_ungrounded" field.
+func KBUngroundedNEQ(v bool) predicate.Message {
+	return predicate.Message(sql.FieldNEQ(FieldKBUngrounded, v))
 }
 
 // HasConversation applies the HasEdge predicate on the "conversation" edge.

@@ -33,6 +33,8 @@ const (
 	FieldCreatedBy = "created_by"
 	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
 	FieldDeletedAt = "deleted_at"
+	// FieldStrictGrounding holds the string denoting the strict_grounding field in the database.
+	FieldStrictGrounding = "strict_grounding"
 	// Table holds the table name of the knowledgebase in the database.
 	Table = "knowledge_bases"
 )
@@ -50,6 +52,7 @@ var Columns = []string{
 	FieldChunkOverlap,
 	FieldCreatedBy,
 	FieldDeletedAt,
+	FieldStrictGrounding,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -81,6 +84,8 @@ var (
 	DefaultChunkSize int
 	// DefaultChunkOverlap holds the default value on creation for the "chunk_overlap" field.
 	DefaultChunkOverlap int
+	// DefaultStrictGrounding holds the default value on creation for the "strict_grounding" field.
+	DefaultStrictGrounding bool
 )
 
 // OrderOption defines the ordering options for the KnowledgeBase queries.
@@ -139,4 +144,9 @@ func ByCreatedBy(opts ...sql.OrderTermOption) OrderOption {
 // ByDeletedAt orders the results by the deleted_at field.
 func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
+}
+
+// ByStrictGrounding orders the results by the strict_grounding field.
+func ByStrictGrounding(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStrictGrounding, opts...).ToFunc()
 }

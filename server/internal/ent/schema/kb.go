@@ -28,6 +28,8 @@ func (KnowledgeBase) Fields() []ent.Field {
 		field.Int("chunk_overlap").Default(100),
 		field.Int("created_by"),
 		field.Time("deleted_at").Optional().Nillable(),
+		// strict_grounding「仅依据资料回答」（D-42）：开启后，对话绑定了该库但检索不到可用资料时不调用模型、不作答。
+		field.Bool("strict_grounding").Default(false),
 	}
 }
 
