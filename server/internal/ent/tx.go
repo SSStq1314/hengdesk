@@ -38,6 +38,8 @@ type Tx struct {
 	KnowledgeBase *KnowledgeBaseClient
 	// LegalHold is the client for interacting with the LegalHold builders.
 	LegalHold *LegalHoldClient
+	// McpServer is the client for interacting with the McpServer builders.
+	McpServer *McpServerClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
 	// Message is the client for interacting with the Message builders.
@@ -204,6 +206,7 @@ func (tx *Tx) init() {
 	tx.KBFile = NewKBFileClient(tx.config)
 	tx.KnowledgeBase = NewKnowledgeBaseClient(tx.config)
 	tx.LegalHold = NewLegalHoldClient(tx.config)
+	tx.McpServer = NewMcpServerClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
 	tx.Message = NewMessageClient(tx.config)
 	tx.Model = NewModelClient(tx.config)

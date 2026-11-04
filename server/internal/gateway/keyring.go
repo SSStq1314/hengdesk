@@ -91,6 +91,21 @@ func aad(provider string) []byte { return []byte("hengdesk/model_provider/api_ke
 
 // Seal 加密上游密钥。
 func (k *Keyring) Seal(provider, plaintext string) ([]byte, error) {
+	return k.SealAAD(aad(provider), plaintext)
+}
+
+// Open 解密上游密钥。
+func (k *Keyring) Open(provider string, blob []byte) (string, error) {
+	return k.OpenAAD(aad(provider), blob)
+}
+
+// MCPHeadersAAD MCP 服务器鉴权头密文的 AAD，绑定服务器 ID，防止密文在记录之间挪用。
+func MCPHeadersAAD(serverID int) []byte {
+	return []byte(fmt.Sprintf("hengdesk/mcp_server/headers/%d", serverID))
+}
+
+// SealAAD 用指定 AAD 加密（供模型密钥以外的密文复用同一主密钥）。
+func (k *Keyring) SealAAD(ad []byte, plaintext string) ([]byte, error) {
 	if k == nil {
 		return nil, ErrNoMasterKey
 	}
@@ -99,11 +114,11 @@ func (k *Keyring) Seal(provider, plaintext string) ([]byte, error) {
 		return nil, err
 	}
 	out := append([]byte{keyVersion}, nonce...)
-	return k.aead.Seal(out, nonce, []byte(plaintext), aad(provider)), nil
+	return k.aead.Seal(out, nonce, []byte(plaintext), ad), nil
 }
 
-// Open 解密上游密钥。
-func (k *Keyring) Open(provider string, blob []byte) (string, error) {
+// OpenAAD 用指定 AAD 解密。
+func (k *Keyring) OpenAAD(ad []byte, blob []byte) (string, error) {
 	if k == nil {
 		return "", ErrNoMasterKey
 	}
@@ -111,7 +126,7 @@ func (k *Keyring) Open(provider string, blob []byte) (string, error) {
 	if len(blob) < 1+ns+k.aead.Overhead() || blob[0] != keyVersion {
 		return "", errors.New("gateway: 密文格式无效")
 	}
-	pt, err := k.aead.Open(nil, blob[1:1+ns], blob[1+ns:], aad(provider))
+	pt, err := k.aead.Open(nil, blob[1:1+ns], blob[1+ns:], ad)
 	if err != nil {
 		return "", errors.New("gateway: 密钥解密失败（主密钥不匹配或密文被篡改）")
 	}

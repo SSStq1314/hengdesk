@@ -18,6 +18,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/kbfile"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/knowledgebase"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/legalhold"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/mcpserver"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
@@ -503,6 +504,81 @@ func init() {
 	legalholdDescCreatedAt := legalholdFields[4].Descriptor()
 	// legalhold.DefaultCreatedAt holds the default value on creation for the created_at field.
 	legalhold.DefaultCreatedAt = legalholdDescCreatedAt.Default.(func() time.Time)
+	mcpserverMixin := schema.McpServer{}.Mixin()
+	mcpserverMixinFields0 := mcpserverMixin[0].Fields()
+	_ = mcpserverMixinFields0
+	mcpserverFields := schema.McpServer{}.Fields()
+	_ = mcpserverFields
+	// mcpserverDescCreatedAt is the schema descriptor for created_at field.
+	mcpserverDescCreatedAt := mcpserverMixinFields0[0].Descriptor()
+	// mcpserver.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mcpserver.DefaultCreatedAt = mcpserverDescCreatedAt.Default.(func() time.Time)
+	// mcpserverDescUpdatedAt is the schema descriptor for updated_at field.
+	mcpserverDescUpdatedAt := mcpserverMixinFields0[1].Descriptor()
+	// mcpserver.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mcpserver.DefaultUpdatedAt = mcpserverDescUpdatedAt.Default.(func() time.Time)
+	// mcpserver.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mcpserver.UpdateDefaultUpdatedAt = mcpserverDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// mcpserverDescName is the schema descriptor for name field.
+	mcpserverDescName := mcpserverFields[1].Descriptor()
+	// mcpserver.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	mcpserver.NameValidator = func() func(string) error {
+		validators := mcpserverDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mcpserverDescDescription is the schema descriptor for description field.
+	mcpserverDescDescription := mcpserverFields[2].Descriptor()
+	// mcpserver.DefaultDescription holds the default value on creation for the description field.
+	mcpserver.DefaultDescription = mcpserverDescDescription.Default.(string)
+	// mcpserver.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	mcpserver.DescriptionValidator = mcpserverDescDescription.Validators[0].(func(string) error)
+	// mcpserverDescURL is the schema descriptor for url field.
+	mcpserverDescURL := mcpserverFields[3].Descriptor()
+	// mcpserver.URLValidator is a validator for the "url" field. It is called by the builders before save.
+	mcpserver.URLValidator = func() func(string) error {
+		validators := mcpserverDescURL.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(url string) error {
+			for _, fn := range fns {
+				if err := fn(url); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mcpserverDescTimeoutSec is the schema descriptor for timeout_sec field.
+	mcpserverDescTimeoutSec := mcpserverFields[7].Descriptor()
+	// mcpserver.DefaultTimeoutSec holds the default value on creation for the timeout_sec field.
+	mcpserver.DefaultTimeoutSec = mcpserverDescTimeoutSec.Default.(int)
+	// mcpserverDescEnabled is the schema descriptor for enabled field.
+	mcpserverDescEnabled := mcpserverFields[8].Descriptor()
+	// mcpserver.DefaultEnabled holds the default value on creation for the enabled field.
+	mcpserver.DefaultEnabled = mcpserverDescEnabled.Default.(bool)
+	// mcpserverDescLastStatus is the schema descriptor for last_status field.
+	mcpserverDescLastStatus := mcpserverFields[9].Descriptor()
+	// mcpserver.DefaultLastStatus holds the default value on creation for the last_status field.
+	mcpserver.DefaultLastStatus = mcpserverDescLastStatus.Default.(string)
+	// mcpserverDescLastError is the schema descriptor for last_error field.
+	mcpserverDescLastError := mcpserverFields[10].Descriptor()
+	// mcpserver.DefaultLastError holds the default value on creation for the last_error field.
+	mcpserver.DefaultLastError = mcpserverDescLastError.Default.(string)
+	// mcpserver.LastErrorValidator is a validator for the "last_error" field. It is called by the builders before save.
+	mcpserver.LastErrorValidator = mcpserverDescLastError.Validators[0].(func(string) error)
 	membershipMixin := schema.Membership{}.Mixin()
 	membershipMixinFields0 := membershipMixin[0].Fields()
 	_ = membershipMixinFields0
@@ -804,6 +880,30 @@ func init() {
 	toolDescEnabled := toolFields[3].Descriptor()
 	// tool.DefaultEnabled holds the default value on creation for the enabled field.
 	tool.DefaultEnabled = toolDescEnabled.Default.(bool)
+	// toolDescOrgID is the schema descriptor for org_id field.
+	toolDescOrgID := toolFields[5].Descriptor()
+	// tool.DefaultOrgID holds the default value on creation for the org_id field.
+	tool.DefaultOrgID = toolDescOrgID.Default.(int)
+	// toolDescDescription is the schema descriptor for description field.
+	toolDescDescription := toolFields[7].Descriptor()
+	// tool.DefaultDescription holds the default value on creation for the description field.
+	tool.DefaultDescription = toolDescDescription.Default.(string)
+	// toolDescSchemaHash is the schema descriptor for schema_hash field.
+	toolDescSchemaHash := toolFields[9].Descriptor()
+	// tool.DefaultSchemaHash holds the default value on creation for the schema_hash field.
+	tool.DefaultSchemaHash = toolDescSchemaHash.Default.(string)
+	// toolDescApprovalTimeoutSec is the schema descriptor for approval_timeout_sec field.
+	toolDescApprovalTimeoutSec := toolFields[14].Descriptor()
+	// tool.DefaultApprovalTimeoutSec holds the default value on creation for the approval_timeout_sec field.
+	tool.DefaultApprovalTimeoutSec = toolDescApprovalTimeoutSec.Default.(int)
+	// toolDescNeedsReview is the schema descriptor for needs_review field.
+	toolDescNeedsReview := toolFields[15].Descriptor()
+	// tool.DefaultNeedsReview holds the default value on creation for the needs_review field.
+	tool.DefaultNeedsReview = toolDescNeedsReview.Default.(bool)
+	// toolDescRemoved is the schema descriptor for removed field.
+	toolDescRemoved := toolFields[16].Descriptor()
+	// tool.DefaultRemoved holds the default value on creation for the removed field.
+	tool.DefaultRemoved = toolDescRemoved.Default.(bool)
 	usagerecordFields := schema.UsageRecord{}.Fields()
 	_ = usagerecordFields
 	// usagerecordDescRequestID is the schema descriptor for request_id field.

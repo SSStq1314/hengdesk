@@ -56,6 +56,10 @@ func TestRotate(t *testing.T) {
 		enc, _ := k1.Seal(n, "sk-"+n)
 		c.ModelProvider.Create().SetName(n).SetBaseURL("http://x").SetAPIKeyEnc(enc).ExecX(ctx)
 	}
+	// MCP 鉴权头同样随主密钥轮换（AAD 绑定服务器 ID）
+	ms := c.McpServer.Create().SetOrgID(1).SetName("工单").SetURL("http://x/mcp").SetCreatedBy(1).SaveX(ctx)
+	menc, _ := k1.SealAAD(gateway.MCPHeadersAAD(ms.ID), `{"Authorization":"Bearer t"}`)
+	c.McpServer.UpdateOneID(ms.ID).SetHeadersEnc(menc).ExecX(ctx)
 	snapshot := func() map[string][]byte {
 		m := map[string][]byte{}
 		for _, p := range c.ModelProvider.Query().AllX(ctx) {
@@ -83,7 +87,7 @@ func TestRotate(t *testing.T) {
 	}
 	var audited []string
 	names, err := gateway.Rotate(ctx, c, k1, k2, func(_ context.Context, _ *ent.Tx, ps []string) error { audited = ps; return nil })
-	if err != nil || len(names) != 2 || len(audited) != 2 {
+	if err != nil || len(names) != 3 || len(audited) != 3 || names[2] != "MCP:工单" {
 		t.Fatalf("rotate %v %v", err, names)
 	}
 	for _, p := range c.ModelProvider.Query().AllX(ctx) {
@@ -93,5 +97,12 @@ func TestRotate(t *testing.T) {
 		if _, err := k1.Open(p.Name, p.APIKeyEnc); err == nil {
 			t.Fatal("old key should no longer open")
 		}
+	}
+	m := c.McpServer.GetX(ctx, ms.ID)
+	if v, err := k2.OpenAAD(gateway.MCPHeadersAAD(ms.ID), *m.HeadersEnc); err != nil || v != `{"Authorization":"Bearer t"}` {
+		t.Fatalf("mcp headers after rotate: %v", err)
+	}
+	if _, err := k2.OpenAAD(gateway.MCPHeadersAAD(ms.ID+1), *m.HeadersEnc); err == nil {
+		t.Fatal("AAD 应绑定服务器 ID")
 	}
 }

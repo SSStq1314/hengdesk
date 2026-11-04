@@ -28,6 +28,30 @@ const (
 	FieldEnabled = "enabled"
 	// FieldExecMode holds the string denoting the exec_mode field in the database.
 	FieldExecMode = "exec_mode"
+	// FieldOrgID holds the string denoting the org_id field in the database.
+	FieldOrgID = "org_id"
+	// FieldServerID holds the string denoting the server_id field in the database.
+	FieldServerID = "server_id"
+	// FieldDescription holds the string denoting the description field in the database.
+	FieldDescription = "description"
+	// FieldInputSchema holds the string denoting the input_schema field in the database.
+	FieldInputSchema = "input_schema"
+	// FieldSchemaHash holds the string denoting the schema_hash field in the database.
+	FieldSchemaHash = "schema_hash"
+	// FieldRiskLevel holds the string denoting the risk_level field in the database.
+	FieldRiskLevel = "risk_level"
+	// FieldSuggestedRisk holds the string denoting the suggested_risk field in the database.
+	FieldSuggestedRisk = "suggested_risk"
+	// FieldAnnotations holds the string denoting the annotations field in the database.
+	FieldAnnotations = "annotations"
+	// FieldApproverIds holds the string denoting the approver_ids field in the database.
+	FieldApproverIds = "approver_ids"
+	// FieldApprovalTimeoutSec holds the string denoting the approval_timeout_sec field in the database.
+	FieldApprovalTimeoutSec = "approval_timeout_sec"
+	// FieldNeedsReview holds the string denoting the needs_review field in the database.
+	FieldNeedsReview = "needs_review"
+	// FieldRemoved holds the string denoting the removed field in the database.
+	FieldRemoved = "removed"
 	// Table holds the table name of the tool in the database.
 	Table = "tools"
 )
@@ -42,6 +66,18 @@ var Columns = []string{
 	FieldSource,
 	FieldEnabled,
 	FieldExecMode,
+	FieldOrgID,
+	FieldServerID,
+	FieldDescription,
+	FieldInputSchema,
+	FieldSchemaHash,
+	FieldRiskLevel,
+	FieldSuggestedRisk,
+	FieldAnnotations,
+	FieldApproverIds,
+	FieldApprovalTimeoutSec,
+	FieldNeedsReview,
+	FieldRemoved,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -69,6 +105,18 @@ var (
 	DefaultSource string
 	// DefaultEnabled holds the default value on creation for the "enabled" field.
 	DefaultEnabled bool
+	// DefaultOrgID holds the default value on creation for the "org_id" field.
+	DefaultOrgID int
+	// DefaultDescription holds the default value on creation for the "description" field.
+	DefaultDescription string
+	// DefaultSchemaHash holds the default value on creation for the "schema_hash" field.
+	DefaultSchemaHash string
+	// DefaultApprovalTimeoutSec holds the default value on creation for the "approval_timeout_sec" field.
+	DefaultApprovalTimeoutSec int
+	// DefaultNeedsReview holds the default value on creation for the "needs_review" field.
+	DefaultNeedsReview bool
+	// DefaultRemoved holds the default value on creation for the "removed" field.
+	DefaultRemoved bool
 )
 
 // ExecMode defines the type for the "exec_mode" enum field.
@@ -95,6 +143,60 @@ func ExecModeValidator(em ExecMode) error {
 		return nil
 	default:
 		return fmt.Errorf("tool: invalid enum value for exec_mode field: %q", em)
+	}
+}
+
+// RiskLevel defines the type for the "risk_level" enum field.
+type RiskLevel string
+
+// RiskLevelHighRisk is the default value of the RiskLevel enum.
+const DefaultRiskLevel = RiskLevelHighRisk
+
+// RiskLevel values.
+const (
+	RiskLevelReadOnly RiskLevel = "read_only"
+	RiskLevelWrite    RiskLevel = "write"
+	RiskLevelHighRisk RiskLevel = "high_risk"
+)
+
+func (rl RiskLevel) String() string {
+	return string(rl)
+}
+
+// RiskLevelValidator is a validator for the "risk_level" field enum values. It is called by the builders before save.
+func RiskLevelValidator(rl RiskLevel) error {
+	switch rl {
+	case RiskLevelReadOnly, RiskLevelWrite, RiskLevelHighRisk:
+		return nil
+	default:
+		return fmt.Errorf("tool: invalid enum value for risk_level field: %q", rl)
+	}
+}
+
+// SuggestedRisk defines the type for the "suggested_risk" enum field.
+type SuggestedRisk string
+
+// SuggestedRiskHighRisk is the default value of the SuggestedRisk enum.
+const DefaultSuggestedRisk = SuggestedRiskHighRisk
+
+// SuggestedRisk values.
+const (
+	SuggestedRiskReadOnly SuggestedRisk = "read_only"
+	SuggestedRiskWrite    SuggestedRisk = "write"
+	SuggestedRiskHighRisk SuggestedRisk = "high_risk"
+)
+
+func (sr SuggestedRisk) String() string {
+	return string(sr)
+}
+
+// SuggestedRiskValidator is a validator for the "suggested_risk" field enum values. It is called by the builders before save.
+func SuggestedRiskValidator(sr SuggestedRisk) error {
+	switch sr {
+	case SuggestedRiskReadOnly, SuggestedRiskWrite, SuggestedRiskHighRisk:
+		return nil
+	default:
+		return fmt.Errorf("tool: invalid enum value for suggested_risk field: %q", sr)
 	}
 }
 
@@ -139,4 +241,49 @@ func ByEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByExecMode orders the results by the exec_mode field.
 func ByExecMode(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldExecMode, opts...).ToFunc()
+}
+
+// ByOrgID orders the results by the org_id field.
+func ByOrgID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOrgID, opts...).ToFunc()
+}
+
+// ByServerID orders the results by the server_id field.
+func ByServerID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServerID, opts...).ToFunc()
+}
+
+// ByDescription orders the results by the description field.
+func ByDescription(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDescription, opts...).ToFunc()
+}
+
+// BySchemaHash orders the results by the schema_hash field.
+func BySchemaHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSchemaHash, opts...).ToFunc()
+}
+
+// ByRiskLevel orders the results by the risk_level field.
+func ByRiskLevel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRiskLevel, opts...).ToFunc()
+}
+
+// BySuggestedRisk orders the results by the suggested_risk field.
+func BySuggestedRisk(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSuggestedRisk, opts...).ToFunc()
+}
+
+// ByApprovalTimeoutSec orders the results by the approval_timeout_sec field.
+func ByApprovalTimeoutSec(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldApprovalTimeoutSec, opts...).ToFunc()
+}
+
+// ByNeedsReview orders the results by the needs_review field.
+func ByNeedsReview(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNeedsReview, opts...).ToFunc()
+}
+
+// ByRemoved orders the results by the removed field.
+func ByRemoved(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRemoved, opts...).ToFunc()
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/mcpserver"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
 )
 
@@ -55,6 +56,7 @@ func SelfCheck(ctx context.Context, db *ent.Client, k *Keyring, requireKey bool)
 			bad = append(bad, p.Name)
 		}
 	}
+
 	if len(bad) > 0 {
 		return fmt.Errorf("主密钥自检失败：当前主密钥（指纹 %s）无法解密 %d 个供应商的 API Key：%s。\n"+
 			"处理：确认挂载的是原来的 secrets/master.key（轮换后请使用新文件，旧文件在 master.key.bak.*）；"+
@@ -109,6 +111,32 @@ func Rotate(ctx context.Context, db *ent.Client, oldK, newK *Keyring, auditFn Ro
 			return rollback(err)
 		}
 		names = append(names, p.Name)
+	}
+	// MCP 服务器鉴权头（M1 第五块）：同一主密钥，AAD 绑定服务器 ID。
+	ms, err := tx.McpServer.Query().Where(mcpserver.HeadersEncNotNil()).All(ctx)
+	if err != nil {
+		return rollback(err)
+	}
+	for _, m := range ms {
+		if m.HeadersEnc == nil || len(*m.HeadersEnc) == 0 {
+			continue
+		}
+		ad := MCPHeadersAAD(m.ID)
+		pt, err := oldK.OpenAAD(ad, *m.HeadersEnc)
+		if err != nil {
+			return rollback(fmt.Errorf("旧主密钥无法解密 MCP 服务器 %q 的鉴权头，轮换已取消（未做任何修改）", m.Name))
+		}
+		enc, err := newK.SealAAD(ad, pt)
+		if err != nil {
+			return rollback(err)
+		}
+		if back, err := newK.OpenAAD(ad, enc); err != nil || back != pt {
+			return rollback(errors.New("新密文自校验失败，轮换已取消"))
+		}
+		if err := tx.McpServer.UpdateOneID(m.ID).SetHeadersEnc(enc).Exec(ctx); err != nil {
+			return rollback(err)
+		}
+		names = append(names, "MCP:"+m.Name)
 	}
 	if auditFn != nil {
 		if err := auditFn(ctx, tx, names); err != nil {
