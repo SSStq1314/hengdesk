@@ -19,9 +19,11 @@ import remarkGfm from 'remark-gfm'
 import { toast } from 'sonner'
 import {
   chatApi,
+  continueMessage,
   regenerateMessage,
   sendMessage,
   type ChatMessage,
+  type ChatToolCall,
   type ConvFile,
   type StreamHandlers,
 } from '@/lib/api'
@@ -36,6 +38,8 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { NativeSelect } from '@/features/models/fields'
 import { Citations } from './citations'
 import { KBPicker } from './kb-picker'
+import { ToolCalls } from './tool-calls'
+import { ToolPicker } from './tool-picker'
 
 const t = zh.chat
 const ACCEPT = '.pdf,.docx,.xlsx,.pptx,.txt,.md,.markdown'
@@ -51,6 +55,7 @@ export function ChatPage() {
   const [active, setActive] = useState<number | null>(null)
   const [model, setModel] = useState('')
   const [draftKBs, setDraftKBs] = useState<number[]>([])
+  const [draftTools, setDraftTools] = useState<number[]>([])
   const [input, setInput] = useState('')
   const [live, setLive] = useState<ChatMessage[]>([])
   const [hidden, setHidden] = useState<number | null>(null)
@@ -79,6 +84,19 @@ export function ChatPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   })
+  const toolIDs = active != null ? (conv.data?.tool_ids ?? []) : draftTools
+  const setTools = useMutation({
+    mutationFn: (ids: number[]) => chatApi.setTools(active!, ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['conversation', active] })
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const changeTools = (ids: number[]) => {
+    if (streaming) return
+    if (active == null) setDraftTools(ids)
+    else setTools.mutate(ids)
+  }
   const changeKBs = (ids: number[]) => {
     if (streaming) return
     if (active == null) setDraftKBs(ids)
@@ -96,6 +114,10 @@ export function ChatPage() {
     ...live,
   ]
   const lastId = messages.length ? messages[messages.length - 1].id : null
+  // 最后一条回复在等待审批时不能发送新消息（服务端同样返回 409），需先「继续」。
+  const awaiting =
+    messages.length > 0 &&
+    messages[messages.length - 1].status === 'awaiting_approval'
   const files = active != null ? (conv.data?.files ?? []) : []
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
@@ -106,6 +128,7 @@ export function ChatPage() {
       chatApi.create({
         model: effectiveModel || undefined,
         kb_ids: active == null ? draftKBs : undefined,
+        tool_ids: active == null ? draftTools : undefined,
       }),
     onSuccess: (c) => {
       qc.invalidateQueries({ queryKey: ['conversations'] })
@@ -136,6 +159,7 @@ export function ChatPage() {
     const c = await chatApi.create({
       model: effectiveModel || undefined,
       kb_ids: active == null ? draftKBs : undefined,
+      tool_ids: active == null ? draftTools : undefined,
     })
     setActive(c.id)
     qc.invalidateQueries({ queryKey: ['conversations'] })
@@ -187,6 +211,8 @@ export function ChatPage() {
           onToken: (tok) => patch((m) => ({ ...m, content: m.content + tok })),
           onCitation: (c) =>
             patch((m) => ({ ...m, citations: [...(m.citations ?? []), c] })),
+          onToolCall: (c) =>
+            patch((m) => ({ ...m, tool_calls: upsertCall(m.tool_calls, c) })),
           onDone: (m) => {
             if (m.notice) toast.info(m.notice)
             patch(() => ({ ...m, id: -2 }))
@@ -237,6 +263,18 @@ export function ChatPage() {
         },
       ],
       null
+    )
+  }
+
+  // resume 审批有结果后继续生成同一条回复（第五块 PR4 的 continue 接口）。
+  async function resume(m: ChatMessage) {
+    if (streaming || active == null) return
+    const id = active
+    await run(
+      id,
+      (h, s) => continueMessage(id, m.id, h, s),
+      [{ ...m, id: -2, status: 'streaming' }],
+      m.id
     )
   }
 
@@ -358,6 +396,11 @@ export function ChatPage() {
                 onChange={changeKBs}
                 disabled={streaming || setKBs.isPending}
               />
+              <ToolPicker
+                value={toolIDs}
+                onChange={changeTools}
+                disabled={streaming || setTools.isPending}
+              />
             </div>
             <div className='flex-1 space-y-4 overflow-y-auto py-4'>
               {active == null && live.length === 0 && (
@@ -374,8 +417,17 @@ export function ChatPage() {
                     m.id > 0 &&
                     m.id === lastId &&
                     !streaming &&
-                    m.status !== 'streaming'
+                    m.status !== 'streaming' &&
+                    m.status !== 'awaiting_approval'
                       ? (skipKB?: boolean) => regenerate(m, skipKB)
+                      : undefined
+                  }
+                  onContinue={
+                    m.id > 0 &&
+                    m.id === lastId &&
+                    !streaming &&
+                    m.status === 'awaiting_approval'
+                      ? () => void resume(m)
                       : undefined
                   }
                 />
@@ -450,7 +502,9 @@ export function ChatPage() {
               ) : (
                 <Button
                   onClick={() => void send()}
-                  disabled={!input.trim() || modelItems.length === 0}
+                  disabled={
+                    !input.trim() || modelItems.length === 0 || awaiting
+                  }
                 >
                   <Send className='size-4' />
                   {t.send}
@@ -473,12 +527,21 @@ export function ChatPage() {
   )
 }
 
+function upsertCall(list: ChatToolCall[] | undefined, c: ChatToolCall) {
+  const l = list ?? []
+  const i = l.findIndex((x) => x.id === c.id)
+  if (i < 0) return [...l, c]
+  return l.map((x, j) => (j === i ? c : x))
+}
+
 function MessageBubble({
   m,
   onRegenerate,
+  onContinue,
 }: {
   m: ChatMessage
   onRegenerate?: (skipKB?: boolean) => void
+  onContinue?: () => void
 }) {
   const mine = m.role === 'user'
   // D-42：检索失败（503 kb_failed）时说明「知识库暂时不可用」，给出重试与本次不使用知识库继续。
@@ -491,6 +554,9 @@ function MessageBubble({
           mine ? 'bg-primary text-primary-foreground' : 'bg-muted'
         )}
       >
+        {!mine && m.tool_calls && m.tool_calls.length > 0 && (
+          <ToolCalls items={m.tool_calls} />
+        )}
         {mine ? (
           <p className='whitespace-pre-wrap'>{m.content}</p>
         ) : (
@@ -500,7 +566,8 @@ function MessageBubble({
                 {m.content}
               </ReactMarkdown>
             ) : (
-              m.status === 'streaming' && (
+              m.status === 'streaming' &&
+              !m.tool_calls?.length && (
                 <span className='text-muted-foreground'>{t.thinking}</span>
               )
             )}
@@ -508,6 +575,21 @@ function MessageBubble({
         )}
         {!mine && m.citations && m.citations.length > 0 && (
           <Citations items={m.citations} />
+        )}
+        {m.status === 'awaiting_approval' && (
+          <div className='mt-1 flex items-center gap-2 text-xs'>
+            <span className='text-amber-600'>{t.awaiting}</span>
+            {onContinue && (
+              <Button
+                size='sm'
+                variant='outline'
+                className='h-7'
+                onClick={onContinue}
+              >
+                {t.continue}
+              </Button>
+            )}
+          </div>
         )}
         {kbDown && (
           <div className='mt-1 space-y-1.5 text-xs'>

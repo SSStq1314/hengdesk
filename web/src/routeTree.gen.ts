@@ -15,11 +15,13 @@ import { Route as AuthenticatedRolesRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedRetentionRouteImport } from './routes/_authenticated/retention'
 import { Route as AuthenticatedModelsRouteImport } from './routes/_authenticated/models'
 import { Route as AuthenticatedMembersRouteImport } from './routes/_authenticated/members'
+import { Route as AuthenticatedMcpRouteImport } from './routes/_authenticated/mcp'
 import { Route as AuthenticatedEgressRouteImport } from './routes/_authenticated/egress'
 import { Route as AuthenticatedDepartmentsRouteImport } from './routes/_authenticated/departments'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedBudgetsRouteImport } from './routes/_authenticated/budgets'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
+import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors404RouteImport } from './routes/(errors)/404'
@@ -59,6 +61,11 @@ const AuthenticatedMembersRoute = AuthenticatedMembersRouteImport.update({
   path: '/members',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMcpRoute = AuthenticatedMcpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedEgressRoute = AuthenticatedEgressRouteImport.update({
   id: '/egress',
   path: '/egress',
@@ -83,6 +90,11 @@ const AuthenticatedBudgetsRoute = AuthenticatedBudgetsRouteImport.update({
 const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedApprovalsRoute = AuthenticatedApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const errors503Route = errors503RouteImport.update({
@@ -140,11 +152,13 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/approvals': typeof AuthenticatedApprovalsRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/budgets': typeof AuthenticatedBudgetsRoute
   '/chat': typeof AuthenticatedChatRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/egress': typeof AuthenticatedEgressRoute
+  '/mcp': typeof AuthenticatedMcpRoute
   '/members': typeof AuthenticatedMembersRoute
   '/models': typeof AuthenticatedModelsRoute
   '/retention': typeof AuthenticatedRetentionRoute
@@ -160,11 +174,13 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/approvals': typeof AuthenticatedApprovalsRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/budgets': typeof AuthenticatedBudgetsRoute
   '/chat': typeof AuthenticatedChatRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/egress': typeof AuthenticatedEgressRoute
+  '/mcp': typeof AuthenticatedMcpRoute
   '/members': typeof AuthenticatedMembersRoute
   '/models': typeof AuthenticatedModelsRoute
   '/retention': typeof AuthenticatedRetentionRoute
@@ -183,11 +199,13 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
+  '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
   '/_authenticated/budgets': typeof AuthenticatedBudgetsRoute
   '/_authenticated/chat': typeof AuthenticatedChatRoute
   '/_authenticated/departments': typeof AuthenticatedDepartmentsRoute
   '/_authenticated/egress': typeof AuthenticatedEgressRoute
+  '/_authenticated/mcp': typeof AuthenticatedMcpRoute
   '/_authenticated/members': typeof AuthenticatedMembersRoute
   '/_authenticated/models': typeof AuthenticatedModelsRoute
   '/_authenticated/retention': typeof AuthenticatedRetentionRoute
@@ -207,11 +225,13 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/approvals'
     | '/audit'
     | '/budgets'
     | '/chat'
     | '/departments'
     | '/egress'
+    | '/mcp'
     | '/members'
     | '/models'
     | '/retention'
@@ -227,11 +247,13 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/approvals'
     | '/audit'
     | '/budgets'
     | '/chat'
     | '/departments'
     | '/egress'
+    | '/mcp'
     | '/members'
     | '/models'
     | '/retention'
@@ -249,11 +271,13 @@ export interface FileRouteTypes {
     | '/(errors)/404'
     | '/(errors)/500'
     | '/(errors)/503'
+    | '/_authenticated/approvals'
     | '/_authenticated/audit'
     | '/_authenticated/budgets'
     | '/_authenticated/chat'
     | '/_authenticated/departments'
     | '/_authenticated/egress'
+    | '/_authenticated/mcp'
     | '/_authenticated/members'
     | '/_authenticated/models'
     | '/_authenticated/retention'
@@ -318,6 +342,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMembersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/mcp': {
+      id: '/_authenticated/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof AuthenticatedMcpRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/egress': {
       id: '/_authenticated/egress'
       path: '/egress'
@@ -351,6 +382,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/audit'
       preLoaderRoute: typeof AuthenticatedAuditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/approvals': {
+      id: '/_authenticated/approvals'
+      path: '/approvals'
+      fullPath: '/approvals'
+      preLoaderRoute: typeof AuthenticatedApprovalsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/(errors)/503': {
@@ -420,11 +458,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedBudgetsRoute: typeof AuthenticatedBudgetsRoute
   AuthenticatedChatRoute: typeof AuthenticatedChatRoute
   AuthenticatedDepartmentsRoute: typeof AuthenticatedDepartmentsRoute
   AuthenticatedEgressRoute: typeof AuthenticatedEgressRoute
+  AuthenticatedMcpRoute: typeof AuthenticatedMcpRoute
   AuthenticatedMembersRoute: typeof AuthenticatedMembersRoute
   AuthenticatedModelsRoute: typeof AuthenticatedModelsRoute
   AuthenticatedRetentionRoute: typeof AuthenticatedRetentionRoute
@@ -436,11 +476,13 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedApprovalsRoute: AuthenticatedApprovalsRoute,
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedBudgetsRoute: AuthenticatedBudgetsRoute,
   AuthenticatedChatRoute: AuthenticatedChatRoute,
   AuthenticatedDepartmentsRoute: AuthenticatedDepartmentsRoute,
   AuthenticatedEgressRoute: AuthenticatedEgressRoute,
+  AuthenticatedMcpRoute: AuthenticatedMcpRoute,
   AuthenticatedMembersRoute: AuthenticatedMembersRoute,
   AuthenticatedModelsRoute: AuthenticatedModelsRoute,
   AuthenticatedRetentionRoute: AuthenticatedRetentionRoute,

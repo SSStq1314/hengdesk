@@ -705,6 +705,7 @@ export type Conversation = {
   title: string
   model_id?: number | null
   kb_ids?: number[]
+  tool_ids?: number[]
   created_at: string
   updated_at: string
 }
@@ -712,7 +713,7 @@ export type ChatMessage = {
   id: number
   role: 'user' | 'assistant'
   content: string
-  status: 'streaming' | 'done' | 'stopped' | 'error'
+  status: 'streaming' | 'done' | 'stopped' | 'error' | 'awaiting_approval'
   model_name?: string
   fallback_from?: string
   error_code?: string
@@ -725,14 +726,14 @@ export type ChatMessage = {
   /** D-41：上游未返回 usage，token 为估算值 */
   usage_estimated?: boolean
   notice?: string
-  // 知识库引用（第四块 PR3）；tool_calls 为第五块预留，当前始终不返回。
+  // 知识库引用（第四块 PR3）；工具调用（第五块 PR4 起生效）。
   citations?: ChatCitation[]
   /** D-42：绑定了知识库但本条回答未引用知识库资料 */
   kb_ungrounded?: boolean
   tool_calls?: ChatToolCall[]
 }
 // 对话 SSE 扩展事件：citation 自第四块 PR3 起生效（在 token 之前逐条发出），
-// tool_call / approval_pending 留给 MCP 与审批。解析器遇到不认识的事件一律忽略。
+// tool_call / approval_pending 自第五块 PR4 起生效。解析器遇到不认识的事件一律忽略。
 export const CHAT_RESERVED_EVENTS = [
   'citation',
   'tool_call',
@@ -788,8 +789,12 @@ export type MyModel = { id: number; name: string; is_default: boolean }
 export const chatApi = {
   models: () => api<{ items: MyModel[] }>('/models'),
   list: () => api<{ items: Conversation[] }>('/conversations'),
-  create: (b: { title?: string; model?: string; kb_ids?: number[] }) =>
-    api<Conversation>('/conversations', json('POST', b)),
+  create: (b: {
+    title?: string
+    model?: string
+    kb_ids?: number[]
+    tool_ids?: number[]
+  }) => api<Conversation>('/conversations', json('POST', b)),
   get: (id: number) =>
     api<Conversation & { messages: ChatMessage[]; files: ConvFile[] }>(
       `/conversations/${id}`
@@ -827,11 +832,26 @@ export const chatApi = {
     api<void>(`/conversations/${id}`, { method: 'DELETE' }),
   setKBs: (id: number, kb_ids: number[]) =>
     api<Conversation>(`/conversations/${id}`, json('PATCH', { kb_ids })),
+  setTools: (id: number, tool_ids: number[]) =>
+    api<Conversation>(`/conversations/${id}`, json('PATCH', { tool_ids })),
+  tools: () => api<{ items: MyTool[] }>('/tools'),
+}
+
+export type MyTool = {
+  id: number
+  key: string
+  name: string
+  server_name: string
+  description: string
+  risk_level: ToolRisk
+  exec_mode: ToolExecMode
 }
 
 export type StreamHandlers = {
   onToken: (t: string) => void
   onCitation?: (c: ChatCitation) => void
+  onToolCall?: (c: ChatToolCall) => void
+  onApprovalPending?: (a: ChatApprovalPending) => void
   onDone: (m: ChatMessage) => void
   onError: (code: string, message: string) => void
 }
@@ -845,6 +865,21 @@ export function sendMessage(
   signal: AbortSignal
 ): Promise<void> {
   return streamPost(`/api/v1/conversations/${id}/messages`, body, h, signal)
+}
+
+// continueMessage 审批有结果后继续生成同一条回复（第五块 PR4），事件与 sendMessage 相同。
+export function continueMessage(
+  id: number,
+  messageId: number,
+  h: StreamHandlers,
+  signal: AbortSignal
+): Promise<void> {
+  return streamPost(
+    `/api/v1/conversations/${id}/messages/${messageId}/continue`,
+    {},
+    h,
+    signal
+  )
 }
 
 // regenerateMessage 重新生成 / 重试最后一条回复（D-40 第 6 条），事件与 sendMessage 相同。
@@ -924,13 +959,17 @@ async function streamPost(
         h.onToken((p as { content?: string }).content ?? '')
       } else if (event === 'citation') {
         h.onCitation?.(p as ChatCitation)
+      } else if (event === 'tool_call') {
+        h.onToolCall?.(p as ChatToolCall)
+      } else if (event === 'approval_pending') {
+        h.onApprovalPending?.(p as ChatApprovalPending)
       } else if (event === 'done') {
         h.onDone(p as ChatMessage)
       } else if (event === 'error') {
         const e = (p as { error?: { code?: string; message?: string } }).error
         h.onError(e?.code ?? 'error', e?.message ?? '')
       }
-      // 其余事件（含预留的 tool_call / approval_pending）暂时忽略。
+      // 其余事件忽略。
     }
   }
 }
@@ -1047,4 +1086,154 @@ export const kbApi = {
     }),
   setACLMode: (id: number, fid: number, custom: boolean) =>
     api<KBFile>(`/kbs/${id}/files/${fid}/acl-mode`, json('PUT', { custom })),
+}
+
+// ---- MCP 与审批（M1 第五块）----
+export type ToolRisk = 'read_only' | 'write' | 'high_risk'
+export type ToolExecMode = 'auto' | 'require_approval' | 'deny'
+export type McpServer = {
+  id: number
+  name: string
+  description: string
+  url: string
+  transport: 'streamable_http' | 'sse'
+  header_names: string[]
+  timeout_sec: number
+  enabled: boolean
+  last_status: string
+  last_error: string
+  discovered_at?: string | null
+  tool_count: number
+  enabled_tools: number
+  review_tools: number
+  created_at: string
+  updated_at: string
+}
+export type McpServerInput = {
+  name?: string
+  description?: string
+  url?: string
+  transport?: string
+  /** 不传：不变；{}：清空；其余整体替换。已保存的值不回显。 */
+  headers?: Record<string, string>
+  timeout_sec?: number
+  enabled?: boolean
+}
+export type McpSyncStats = {
+  added: string[] | null
+  changed: string[] | null
+  removed: string[] | null
+  restored: string[] | null
+  unchanged: number
+}
+export type SubjectInfo = { id: number; name: string }
+export type AdminTool = {
+  id: number
+  key: string
+  name: string
+  server_id: number
+  server_name?: string
+  description: string
+  input_schema: Record<string, unknown>
+  annotations: Record<string, unknown>
+  enabled: boolean
+  exec_mode: ToolExecMode
+  risk_level: ToolRisk
+  suggested_risk: ToolRisk
+  approver_ids: number[]
+  approval_timeout_sec: number
+  needs_review: boolean
+  removed: boolean
+  updated_at: string
+  server_enabled: boolean
+  approvers: SubjectInfo[]
+  grant_count: number
+}
+export type ToolPatch = {
+  enabled?: boolean
+  exec_mode?: ToolExecMode
+  risk_level?: ToolRisk
+  approver_ids?: number[]
+  approval_timeout_sec?: number
+  confirm_review?: boolean
+}
+export type ToolACL = ModelACL
+
+export const mcpApi = {
+  list: () => api<{ items: McpServer[] }>('/admin/mcp-servers'),
+  create: (b: McpServerInput) =>
+    api<McpServer>('/admin/mcp-servers', json('POST', b)),
+  update: (id: number, b: McpServerInput) =>
+    api<McpServer>(`/admin/mcp-servers/${id}`, json('PATCH', b)),
+  remove: (id: number) =>
+    api<void>(`/admin/mcp-servers/${id}`, { method: 'DELETE' }),
+  discover: (id: number) =>
+    api<{ stats: McpSyncStats; tools: unknown[] }>(
+      `/admin/mcp-servers/${id}/discover`,
+      { method: 'POST' }
+    ),
+}
+
+export const toolApi = {
+  list: (f: { server_id?: number; needs_review?: boolean } = {}) => {
+    const q = new URLSearchParams()
+    if (f.server_id) q.set('server_id', String(f.server_id))
+    if (f.needs_review) q.set('needs_review', '1')
+    return api<{ items: AdminTool[] }>(`/admin/tools?${q}`)
+  },
+  update: (id: number, b: ToolPatch) =>
+    api<AdminTool>(`/admin/tools/${id}`, json('PATCH', b)),
+  acl: (id: number) => api<{ items: ToolACL[] }>(`/admin/tools/${id}/acl`),
+  grant: (
+    id: number,
+    a: { subject_type: string; subject_id: number; include_children: boolean }
+  ) => api<unknown>(`/admin/tools/${id}/acl`, json('POST', a)),
+  revoke: (id: number, type: string, sid: number) =>
+    api<unknown>(`/admin/tools/${id}/acl/${type}/${sid}`, { method: 'DELETE' }),
+}
+
+export type ApprovalStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'withdrawn'
+  | 'expired'
+export type Approval = {
+  id: number
+  tool_id: number
+  tool_key: string
+  tool_name: string
+  risk_level: ToolRisk
+  requester: SubjectInfo
+  conversation_id?: number | null
+  args: Record<string, unknown>
+  context_summary: string
+  approvers: SubjectInfo[]
+  approver_any_admin: boolean
+  status: ApprovalStatus
+  decided_by?: SubjectInfo | null
+  decision_comment: string
+  decided_at?: string | null
+  expires_at: string
+  exec_status: string
+  result: string
+  result_is_error: boolean
+  trace_id: string
+  created_at: string
+  can_decide: boolean
+  can_withdraw: boolean
+}
+
+export const approvalApi = {
+  list: (box: 'todo' | 'mine', status = '') =>
+    api<{ items: Approval[] }>(
+      `/approvals?box=${box}${status ? `&status=${status}` : ''}`
+    ),
+  get: (id: number) => api<Approval>(`/approvals/${id}`),
+  approve: (id: number, comment: string) =>
+    api<Approval>(`/approvals/${id}/approve`, json('POST', { comment })),
+  reject: (id: number, comment: string) =>
+    api<Approval>(`/approvals/${id}/reject`, json('POST', { comment })),
+  withdraw: (id: number) =>
+    api<Approval>(`/approvals/${id}/withdraw`, { method: 'POST' }),
 }
