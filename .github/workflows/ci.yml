@@ -55,6 +55,8 @@ jobs:
           HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -run 'Migrations|Legacy' ./internal/store/
           # FR-40 归档：检查点后链可验证、包可离线校验、中途失败数据完整、无检查点不得删除
           HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -p 1 -run 'PG' ./internal/auditarchive/
+          # FR-16 知识库切片存储：pgvector / tsvector 写入、替换、删除
+          HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -p 1 -run 'PG' ./internal/kb/
       - name: migrate（两次，验证幂等）
         run: /tmp/hengdesk migrate && /tmp/hengdesk migrate
       - name: 审计保留期 CLI（FR-40）

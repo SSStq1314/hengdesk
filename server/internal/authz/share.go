@@ -17,7 +17,7 @@ var ErrOutsideSubtree = errors.New("acl: 只有组织管理员可以跨部门子
 // createPermFor 资源类型对应的创建权限点；共享范围以创建权限的范围为准。
 func createPermFor(resType string) (rbac.Perm, bool) {
 	switch resType {
-	case rbac.ResKB:
+	case rbac.ResKB, rbac.ResKBFile:
 		return rbac.KBCreate, true
 	case rbac.ResAgent:
 		return rbac.AgentCreate, true

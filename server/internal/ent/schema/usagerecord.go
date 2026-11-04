@@ -24,7 +24,7 @@ func (UsageRecord) Fields() []ent.Field {
 		field.String("model_name"),
 		field.Int("provider_id"),
 		field.String("request_id").Default(""),
-		field.Enum("purpose").Values("chat", "test").Default("chat"),
+		field.Enum("purpose").Values("chat", "test", "embedding").Default("chat"),
 		field.Bool("stream").Default(false),
 		field.Enum("status").Values("ok", "error").Default("ok"),
 		field.String("error_code").Default(""),

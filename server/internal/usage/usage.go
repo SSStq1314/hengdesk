@@ -56,7 +56,7 @@ type Record struct {
 	Model      *ent.Model
 	ProviderID int
 	RequestID  string
-	Purpose    string // chat / test
+	Purpose    string // chat / test / embedding
 	Stream     bool
 	ErrorCode  string // 为空表示成功
 	Attempt    int    // 同一请求内的第几次尝试（0 视为 1）
@@ -87,8 +87,11 @@ func Write(ctx context.Context, db *ent.Client, r Record) (*ent.UsageRecord, err
 		status = usagerecord.StatusError
 	}
 	purpose := usagerecord.PurposeChat
-	if r.Purpose == "test" {
+	switch r.Purpose {
+	case "test":
 		purpose = usagerecord.PurposeTest
+	case "embedding":
+		purpose = usagerecord.PurposeEmbedding
 	}
 	u := r.Usage
 	if u.TotalTokens == 0 {

@@ -22,6 +22,8 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/kbfile"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/knowledgebase"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/legalhold"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
@@ -104,6 +106,8 @@ func checkColumn(t, c string) error {
 			deptclosure.Table:      deptclosure.ValidColumn,
 			egresslog.Table:        egresslog.ValidColumn,
 			egressrule.Table:       egressrule.ValidColumn,
+			kbfile.Table:           kbfile.ValidColumn,
+			knowledgebase.Table:    knowledgebase.ValidColumn,
 			legalhold.Table:        legalhold.ValidColumn,
 			membership.Table:       membership.ValidColumn,
 			message.Table:          message.ValidColumn,

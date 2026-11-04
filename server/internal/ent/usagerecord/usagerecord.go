@@ -148,8 +148,9 @@ const DefaultPurpose = PurposeChat
 
 // Purpose values.
 const (
-	PurposeChat Purpose = "chat"
-	PurposeTest Purpose = "test"
+	PurposeChat      Purpose = "chat"
+	PurposeTest      Purpose = "test"
+	PurposeEmbedding Purpose = "embedding"
 )
 
 func (pu Purpose) String() string {
@@ -159,7 +160,7 @@ func (pu Purpose) String() string {
 // PurposeValidator is a validator for the "purpose" field enum values. It is called by the builders before save.
 func PurposeValidator(pu Purpose) error {
 	switch pu {
-	case PurposeChat, PurposeTest:
+	case PurposeChat, PurposeTest, PurposeEmbedding:
 		return nil
 	default:
 		return fmt.Errorf("usagerecord: invalid enum value for purpose field: %q", pu)

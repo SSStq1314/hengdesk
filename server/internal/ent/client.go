@@ -25,6 +25,8 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/deptclosure"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egresslog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/egressrule"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/kbfile"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/knowledgebase"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/legalhold"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
@@ -64,6 +66,10 @@ type Client struct {
 	EgressLog *EgressLogClient
 	// EgressRule is the client for interacting with the EgressRule builders.
 	EgressRule *EgressRuleClient
+	// KBFile is the client for interacting with the KBFile builders.
+	KBFile *KBFileClient
+	// KnowledgeBase is the client for interacting with the KnowledgeBase builders.
+	KnowledgeBase *KnowledgeBaseClient
 	// LegalHold is the client for interacting with the LegalHold builders.
 	LegalHold *LegalHoldClient
 	// Membership is the client for interacting with the Membership builders.
@@ -109,6 +115,8 @@ func (c *Client) init() {
 	c.DeptClosure = NewDeptClosureClient(c.config)
 	c.EgressLog = NewEgressLogClient(c.config)
 	c.EgressRule = NewEgressRuleClient(c.config)
+	c.KBFile = NewKBFileClient(c.config)
+	c.KnowledgeBase = NewKnowledgeBaseClient(c.config)
 	c.LegalHold = NewLegalHoldClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
 	c.Message = NewMessageClient(c.config)
@@ -223,6 +231,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		DeptClosure:      NewDeptClosureClient(cfg),
 		EgressLog:        NewEgressLogClient(cfg),
 		EgressRule:       NewEgressRuleClient(cfg),
+		KBFile:           NewKBFileClient(cfg),
+		KnowledgeBase:    NewKnowledgeBaseClient(cfg),
 		LegalHold:        NewLegalHoldClient(cfg),
 		Membership:       NewMembershipClient(cfg),
 		Message:          NewMessageClient(cfg),
@@ -264,6 +274,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		DeptClosure:      NewDeptClosureClient(cfg),
 		EgressLog:        NewEgressLogClient(cfg),
 		EgressRule:       NewEgressRuleClient(cfg),
+		KBFile:           NewKBFileClient(cfg),
+		KnowledgeBase:    NewKnowledgeBaseClient(cfg),
 		LegalHold:        NewLegalHoldClient(cfg),
 		Membership:       NewMembershipClient(cfg),
 		Message:          NewMessageClient(cfg),
@@ -307,8 +319,9 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Conversation,
 		c.ConversationFile, c.Department, c.DeptClosure, c.EgressLog, c.EgressRule,
-		c.LegalHold, c.Membership, c.Message, c.Model, c.ModelProvider, c.Notification,
-		c.Organization, c.Role, c.SystemSetting, c.Tool, c.UsageRecord, c.User,
+		c.KBFile, c.KnowledgeBase, c.LegalHold, c.Membership, c.Message, c.Model,
+		c.ModelProvider, c.Notification, c.Organization, c.Role, c.SystemSetting,
+		c.Tool, c.UsageRecord, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -320,8 +333,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.ACL, c.AuditLog, c.Budget, c.BudgetAlertState, c.Conversation,
 		c.ConversationFile, c.Department, c.DeptClosure, c.EgressLog, c.EgressRule,
-		c.LegalHold, c.Membership, c.Message, c.Model, c.ModelProvider, c.Notification,
-		c.Organization, c.Role, c.SystemSetting, c.Tool, c.UsageRecord, c.User,
+		c.KBFile, c.KnowledgeBase, c.LegalHold, c.Membership, c.Message, c.Model,
+		c.ModelProvider, c.Notification, c.Organization, c.Role, c.SystemSetting,
+		c.Tool, c.UsageRecord, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -350,6 +364,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EgressLog.mutate(ctx, m)
 	case *EgressRuleMutation:
 		return c.EgressRule.mutate(ctx, m)
+	case *KBFileMutation:
+		return c.KBFile.mutate(ctx, m)
+	case *KnowledgeBaseMutation:
+		return c.KnowledgeBase.mutate(ctx, m)
 	case *LegalHoldMutation:
 		return c.LegalHold.mutate(ctx, m)
 	case *MembershipMutation:
@@ -1787,6 +1805,272 @@ func (c *EgressRuleClient) mutate(ctx context.Context, m *EgressRuleMutation) (V
 		return (&EgressRuleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown EgressRule mutation op: %q", m.Op())
+	}
+}
+
+// KBFileClient is a client for the KBFile schema.
+type KBFileClient struct {
+	config
+}
+
+// NewKBFileClient returns a client for the KBFile from the given config.
+func NewKBFileClient(c config) *KBFileClient {
+	return &KBFileClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kbfile.Hooks(f(g(h())))`.
+func (c *KBFileClient) Use(hooks ...Hook) {
+	c.hooks.KBFile = append(c.hooks.KBFile, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kbfile.Intercept(f(g(h())))`.
+func (c *KBFileClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KBFile = append(c.inters.KBFile, interceptors...)
+}
+
+// Create returns a builder for creating a KBFile entity.
+func (c *KBFileClient) Create() *KBFileCreate {
+	mutation := newKBFileMutation(c.config, OpCreate)
+	return &KBFileCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KBFile entities.
+func (c *KBFileClient) CreateBulk(builders ...*KBFileCreate) *KBFileCreateBulk {
+	return &KBFileCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KBFileClient) MapCreateBulk(slice any, setFunc func(*KBFileCreate, int)) *KBFileCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KBFileCreateBulk{err: fmt.Errorf("calling to KBFileClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KBFileCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KBFileCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KBFile.
+func (c *KBFileClient) Update() *KBFileUpdate {
+	mutation := newKBFileMutation(c.config, OpUpdate)
+	return &KBFileUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KBFileClient) UpdateOne(_m *KBFile) *KBFileUpdateOne {
+	mutation := newKBFileMutation(c.config, OpUpdateOne, withKBFile(_m))
+	return &KBFileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KBFileClient) UpdateOneID(id int) *KBFileUpdateOne {
+	mutation := newKBFileMutation(c.config, OpUpdateOne, withKBFileID(id))
+	return &KBFileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KBFile.
+func (c *KBFileClient) Delete() *KBFileDelete {
+	mutation := newKBFileMutation(c.config, OpDelete)
+	return &KBFileDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KBFileClient) DeleteOne(_m *KBFile) *KBFileDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KBFileClient) DeleteOneID(id int) *KBFileDeleteOne {
+	builder := c.Delete().Where(kbfile.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KBFileDeleteOne{builder}
+}
+
+// Query returns a query builder for KBFile.
+func (c *KBFileClient) Query() *KBFileQuery {
+	return &KBFileQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKBFile},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KBFile entity by its id.
+func (c *KBFileClient) Get(ctx context.Context, id int) (*KBFile, error) {
+	return c.Query().Where(kbfile.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KBFileClient) GetX(ctx context.Context, id int) *KBFile {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KBFileClient) Hooks() []Hook {
+	return c.hooks.KBFile
+}
+
+// Interceptors returns the client interceptors.
+func (c *KBFileClient) Interceptors() []Interceptor {
+	return c.inters.KBFile
+}
+
+func (c *KBFileClient) mutate(ctx context.Context, m *KBFileMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KBFileCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KBFileUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KBFileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KBFileDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KBFile mutation op: %q", m.Op())
+	}
+}
+
+// KnowledgeBaseClient is a client for the KnowledgeBase schema.
+type KnowledgeBaseClient struct {
+	config
+}
+
+// NewKnowledgeBaseClient returns a client for the KnowledgeBase from the given config.
+func NewKnowledgeBaseClient(c config) *KnowledgeBaseClient {
+	return &KnowledgeBaseClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `knowledgebase.Hooks(f(g(h())))`.
+func (c *KnowledgeBaseClient) Use(hooks ...Hook) {
+	c.hooks.KnowledgeBase = append(c.hooks.KnowledgeBase, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `knowledgebase.Intercept(f(g(h())))`.
+func (c *KnowledgeBaseClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KnowledgeBase = append(c.inters.KnowledgeBase, interceptors...)
+}
+
+// Create returns a builder for creating a KnowledgeBase entity.
+func (c *KnowledgeBaseClient) Create() *KnowledgeBaseCreate {
+	mutation := newKnowledgeBaseMutation(c.config, OpCreate)
+	return &KnowledgeBaseCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KnowledgeBase entities.
+func (c *KnowledgeBaseClient) CreateBulk(builders ...*KnowledgeBaseCreate) *KnowledgeBaseCreateBulk {
+	return &KnowledgeBaseCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KnowledgeBaseClient) MapCreateBulk(slice any, setFunc func(*KnowledgeBaseCreate, int)) *KnowledgeBaseCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KnowledgeBaseCreateBulk{err: fmt.Errorf("calling to KnowledgeBaseClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KnowledgeBaseCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KnowledgeBaseCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KnowledgeBase.
+func (c *KnowledgeBaseClient) Update() *KnowledgeBaseUpdate {
+	mutation := newKnowledgeBaseMutation(c.config, OpUpdate)
+	return &KnowledgeBaseUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KnowledgeBaseClient) UpdateOne(_m *KnowledgeBase) *KnowledgeBaseUpdateOne {
+	mutation := newKnowledgeBaseMutation(c.config, OpUpdateOne, withKnowledgeBase(_m))
+	return &KnowledgeBaseUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KnowledgeBaseClient) UpdateOneID(id int) *KnowledgeBaseUpdateOne {
+	mutation := newKnowledgeBaseMutation(c.config, OpUpdateOne, withKnowledgeBaseID(id))
+	return &KnowledgeBaseUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KnowledgeBase.
+func (c *KnowledgeBaseClient) Delete() *KnowledgeBaseDelete {
+	mutation := newKnowledgeBaseMutation(c.config, OpDelete)
+	return &KnowledgeBaseDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KnowledgeBaseClient) DeleteOne(_m *KnowledgeBase) *KnowledgeBaseDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KnowledgeBaseClient) DeleteOneID(id int) *KnowledgeBaseDeleteOne {
+	builder := c.Delete().Where(knowledgebase.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KnowledgeBaseDeleteOne{builder}
+}
+
+// Query returns a query builder for KnowledgeBase.
+func (c *KnowledgeBaseClient) Query() *KnowledgeBaseQuery {
+	return &KnowledgeBaseQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKnowledgeBase},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KnowledgeBase entity by its id.
+func (c *KnowledgeBaseClient) Get(ctx context.Context, id int) (*KnowledgeBase, error) {
+	return c.Query().Where(knowledgebase.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KnowledgeBaseClient) GetX(ctx context.Context, id int) *KnowledgeBase {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KnowledgeBaseClient) Hooks() []Hook {
+	return c.hooks.KnowledgeBase
+}
+
+// Interceptors returns the client interceptors.
+func (c *KnowledgeBaseClient) Interceptors() []Interceptor {
+	return c.inters.KnowledgeBase
+}
+
+func (c *KnowledgeBaseClient) mutate(ctx context.Context, m *KnowledgeBaseMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KnowledgeBaseCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KnowledgeBaseUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KnowledgeBaseUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KnowledgeBaseDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KnowledgeBase mutation op: %q", m.Op())
 	}
 }
 
@@ -3566,14 +3850,14 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		ACL, AuditLog, Budget, BudgetAlertState, Conversation, ConversationFile,
-		Department, DeptClosure, EgressLog, EgressRule, LegalHold, Membership, Message,
-		Model, ModelProvider, Notification, Organization, Role, SystemSetting, Tool,
-		UsageRecord, User []ent.Hook
+		Department, DeptClosure, EgressLog, EgressRule, KBFile, KnowledgeBase,
+		LegalHold, Membership, Message, Model, ModelProvider, Notification,
+		Organization, Role, SystemSetting, Tool, UsageRecord, User []ent.Hook
 	}
 	inters struct {
 		ACL, AuditLog, Budget, BudgetAlertState, Conversation, ConversationFile,
-		Department, DeptClosure, EgressLog, EgressRule, LegalHold, Membership, Message,
-		Model, ModelProvider, Notification, Organization, Role, SystemSetting, Tool,
-		UsageRecord, User []ent.Interceptor
+		Department, DeptClosure, EgressLog, EgressRule, KBFile, KnowledgeBase,
+		LegalHold, Membership, Message, Model, ModelProvider, Notification,
+		Organization, Role, SystemSetting, Tool, UsageRecord, User []ent.Interceptor
 	}
 )

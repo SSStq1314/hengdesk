@@ -462,17 +462,7 @@ func (c *Client) Stream(ctx context.Context, req *ChatRequest, up Upstream, m Mo
 // Estimate 上游未返回 usage 时的粗略估算（PRD：标记为估算值）：ASCII 约 4 字符 1 token，其他字符约 1 字 1 token。
 // 后续 PR 换成按模型的 tokenizer。
 func Estimate(prompt []Message, completion Message) Usage {
-	count := func(s string) int {
-		ascii, other := 0, 0
-		for _, r := range s {
-			if r < utf8.RuneSelf {
-				ascii++
-			} else {
-				other++
-			}
-		}
-		return ascii/4 + other + 1
-	}
+	count := EstimateText
 	text := func(m Message) string {
 		var s strings.Builder
 		s.Write(m.Content)
@@ -491,6 +481,19 @@ func Estimate(prompt []Message, completion Message) Usage {
 	u.CompletionTokens = count(text(completion))
 	u.TotalTokens = u.PromptTokens + u.CompletionTokens
 	return u
+}
+
+// EstimateText 单段文本的 token 估算（与 Estimate 同一规则）。
+func EstimateText(s string) int {
+	ascii, other := 0, 0
+	for _, r := range s {
+		if r < utf8.RuneSelf {
+			ascii++
+		} else {
+			other++
+		}
+	}
+	return ascii/4 + other + 1
 }
 
 // ListModels 调用上游 GET {base}/models，用于管理员「测试连接」：验证地址可达、Key 有效，返回上游可用模型 ID。

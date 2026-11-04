@@ -36,6 +36,12 @@ type EgressLog func(*sql.Selector)
 // EgressRule is the predicate function for egressrule builders.
 type EgressRule func(*sql.Selector)
 
+// KBFile is the predicate function for kbfile builders.
+type KBFile func(*sql.Selector)
+
+// KnowledgeBase is the predicate function for knowledgebase builders.
+type KnowledgeBase func(*sql.Selector)
+
 // LegalHold is the predicate function for legalhold builders.
 type LegalHold func(*sql.Selector)
 

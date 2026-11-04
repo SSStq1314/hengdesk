@@ -12,6 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.13
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.6
 	github.com/coreos/go-oidc/v3 v3.21.0
+	github.com/go-ego/gse v1.3.1
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/hibiken/asynq v0.26.0
 	github.com/jackc/pgx/v5 v5.12.0
@@ -67,6 +68,7 @@ require (
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
+	github.com/vcaesar/cedar v0.50.1 // indirect
 	github.com/xuri/efp v0.0.3-0.20260924042702-217b81952dec // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect

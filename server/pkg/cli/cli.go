@@ -15,7 +15,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/SSStq1314/hengdesk/server/internal/docparse"
 	"github.com/SSStq1314/hengdesk/server/internal/egress"
+	"github.com/SSStq1314/hengdesk/server/internal/kb"
 
 	"github.com/hibiken/asynq"
 	"github.com/redis/go-redis/v9"
@@ -57,7 +59,7 @@ func serverCmd() *cobra.Command {
 			return err
 		}
 		lg := hlog.New(cfg.LogLevel)
-		client, _, err := store.Open(cfg.DatabaseURL)
+		client, sqlDB, err := store.Open(cfg.DatabaseURL)
 		if err != nil {
 			return err
 		}
@@ -120,15 +122,18 @@ func serverCmd() *cobra.Command {
 		} else {
 			lg.Warn("object storage not configured; conversation file upload disabled")
 		}
-		api.Mount(e, api.Deps{Files: files, FileLimits: api.FileLimits{MaxBytes: int64(cfg.ChatFileMaxMB) << 20}, Timezone: cfg.Timezone, Gateway: gw, Egress: eg, EgressPolicy: egPolicy, DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc, EnforceSSO: cfg.OIDCEnforce, BreakGlass: cfg.OIDCBreakGlass,
-			DB: client, Audit: w, Secure: cfg.CookieSecure,
-			Sessions:  &session.Store{R: rdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle},
-			Lockout:   &session.Lockout{R: rdb, MaxFailures: cfg.LockoutMax, Duration: cfg.LockoutFor},
-			IPLimit:   &session.RateLimiter{R: rdb, Limit: cfg.LoginIPLimit, Window: cfg.LoginIPWindow},
-			Passwords: auth.PasswordPolicy{MinLen: cfg.PasswordMinLen},
-		}, TraceTrustedProxies: cfg.TraceTrustedProxies, System: api.SystemConfig{BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, DiskLowPercent: cfg.DiskLowPercent,
-			PublicHTTPS: cfg.PublicHTTPS, TrustedProxies: cfg.TrustedProxies, TLSCertFile: cfg.TLSCertFile,
-			AuditRetentionDays: cfg.AuditRetentionDays, MasterKeyPath: masterKeyHostPath(cfg), MasterKeyFingerprint: keys.Fingerprint()}})
+		aq := asynq.NewClient(queue.RedisOpt(cfg.RedisAddr))
+		defer func() { _ = aq.Close() }()
+		api.Mount(e, api.Deps{KBStore: kb.PGStore{DB: sqlDB}, KBEnqueue: kb.AsynqEnqueuer{C: aq}, KBFileMaxBytes: int64(cfg.KBFileMaxMB) << 20,
+			Files: files, FileLimits: api.FileLimits{MaxBytes: int64(cfg.ChatFileMaxMB) << 20}, Timezone: cfg.Timezone, Gateway: gw, Egress: eg, EgressPolicy: egPolicy, DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc, EnforceSSO: cfg.OIDCEnforce, BreakGlass: cfg.OIDCBreakGlass,
+				DB: client, Audit: w, Secure: cfg.CookieSecure,
+				Sessions:  &session.Store{R: rdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle},
+				Lockout:   &session.Lockout{R: rdb, MaxFailures: cfg.LockoutMax, Duration: cfg.LockoutFor},
+				IPLimit:   &session.RateLimiter{R: rdb, Limit: cfg.LoginIPLimit, Window: cfg.LoginIPWindow},
+				Passwords: auth.PasswordPolicy{MinLen: cfg.PasswordMinLen},
+			}, TraceTrustedProxies: cfg.TraceTrustedProxies, System: api.SystemConfig{BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, DiskLowPercent: cfg.DiskLowPercent,
+				PublicHTTPS: cfg.PublicHTTPS, TrustedProxies: cfg.TrustedProxies, TLSCertFile: cfg.TLSCertFile,
+				AuditRetentionDays: cfg.AuditRetentionDays, MasterKeyPath: masterKeyHostPath(cfg), MasterKeyFingerprint: keys.Fingerprint()}})
 		ctx, stop := signalCtx()
 		defer stop()
 		go func() {
@@ -152,7 +157,7 @@ func workerCmd() *cobra.Command {
 			return err
 		}
 		lg := hlog.New(cfg.LogLevel)
-		client, _, err := store.Open(cfg.DatabaseURL)
+		client, sqlDB, err := store.Open(cfg.DatabaseURL)
 		if err != nil {
 			return err
 		}
@@ -193,6 +198,28 @@ func workerCmd() *cobra.Command {
 				"held_orgs", res.HeldOrgs, "held_users", res.HeldUsers, "object_errors", res.ObjectErrors)
 			return nil
 		})
+		// FR-16：知识库文件解析与索引。嵌入调用同样经过出站控制与主密钥。
+		eg, _ := egress.New(client, audit.EntWriter{C: client}, lg)
+		keys, err := gateway.LoadKeyring(cfg.MasterKeyFile, cfg.MasterKey)
+		if err != nil {
+			return masterKeyLoadError(cfg.MasterKeyFile, err)
+		}
+		var kbObjs kb.Objects
+		if o, ok := objs.(kb.Objects); ok {
+			kbObjs = o
+		}
+		aq := asynq.NewClient(queue.RedisOpt(cfg.RedisAddr))
+		defer func() { _ = aq.Close() }()
+		kbx := &kb.Indexer{DB: client, Objects: kbObjs, Store: kb.PGStore{DB: sqlDB},
+			GW: &gateway.Service{DB: client, Keys: keys, Client: &gateway.Client{HTTP: eg.HTTP()}}, Parser: docparse.New(), Log: lg}
+		mux.HandleFunc(kb.TaskIndex, kbx.HandleIndex)
+		mux.HandleFunc(kb.TaskSweep, func(ctx context.Context, _ *asynq.Task) error {
+			n, err := kb.Sweep(ctx, client, kb.AsynqEnqueuer{C: aq}, time.Now())
+			if n > 0 {
+				lg.Info("kb sweep requeued", "files", n)
+			}
+			return err
+		})
 		if err := srv.Start(mux); err != nil {
 			return err
 		}
@@ -201,6 +228,9 @@ func workerCmd() *cobra.Command {
 			return err
 		}
 		if _, err := sch.Register("@every 24h", asynq.NewTask(chatretention.TaskPurge, nil), asynq.Unique(time.Hour)); err != nil {
+			return err
+		}
+		if _, err := sch.Register("@every 5m", asynq.NewTask(kb.TaskSweep, nil), asynq.Unique(4*time.Minute)); err != nil {
 			return err
 		}
 		if err := sch.Start(); err != nil {
