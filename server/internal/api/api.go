@@ -181,6 +181,7 @@ func Mount(e *echo.Echo, d Deps) {
 
 	mountKB(g, d, az, gw)
 	mountMCP(admin, d, gw)
+	mountTools(g, admin, d, az)
 
 	bh := &budgetHandlers{db: d.DB, bs: bs, az: az}
 	admin.GET("/budgets", bh.list, authz.Require(rbac.BudgetRead))

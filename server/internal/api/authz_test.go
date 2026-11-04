@@ -189,7 +189,7 @@ func TestACLIncludeChildrenAndToolDefaultDisabled(t *testing.T) {
 	}
 
 	// 新工具默认禁用：即使有 use 授权也不可用。
-	tool := f.c.Tool.Create().SetKey("t1").SetName("t1").SaveX(ctx)
+	tool := f.c.Tool.Create().SetKey("t1").SetName("t1").SetOrgID(org.ID).SaveX(ctx)
 	must(az.Grant(ctx, org.ID, 1, rbac.ResTool, tool.Key, authz.Subject{Type: "user", ID: dev.ID}, rbac.BitUse))
 	if ok, _ := az.ToolUsable(ctx, dev, tool); ok {
 		t.Fatal("new tool must be disabled by default")

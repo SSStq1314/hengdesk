@@ -3,6 +3,7 @@ package authz
 import (
 	"context"
 	"errors"
+	"github.com/SSStq1314/hengdesk/server/internal/policy"
 
 	"entgo.io/ent/dialect/sql"
 
@@ -109,11 +110,36 @@ func (s *Service) VisibleIDs(ctx context.Context, p *auth.Principal, resType str
 		Unique(true).Select(acl.FieldResourceID).Strings(ctx)
 }
 
-// ToolUsable 工具可用性的统一入口（预留）：新工具默认禁用（tools.enabled=false），
-// 只有管理员显式启用且调用者对该工具有 use 位时才可用。工具调用链路在 M2 接入。
-func (s *Service) ToolUsable(ctx context.Context, p *auth.Principal, t *ent.Tool) (bool, error) {
-	if t == nil || !t.Enabled || t.ExecMode == "deny" {
-		return false, nil
+// ToolAccess 工具可用性的统一入口：先过平台策略（policy.Decide：启用、非禁止、非待复核、未下线、服务器启用、同组织），
+// 再要求调用者对该工具有 use 位（成员 / 部门含下级 / 角色）。管理员也不例外：没有授权就不可用。
+func (s *Service) ToolAccess(ctx context.Context, p *auth.Principal, t *ent.Tool) (policy.Decision, error) {
+	if p == nil || t == nil {
+		return policy.Decision{Reason: policy.ReasonDisabled}, nil
 	}
-	return s.Check(ctx, p, rbac.ResTool, t.Key, rbac.BitUse)
+	var srv *ent.McpServer
+	if t.ServerID != nil {
+		v, err := s.DB.McpServer.Get(ctx, *t.ServerID)
+		if err != nil && !ent.IsNotFound(err) {
+			return policy.Decision{}, err
+		}
+		srv = v
+	}
+	d := policy.Decide(p.OrgID, t, srv)
+	if !d.Usable {
+		return d, nil
+	}
+	ok, err := s.Check(ctx, p, rbac.ResTool, t.Key, rbac.BitUse)
+	if err != nil {
+		return policy.Decision{}, err
+	}
+	if !ok {
+		return policy.Decision{Reason: "no_acl"}, nil
+	}
+	return d, nil
+}
+
+// ToolUsable 只关心能否调用（不关心执行方式）。
+func (s *Service) ToolUsable(ctx context.Context, p *auth.Principal, t *ent.Tool) (bool, error) {
+	d, err := s.ToolAccess(ctx, p, t)
+	return d.Usable, err
 }
