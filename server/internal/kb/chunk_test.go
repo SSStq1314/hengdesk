@@ -70,3 +70,15 @@ func TestTerms(t *testing.T) {
 		t.Error("empty query")
 	}
 }
+
+func TestRRF(t *testing.T) {
+	a := []Hit{{ChunkID: 1}, {ChunkID: 2}, {ChunkID: 3}}
+	b := []Hit{{ChunkID: 3}, {ChunkID: 4}}
+	got := RRF(3, a, b)
+	if len(got) != 3 || got[0].ChunkID != 3 || got[1].ChunkID != 1 {
+		t.Fatalf("%+v", got)
+	}
+	if len(RRF(5)) != 0 {
+		t.Fatal("empty")
+	}
+}

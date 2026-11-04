@@ -40,6 +40,7 @@ type ChunkStore interface {
 	DeleteFile(ctx context.Context, fileID int) error
 	DeleteKB(ctx context.Context, kbID int) error
 	CountFile(ctx context.Context, fileID int) (int, error)
+	Searcher
 }
 
 // PGStore PostgreSQL + pgvector 实现（原生 SQL；向量以文本字面量传入后 ::vector 转换，不引入额外依赖）。
