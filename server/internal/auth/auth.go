@@ -395,6 +395,9 @@ func (s *Service) RequireUser(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
+// SetCurrent 把 Principal 放进上下文。只用于服务端内部代表用户执行的任务（如 worker 自动续写），不经过会话 Cookie。
+func SetCurrent(c echo.Context, p *Principal) { c.Set(ctxKey, p) }
+
 // Current 当前用户，未登录返回 nil。
 func Current(c echo.Context) *Principal {
 	p, _ := c.Get(ctxKey).(*Principal)
