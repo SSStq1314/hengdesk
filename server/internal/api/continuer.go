@@ -126,14 +126,11 @@ func (x *Continuer) Continue(ctx context.Context, msgID int) error {
 		}
 	}
 	if herr != nil {
-		if errors.As(herr, &he) || errors.Is(herr, audit.ErrRejected) {
-			reason := "自动继续失败"
-			if he != nil {
-				reason = fmt.Sprint(he.Message)
-			} else {
-				reason = "审计写入失败，未继续生成"
-			}
-			return x.fail(ctx, m, cv, ap, reason)
+		if errors.As(herr, &he) {
+			return x.fail(ctx, m, cv, ap, fmt.Sprint(he.Message))
+		}
+		if errors.Is(herr, audit.ErrRejected) {
+			return x.fail(ctx, m, cv, ap, "审计写入失败，未继续生成")
 		}
 		return herr
 	}
