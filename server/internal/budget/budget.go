@@ -144,7 +144,8 @@ func (s *Service) Applicable(ctx context.Context, sub Subject) ([]*ent.Budget, e
 // DBUsed 从 usage_records 汇总 b 在 w 内的已用量（权威值）。
 // 计入所有用量记录（对话、模型测试、带 usage 的失败调用）；上游超时 / 5xx 且无 usage 的记录为 0，不占预算。
 func (s *Service) DBUsed(ctx context.Context, b *ent.Budget, w Window) (int64, error) {
-	ps := []predicate.UsageRecord{usagerecord.OrgID(b.OrgID), usagerecord.CreatedAtGTE(w.Start), usagerecord.CreatedAtLT(w.End)}
+	// 边界统一成 UTC 再查：SQLite 在 TZ=UTC 时若用带 +08:00 的边界做比较，会把上海时区当天的用量漏掉。
+	ps := []predicate.UsageRecord{usagerecord.OrgID(b.OrgID), usagerecord.CreatedAtGTE(w.Start.UTC()), usagerecord.CreatedAtLT(w.End.UTC())}
 	switch b.Scope {
 	case budget.ScopeUser:
 		ps = append(ps, usagerecord.UserID(b.ScopeID))
