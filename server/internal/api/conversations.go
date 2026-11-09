@@ -27,6 +27,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/kbfile"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/knowledgebase"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/message"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
 	"github.com/SSStq1314/hengdesk/server/internal/kb"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
@@ -55,13 +56,17 @@ type convHandlers struct {
 }
 
 type convView struct {
-	ID        int       `json:"id"`
-	Title     string    `json:"title"`
-	ModelID   *int      `json:"model_id"`
-	KBIDs     []int     `json:"kb_ids"`
-	ToolIDs   []int     `json:"tool_ids"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         int       `json:"id"`
+	Title      string    `json:"title"`
+	ModelID    *int      `json:"model_id"`
+	KBIDs      []int     `json:"kb_ids"`
+	ToolIDs    []int     `json:"tool_ids"`
+	AgentID    *int      `json:"agent_id,omitempty"`
+	AgentDebug bool      `json:"agent_debug,omitempty"`
+	AgentName  string    `json:"agent_name,omitempty"`
+	Opening    string    `json:"opening,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type msgView struct {
@@ -89,6 +94,23 @@ type msgView struct {
 	ToolCalls    []ToolCall `json:"tool_calls,omitempty"`
 	// UsageEstimated 上游未返回 usage，token 为估算值（D-41 第 4 条，界面标「估算」）。
 	UsageEstimated bool `json:"usage_estimated,omitempty"`
+	// AgentDropped 调试会话中因调用者无权而被静默剔除的绑定资源（正式会话不返回）。
+	AgentDropped []schema.AgentDropped `json:"agent_dropped,omitempty"`
+}
+
+// enrichConv 补齐智能体名称与开场白（正式取发布版，调试取草稿）。
+func (h *convHandlers) enrichConv(c echo.Context, p *auth.Principal, cv *ent.Conversation) (convView, error) {
+	v := toConv(cv)
+	if cv.AgentID == nil {
+		return v, nil
+	}
+	_, cfg, _, err := h.bindAgent(c, p, *cv.AgentID, cv.AgentDebug)
+	if err != nil {
+		// 绑定后失去权限：仍返回基本字段，名称留空（发消息时会 404）。
+		return v, nil
+	}
+	v.AgentName, v.Opening = cfg.Name, cfg.Opening
+	return v, nil
 }
 
 func toConv(c *ent.Conversation) convView {
@@ -100,7 +122,8 @@ func toConv(c *ent.Conversation) convView {
 	if tids == nil {
 		tids = []int{}
 	}
-	return convView{ID: c.ID, Title: c.Title, ModelID: c.ModelID, KBIDs: ids, ToolIDs: tids, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt}
+	return convView{ID: c.ID, Title: c.Title, ModelID: c.ModelID, KBIDs: ids, ToolIDs: tids,
+		AgentID: c.AgentID, AgentDebug: c.AgentDebug, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt}
 }
 
 func toMsg(m *ent.Message) msgView {
@@ -151,10 +174,14 @@ func (h *convHandlers) list(c echo.Context) error {
 type convInput struct {
 	Title *string `json:"title"`
 	Model string  `json:"model"`
-	// KBIDs 选用的知识库（最多 maxConvKBs 个）；传 [] 清空，不传不变。
+	// KBIDs 选用的知识库（最多 maxConvKBs 个）；传 [] 清空，不传不变。绑定智能体时忽略。
 	KBIDs *[]int `json:"kb_ids"`
-	// ToolIDs 选用的工具（第五块 PR4，最多 maxConvTools 个，必须当前可用）；传 [] 清空，不传不变。
+	// ToolIDs 选用的工具（第五块 PR4，最多 maxConvTools 个，必须当前可用）；传 [] 清空，不传不变。绑定智能体时忽略。
 	ToolIDs *[]int `json:"tool_ids"`
+	// AgentID 绑定的智能体；传 0 或配合 clear_agent 解除。正式会话需 use+已发布，调试需 edit。
+	AgentID    *int  `json:"agent_id"`
+	AgentDebug *bool `json:"agent_debug"`
+	ClearAgent bool  `json:"clear_agent"`
 }
 
 const maxConvKBs = 5
@@ -218,32 +245,44 @@ func (h *convHandlers) create(c echo.Context) error {
 	if in.Title != nil {
 		q.SetTitle(cleanTitle(*in.Title))
 	}
-	if in.Model != "" {
-		tgt, err := h.ch.allowed(c, p, in.Model)
-		if err != nil {
+	boundAgent := in.AgentID != nil && *in.AgentID > 0
+	if boundAgent {
+		debug := in.AgentDebug != nil && *in.AgentDebug
+		if err := h.setAgentOnCreate(c, p, q, *in.AgentID, debug); err != nil {
 			return err
 		}
-		q.SetModelID(tgt.Model.ID)
-	}
-	if in.KBIDs != nil {
-		ids, err := h.checkKBs(c, p, *in.KBIDs)
-		if err != nil {
-			return err
+	} else {
+		if in.Model != "" {
+			tgt, err := h.ch.allowed(c, p, in.Model)
+			if err != nil {
+				return err
+			}
+			q.SetModelID(tgt.Model.ID)
 		}
-		q.SetKBIds(ids)
-	}
-	if in.ToolIDs != nil {
-		ids, err := h.checkTools(c, p, *in.ToolIDs)
-		if err != nil {
-			return err
+		if in.KBIDs != nil {
+			ids, err := h.checkKBs(c, p, *in.KBIDs)
+			if err != nil {
+				return err
+			}
+			q.SetKBIds(ids)
 		}
-		q.SetToolIds(ids)
+		if in.ToolIDs != nil {
+			ids, err := h.checkTools(c, p, *in.ToolIDs)
+			if err != nil {
+				return err
+			}
+			q.SetToolIds(ids)
+		}
 	}
 	cv, err := q.Save(c.Request().Context())
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusCreated, toConv(cv))
+	v, err := h.enrichConv(c, p, cv)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusCreated, v)
 }
 
 func (h *convHandlers) get(c echo.Context) error {
@@ -274,7 +313,11 @@ func (h *convHandlers) get(c echo.Context) error {
 	for i, f := range fs {
 		fv[i] = toFile(f)
 	}
-	return c.JSON(http.StatusOK, map[string]any{"conversation": toConv(cv), "messages": out, "files": fv})
+	v, err := h.enrichConv(c, p, cv)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, map[string]any{"conversation": v, "messages": out, "files": fv})
 }
 
 func (h *convHandlers) update(c echo.Context) error {
@@ -294,32 +337,52 @@ func (h *convHandlers) update(c echo.Context) error {
 	if in.Title != nil {
 		u.SetTitle(cleanTitle(*in.Title))
 	}
-	if in.Model != "" {
-		tgt, err := h.ch.allowed(c, p, in.Model)
-		if err != nil {
+	if in.ClearAgent {
+		u.ClearAgentID().SetAgentDebug(false)
+	} else if in.AgentID != nil && *in.AgentID > 0 {
+		debug := cv.AgentDebug
+		if in.AgentDebug != nil {
+			debug = *in.AgentDebug
+		}
+		if err := h.setAgentOnUpdate(c, p, u, *in.AgentID, debug); err != nil {
 			return err
 		}
-		u.SetModelID(tgt.Model.ID)
-	}
-	if in.KBIDs != nil {
-		ids, err := h.checkKBs(c, p, *in.KBIDs)
-		if err != nil {
+	} else if in.AgentDebug != nil && cv.AgentID != nil {
+		if err := h.setAgentOnUpdate(c, p, u, *cv.AgentID, *in.AgentDebug); err != nil {
 			return err
 		}
-		u.SetKBIds(ids)
-	}
-	if in.ToolIDs != nil {
-		ids, err := h.checkTools(c, p, *in.ToolIDs)
-		if err != nil {
-			return err
+	} else if cv.AgentID == nil {
+		if in.Model != "" {
+			tgt, err := h.ch.allowed(c, p, in.Model)
+			if err != nil {
+				return err
+			}
+			u.SetModelID(tgt.Model.ID)
 		}
-		u.SetToolIds(ids)
+		if in.KBIDs != nil {
+			ids, err := h.checkKBs(c, p, *in.KBIDs)
+			if err != nil {
+				return err
+			}
+			u.SetKBIds(ids)
+		}
+		if in.ToolIDs != nil {
+			ids, err := h.checkTools(c, p, *in.ToolIDs)
+			if err != nil {
+				return err
+			}
+			u.SetToolIds(ids)
+		}
 	}
 	cv, err = u.Save(c.Request().Context())
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, toConv(cv))
+	v, err := h.enrichConv(c, p, cv)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, v)
 }
 
 // remove 软删除：用户侧不可见（之后访问 404），消息保留供审计链路还原；会话文件一并软删除。物理清理随保留期策略（待产品确认）。
@@ -387,16 +450,27 @@ func (h *convHandlers) send(c echo.Context) error {
 		}
 		return errAwaiting
 	}
-	tgt, notice, err := h.pickModel(c, p, cv, in.Model)
+	sess, err := h.resolveAgent(c, p, cv)
+	if err != nil {
+		return err
+	}
+	var tgt *gateway.Target
+	var notice string
+	if sess != nil {
+		tgt, notice, err = h.pickAgentModel(c, p, sess, in.Model)
+	} else {
+		tgt, notice, err = h.pickModel(c, p, cv, in.Model)
+	}
 	if err != nil {
 		return err
 	}
 	if err := budgetGate(c, h.ch.bs, h.db, tgt.Model.ID, tgt.Model.Name); err != nil || c.Response().Committed {
 		return err
 	}
+	detail := map[string]any{"model": tgt.Model.Name, "chars": utf8.RuneCountInString(in.Content), "model_reset": notice != ""}
+	mergeAgentAudit(detail, sess)
 	if err := audit.Record(c, audit.Entry{Action: "chat.message.send", Phase: "attempt", ResourceType: "conversation",
-		ResourceID: strconv.Itoa(cv.ID), Detail: map[string]any{"model": tgt.Model.Name, "chars": utf8.RuneCountInString(in.Content),
-			"model_reset": notice != ""}}); err != nil {
+		ResourceID: strconv.Itoa(cv.ID), Detail: detail}); err != nil {
 		return err // fail-closed
 	}
 	reqID := c.Response().Header().Get(echo.HeaderXRequestID)
@@ -475,7 +549,17 @@ func (h *convHandlers) regenerate(c echo.Context) error {
 	if last.Role != message.RoleAssistant || last.Status == message.StatusStreaming {
 		return echo.NewHTTPError(http.StatusConflict, "只能重新生成最后一条已结束的回复")
 	}
-	tgt, notice, err := h.pickModel(c, p, cv, "")
+	sess, err := h.resolveAgent(c, p, cv)
+	if err != nil {
+		return err
+	}
+	var tgt *gateway.Target
+	var notice string
+	if sess != nil {
+		tgt, notice, err = h.pickAgentModel(c, p, sess, "")
+	} else {
+		tgt, notice, err = h.pickModel(c, p, cv, "")
+	}
 	if err != nil {
 		return err
 	}
@@ -658,6 +742,16 @@ func (h *convHandlers) generate(c echo.Context, p *auth.Principal, cv *ent.Conve
 func (h *convHandlers) generateWith(c echo.Context, p *auth.Principal, cv *ent.Conversation, tgt *gateway.Target, asst *ent.Message,
 	action, notice string, skipKB bool, extra map[string]any, rs *toolState) error {
 	ctx := c.Request().Context()
+	sess, err := h.resolveAgent(c, p, cv)
+	if err != nil {
+		return err
+	}
+	work := *cv
+	stepLimit := maxToolSteps
+	if sess != nil {
+		work.KBIds, work.ToolIds = sess.KBIDs, sess.ToolIDs
+		stepLimit = sess.MaxSteps
+	}
 	files, err := h.files(ctx, cv.ID)
 	if err != nil {
 		return err
@@ -667,18 +761,29 @@ func (h *convHandlers) generateWith(c echo.Context, p *auth.Principal, cv *ent.C
 	if err != nil {
 		return err
 	}
-	cms := make([]ctxMsg, 0, len(hist)+2)
+	cms := make([]ctxMsg, 0, len(hist)+3)
+	if sess != nil && strings.TrimSpace(sess.Prompt) != "" {
+		cms = append(cms, ctxMsg{Role: "system", Content: sess.Prompt})
+	}
 	fctx, ctxCut := fileContext(files, h.lim.TotalChars)
 	if fctx != "" {
 		cms = append(cms, ctxMsg{Role: "system", Content: fctx})
+	}
+	reqID := c.Response().Header().Get(echo.HeaderXRequestID)
+	traceID := c.Response().Header().Get(audit.HeaderTraceID)
+	if traceID == "" {
+		traceID = audit.TraceFrom(ctx)
+	}
+	if err := h.startAgentRun(ctx, p, cv, asst, sess, tgt, reqID, traceID); err != nil {
+		return err
 	}
 	// 知识库检索（FR-17/18）：问题取本轮最新一条用户消息；ACL 每次现算。审计写失败则拒绝（不调用模型）。
 	var cites []Citation
 	var prelude []sseEvent
 	kbInfo := map[string]any{}
 	ungrounded := false
-	if len(cv.KBIds) > 0 && h.ret != nil {
-		strict, err := h.strictKBs(ctx, p, cv.KBIds)
+	if len(work.KBIds) > 0 && h.ret != nil {
+		strict, err := h.strictKBs(ctx, p, work.KBIds)
 		if err != nil {
 			return err
 		}
@@ -687,10 +792,11 @@ func (h *convHandlers) generateWith(c echo.Context, p *auth.Principal, cv *ent.C
 			if len(strict) > 0 {
 				_ = h.db.Message.UpdateOneID(asst.ID).SetStatus(message.StatusError).SetErrorCode("kb_strict").
 					SetError(kbStrictSkipMsg).Exec(context.WithoutCancel(ctx))
+				h.finishAgentRun(context.WithoutCancel(ctx), sess, &toolState{}, gateway.Usage{}, "error", "kb_strict")
 				return echo.NewHTTPError(http.StatusConflict, kbStrictSkipMsg)
 			}
 			ungrounded = true
-			kbInfo = map[string]any{"kb_ids": cv.KBIds, "kb_skipped": true}
+			kbInfo = map[string]any{"kb_ids": work.KBIds, "kb_skipped": true}
 			cms = append(cms, ctxMsg{Role: "system", Content: kbSkippedPrompt})
 		} else {
 			q := ""
@@ -700,8 +806,7 @@ func (h *convHandlers) generateWith(c echo.Context, p *auth.Principal, cv *ent.C
 					break
 				}
 			}
-			reqID := c.Response().Header().Get(echo.HeaderXRequestID)
-			kr, kerr := h.ret.Retrieve(ctx, p, cv.KBIds, q, reqID, 0)
+			kr, kerr := h.ret.Retrieve(ctx, p, work.KBIds, q, reqID, 0)
 			if kerr != nil {
 				// D-42：检索失败仍返回 503（不自动降级）；前端提示「知识库暂时不可用」，由用户选择重试或本次不使用知识库继续。
 				code, msg := "kb_failed", "知识库暂时不可用"
@@ -710,11 +815,14 @@ func (h *convHandlers) generateWith(c echo.Context, p *auth.Principal, cv *ent.C
 				}
 				_ = h.db.Message.UpdateOneID(asst.ID).SetStatus(message.StatusError).SetErrorCode(code).SetError(msg).Exec(context.WithoutCancel(ctx))
 				h.ch.log.Error("kb retrieve failed", "conversation", cv.ID, "err", kerr)
+				h.finishAgentRun(context.WithoutCancel(ctx), sess, &toolState{}, gateway.Usage{}, "error", code)
 				return c.JSON(http.StatusServiceUnavailable, map[string]any{"message": msg, "error": map[string]string{"code": code, "message": msg}})
 			}
-			kbInfo = map[string]any{"kb_ids": cv.KBIds, "kb_allowed_files": kr.AllowedFiles, "kb_hits": len(kr.Citations), "kb_strategy": kr.Strategy}
+			kbInfo = map[string]any{"kb_ids": work.KBIds, "kb_allowed_files": kr.AllowedFiles, "kb_hits": len(kr.Citations), "kb_strategy": kr.Strategy}
 			if len(kr.Citations) == 0 {
 				if len(strict) > 0 {
+					mergeAgentAudit(kbInfo, sess)
+					h.finishAgentRun(context.WithoutCancel(ctx), sess, &toolState{}, gateway.Usage{}, "done", "")
 					return h.refuseStrict(c, cv, asst, action, notice, strict, kbInfo, extra)
 				}
 				ungrounded = true
@@ -748,7 +856,7 @@ func (h *convHandlers) generateWith(c echo.Context, p *auth.Principal, cv *ent.C
 	req := gateway.ChatRequest{Model: tgt.Model.Name, Messages: msgs, Stream: true}
 
 	// 工具循环（第五块 PR4）：每轮模型调用后处理工具调用，直到模型直接作答、需要审批挂起或达到步数上限。
-	tools, tmap, err := h.convTools(ctx, p, cv)
+	tools, tmap, err := h.convTools(ctx, p, &work)
 	if err != nil {
 		return err
 	}
@@ -782,21 +890,26 @@ func (h *convHandlers) generateWith(c echo.Context, p *auth.Principal, cv *ent.C
 		started = started || c.Response().Committed
 	}
 	view := func(status string, used, primary *gateway.Target) msgView {
-		return msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: status, ModelName: used.Model.Name,
+		mv := msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: status, ModelName: used.Model.Name,
 			FallbackFrom: fallbackFrom(used, primary), PromptTokens: usage.PromptTokens, UsageEstimated: usage.Estimated,
 			CompletionTokens: usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut, HistoryTruncated: histCut,
 			Notice: notice, Citations: cites, KBUngrounded: ungrounded, ToolCalls: st.Calls}
+		if sess != nil && sess.Debug && len(sess.Dropped) > 0 {
+			mv.AgentDropped = sess.Dropped
+		}
+		return mv
 	}
 	for !awaiting && ter == nil {
 		req.Messages = append(msgs[:len(msgs):len(msgs)], st.Trace...)
-		last := len(tools) > 0 && st.Steps >= maxToolSteps
+		last := len(tools) > 0 && st.Steps >= stepLimit
 		if last {
 			req.ToolChoice = json.RawMessage(`"none"`)
-			if !strings.Contains(notice, toolStepsNotice) {
+			stepNotice := agentStepsNotice(stepLimit)
+			if !strings.Contains(notice, stepNotice) {
 				if notice != "" {
 					notice += "；"
 				}
-				notice += toolStepsNotice
+				notice += stepNotice
 			}
 		}
 		hk := streamHooks{delta: EventToken, prelude: prelude, tap: func(d gateway.Delta) { buf.WriteString(d.Content) },
@@ -915,6 +1028,20 @@ func (h *convHandlers) generateWith(c echo.Context, p *auth.Principal, cv *ent.C
 	for k, v := range extra {
 		detail[k] = v
 	}
+	mergeAgentAudit(detail, sess)
+	errCode := ""
+	if ge != nil {
+		errCode = ge.Code
+	}
+	if ter != nil && toolAuditErr(ter) {
+		errCode = "audit_failed"
+	} else if ter != nil {
+		errCode = "tool_failed"
+	}
+	if rerr != nil {
+		errCode = "audit_failed"
+	}
+	h.finishAgentRun(bg, sess, st, usage, outcome, errCode)
 	if err := audit.Record(c, audit.Entry{Action: action, Phase: "result", Outcome: outcome, ResourceType: "conversation",
 		ResourceID: strconv.Itoa(cv.ID), Detail: detail}); err != nil {
 		h.ch.log.Error("chat result audit write failed", "conversation", cv.ID)

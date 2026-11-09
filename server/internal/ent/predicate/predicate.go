@@ -12,6 +12,9 @@ type ACL func(*sql.Selector)
 // Agent is the predicate function for agent builders.
 type Agent func(*sql.Selector)
 
+// AgentRun is the predicate function for agentrun builders.
+type AgentRun func(*sql.Selector)
+
 // AgentVersion is the predicate function for agentversion builders.
 type AgentVersion func(*sql.Selector)
 

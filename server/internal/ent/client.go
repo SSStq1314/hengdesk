@@ -17,6 +17,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/agent"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/agentrun"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/agentversion"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/approval"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
@@ -54,6 +55,8 @@ type Client struct {
 	ACL *ACLClient
 	// Agent is the client for interacting with the Agent builders.
 	Agent *AgentClient
+	// AgentRun is the client for interacting with the AgentRun builders.
+	AgentRun *AgentRunClient
 	// AgentVersion is the client for interacting with the AgentVersion builders.
 	AgentVersion *AgentVersionClient
 	// Approval is the client for interacting with the Approval builders.
@@ -119,6 +122,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.ACL = NewACLClient(c.config)
 	c.Agent = NewAgentClient(c.config)
+	c.AgentRun = NewAgentRunClient(c.config)
 	c.AgentVersion = NewAgentVersionClient(c.config)
 	c.Approval = NewApprovalClient(c.config)
 	c.AuditLog = NewAuditLogClient(c.config)
@@ -239,6 +243,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:           cfg,
 		ACL:              NewACLClient(cfg),
 		Agent:            NewAgentClient(cfg),
+		AgentRun:         NewAgentRunClient(cfg),
 		AgentVersion:     NewAgentVersionClient(cfg),
 		Approval:         NewApprovalClient(cfg),
 		AuditLog:         NewAuditLogClient(cfg),
@@ -286,6 +291,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:           cfg,
 		ACL:              NewACLClient(cfg),
 		Agent:            NewAgentClient(cfg),
+		AgentRun:         NewAgentRunClient(cfg),
 		AgentVersion:     NewAgentVersionClient(cfg),
 		Approval:         NewApprovalClient(cfg),
 		AuditLog:         NewAuditLogClient(cfg),
@@ -341,7 +347,7 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.ACL, c.Agent, c.AgentVersion, c.Approval, c.AuditLog, c.Budget,
+		c.ACL, c.Agent, c.AgentRun, c.AgentVersion, c.Approval, c.AuditLog, c.Budget,
 		c.BudgetAlertState, c.Conversation, c.ConversationFile, c.Department,
 		c.DeptClosure, c.EgressLog, c.EgressRule, c.KBFile, c.KnowledgeBase,
 		c.LegalHold, c.McpServer, c.Membership, c.Message, c.Model, c.ModelProvider,
@@ -356,7 +362,7 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.ACL, c.Agent, c.AgentVersion, c.Approval, c.AuditLog, c.Budget,
+		c.ACL, c.Agent, c.AgentRun, c.AgentVersion, c.Approval, c.AuditLog, c.Budget,
 		c.BudgetAlertState, c.Conversation, c.ConversationFile, c.Department,
 		c.DeptClosure, c.EgressLog, c.EgressRule, c.KBFile, c.KnowledgeBase,
 		c.LegalHold, c.McpServer, c.Membership, c.Message, c.Model, c.ModelProvider,
@@ -374,6 +380,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ACL.mutate(ctx, m)
 	case *AgentMutation:
 		return c.Agent.mutate(ctx, m)
+	case *AgentRunMutation:
+		return c.AgentRun.mutate(ctx, m)
 	case *AgentVersionMutation:
 		return c.AgentVersion.mutate(ctx, m)
 	case *ApprovalMutation:
@@ -694,6 +702,139 @@ func (c *AgentClient) mutate(ctx context.Context, m *AgentMutation) (Value, erro
 		return (&AgentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Agent mutation op: %q", m.Op())
+	}
+}
+
+// AgentRunClient is a client for the AgentRun schema.
+type AgentRunClient struct {
+	config
+}
+
+// NewAgentRunClient returns a client for the AgentRun from the given config.
+func NewAgentRunClient(c config) *AgentRunClient {
+	return &AgentRunClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `agentrun.Hooks(f(g(h())))`.
+func (c *AgentRunClient) Use(hooks ...Hook) {
+	c.hooks.AgentRun = append(c.hooks.AgentRun, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `agentrun.Intercept(f(g(h())))`.
+func (c *AgentRunClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AgentRun = append(c.inters.AgentRun, interceptors...)
+}
+
+// Create returns a builder for creating a AgentRun entity.
+func (c *AgentRunClient) Create() *AgentRunCreate {
+	mutation := newAgentRunMutation(c.config, OpCreate)
+	return &AgentRunCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AgentRun entities.
+func (c *AgentRunClient) CreateBulk(builders ...*AgentRunCreate) *AgentRunCreateBulk {
+	return &AgentRunCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AgentRunClient) MapCreateBulk(slice any, setFunc func(*AgentRunCreate, int)) *AgentRunCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AgentRunCreateBulk{err: fmt.Errorf("calling to AgentRunClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AgentRunCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AgentRunCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AgentRun.
+func (c *AgentRunClient) Update() *AgentRunUpdate {
+	mutation := newAgentRunMutation(c.config, OpUpdate)
+	return &AgentRunUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AgentRunClient) UpdateOne(_m *AgentRun) *AgentRunUpdateOne {
+	mutation := newAgentRunMutation(c.config, OpUpdateOne, withAgentRun(_m))
+	return &AgentRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AgentRunClient) UpdateOneID(id int) *AgentRunUpdateOne {
+	mutation := newAgentRunMutation(c.config, OpUpdateOne, withAgentRunID(id))
+	return &AgentRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AgentRun.
+func (c *AgentRunClient) Delete() *AgentRunDelete {
+	mutation := newAgentRunMutation(c.config, OpDelete)
+	return &AgentRunDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AgentRunClient) DeleteOne(_m *AgentRun) *AgentRunDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AgentRunClient) DeleteOneID(id int) *AgentRunDeleteOne {
+	builder := c.Delete().Where(agentrun.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AgentRunDeleteOne{builder}
+}
+
+// Query returns a query builder for AgentRun.
+func (c *AgentRunClient) Query() *AgentRunQuery {
+	return &AgentRunQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAgentRun},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AgentRun entity by its id.
+func (c *AgentRunClient) Get(ctx context.Context, id int) (*AgentRun, error) {
+	return c.Query().Where(agentrun.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AgentRunClient) GetX(ctx context.Context, id int) *AgentRun {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AgentRunClient) Hooks() []Hook {
+	return c.hooks.AgentRun
+}
+
+// Interceptors returns the client interceptors.
+func (c *AgentRunClient) Interceptors() []Interceptor {
+	return c.inters.AgentRun
+}
+
+func (c *AgentRunClient) mutate(ctx context.Context, m *AgentRunMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AgentRunCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AgentRunUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AgentRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AgentRunDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AgentRun mutation op: %q", m.Op())
 	}
 }
 
@@ -4415,17 +4556,17 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		ACL, Agent, AgentVersion, Approval, AuditLog, Budget, BudgetAlertState,
-		Conversation, ConversationFile, Department, DeptClosure, EgressLog, EgressRule,
-		KBFile, KnowledgeBase, LegalHold, McpServer, Membership, Message, Model,
-		ModelProvider, Notification, Organization, Role, SystemSetting, Tool,
-		UsageRecord, User []ent.Hook
+		ACL, Agent, AgentRun, AgentVersion, Approval, AuditLog, Budget,
+		BudgetAlertState, Conversation, ConversationFile, Department, DeptClosure,
+		EgressLog, EgressRule, KBFile, KnowledgeBase, LegalHold, McpServer, Membership,
+		Message, Model, ModelProvider, Notification, Organization, Role, SystemSetting,
+		Tool, UsageRecord, User []ent.Hook
 	}
 	inters struct {
-		ACL, Agent, AgentVersion, Approval, AuditLog, Budget, BudgetAlertState,
-		Conversation, ConversationFile, Department, DeptClosure, EgressLog, EgressRule,
-		KBFile, KnowledgeBase, LegalHold, McpServer, Membership, Message, Model,
-		ModelProvider, Notification, Organization, Role, SystemSetting, Tool,
-		UsageRecord, User []ent.Interceptor
+		ACL, Agent, AgentRun, AgentVersion, Approval, AuditLog, Budget,
+		BudgetAlertState, Conversation, ConversationFile, Department, DeptClosure,
+		EgressLog, EgressRule, KBFile, KnowledgeBase, LegalHold, McpServer, Membership,
+		Message, Model, ModelProvider, Notification, Organization, Role, SystemSetting,
+		Tool, UsageRecord, User []ent.Interceptor
 	}
 )

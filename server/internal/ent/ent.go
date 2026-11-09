@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/agent"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/agentrun"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/agentversion"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/approval"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
@@ -102,6 +103,7 @@ func checkColumn(t, c string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			acl.Table:              acl.ValidColumn,
 			agent.Table:            agent.ValidColumn,
+			agentrun.Table:         agentrun.ValidColumn,
 			agentversion.Table:     agentversion.ValidColumn,
 			approval.Table:         approval.ValidColumn,
 			auditlog.Table:         auditlog.ValidColumn,

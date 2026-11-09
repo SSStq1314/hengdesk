@@ -32,6 +32,10 @@ const (
 	FieldKBIds = "kb_ids"
 	// FieldToolIds holds the string denoting the tool_ids field in the database.
 	FieldToolIds = "tool_ids"
+	// FieldAgentID holds the string denoting the agent_id field in the database.
+	FieldAgentID = "agent_id"
+	// FieldAgentDebug holds the string denoting the agent_debug field in the database.
+	FieldAgentDebug = "agent_debug"
 	// EdgeMessages holds the string denoting the messages edge name in mutations.
 	EdgeMessages = "messages"
 	// Table holds the table name of the conversation in the database.
@@ -57,6 +61,8 @@ var Columns = []string{
 	FieldDeletedAt,
 	FieldKBIds,
 	FieldToolIds,
+	FieldAgentID,
+	FieldAgentDebug,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -80,6 +86,8 @@ var (
 	DefaultTitle string
 	// TitleValidator is a validator for the "title" field. It is called by the builders before save.
 	TitleValidator func(string) error
+	// DefaultAgentDebug holds the default value on creation for the "agent_debug" field.
+	DefaultAgentDebug bool
 )
 
 // OrderOption defines the ordering options for the Conversation queries.
@@ -123,6 +131,16 @@ func ByModelID(opts ...sql.OrderTermOption) OrderOption {
 // ByDeletedAt orders the results by the deleted_at field.
 func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
+}
+
+// ByAgentID orders the results by the agent_id field.
+func ByAgentID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAgentID, opts...).ToFunc()
+}
+
+// ByAgentDebug orders the results by the agent_debug field.
+func ByAgentDebug(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAgentDebug, opts...).ToFunc()
 }
 
 // ByMessagesCount orders the results by messages count.
