@@ -109,7 +109,7 @@ func (h *convHandlers) enrichConv(c echo.Context, p *auth.Principal, cv *ent.Con
 	}
 	_, cfg, _, err := h.bindAgent(c, p, *cv.AgentID, cv.AgentDebug, true)
 	if err != nil {
-		if err == errAgentReadonly {
+		if errors.Is(err, errAgentReadonly) {
 			v.AgentReadonly = true
 			// 尽量带上名称，便于前端提示。
 			if a, e := h.db.Agent.Query().Where(agent.ID(*cv.AgentID), agent.OrgID(p.OrgID)).Only(c.Request().Context()); e == nil {

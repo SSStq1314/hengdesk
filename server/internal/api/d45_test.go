@@ -298,17 +298,8 @@ func TestD45DefaultMaxSteps(t *testing.T) {
 	if a.Draft == nil || a.Draft.MaxSteps != 5 {
 		t.Fatalf("default max_steps %+v", a.Draft)
 	}
-	if rec := te.admin.do(http.MethodPost, "/api/v1/agents", `{"name":"x","max_steps":0}`, true); rec.Code != 400 && rec.Code != 201 {
-		// max_steps 0 会落到默认 5
-	}
 	if rec := te.admin.do(http.MethodPost, "/api/v1/agents", `{"name":"坏","max_steps":11}`, true); rec.Code != 400 {
 		t.Fatalf("max_steps 11 want 400 got %d", rec.Code)
-	}
-	if rec := te.admin.do(http.MethodPost, "/api/v1/agents", `{"name":"坏","max_steps":0}`, true); rec.Code != 201 {
-		// 0 means default
-		if rec.Code != 400 {
-			// apply treats 0 as default after bind — check created
-		}
 	}
 	b := te.newAgent(t, `{"name":"步数0","max_steps":0}`)
 	if b.Draft == nil || b.Draft.MaxSteps != 5 {

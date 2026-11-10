@@ -48,7 +48,11 @@ type agentSession struct {
 }
 
 // errAgentReadonly 智能体停用或软删除后，已有会话改为只读（D-45 第 8 条）。
-var errAgentReadonly = echo.NewHTTPError(http.StatusConflict, "智能体已停用或已删除，会话只读，不能继续对话")
+var errAgentReadonly = errors.New("agent_readonly")
+
+func agentReadonlyHTTP() *echo.HTTPError {
+	return echo.NewHTTPError(http.StatusConflict, "智能体已停用或已删除，会话只读，不能继续对话").SetInternal(errAgentReadonly)
+}
 
 // bindAgent 校验并返回可绑定的智能体配置。
 // existing=true 表示已有会话（停用/删除 → 409 只读）；false 表示新建/改绑（停用/删除 → 404）。
@@ -67,7 +71,7 @@ func (h *convHandlers) bindAgent(c echo.Context, p *auth.Principal, id int, debu
 	}
 	if a.DeletedAt != nil || a.Disabled {
 		if existing {
-			return nil, nil, 0, errAgentReadonly
+			return nil, nil, 0, agentReadonlyHTTP()
 		}
 		return nil, nil, 0, authz.Deny(c, "agent:disabled")
 	}
