@@ -73,11 +73,18 @@ if [ "$COMPOSE" = 1 ]; then
     unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy || true
   fi
   docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" up -d "${UP_FLAGS[@]}"
-  # 等 healthz
+  # 等应用与演示依赖 healthz（mock 端口已由 acceptance compose 发布到宿主机）
   for i in $(seq 1 60); do
     curl -fsS "${HENGDESK_HTTP_PORT:+http://127.0.0.1:${HENGDESK_HTTP_PORT}/healthz}" >/dev/null 2>&1 && break
     curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1 && break
     sleep 2
+  done
+  for i in $(seq 1 30); do
+    curl -fsS http://127.0.0.1:18081/healthz >/dev/null 2>&1 \
+      && curl -fsS http://127.0.0.1:18080/healthz >/dev/null 2>&1 \
+      && curl -fsS http://127.0.0.1:18082/healthz >/dev/null 2>&1 \
+      && break
+    sleep 1
   done
   ACCEPT_ENV=(
     -e M1ACCEPT_ADMIN_PASSWORD="$ADMIN_PASSWORD"

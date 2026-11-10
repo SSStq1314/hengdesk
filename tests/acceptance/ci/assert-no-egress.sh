@@ -34,6 +34,11 @@ install4() {
   for cidr in 10.0.0.0/8 172.16.0.0/16 192.168.0.0/16 127.0.0.0/8; do
     $SUDO iptables -w -A "$CHAIN4" -d "$cidr" -j RETURN
   done
+  # Docker 内嵌 DNS（127.0.0.11）解析组成服务名时会向宿主机上游查询；
+  # 若 UDP/TCP 53 被 REJECT，会出现 "lookup <service>: server misbehaving"。
+  # 放行 53 但不记 HD_EGRESS，避免把基础设施解析当成应用出站。
+  $SUDO iptables -w -A "$CHAIN4" -p udp --dport 53 -j RETURN
+  $SUDO iptables -w -A "$CHAIN4" -p tcp --dport 53 -j RETURN
   $SUDO iptables -w -A "$CHAIN4" -j LOG --log-prefix "$PREFIX" --log-level 4
   $SUDO iptables -w -A "$CHAIN4" -j REJECT
   $SUDO iptables -w -C DOCKER-USER -j "$CHAIN4" 2>/dev/null || $SUDO iptables -w -I DOCKER-USER -j "$CHAIN4"
@@ -52,6 +57,8 @@ install6() {
   for cidr in fc00::/7 fe80::/10 ::1/128; do
     $SUDO ip6tables -w -A "$CHAIN6" -d "$cidr" -j RETURN
   done
+  $SUDO ip6tables -w -A "$CHAIN6" -p udp --dport 53 -j RETURN
+  $SUDO ip6tables -w -A "$CHAIN6" -p tcp --dport 53 -j RETURN
   $SUDO ip6tables -w -A "$CHAIN6" -j LOG --log-prefix "$PREFIX" --log-level 4
   $SUDO ip6tables -w -A "$CHAIN6" -j REJECT
   $SUDO ip6tables -w -C DOCKER-USER -j "$CHAIN6" 2>/dev/null || $SUDO ip6tables -w -I DOCKER-USER -j "$CHAIN6"
