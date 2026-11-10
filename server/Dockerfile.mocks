@@ -15,5 +15,6 @@ FROM alpine:3.22
 RUN apk add --no-cache ca-certificates tzdata
 COPY --from=build /out/mockupstream /out/mockmcp /out/mockoidc /out/mockredir /out/m1accept /usr/local/bin/
 WORKDIR /work
-# 默认给验收脚本用；compose 里各 mock 服务会覆盖 command。
-ENTRYPOINT ["m1accept"]
+# 不要设 ENTRYPOINT：compose 的 command（如 mockmcp -addr :18090）会变成
+# entrypoint 的参数，变成「m1accept mockmcp ...」并立刻退出。默认只跑验收脚本。
+CMD ["m1accept"]

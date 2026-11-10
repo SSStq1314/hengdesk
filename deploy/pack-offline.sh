@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 # 在有网构建机生成 x86_64 离线安装包（不提交到仓库）。
-# 用法：./pack-offline.sh [--version VER] [--out DIR] [--with-minio]
+# 用法：./pack-offline.sh [--version VER] [--out DIR] [--with-minio] [--with-acceptance]
 # 输出：$OUT/hengdesk-offline-$VER-amd64.tar.gz （内含 deploy/、images/*.tar、VERSION、README）
+# --with-acceptance 额外打入 hengdesk/mocks 与 tests/acceptance/，文件名带 -acceptance。
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="${HENGDESK_VERSION:-}"
 OUT="$ROOT/dist"
 WITH_MINIO=0
+WITH_ACCEPTANCE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --version) VERSION="$2"; shift ;;
     --out) OUT="$2"; shift ;;
     --with-minio) WITH_MINIO=1 ;;
-    -h|--help) sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --with-acceptance) WITH_ACCEPTANCE=1 ;;
+    -h|--help) sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "未知参数：$1" >&2; exit 1 ;;
   esac
   shift
@@ -52,6 +55,14 @@ docker save -o "$STAGE/images/hengdesk-server.tar" "hengdesk/server:$VERSION"
 docker save -o "$STAGE/images/hengdesk-web.tar" "hengdesk/web:$VERSION"
 docker save -o "$STAGE/images/deps.tar" "${DEPS[@]}"
 
+if [ "$WITH_ACCEPTANCE" = 1 ]; then
+  echo "==> build hengdesk/mocks:$VERSION（验收 / 演示依赖，不进入默认正式包）"
+  docker build -f "$ROOT/server/Dockerfile.mocks" -t "hengdesk/mocks:$VERSION" "$ROOT/server"
+  docker save -o "$STAGE/images/hengdesk-mocks.tar" "hengdesk/mocks:$VERSION"
+  mkdir -p "$STAGE/tests"
+  cp -a "$ROOT/tests/acceptance" "$STAGE/tests/"
+fi
+
 # 复制部署文件
 cp -a "$ROOT/deploy/." "$STAGE/deploy/"
 # 离线包内 .env.example 默认版本
@@ -76,7 +87,22 @@ cat > "$STAGE/README.md" <<MD
 \`./uninstall.sh\`（加 \`--volumes\` 才删数据卷，须交互确认或非交互加 \`--yes\`；请先备份；secrets/ 始终保留）
 MD
 
-TAR="$OUT/hengdesk-offline-$VERSION-amd64.tar.gz"
+if [ "$WITH_ACCEPTANCE" = 1 ]; then
+  cat >> "$STAGE/README.md" <<'ACC'
+## M1 验收剧本（本包由 --with-acceptance 生成）
+
+默认正式包不含 mocks。本包额外包含 `hengdesk/mocks`、`deploy/docker-compose.acceptance.yml` 和 `tests/acceptance/`。
+
+安装并启动后，在不断网拉镜像的前提下跑 15 步：
+
+    cd deploy
+    ../tests/acceptance/run.sh --compose --offline --version <本包 VERSION>
+
+`--offline` 只使用已 `docker load` 的镜像，不再 `docker build` / `docker pull`。
+ACC
+fi
+
+TAR="$OUT/hengdesk-offline-$VERSION-amd64$([ "$WITH_ACCEPTANCE" = 1 ] && echo -acceptance).tar.gz"
 mkdir -p "$OUT"
 tar -C "$(dirname "$STAGE")" -czf "$TAR" "$(basename "$STAGE")"
 rm -rf "$STAGE"

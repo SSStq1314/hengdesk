@@ -4,6 +4,7 @@
 #   ./tests/acceptance/run.sh --compose          # 已有 deploy/.env，叠加 acceptance compose 后跑 15 步
 #   ./tests/acceptance/run.sh --base-url URL --admin-password PW [--skip-oidc]
 #   ./tests/acceptance/run.sh --build-mocks      # 只构建 hengdesk/mocks:$VERSION
+#   ./tests/acceptance/run.sh --compose --offline  # 离线：不 build/pull，只用已 load 的镜像
 #
 # 离线安装 + 15 步（CI / 验收机）见 docs/demo/m1-acceptance.md 与后续 CI job。
 set -euo pipefail
@@ -15,6 +16,7 @@ ADMIN_EMAIL="${HENGDESK_ADMIN_EMAIL:-admin@hengdesk.local}"
 ADMIN_PASSWORD="${M1ACCEPT_ADMIN_PASSWORD:-${HENGDESK_ADMIN_PASSWORD:-}}"
 SKIP_OIDC=0
 SKIP_RESTART=0
+OFFLINE=0
 VERSION="${HENGDESK_VERSION:-dev}"
 DEPLOY="${ROOT}/deploy"
 
@@ -29,6 +31,7 @@ while [ $# -gt 0 ]; do
     --admin-password) ADMIN_PASSWORD="$2"; shift ;;
     --skip-oidc) SKIP_OIDC=1 ;;
     --skip-restart) SKIP_RESTART=1 ;;
+    --offline) OFFLINE=1 ;;
     --version) VERSION="$2"; shift ;;
     --deploy) DEPLOY="$2"; shift ;;
     -h|--help) usage 0 ;;
@@ -38,6 +41,14 @@ while [ $# -gt 0 ]; do
 done
 
 build_mocks() {
+  if [ "$OFFLINE" = 1 ]; then
+    if docker image inspect "hengdesk/mocks:$VERSION" >/dev/null 2>&1; then
+      echo "==> 离线模式：使用已有 hengdesk/mocks:$VERSION"
+      return
+    fi
+    echo "离线模式但找不到镜像 hengdesk/mocks:$VERSION，请先 docker load" >&2
+    exit 1
+  fi
   echo "==> 构建 hengdesk/mocks:$VERSION"
   docker build -f "$ROOT/server/Dockerfile.mocks" -t "hengdesk/mocks:$VERSION" "$ROOT/server"
 }
@@ -55,13 +66,44 @@ if [ "$COMPOSE" = 1 ]; then
   ADMIN_PASSWORD="${ADMIN_PASSWORD:-${HENGDESK_ADMIN_PASSWORD:-}}"
   export HENGDESK_VERSION="$VERSION"
   echo "==> 启动演示依赖并重启应用以加载 OIDC"
-  docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" up -d
-  # 等 healthz
+  UP_FLAGS=()
+  if [ "$OFFLINE" = 1 ]; then
+    UP_FLAGS+=(--no-build --pull never)
+    # 不要把宿主机的代理黑洞注入容器，否则 server 访问 mock 也会走 127.0.0.1:9
+    unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy || true
+  fi
+  docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" up -d "${UP_FLAGS[@]}"
+  # web/nginx 在启动时解析 server 主机名；overlay 会重建 server，不重启 web 会一直 502。
+  docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" restart web
+  # 等应用与演示依赖 healthz（mock 端口已由 acceptance compose 发布到宿主机）
+  app_ok=0
   for i in $(seq 1 60); do
-    curl -fsS "${HENGDESK_HTTP_PORT:+http://127.0.0.1:${HENGDESK_HTTP_PORT}/healthz}" >/dev/null 2>&1 && break
-    curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1 && break
+    if curl --noproxy '*' -fsS "${HENGDESK_HTTP_PORT:+http://127.0.0.1:${HENGDESK_HTTP_PORT}/healthz}" >/dev/null 2>&1 \
+      || curl --noproxy '*' -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
+      app_ok=1
+      break
+    fi
     sleep 2
   done
+  if [ "$app_ok" != 1 ]; then
+    echo "应用 healthz 等待超时" >&2
+    exit 1
+  fi
+  mock_ok=0
+  for i in $(seq 1 30); do
+    if curl --noproxy '*' -fsS http://127.0.0.1:18081/healthz >/dev/null 2>&1 \
+      && curl --noproxy '*' -fsS http://127.0.0.1:18080/healthz >/dev/null 2>&1 \
+      && curl --noproxy '*' -fsS http://127.0.0.1:18082/healthz >/dev/null 2>&1; then
+      mock_ok=1
+      break
+    fi
+    sleep 1
+  done
+  if [ "$mock_ok" != 1 ]; then
+    echo "mockoidc/mockupstream/mockredir healthz 等待超时（检查 Dockerfile.mocks 的 ENTRYPOINT 是否吞掉了 command）" >&2
+    docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" ps -a >&2 || true
+    exit 1
+  fi
   ACCEPT_ENV=(
     -e M1ACCEPT_ADMIN_PASSWORD="$ADMIN_PASSWORD"
     -e M1ACCEPT_ADMIN_EMAIL="$ADMIN_EMAIL"
@@ -74,11 +116,24 @@ if [ "$COMPOSE" = 1 ]; then
   if [ "$SKIP_OIDC" = 1 ]; then
     ACCEPT_ENV+=(-e M1ACCEPT_SKIP_OIDC=1)
   fi
+  COMPOSE_BIN=(docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml")
+  if [ "$OFFLINE" = 1 ]; then
+    echo "==> 断网探测：验收容器故意访问外网解析器与公网地址，必须失败（iptables 记 HD_EGRESS 并拒绝）"
+    "${COMPOSE_BIN[@]}" run --rm --no-deps "${ACCEPT_ENV[@]}" -e M1ACCEPT_PROBE_ONLY=1 m1accept
+    # 探测日志与 15 步之间留 1 秒，再打 check 起点，避免同一秒的探测记录被算进出站失败。
+    sleep 1
+    EGRESS_SH="$ROOT/tests/acceptance/ci/assert-no-egress.sh"
+    if [ ! -x "$EGRESS_SH" ]; then
+      echo "找不到 $EGRESS_SH，无法标记出站检查起点" >&2
+      exit 1
+    fi
+    if ! sudo -n "$EGRESS_SH" mark; then
+      echo "无法标记出站检查起点（需要免密 sudo）。若不 mark，探测产生的 HD_EGRESS 会被 check 误判为验收出站。" >&2
+      exit 1
+    fi
+  fi
   echo "==> 运行 15 步脚本（容器内访问 http://web；AC-08 经 docker.sock 重启）"
-  docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" \
-    run --rm --no-deps \
-    "${ACCEPT_ENV[@]}" \
-    m1accept
+  "${COMPOSE_BIN[@]}" run --rm --no-deps "${ACCEPT_ENV[@]}" m1accept
   exit $?
 fi
 

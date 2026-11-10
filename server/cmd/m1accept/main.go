@@ -11,19 +11,21 @@ import (
 )
 
 type config struct {
-	Base           string
-	AdminEmail     string
-	AdminPassword  string
-	MockMCP        string
-	MockOIDC       string
-	MockUpstream   string
-	MockRedir      string
-	RestartCmd     string
-	SkipOIDC       bool
-	SkipRestart    bool
-	BudgetLimit    int64
-	DataDir        string
-	ComposeProject string
+	Base               string
+	AdminEmail         string
+	AdminPassword      string
+	MockMCP            string
+	MockOIDC           string
+	MockUpstream       string
+	MockRedir          string
+	RestartCmd         string
+	SkipOIDC           bool
+	SkipRestart        bool
+	BudgetLimit        int64
+	DataDir            string
+	RequireNoPublicNet bool
+	ProbeOnly          bool
+	ComposeProject     string
 }
 
 func main() {
@@ -38,9 +40,11 @@ func main() {
 	flag.StringVar(&cfg.RestartCmd, "restart-cmd", env("M1ACCEPT_RESTART_CMD", ""), "AC-08：重启 server 的命令；空则跳过 compose 重启")
 	flag.BoolVar(&cfg.SkipOIDC, "skip-oidc", envBool("M1ACCEPT_SKIP_OIDC"), "不走 SSO，改为管理员给演示账号设密码后本地登录（仅排障）")
 	flag.BoolVar(&cfg.SkipRestart, "skip-restart", envBool("M1ACCEPT_SKIP_RESTART"), "跳过 AC-08 compose 重启")
-	flag.Int64Var(&cfg.BudgetLimit, "budget-limit", 80, "财务部月预算 token 上限（演示用小值）")
+	flag.Int64Var(&cfg.BudgetLimit, "budget-limit", 400, "财务部月预算 token 上限（演示用小值；嵌入计入用量但不拦截，80 会在第 8/AC-05 后被用尽）")
 	flag.StringVar(&cfg.DataDir, "data-dir", env("M1ACCEPT_DATA_DIR", ""), "testdata 目录；空则用内置样例")
 	flag.StringVar(&cfg.ComposeProject, "compose-project", env("M1ACCEPT_COMPOSE_PROJECT", "hengdesk"), "compose 项目名（AC-08 经 docker.sock 重启 server 时使用）")
+	flag.BoolVar(&cfg.RequireNoPublicNet, "require-no-public-net", envBool("M1ACCEPT_REQUIRE_NO_PUBLIC_NET"), "断言本进程无法访问外网解析器与公网地址（仅 CI/断网模拟层）")
+	flag.BoolVar(&cfg.ProbeOnly, "probe-only", envBool("M1ACCEPT_PROBE_ONLY"), "只跑断网探测后退出（供宿主机在探测日志之后打 check 起点）")
 	flag.Parse()
 	if cfg.AdminPassword == "" {
 		fmt.Fprintln(os.Stderr, "请通过 -admin-password 或 M1ACCEPT_ADMIN_PASSWORD 提供管理员密码")
@@ -66,6 +70,15 @@ func envBool(k string) bool {
 }
 
 func run(cfg config) error {
+	if cfg.RequireNoPublicNet || cfg.ProbeOnly {
+		if err := probeNoPublicNet(); err != nil {
+			return err
+		}
+		fmt.Println("断网探测通过：验收进程无法访问外网解析器或公网地址")
+		if cfg.ProbeOnly {
+			return nil
+		}
+	}
 	s := &script{cfg: cfg, started: time.Now()}
 	return s.run()
 }

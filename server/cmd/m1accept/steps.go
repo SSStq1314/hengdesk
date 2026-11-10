@@ -2,15 +2,20 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/SSStq1314/hengdesk/server/internal/egress"
 )
 
 const (
@@ -29,8 +34,8 @@ type script struct {
 
 	admin, a, b, c, d, m *Client
 
-	financeID, marketID     int
-	idA, idB, idC, idD, idM int
+	financeID, marketID              int
+	idAdmin, idA, idB, idC, idD, idM int
 
 	provAPI, provLocal, modelAPI, modelLocal, modelEmbed int
 	kbID, fileTravel, fileFee, fileExec                  int
@@ -117,6 +122,13 @@ func (s *script) step1() error {
 		return err
 	}
 	s.log("管理员 %s 登录成功", s.cfg.AdminEmail)
+	var me struct {
+		ID int `json:"id"`
+	}
+	if _, err := s.admin.json(http.MethodGet, "/api/v1/auth/me", nil, 200, &me); err != nil || me.ID == 0 {
+		return fmt.Errorf("读取管理员 id：%w", err)
+	}
+	s.idAdmin = me.ID
 	_, _, _ = s.admin.do(http.MethodPost, "/api/v1/admin/system/master-key/ack", map[string]any{}, 0)
 
 	// 出站白名单：mockupstream、mockmcp、mockoidc（内网主机需显式放行）
@@ -147,22 +159,51 @@ func (s *script) allowEgress(raw, note string) error {
 	if i := strings.LastIndex(hostport, ":"); i > 0 && !strings.Contains(hostport[i:], "]") {
 		host, ports = hostport[:i], hostport[i+1:]
 	}
+	if err := s.postEgressRule("host", host, ports, note); err != nil {
+		return err
+	}
+	s.log("已放行出站 %s 端口 %s", host, ports)
+	// 产品出站控制：host 规则解析到 RFC1918 / 环回等内网地址时仍拒绝，须再用 ip/cidr 显式放行（D-38）。
+	// 验收 mock 都在 compose 网段内，这里解析后补 ip 规则；不改产品出站行为。
+	if _, perr := netip.ParseAddr(host); perr == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	addrs, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+	if err != nil || len(addrs) == 0 {
+		s.log("警告：无法解析 %s，未补内网 ip 规则：%v", host, err)
+		return nil
+	}
+	for _, a := range addrs {
+		a = a.Unmap()
+		if !egress.IsInternal(a) {
+			continue
+		}
+		ip := a.String()
+		if err := s.postEgressRule("ip", ip, ports, note+"（"+host+" 解析到的内网地址）"); err != nil {
+			return err
+		}
+		s.log("已放行出站内网地址 %s 端口 %s（%s）", ip, ports, host)
+	}
+	return nil
+}
+
+func (s *script) postEgressRule(kind, value, ports, note string) error {
 	var out map[string]any
 	_, err := s.admin.json(http.MethodPost, "/api/v1/admin/egress/rules", map[string]any{
-		"kind": "host", "value": host, "ports": ports, "note": note,
+		"kind": kind, "value": value, "ports": ports, "note": note,
 	}, 201, &out)
 	if err != nil {
 		if he := asHTTPError(err); he != nil && (he.Status == 409 || he.Status == 400) && strings.Contains(he.Body, "已存在") {
-			s.log("出站规则已存在：%s:%s", host, ports)
+			s.log("出站规则已存在：%s %s:%s", kind, value, ports)
 			return nil
 		}
-		// 有的实现用 200 表示更新
 		if he := asHTTPError(err); he != nil && he.Status == 200 {
 			return nil
 		}
-		return fmt.Errorf("添加出站白名单 %s:%s：%w", host, ports, err)
+		return fmt.Errorf("添加出站白名单 %s %s:%s：%w", kind, value, ports, err)
 	}
-	s.log("已放行出站 %s 端口 %s", host, ports)
 	return nil
 }
 
@@ -446,6 +487,12 @@ func (s *script) step3() error {
 	if err := s.grantModel(s.modelLocal, "dept", s.marketID); err != nil {
 		return err
 	}
+	// 创建智能体时按创建者本人的模型/知识库/工具 ACL 校验（否则 404）。超管管理模型不代表自动可用。
+	for _, mid := range []int{s.modelAPI, s.modelLocal, s.modelEmbed} {
+		if err := s.grantModel(mid, "user", s.idAdmin); err != nil {
+			return err
+		}
+	}
 	// 财务部也需要能跑脚本里的对话（A 用国产）。市场部不应看到国产模型。
 	var models []map[string]any
 	if _, err := s.b.json(http.MethodGet, "/api/v1/models", nil, 200, &models); err != nil {
@@ -467,10 +514,11 @@ func (s *script) step3() error {
 }
 
 func (s *script) grantModel(modelID int, typ string, sid int) error {
+	// 产品该接口成功时返回 204 No Content（见 models_ext.go），不是 200。
 	_, _, err := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/models/%d/acl", modelID),
-		map[string]any{"subject_type": typ, "subject_id": sid, "include_children": true}, 200)
+		map[string]any{"subject_type": typ, "subject_id": sid, "include_children": true, "perm": "use"}, 204)
 	if err != nil {
-		if he := asHTTPError(err); he != nil && he.Status == 201 {
+		if he := asHTTPError(err); he != nil && (he.Status == 200 || he.Status == 201) {
 			return nil
 		}
 		return fmt.Errorf("授予模型 ACL：%w", err)
@@ -507,6 +555,11 @@ func (s *script) step5() error {
 	}, 0); err != nil {
 		s.log("警告：知识库部门 ACL：%v", err)
 	}
+	if _, _, err := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/kbs/%d/acl", s.kbID), map[string]any{
+		"subject_type": "user", "subject_id": s.idAdmin, "perm": "use",
+	}, 0); err != nil {
+		return fmt.Errorf("授予管理员知识库 ACL：%w", err)
+	}
 
 	type up struct {
 		name string
@@ -523,14 +576,11 @@ func (s *script) step5() error {
 		if err != nil {
 			return fmt.Errorf("上传 %s：%w", f.name, err)
 		}
-		var v struct {
-			ID int `json:"id"`
-		}
-		_ = json.Unmarshal(raw, &v)
-		if v.ID == 0 {
+		id := extractID(raw)
+		if id == 0 {
 			return fmt.Errorf("上传 %s 无 id：%s", f.name, trimBody(string(raw)))
 		}
-		*f.ptr = v.ID
+		*f.ptr = id
 	}
 	// 高管文件自定义 ACL：仅财务经理
 	if _, _, err := s.admin.do(http.MethodPut, fmt.Sprintf("/api/v1/kbs/%d/files/%d/acl-mode", s.kbID, s.fileExec),
@@ -627,6 +677,11 @@ func (s *script) step6() error {
 			"subject_type": "dept", "subject_id": s.financeID, "include_children": true,
 		}, 0); err != nil {
 			s.log("警告：工具 ACL：%v", err)
+		}
+		if _, _, err := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/tools/%d/acl", id), map[string]any{
+			"subject_type": "user", "subject_id": s.idAdmin,
+		}, 0); err != nil {
+			return fmt.Errorf("授予管理员工具 ACL：%w", err)
 		}
 	}
 	s.log("MCP #%d 工具 query=%d create=%d", s.mcpID, s.toolQuery, s.toolCreate)
@@ -993,10 +1048,22 @@ func (s *script) step12() error {
 				s.log("警告：登记 %s 失败：%v", pair.name, e)
 				continue
 			}
-			_, _, discErr := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/mcp-servers/%d/discover", id), map[string]any{}, 0)
+			// 产品出站拒绝时 discover 返回 502，正文含「出站被拒绝」。do(..., 0) 不把 4xx/5xx 当错误，须显式要 200。
+			_, _, discErr := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/mcp-servers/%d/discover", id), map[string]any{}, 200)
 			if discErr == nil {
 				return fmt.Errorf("AC-09：发现 %s 不应成功（应被出站拦截）", pair.name)
 			}
+			he := asHTTPError(discErr)
+			if he == nil {
+				return fmt.Errorf("AC-09：发现 %s 失败但不是 HTTP 错误：%w", pair.name, discErr)
+			}
+			if he.Status != 502 {
+				return fmt.Errorf("AC-09：发现 %s 期望 HTTP 502（出站被拒绝），实际 HTTP %d：%s", pair.name, he.Status, trimBody(he.Body))
+			}
+			if !strings.Contains(he.Body, "出站被拒绝") {
+				return fmt.Errorf("AC-09：发现 %s 返回 502 但正文不是出站拒绝：%s", pair.name, trimBody(he.Body))
+			}
+			s.log("发现 %s 已被拦截：%v", pair.name, discErr)
 		}
 	}
 	var logs struct {
@@ -1135,12 +1202,17 @@ func (s *script) step14() error {
 	}
 	if len(logs.Items) > 0 {
 		id := asInt(logs.Items[0]["id"])
-		_, _, err := s.admin.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/audit-logs/%d", id), nil, 0)
+		// 产品无删除接口，返回 404；若路由在但方法不允许则为 405。do(..., 0) 不把 4xx 当错误，须显式要 200。
+		_, _, err := s.admin.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/audit-logs/%d", id), nil, 200)
 		if err == nil {
 			return fmt.Errorf("超管删除审计记录竟然成功")
 		}
-		if he := asHTTPError(err); he != nil && he.Status != 404 && he.Status != 405 && he.Status != 403 && he.Status != 401 {
-			return fmt.Errorf("超管删除审计应失败，实际 HTTP %d", he.Status)
+		he := asHTTPError(err)
+		if he == nil {
+			return fmt.Errorf("超管删除审计失败但不是 HTTP 错误：%w", err)
+		}
+		if he.Status != 404 && he.Status != 405 {
+			return fmt.Errorf("超管删除审计应返回 404 或 405，实际 HTTP %d：%s", he.Status, trimBody(he.Body))
 		}
 	}
 	// AC-12 / D5：审计员全链校验必须通过（真机演示发现 usage 规范化导致断链）
