@@ -2,6 +2,8 @@
 
 本项与真机界面演示中「执行环境没有 Docker，AC-01 未演示」是**同一条** M1 验收缺口，不分开跟踪。要求：用**正式发布的离线包**（`deploy/pack-offline.sh` 默认产物，不是验收包、也不是 CI 临时 `docker save` 目录）在一台**干净、断网**的机器上完整安装一次，并留下记录。
 
+按 D-48：该正式包必须基于 **`bf4d437` 或更新的提交** 构建；安装与验收必须在**新初始化的数据库**上做。不为旧审计链做迁移——若机器上有更早构建留下的数据卷，先卸载并删除卷（`uninstall.sh --yes --volumes`），再装新包。
+
 ## 本执行环境实际做了什么
 
 | 项 | 情况 |
@@ -29,7 +31,7 @@
 
 1. 拷入官方发布的 `hengdesk-offline-<版本>-amd64.tar.gz`（默认正式包）。
 2. 按 `docs/ops/offline-install.md` / `docs/demo/m1-acceptance.md` 节 A 解压、`./offline-check.sh`、`./install.sh --offline --up`。
-3. 记录：日期与时区（America/Los_Angeles 或同时注明机器本地时区）、机器概要（OS、磁盘、是否全新）、包文件名与版本、healthz、管理员登录是否成功、安装期间是否出现 `docker pull` / 外连失败或成功。
+3. 记录：日期与时区（America/Los_Angeles 或同时注明机器本地时区）、机器概要（OS、磁盘、是否全新）、包文件名与版本、**构建所用 git 提交（须 ≥ `bf4d437`）**、确认为新初始化的空库、healthz、管理员登录是否成功、安装期间是否出现 `docker pull` / 外连失败或成功。
 4. 把记录追加到本文件或作为附件归档到验收材料，注明操作人。
 5. （可选）再在同机或另一台断网机上解压验收包，跑 `tests/acceptance/run.sh --compose --offline`，把 15 步通过与否一并记下。
 

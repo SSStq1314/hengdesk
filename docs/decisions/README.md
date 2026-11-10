@@ -23,5 +23,7 @@
 | D-44 | MCP 与审批默认值：高危永不自动（含超管）、通过即执行且复核发起人权限、空审批人提醒工具管理员、审批结果后 worker 自动续写（「继续」仅兜底）、等待审批锁定与撤回续写、AC-08 重启恢复测试；工具步数可配与角色授权 UI 列 P1 | [D-44-mcp-approval-defaults.md](D-44-mcp-approval-defaults.md) |
 | D-45 | 智能体运行时：发布快照可回滚、运行时调用人权限交集与越权测试、步数 1–10 默认 5、可逆停用与只读会话；正式下架/上架 P1、委托授权 P2 | [D-45-agent-runtime-defaults.md](D-45-agent-runtime-defaults.md) |
 | D-46 | 统计 / AIGC / 离线包：查看他人明细记审计、日界按系统时区、导出审计含筛选与行数、标识文案校验、导出 front matter、卸载确认与保留 secrets；P1/开放项不进 M1 | [D-46-stats-aigc-offline.md](D-46-stats-aigc-offline.md) |
+| D-47 | 通义冒烟挂起至 M2 W1，改用 vLLM CPU 小模型协议冒烟；审计链多进程写入误拒为 M1 阻塞（#68 已合入） | 见产品库 `decisions.md` D-47；工程修复 #68 |
+| D-48 | 旧审计链不迁移，演示/测试库清空重建；正式包基于 `bf4d437`+；验收用新库；哈希规范化不得静默改变，改动须带版本号 | 见产品库 `decisions.md` D-48；`docs/dev/audit.md`、`docs/release/m1.md` |
 
 > D-27（ACL 检索分档策略与性能基线）由产品经理维护，不在此复制。
