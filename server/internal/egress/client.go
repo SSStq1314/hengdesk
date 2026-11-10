@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/netip"
 	"net/url"
 	"strconv"
@@ -188,7 +189,7 @@ func (c *Client) checkRedirect(req *http.Request, via []*http.Request) error {
 	return nil
 }
 
-// hop 一跳的检查结果，由 dial 回填给 logTransport。
+// hop 一跳的检查结果：dial 在新建连接时回填 IP；复用连接不会再 dial，改由 httptrace.GotConn 从 Conn.RemoteAddr 回填。
 type hop struct {
 	mu     sync.Mutex
 	ip     string
@@ -269,6 +270,21 @@ func portOf(u *url.URL) int {
 	return 443
 }
 
+// peerIP 从 net.Addr 取出对端 IP（去掉端口，解开 IPv4-mapped IPv6）。
+func peerIP(addr net.Addr) string {
+	if addr == nil {
+		return ""
+	}
+	host := addr.String()
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	if a, err := netip.ParseAddr(host); err == nil {
+		return a.Unmap().String()
+	}
+	return ""
+}
+
 type logTransport struct {
 	c    *Client
 	base http.RoundTripper
@@ -305,8 +321,23 @@ func (t *logTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 		rec.ID = id
 	}
+	// 每次请求都用 GotConn 记录实际对端 IP（含连接池复用，不会再走 dial）。
 	h := &hop{}
-	resp, err := t.base.RoundTrip(req.WithContext(context.WithValue(req.Context(), hopKey{}, h)))
+	ctx := httptrace.WithClientTrace(context.WithValue(req.Context(), hopKey{}, h), &httptrace.ClientTrace{
+		GotConn: func(info httptrace.GotConnInfo) {
+			if info.Conn == nil {
+				return
+			}
+			ip := peerIP(info.Conn.RemoteAddr())
+			if ip == "" {
+				return
+			}
+			h.mu.Lock()
+			h.ip = ip
+			h.mu.Unlock()
+		},
+	})
+	resp, err := t.base.RoundTrip(req.WithContext(ctx))
 	h.mu.Lock()
 	rec.IP = h.ip
 	denied := h.denied

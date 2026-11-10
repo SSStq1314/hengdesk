@@ -83,3 +83,57 @@ func TestPGEgressAllowLogComplete(t *testing.T) {
 		t.Fatalf("append-only 触发器应拒绝 UPDATE：%v", err)
 	}
 }
+
+// 同一 host 连续多次请求（连接复用）时，每条 allow 记录都必须有 IP。
+func TestPGEgressAllowLogPeerIPReuse(t *testing.T) {
+	if os.Getenv("HENGDESK_PG_IT") != "1" {
+		t.Skip("set HENGDESK_PG_IT=1")
+	}
+	c, db, err := store.Open(os.Getenv("HENGDESK_TEST_DATABASE_URL"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+	ctx := context.Background()
+	if _, err := db.Exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.ApplyMigrations(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`ok`))
+	}))
+	t.Cleanup(up.Close)
+
+	c.EgressRule.Create().SetKind(egressrule.KindIP).SetValue("127.0.0.1").SetPorts("*").SetPrivate(true).SetNote("test").ExecX(ctx)
+
+	cl, _ := egress.New(c, audit.EntWriter{C: c}, slog.Default())
+	const n = 5
+	for i := 0; i < n; i++ {
+		resp, err := cl.HTTP().Get(up.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("status=%d", resp.StatusCode)
+		}
+	}
+
+	rows := c.EgressLog.Query().Where(egresslog.DecisionEQ(egresslog.DecisionAllow)).Order(egresslog.ByID()).AllX(ctx)
+	if len(rows) != n {
+		t.Fatalf("放行记录数=%d want %d", len(rows), n)
+	}
+	for i, row := range rows {
+		if row.Status != http.StatusOK {
+			t.Fatalf("第 %d 条 status=%d", i, row.Status)
+		}
+		if row.IP != "127.0.0.1" {
+			t.Fatalf("第 %d 条 ip=%q，复用连接时也应记录对端 IP", i, row.IP)
+		}
+	}
+}

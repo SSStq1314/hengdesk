@@ -7,11 +7,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"net/netip"
 	"net/url"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/egress"
@@ -235,7 +237,7 @@ func TestRedirectToInternalBlocked(t *testing.T) {
 	_, err = get(t, c, outer.URL+"/?to="+url.QueryEscape("http://169.254.169.254/latest/meta-data/"))
 	denied(t, err, egress.ReasonMetadata)
 	recs := sink.all()
-	if len(recs) != 4 || !recs[0].Allowed || recs[0].Status != 302 || recs[1].Allowed {
+	if len(recs) != 4 || !recs[0].Allowed || recs[0].Status != 302 || recs[0].IP != "127.0.0.1" || recs[1].Allowed {
 		t.Fatalf("%+v", recs)
 	}
 	if len(au.es) != 2 {
@@ -417,5 +419,85 @@ func TestAllowLogFailure(t *testing.T) {
 	au.fail = true
 	if err := do(egress.Caller{Module: "model.test"}); !errors.As(err, &de) {
 		t.Fatalf("审计失败时仍应拒绝，got %v", err)
+	}
+}
+
+// 同一 host 连续请求会复用连接；每条放行记录都必须有对端 IP（不能只在 dial 时填写）。
+func TestAllowLogPeerIPOnReuse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "ok")
+	}))
+	defer srv.Close()
+	c, sink, _ := newClient(egress.MustStatic("ip 127.0.0.1 *"), nil)
+	reused := 0
+	const n = 5
+	for i := 0; i < n; i++ {
+		ctx := egress.WithCaller(context.Background(), egress.Caller{UserID: 7, Email: "a@x.com", Module: "test"})
+		ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+			GotConn: func(info httptrace.GotConnInfo) {
+				if info.Reused {
+					reused++
+				}
+			},
+		})
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/x", nil)
+		resp, err := c.HTTP().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("status=%d", resp.StatusCode)
+		}
+	}
+	if reused == 0 {
+		t.Fatal("期望后续请求复用连接，否则无法覆盖「复用时 IP 为空」")
+	}
+	recs := sink.all()
+	if len(recs) != n {
+		t.Fatalf("记录数=%d want %d %+v", len(recs), n, recs)
+	}
+	for i, r := range recs {
+		if !r.Allowed || r.Status != http.StatusOK || r.IP != "127.0.0.1" {
+			t.Fatalf("第 %d 条放行记录缺 IP 或不完整：%+v（复用 %d 次）", i, r, reused)
+		}
+	}
+}
+
+// 307 等重定向的每一跳独立过出站策略并独立记日志；跳本身耗时超过 1ms 时 duration_ms > 0（亚毫秒完成记 0 是精度截断，合理）。
+func TestRedirectHopsLoggedIndependently(t *testing.T) {
+	inner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(5 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "ok")
+	}))
+	defer inner.Close()
+	outer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(5 * time.Millisecond)
+		http.Redirect(w, r, inner.URL+"/final", http.StatusTemporaryRedirect)
+	}))
+	defer outer.Close()
+	c, sink, au := newClient(egress.MustStatic("cidr 127.0.0.0/8 *"), nil)
+	code, err := get(t, c, outer.URL+"/start")
+	if err != nil || code != http.StatusOK {
+		t.Fatalf("status=%d err=%v", code, err)
+	}
+	recs := sink.all()
+	if len(recs) != 2 {
+		t.Fatalf("应独立记录两跳，got %d %+v", len(recs), recs)
+	}
+	if recs[0].Status != http.StatusTemporaryRedirect || !recs[0].Allowed || recs[0].IP != "127.0.0.1" || recs[0].Path != "/start" {
+		t.Fatalf("第一跳（307）%+v", recs[0])
+	}
+	if recs[1].Status != http.StatusOK || !recs[1].Allowed || recs[1].IP != "127.0.0.1" || recs[1].Path != "/final" {
+		t.Fatalf("第二跳（200）%+v", recs[1])
+	}
+	if recs[0].DurationMS <= 0 || recs[1].DurationMS <= 0 {
+		t.Fatalf("每跳耗时应计入（含 307）：%d %d", recs[0].DurationMS, recs[1].DurationMS)
+	}
+	if len(au.es) != 0 {
+		t.Fatalf("放行重定向不应写拒绝审计：%+v", au.es)
 	}
 }
