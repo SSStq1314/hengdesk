@@ -14,7 +14,6 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Table,
   TableBody,
@@ -24,15 +23,16 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { AclEditor } from '@/features/kb/acl-editor'
-import { Field, NativeSelect } from '@/features/models/fields'
 import { KBPicker } from '@/features/chat/kb-picker'
 import { ToolPicker } from '@/features/chat/tool-picker'
+import { AclEditor } from '@/features/kb/acl-editor'
+import { Field, NativeSelect } from '@/features/models/fields'
 
 const t = zh.agents
 
@@ -205,9 +205,7 @@ export function AgentDetailPage() {
           {a?.draft_dirty && (
             <Badge variant='destructive'>{t.draftDirty}</Badge>
           )}
-          {a?.disabled && (
-            <Badge variant='destructive'>{t.disabled}</Badge>
-          )}
+          {a?.disabled && <Badge variant='destructive'>{t.disabled}</Badge>}
           <div className='ms-auto flex flex-wrap gap-2'>
             {canEdit && (
               <Button asChild size='sm' variant='secondary'>
@@ -222,7 +220,9 @@ export function AgentDetailPage() {
                 size='sm'
                 variant='outline'
                 onClick={() =>
-                  a?.disabled ? setDisabled.mutate(false) : setConfirmDisable(true)
+                  a?.disabled
+                    ? setDisabled.mutate(false)
+                    : setConfirmDisable(true)
                 }
                 disabled={setDisabled.isPending}
               >
@@ -249,15 +249,11 @@ export function AgentDetailPage() {
           <Tabs defaultValue='config'>
             <TabsList>
               <TabsTrigger value='config'>{t.config}</TabsTrigger>
-              {canManage && (
-                <TabsTrigger value='acl'>{t.acl}</TabsTrigger>
-              )}
+              {canManage && <TabsTrigger value='acl'>{t.acl}</TabsTrigger>}
               {canEdit && (
                 <TabsTrigger value='versions'>{t.versions}</TabsTrigger>
               )}
-              {canManage && (
-                <TabsTrigger value='runs'>{t.runs}</TabsTrigger>
-              )}
+              {canManage && <TabsTrigger value='runs'>{t.runs}</TabsTrigger>}
             </TabsList>
 
             <TabsContent value='config' className='mt-4'>
@@ -296,9 +292,7 @@ export function AgentDetailPage() {
                 <Field label={t.model}>
                   <NativeSelect
                     value={draft.model_id ? String(draft.model_id) : ''}
-                    onChange={(v) =>
-                      set({ model_id: v ? Number(v) : null })
-                    }
+                    onChange={(v) => set({ model_id: v ? Number(v) : null })}
                     options={modelOpts}
                   />
                 </Field>
@@ -315,6 +309,9 @@ export function AgentDetailPage() {
                     onChange={(tool_ids) => set({ tool_ids })}
                     disabled={!canEdit}
                   />
+                  <p className='mt-1 text-xs text-muted-foreground'>
+                    {t.toolsUseHint}
+                  </p>
                 </Field>
                 <Field label={t.maxSteps}>
                   <Input

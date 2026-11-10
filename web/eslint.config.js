@@ -55,5 +55,9 @@ export default defineConfig(
       // Prevent duplicate imports from the same module
       'no-duplicate-imports': 'error',
     },
+  },
+  {
+    files: ['**/*.test.ts'],
+    languageOptions: { globals: globals.node },
   }
 )

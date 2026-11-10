@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test": "node --experimental-strip-types --test test/*.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
