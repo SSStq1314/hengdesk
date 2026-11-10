@@ -88,6 +88,13 @@ func TestAIGCSettingsAndExport(t *testing.T) {
 		t.Fatalf("export audit %d", n)
 	}
 
+	// 法律保留中的会话仍可导出，内容不变（D-46 第 6 条）
+	g.c.LegalHold.Create().SetOrgID(org.ID).SetUserID(member.ID).SetReason("诉讼").SetCreatedBy(member.ID).ExecX(ctx)
+	rec = mem.do(http.MethodGet, "/api/v1/conversations/"+id+"/export?format=md", "", false)
+	if rec.Code != 200 || rec.Body.String() != body {
+		t.Fatalf("legal hold export %d changed=%v", rec.Code, rec.Body.String() != body)
+	}
+
 	// 只能导出自己的会话：他人 404，未登录 401
 	other := g.addUser(t, "other@x.local", org, rbac.Member, nil)
 	oth := g.loginAs(t, "other@x.local", "password123")

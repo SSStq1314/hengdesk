@@ -22,8 +22,8 @@ P1/开放项（组织能否关闭显式标识、独立的导出权限、网信�
 | 3 导出审计含筛选与行数 | 既有 `usage.export` 的 Detail 已含 `rows` / `truncated` / `from` / `to` / `user_id` / `department_ids` / `model_id` / `agent_id`；本决策补测试断言。 | `TestStatsOverviewScopeExport` |
 | 4 标识文案校验 | 角标与后缀不能为空，必须包含「人工智能生成」或「AI 生成」，否则 400；`aigc.settings.update` 记审计。前端同步提示。 | `TestDefaultsValidateSave`、`TestAIGCSettingsAndExport` |
 | 5 导出隐式标识位置 | JSON 放在 `aigc` 元数据字段；Markdown 改为文件开头的 YAML front matter（不再用 HTML 注释）。 | `TestAppendSuffixAndMeta`、`TestAIGCSettingsAndExport` |
-| 6 只能导出自己的会话 | 沿用 `own()`：他人 / 不存在 404，未登录 401；导出记 `conversation.export`。法律保全会话仍可导出。 | `TestAIGCSettingsAndExport` |
+| 6 只能导出自己的会话 | 沿用 `own()`：他人 / 不存在 404，未登录 401；导出记 `conversation.export`（审计失败 503，fail-closed）。法律保全会话仍可导出且内容不变。 | `TestAIGCSettingsAndExport` |
 | 7 uninstall.sh 确认与 secrets | `--volumes` 提示先备份并交互确认；非交互必须 `--yes`，否则非 0 退出；`secrets/` 始终保留。 | `deploy/uninstall_test.sh` |
-| 8 干净断网机完整安装并留记录 | **由第八块做验收项，本 PR 不实施。** CI 断网冒烟仍按本条前半确认保留。 | — |
+| 8 干净断网机完整安装并留记录 | **已列为 M1 验收项**：写入 `docs/progress/m1-block8.md` AC 对照表「D-46 安装记录」行，由第八块执行并归档记录。CI 断网冒烟仍按本条前半确认保留。 | —（人工验收项） |
 | P1 / 开放项 | **仅文档记录，不进 M1，本 PR 不实现。** | — |
 
