@@ -1,4 +1,14 @@
 // 衡台后端 API 客户端（同源，会话使用 HttpOnly cookie）。
+import {
+  unwrapConversationDetail,
+  type ConversationGetResponse,
+} from './conversation-detail'
+
+export type {
+  ConversationDetail,
+  ConversationGetResponse,
+} from './conversation-detail'
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -540,14 +550,17 @@ export const modelApi = {
     api<{
       grain: string
       group_by: string
-      points: { bucket: string; key: number; name?: string; totals: UsageTotals }[]
+      points: {
+        bucket: string
+        key: number
+        name?: string
+        totals: UsageTotals
+      }[]
     }>(`/admin/stats/timeseries${qs(f)}`),
   statsSummary: (group_by: UsageGroup, f: UsageFilter) =>
     api<UsageSummary>(`/admin/stats/summary${qs({ group_by, ...f })}`),
-  statsExportUrl: (f: UsageFilter) =>
-    `/api/v1/admin/stats/export${qs(f)}`,
-  myUsage: (f: UsageFilter) =>
-    api<UsageSummary>(`/usage/me${qs(f)}`),
+  statsExportUrl: (f: UsageFilter) => `/api/v1/admin/stats/export${qs(f)}`,
+  myUsage: (f: UsageFilter) => api<UsageSummary>(`/usage/me${qs(f)}`),
   aigcPublic: () =>
     api<{ badge: string; suffix: string; producer: string }>('/aigc'),
   aigcGet: () =>
@@ -848,9 +861,10 @@ export const chatApi = {
     agent_id?: number
     agent_debug?: boolean
   }) => api<Conversation>('/conversations', json('POST', b)),
+  // GET 返回 {conversation, messages, files, aigc}，这里展平供页面使用（D1）。
   get: (id: number) =>
-    api<Conversation & { messages: ChatMessage[]; files: ConvFile[] }>(
-      `/conversations/${id}`
+    api<ConversationGetResponse>(`/conversations/${id}`).then(
+      unwrapConversationDetail
     ),
   // 上传用 multipart（不能带 JSON 的 Content-Type，由浏览器生成 boundary）。
   upload: async (id: number, file: File): Promise<ConvFile> => {
@@ -1398,6 +1412,5 @@ export const agentApi = {
     api<void>(`/agents/${id}/acl/${t}/${sid}`, { method: 'DELETE' }),
   runs: (id: number, limit = 50) =>
     api<{ items: AgentRun[] }>(`/agents/${id}/runs?limit=${limit}`),
-  run: (id: number, rid: number) =>
-    api<AgentRun>(`/agents/${id}/runs/${rid}`),
+  run: (id: number, rid: number) => api<AgentRun>(`/agents/${id}/runs/${rid}`),
 }

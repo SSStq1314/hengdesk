@@ -1,8 +1,8 @@
 // 对话工作台（FR-14）：会话列表、流式显示、Markdown 渲染、停止生成、模型选择；会话内上传文件（FR-15）。
 // 布局参考 shadcn-admin 的 chats 页面（MIT）。
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { zh } from '@/locales/zh-CN'
 import {
   Copy,
@@ -31,8 +31,8 @@ import {
   type ConvFile,
   type StreamHandlers,
 } from '@/lib/api'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -59,7 +59,10 @@ export function ChatPage() {
   const qc = useQueryClient()
   const nav = useNavigate()
   const search = useSearch({ from: '/_authenticated/chat' })
-  const aigcQ = useQuery({ queryKey: ['aigc-public'], queryFn: modelApi.aigcPublic })
+  const aigcQ = useQuery({
+    queryKey: ['aigc-public'],
+    queryFn: modelApi.aigcPublic,
+  })
   const [active, setActive] = useState<number | null>(null)
   const [pendingAgent, setPendingAgent] = useState<{
     id: number
@@ -134,13 +137,9 @@ export function ChatPage() {
   }, [pendingAgent, qc])
 
   const modelItems = models.data?.items ?? []
-  const agentBound = !!(
-    (active != null && conv.data?.agent_id) ||
-    pendingAgent
-  )
+  const agentBound = !!((active != null && conv.data?.agent_id) || pendingAgent)
   const agentName =
-    conv.data?.agent_name ||
-    (pendingAgent ? zh.agents.chatWithAgent : '')
+    conv.data?.agent_name || (pendingAgent ? zh.agents.chatWithAgent : '')
   const agentOpening = conv.data?.opening || ''
   const agentDebug = !!(conv.data?.agent_debug || pendingAgent?.debug)
   const agentReadonly = !!conv.data?.agent_readonly
@@ -264,13 +263,16 @@ export function ChatPage() {
     id: number,
     call: (h: StreamHandlers, s: AbortSignal) => Promise<void>,
     init: ChatMessage[],
-    hide: number | null
+    hide: number | null,
+    // 新消息在服务端落库前就被拦截（如 429 预算已用尽）时，把用户输入恢复到输入框，并保留错误气泡。
+    restoreInput?: string
   ) {
     setLive(init)
     setHidden(hide)
     setStreaming(true)
     const ac = new AbortController()
     abortRef.current = ac
+    let failed = false
     const patch = (f: (m: ChatMessage) => ChatMessage) =>
       setLive((l) => l.map((m) => (m.id === -2 ? f(m) : m)))
     try {
@@ -288,32 +290,47 @@ export function ChatPage() {
                 zh.agents.runDropped +
                   '：' +
                   m.agent_dropped
-                    .map((d) => `${d.type}#${d.id}${d.name ? ' ' + d.name : ''}`)
+                    .map(
+                      (d) => `${d.type}#${d.id}${d.name ? ' ' + d.name : ''}`
+                    )
                     .join('、')
               )
             }
+            if (m.status === 'error') failed = true
             patch(() => ({ ...m, id: -2 }))
           },
-          onError: (code, msg) =>
+          onError: (code, msg) => {
+            failed = true
             patch((m) => ({
               ...m,
               status: 'error',
               error_code: code,
               error: msg,
-            })),
+            }))
+          },
         },
         ac.signal
       )
     } catch (e) {
       if (ac.signal.aborted) patch((m) => ({ ...m, status: 'stopped' }))
-      else patch((m) => ({ ...m, status: 'error', error: String(e) }))
+      else {
+        failed = true
+        patch((m) => ({ ...m, status: 'error', error: String(e) }))
+      }
     } finally {
       setStreaming(false)
       abortRef.current = null
       await qc.invalidateQueries({ queryKey: ['conversation', id] })
       await qc.invalidateQueries({ queryKey: ['conversations'] })
-      setLive([])
-      setHidden(null)
+      if (failed && !ac.signal.aborted && restoreInput) {
+        // 429 等未落库的失败：保留错误气泡，把刚输入的问题恢复到输入框。
+        setInput((cur) => cur || restoreInput)
+        setLive((l) => l.filter((m) => m.id === -2 && m.status === 'error'))
+        setHidden(null)
+      } else {
+        setLive([])
+        setHidden(null)
+      }
     }
   }
 
@@ -339,7 +356,8 @@ export function ChatPage() {
           status: 'streaming',
         },
       ],
-      null
+      null,
+      content
     )
   }
 
@@ -464,9 +482,13 @@ export function ChatPage() {
                 </Badge>
               ) : (
                 <>
-                  <span className='text-sm text-muted-foreground'>{t.model}</span>
+                  <span className='text-sm text-muted-foreground'>
+                    {t.model}
+                  </span>
                   {modelItems.length === 0 ? (
-                    <span className='text-sm text-destructive'>{t.noModel}</span>
+                    <span className='text-sm text-destructive'>
+                      {t.noModel}
+                    </span>
                   ) : (
                     <NativeSelect
                       ariaLabel={t.model}
@@ -508,7 +530,8 @@ export function ChatPage() {
                 </div>
               )}
               {messages.map((m) => (
-                <MessageBubble aigcSuffix={aigcQ.data?.suffix}
+                <MessageBubble
+                  aigcSuffix={aigcQ.data?.suffix}
                   key={m.id}
                   m={m}
                   onRegenerate={
@@ -580,7 +603,9 @@ export function ChatPage() {
               </Button>
               <Textarea
                 value={input}
-                placeholder={agentReadonly ? zh.agents.readonlyHint : t.placeholder}
+                placeholder={
+                  agentReadonly ? zh.agents.readonlyHint : t.placeholder
+                }
                 rows={3}
                 readOnly={agentReadonly}
                 onChange={(e) => setInput(e.target.value)}
@@ -758,7 +783,8 @@ function MessageBubble({
                 onClick={async () => {
                   const suffix = aigcSuffix ?? ''
                   const text = suffix
-                    ? m.content + (suffix.startsWith('\n') ? suffix : '\n' + suffix)
+                    ? m.content +
+                      (suffix.startsWith('\n') ? suffix : '\n' + suffix)
                     : m.content
                   try {
                     await navigator.clipboard.writeText(text)

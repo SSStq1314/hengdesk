@@ -85,7 +85,8 @@ export const zh = {
     topUsers: 'Top 用户',
     colUser: '用户',
     noPermTitle: '暂无统计权限',
-    noPermDesc: '用量看板需要 budget.read（组织管理员或部门管理员）。普通成员可在「我的用量」查看本人数据。',
+    noPermDesc:
+      '用量看板需要 budget.read（组织管理员或部门管理员）。普通成员可在「我的用量」查看本人数据。',
     estimatedHint: (calls: number, tokens: number) =>
       `含估算用量：${calls} 次调用、约 ${tokens} token（上游未返回 usage）`,
     yuan: (n: string) => `${n} 元`,
@@ -482,7 +483,7 @@ export const zh = {
       '说明：调用前按当期已用量预检查、结束后按实际用量记账，并发或大请求可能少量超出上限。周期按系统时区（默认 Asia/Shanghai）切分。',
   },
   notices: {
-    title: (n: number) => `有 ${n} 条未读的预算提醒`,
+    title: (n: number) => `有 ${n} 条未读提醒`,
     markRead: '全部标记为已读',
     budget: (
       who: string,
@@ -794,6 +795,8 @@ export const zh = {
     modelNone: '使用会话默认模型',
     kbs: '知识库',
     tools: '工具',
+    toolsUseHint:
+      '只能绑定你有权使用的工具。仅有工具管理权限不够；列表为空时请先在「连接器与工具」中给自己授权。无权限的工具保存时会提示资源不存在。',
     maxSteps: '最大工具步数',
     save: '保存草稿',
     publish: '发布',
@@ -822,10 +825,12 @@ export const zh = {
     runsEmpty: '暂无运行记录',
     config: '配置',
     debug: '调试对话',
-    debugHint: '使用当前草稿开调试会话（不必先发布）。右侧会提示被静默剔除的资源。',
+    debugHint:
+      '使用当前草稿开调试会话（不必先发布）。右侧会提示被静默剔除的资源。',
     startDebug: '开始调试',
     delete: '删除',
-    deleteConfirm: '删除后详情与新会话一律不可见，版本与运行记录保留供审计。确定删除？',
+    deleteConfirm:
+      '删除后详情与新会话一律不可见，版本与运行记录保留供审计。确定删除？',
     deleted: '已删除',
     saved: '草稿已保存',
     publishedOk: '已发布',
