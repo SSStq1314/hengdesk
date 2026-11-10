@@ -386,6 +386,10 @@ jobs:
           VERSION=ci-offline
           docker tag "hengdesk/server:dev" "hengdesk/server:$VERSION"
           docker tag "hengdesk/web:dev" "hengdesk/web:$VERSION"
+          # 依赖镜像未必因 compose build 拉取，显式 pull 后再 save
+          docker pull pgvector/pgvector:0.8.7-pg17
+          docker pull valkey/valkey:8.1.11-alpine
+          docker pull chrislusf/seaweedfs:4.52
           mkdir -p /tmp/hd-off/images /tmp/hd-off/deploy
           echo "$VERSION" > /tmp/hd-off/VERSION
           docker save -o /tmp/hd-off/images/hengdesk-server.tar "hengdesk/server:$VERSION"
@@ -397,7 +401,8 @@ jobs:
           rm -f /tmp/hd-off/deploy/.env
           docker compose down --volumes --remove-orphans || true
           # 删除本地镜像，强迫只能从 tar load（模拟离线机）
-          docker rmi "hengdesk/server:$VERSION" "hengdesk/web:$VERSION" "hengdesk/server:dev" "hengdesk/web:dev" || true
+          docker rmi "hengdesk/server:$VERSION" "hengdesk/web:$VERSION" "hengdesk/server:dev" "hengdesk/web:dev" \
+            pgvector/pgvector:0.8.7-pg17 valkey/valkey:8.1.11-alpine chrislusf/seaweedfs:4.52 || true
       - name: 断网环境 load + install（代理黑洞 + --pull never）
         run: |
           set -euo pipefail
