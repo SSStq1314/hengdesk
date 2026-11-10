@@ -34,8 +34,8 @@ type script struct {
 
 	admin, a, b, c, d, m *Client
 
-	financeID, marketID     int
-	idA, idB, idC, idD, idM int
+	financeID, marketID              int
+	idAdmin, idA, idB, idC, idD, idM int
 
 	provAPI, provLocal, modelAPI, modelLocal, modelEmbed int
 	kbID, fileTravel, fileFee, fileExec                  int
@@ -122,6 +122,13 @@ func (s *script) step1() error {
 		return err
 	}
 	s.log("管理员 %s 登录成功", s.cfg.AdminEmail)
+	var me struct {
+		ID int `json:"id"`
+	}
+	if _, err := s.admin.json(http.MethodGet, "/api/v1/auth/me", nil, 200, &me); err != nil || me.ID == 0 {
+		return fmt.Errorf("读取管理员 id：%w", err)
+	}
+	s.idAdmin = me.ID
 	_, _, _ = s.admin.do(http.MethodPost, "/api/v1/admin/system/master-key/ack", map[string]any{}, 0)
 
 	// 出站白名单：mockupstream、mockmcp、mockoidc（内网主机需显式放行）
@@ -480,6 +487,12 @@ func (s *script) step3() error {
 	if err := s.grantModel(s.modelLocal, "dept", s.marketID); err != nil {
 		return err
 	}
+	// 创建智能体时按创建者本人的模型/知识库/工具 ACL 校验（否则 404）。超管管理模型不代表自动可用。
+	for _, mid := range []int{s.modelAPI, s.modelLocal, s.modelEmbed} {
+		if err := s.grantModel(mid, "user", s.idAdmin); err != nil {
+			return err
+		}
+	}
 	// 财务部也需要能跑脚本里的对话（A 用国产）。市场部不应看到国产模型。
 	var models []map[string]any
 	if _, err := s.b.json(http.MethodGet, "/api/v1/models", nil, 200, &models); err != nil {
@@ -541,6 +554,11 @@ func (s *script) step5() error {
 		"subject_type": "dept", "subject_id": s.financeID, "include_children": true, "perm": "use",
 	}, 0); err != nil {
 		s.log("警告：知识库部门 ACL：%v", err)
+	}
+	if _, _, err := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/kbs/%d/acl", s.kbID), map[string]any{
+		"subject_type": "user", "subject_id": s.idAdmin, "perm": "use",
+	}, 0); err != nil {
+		return fmt.Errorf("授予管理员知识库 ACL：%w", err)
 	}
 
 	type up struct {
@@ -659,6 +677,11 @@ func (s *script) step6() error {
 			"subject_type": "dept", "subject_id": s.financeID, "include_children": true,
 		}, 0); err != nil {
 			s.log("警告：工具 ACL：%v", err)
+		}
+		if _, _, err := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/tools/%d/acl", id), map[string]any{
+			"subject_type": "user", "subject_id": s.idAdmin,
+		}, 0); err != nil {
+			return fmt.Errorf("授予管理员工具 ACL：%w", err)
 		}
 	}
 	s.log("MCP #%d 工具 query=%d create=%d", s.mcpID, s.toolQuery, s.toolCreate)
