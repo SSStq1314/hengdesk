@@ -74,18 +74,34 @@ if [ "$COMPOSE" = 1 ]; then
   fi
   docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" up -d "${UP_FLAGS[@]}"
   # 等应用与演示依赖 healthz（mock 端口已由 acceptance compose 发布到宿主机）
+  app_ok=0
   for i in $(seq 1 60); do
-    curl -fsS "${HENGDESK_HTTP_PORT:+http://127.0.0.1:${HENGDESK_HTTP_PORT}/healthz}" >/dev/null 2>&1 && break
-    curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1 && break
+    if curl -fsS "${HENGDESK_HTTP_PORT:+http://127.0.0.1:${HENGDESK_HTTP_PORT}/healthz}" >/dev/null 2>&1 \
+      || curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
+      app_ok=1
+      break
+    fi
     sleep 2
   done
+  if [ "$app_ok" != 1 ]; then
+    echo "应用 healthz 等待超时" >&2
+    exit 1
+  fi
+  mock_ok=0
   for i in $(seq 1 30); do
-    curl -fsS http://127.0.0.1:18081/healthz >/dev/null 2>&1 \
+    if curl -fsS http://127.0.0.1:18081/healthz >/dev/null 2>&1 \
       && curl -fsS http://127.0.0.1:18080/healthz >/dev/null 2>&1 \
-      && curl -fsS http://127.0.0.1:18082/healthz >/dev/null 2>&1 \
-      && break
+      && curl -fsS http://127.0.0.1:18082/healthz >/dev/null 2>&1; then
+      mock_ok=1
+      break
+    fi
     sleep 1
   done
+  if [ "$mock_ok" != 1 ]; then
+    echo "mockoidc/mockupstream/mockredir healthz 等待超时（检查 Dockerfile.mocks 的 ENTRYPOINT 是否吞掉了 command）" >&2
+    docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" ps -a >&2 || true
+    exit 1
+  fi
   ACCEPT_ENV=(
     -e M1ACCEPT_ADMIN_PASSWORD="$ADMIN_PASSWORD"
     -e M1ACCEPT_ADMIN_EMAIL="$ADMIN_EMAIL"
