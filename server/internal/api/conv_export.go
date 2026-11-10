@@ -82,7 +82,7 @@ func (h *convHandlers) export(c echo.Context) error {
 	if title == "" {
 		title = "对话"
 	}
-	b.WriteString(fmt.Sprintf("# %s\n\n", title))
+	fmt.Fprintf(&b, "# %s\n\n", title)
 	for _, m := range ms {
 		role := "用户"
 		content := m.Content
@@ -90,7 +90,7 @@ func (h *convHandlers) export(c echo.Context) error {
 			role = "助手"
 			content = aigc.AppendSuffix(content, st.Suffix)
 		}
-		b.WriteString(fmt.Sprintf("## %s\n\n%s\n\n", role, content))
+		fmt.Fprintf(&b, "## %s\n\n%s\n\n", role, content)
 	}
 	c.Response().Header().Set(echo.HeaderContentType, "text/markdown; charset=utf-8")
 	c.Response().Header().Set(echo.HeaderContentDisposition, fmt.Sprintf(`attachment; filename="conversation-%d.md"`, cv.ID))

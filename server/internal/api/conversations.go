@@ -131,10 +131,6 @@ func toConv(c *ent.Conversation) convView {
 		AgentID: c.AgentID, AgentDebug: c.AgentDebug, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt}
 }
 
-func toMsg(m *ent.Message) msgView {
-	return toMsgAIGC(m, aigc.Defaults())
-}
-
 func toMsgAIGC(m *ent.Message, st aigc.Settings) msgView {
 	v := msgView{ID: m.ID, Role: string(m.Role), Content: m.Content, Status: string(m.Status), ModelName: m.ModelName,
 		FallbackFrom: m.FallbackFrom, ErrorCode: m.ErrorCode, Error: m.Error, PromptTokens: m.PromptTokens, UsageEstimated: m.UsageEstimated,
