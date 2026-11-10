@@ -24,6 +24,10 @@ func (Conversation) Fields() []ent.Field {
 		field.JSON("kb_ids", []int{}).Optional(),
 		// tool_ids 本会话选用的工具（第五块 PR4，FR-23）。每次生成时按 authz.ToolAccess 现算，失去权限的工具不提供给模型。
 		field.JSON("tool_ids", []int{}).Optional(),
+		// agent_id 绑定的智能体（M1 第六块）；非空时模型 / 知识库 / 工具取智能体配置，kb_ids / tool_ids 不使用。
+		field.Int("agent_id").Optional().Nillable(),
+		// agent_debug 调试会话：使用草稿配置（需要 edit），不影响线上版本。
+		field.Bool("agent_debug").Default(false),
 	}
 }
 

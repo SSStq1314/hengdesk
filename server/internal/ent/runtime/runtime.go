@@ -7,6 +7,7 @@ import (
 
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/agent"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/agentrun"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/agentversion"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/approval"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
@@ -123,6 +124,60 @@ func init() {
 	agentDescDraftDirty := agentFields[10].Descriptor()
 	// agent.DefaultDraftDirty holds the default value on creation for the draft_dirty field.
 	agent.DefaultDraftDirty = agentDescDraftDirty.Default.(bool)
+	agentrunFields := schema.AgentRun{}.Fields()
+	_ = agentrunFields
+	// agentrunDescAgentVersion is the schema descriptor for agent_version field.
+	agentrunDescAgentVersion := agentrunFields[2].Descriptor()
+	// agentrun.DefaultAgentVersion holds the default value on creation for the agent_version field.
+	agentrun.DefaultAgentVersion = agentrunDescAgentVersion.Default.(int)
+	// agentrunDescDebug is the schema descriptor for debug field.
+	agentrunDescDebug := agentrunFields[3].Descriptor()
+	// agentrun.DefaultDebug holds the default value on creation for the debug field.
+	agentrun.DefaultDebug = agentrunDescDebug.Default.(bool)
+	// agentrunDescTraceID is the schema descriptor for trace_id field.
+	agentrunDescTraceID := agentrunFields[7].Descriptor()
+	// agentrun.DefaultTraceID holds the default value on creation for the trace_id field.
+	agentrun.DefaultTraceID = agentrunDescTraceID.Default.(string)
+	// agentrunDescRequestID is the schema descriptor for request_id field.
+	agentrunDescRequestID := agentrunFields[8].Descriptor()
+	// agentrun.DefaultRequestID holds the default value on creation for the request_id field.
+	agentrun.DefaultRequestID = agentrunDescRequestID.Default.(string)
+	// agentrunDescModelName is the schema descriptor for model_name field.
+	agentrunDescModelName := agentrunFields[9].Descriptor()
+	// agentrun.DefaultModelName holds the default value on creation for the model_name field.
+	agentrun.DefaultModelName = agentrunDescModelName.Default.(string)
+	// agentrunDescErrorCode is the schema descriptor for error_code field.
+	agentrunDescErrorCode := agentrunFields[11].Descriptor()
+	// agentrun.DefaultErrorCode holds the default value on creation for the error_code field.
+	agentrun.DefaultErrorCode = agentrunDescErrorCode.Default.(string)
+	// agentrunDescSteps is the schema descriptor for steps field.
+	agentrunDescSteps := agentrunFields[12].Descriptor()
+	// agentrun.DefaultSteps holds the default value on creation for the steps field.
+	agentrun.DefaultSteps = agentrunDescSteps.Default.(int)
+	// agentrunDescMaxSteps is the schema descriptor for max_steps field.
+	agentrunDescMaxSteps := agentrunFields[13].Descriptor()
+	// agentrun.DefaultMaxSteps holds the default value on creation for the max_steps field.
+	agentrun.DefaultMaxSteps = agentrunDescMaxSteps.Default.(int)
+	// agentrunDescToolCalls is the schema descriptor for tool_calls field.
+	agentrunDescToolCalls := agentrunFields[14].Descriptor()
+	// agentrun.DefaultToolCalls holds the default value on creation for the tool_calls field.
+	agentrun.DefaultToolCalls = agentrunDescToolCalls.Default.(int)
+	// agentrunDescStepLimited is the schema descriptor for step_limited field.
+	agentrunDescStepLimited := agentrunFields[15].Descriptor()
+	// agentrun.DefaultStepLimited holds the default value on creation for the step_limited field.
+	agentrun.DefaultStepLimited = agentrunDescStepLimited.Default.(bool)
+	// agentrunDescPromptTokens is the schema descriptor for prompt_tokens field.
+	agentrunDescPromptTokens := agentrunFields[16].Descriptor()
+	// agentrun.DefaultPromptTokens holds the default value on creation for the prompt_tokens field.
+	agentrun.DefaultPromptTokens = agentrunDescPromptTokens.Default.(int)
+	// agentrunDescCompletionTokens is the schema descriptor for completion_tokens field.
+	agentrunDescCompletionTokens := agentrunFields[17].Descriptor()
+	// agentrun.DefaultCompletionTokens holds the default value on creation for the completion_tokens field.
+	agentrun.DefaultCompletionTokens = agentrunDescCompletionTokens.Default.(int)
+	// agentrunDescStartedAt is the schema descriptor for started_at field.
+	agentrunDescStartedAt := agentrunFields[19].Descriptor()
+	// agentrun.DefaultStartedAt holds the default value on creation for the started_at field.
+	agentrun.DefaultStartedAt = agentrunDescStartedAt.Default.(func() time.Time)
 	agentversionFields := schema.AgentVersion{}.Fields()
 	_ = agentversionFields
 	// agentversionDescNote is the schema descriptor for note field.
@@ -340,6 +395,10 @@ func init() {
 	conversation.DefaultTitle = conversationDescTitle.Default.(string)
 	// conversation.TitleValidator is a validator for the "title" field. It is called by the builders before save.
 	conversation.TitleValidator = conversationDescTitle.Validators[0].(func(string) error)
+	// conversationDescAgentDebug is the schema descriptor for agent_debug field.
+	conversationDescAgentDebug := conversationFields[8].Descriptor()
+	// conversation.DefaultAgentDebug holds the default value on creation for the agent_debug field.
+	conversation.DefaultAgentDebug = conversationDescAgentDebug.Default.(bool)
 	conversationfileMixin := schema.ConversationFile{}.Mixin()
 	conversationfileMixinFields0 := conversationfileMixin[0].Fields()
 	_ = conversationfileMixinFields0

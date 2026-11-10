@@ -71,3 +71,48 @@ func (AgentVersion) Fields() []ent.Field {
 func (AgentVersion) Indexes() []ent.Index {
 	return []ent.Index{index.Fields("agent_id", "version").Unique()}
 }
+
+// AgentRun 智能体运行记录（一条回复一行；审批后续跑更新同一行）。trace_id 关联审计中心的完整链路回放。
+type AgentRun struct{ ent.Schema }
+
+// AgentDropped 运行时因调用者无权限 / 已禁用而被静默剔除的绑定资源。
+type AgentDropped struct {
+	Type   string `json:"type"` // kb / tool
+	ID     int    `json:"id"`
+	Name   string `json:"name,omitempty"`
+	Reason string `json:"reason"`
+}
+
+func (AgentRun) Fields() []ent.Field {
+	return []ent.Field{
+		field.Int("org_id"),
+		field.Int("agent_id"),
+		// agent_version 本次使用的发布版本；调试会话为 0（草稿）。
+		field.Int("agent_version").Default(0),
+		field.Bool("debug").Default(false),
+		field.Int("conversation_id"),
+		field.Int("message_id").Unique(),
+		field.Int("user_id"),
+		field.String("trace_id").Default(""),
+		field.String("request_id").Default(""),
+		field.String("model_name").Default(""),
+		field.Enum("status").Values("running", "done", "awaiting_approval", "stopped", "error").Default("running"),
+		field.String("error_code").Default(""),
+		field.Int("steps").Default(0),
+		field.Int("max_steps").Default(0),
+		field.Int("tool_calls").Default(0),
+		field.Bool("step_limited").Default(false),
+		field.Int("prompt_tokens").Default(0),
+		field.Int("completion_tokens").Default(0),
+		field.JSON("dropped", []AgentDropped{}).Optional(),
+		field.Time("started_at").Default(time.Now).Immutable(),
+		field.Time("finished_at").Optional().Nillable(),
+	}
+}
+
+func (AgentRun) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("agent_id", "started_at"),
+		index.Fields("trace_id"),
+	}
+}

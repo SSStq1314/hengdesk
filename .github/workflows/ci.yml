@@ -17,7 +17,9 @@ jobs:
       - uses: golangci/golangci-lint-action@v8
         with: {version: latest, working-directory: server}
       - run: go vet ./...
+      # 预算周期默认 Asia/Shanghai（D-37）；与生产进程时区对齐，避免 SQLite 时间比较受 CI 默认 UTC 影响。
       - run: go test -race ./...
+        env: {TZ: Asia/Shanghai}
       - run: CGO_ENABLED=0 go build -o /tmp/hengdesk ./cmd/hengdesk
 
   go-postgres:

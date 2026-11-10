@@ -117,6 +117,34 @@ func (_c *ConversationCreate) SetToolIds(v []int) *ConversationCreate {
 	return _c
 }
 
+// SetAgentID sets the "agent_id" field.
+func (_c *ConversationCreate) SetAgentID(v int) *ConversationCreate {
+	_c.mutation.SetAgentID(v)
+	return _c
+}
+
+// SetNillableAgentID sets the "agent_id" field if the given value is not nil.
+func (_c *ConversationCreate) SetNillableAgentID(v *int) *ConversationCreate {
+	if v != nil {
+		_c.SetAgentID(*v)
+	}
+	return _c
+}
+
+// SetAgentDebug sets the "agent_debug" field.
+func (_c *ConversationCreate) SetAgentDebug(v bool) *ConversationCreate {
+	_c.mutation.SetAgentDebug(v)
+	return _c
+}
+
+// SetNillableAgentDebug sets the "agent_debug" field if the given value is not nil.
+func (_c *ConversationCreate) SetNillableAgentDebug(v *bool) *ConversationCreate {
+	if v != nil {
+		_c.SetAgentDebug(*v)
+	}
+	return _c
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by IDs.
 func (_c *ConversationCreate) AddMessageIDs(ids ...int) *ConversationCreate {
 	_c.mutation.AddMessageIDs(ids...)
@@ -179,6 +207,10 @@ func (_c *ConversationCreate) defaults() {
 		v := conversation.DefaultTitle
 		_c.mutation.SetTitle(v)
 	}
+	if _, ok := _c.mutation.AgentDebug(); !ok {
+		v := conversation.DefaultAgentDebug
+		_c.mutation.SetAgentDebug(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -202,6 +234,9 @@ func (_c *ConversationCreate) check() error {
 		if err := conversation.TitleValidator(v); err != nil {
 			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "Conversation.title": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.AgentDebug(); !ok {
+		return &ValidationError{Name: "agent_debug", err: errors.New(`ent: missing required field "Conversation.agent_debug"`)}
 	}
 	return nil
 }
@@ -265,6 +300,14 @@ func (_c *ConversationCreate) createSpec() (*Conversation, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.ToolIds(); ok {
 		_spec.SetField(conversation.FieldToolIds, field.TypeJSON, value)
 		_node.ToolIds = value
+	}
+	if value, ok := _c.mutation.AgentID(); ok {
+		_spec.SetField(conversation.FieldAgentID, field.TypeInt, value)
+		_node.AgentID = &value
+	}
+	if value, ok := _c.mutation.AgentDebug(); ok {
+		_spec.SetField(conversation.FieldAgentDebug, field.TypeBool, value)
+		_node.AgentDebug = value
 	}
 	if nodes := _c.mutation.MessagesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -472,6 +515,42 @@ func (u *ConversationUpsert) ClearToolIds() *ConversationUpsert {
 	return u
 }
 
+// SetAgentID sets the "agent_id" field.
+func (u *ConversationUpsert) SetAgentID(v int) *ConversationUpsert {
+	u.Set(conversation.FieldAgentID, v)
+	return u
+}
+
+// UpdateAgentID sets the "agent_id" field to the value that was provided on create.
+func (u *ConversationUpsert) UpdateAgentID() *ConversationUpsert {
+	u.SetExcluded(conversation.FieldAgentID)
+	return u
+}
+
+// AddAgentID adds v to the "agent_id" field.
+func (u *ConversationUpsert) AddAgentID(v int) *ConversationUpsert {
+	u.Add(conversation.FieldAgentID, v)
+	return u
+}
+
+// ClearAgentID clears the value of the "agent_id" field.
+func (u *ConversationUpsert) ClearAgentID() *ConversationUpsert {
+	u.SetNull(conversation.FieldAgentID)
+	return u
+}
+
+// SetAgentDebug sets the "agent_debug" field.
+func (u *ConversationUpsert) SetAgentDebug(v bool) *ConversationUpsert {
+	u.Set(conversation.FieldAgentDebug, v)
+	return u
+}
+
+// UpdateAgentDebug sets the "agent_debug" field to the value that was provided on create.
+func (u *ConversationUpsert) UpdateAgentDebug() *ConversationUpsert {
+	u.SetExcluded(conversation.FieldAgentDebug)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -675,6 +754,48 @@ func (u *ConversationUpsertOne) UpdateToolIds() *ConversationUpsertOne {
 func (u *ConversationUpsertOne) ClearToolIds() *ConversationUpsertOne {
 	return u.Update(func(s *ConversationUpsert) {
 		s.ClearToolIds()
+	})
+}
+
+// SetAgentID sets the "agent_id" field.
+func (u *ConversationUpsertOne) SetAgentID(v int) *ConversationUpsertOne {
+	return u.Update(func(s *ConversationUpsert) {
+		s.SetAgentID(v)
+	})
+}
+
+// AddAgentID adds v to the "agent_id" field.
+func (u *ConversationUpsertOne) AddAgentID(v int) *ConversationUpsertOne {
+	return u.Update(func(s *ConversationUpsert) {
+		s.AddAgentID(v)
+	})
+}
+
+// UpdateAgentID sets the "agent_id" field to the value that was provided on create.
+func (u *ConversationUpsertOne) UpdateAgentID() *ConversationUpsertOne {
+	return u.Update(func(s *ConversationUpsert) {
+		s.UpdateAgentID()
+	})
+}
+
+// ClearAgentID clears the value of the "agent_id" field.
+func (u *ConversationUpsertOne) ClearAgentID() *ConversationUpsertOne {
+	return u.Update(func(s *ConversationUpsert) {
+		s.ClearAgentID()
+	})
+}
+
+// SetAgentDebug sets the "agent_debug" field.
+func (u *ConversationUpsertOne) SetAgentDebug(v bool) *ConversationUpsertOne {
+	return u.Update(func(s *ConversationUpsert) {
+		s.SetAgentDebug(v)
+	})
+}
+
+// UpdateAgentDebug sets the "agent_debug" field to the value that was provided on create.
+func (u *ConversationUpsertOne) UpdateAgentDebug() *ConversationUpsertOne {
+	return u.Update(func(s *ConversationUpsert) {
+		s.UpdateAgentDebug()
 	})
 }
 
@@ -1047,6 +1168,48 @@ func (u *ConversationUpsertBulk) UpdateToolIds() *ConversationUpsertBulk {
 func (u *ConversationUpsertBulk) ClearToolIds() *ConversationUpsertBulk {
 	return u.Update(func(s *ConversationUpsert) {
 		s.ClearToolIds()
+	})
+}
+
+// SetAgentID sets the "agent_id" field.
+func (u *ConversationUpsertBulk) SetAgentID(v int) *ConversationUpsertBulk {
+	return u.Update(func(s *ConversationUpsert) {
+		s.SetAgentID(v)
+	})
+}
+
+// AddAgentID adds v to the "agent_id" field.
+func (u *ConversationUpsertBulk) AddAgentID(v int) *ConversationUpsertBulk {
+	return u.Update(func(s *ConversationUpsert) {
+		s.AddAgentID(v)
+	})
+}
+
+// UpdateAgentID sets the "agent_id" field to the value that was provided on create.
+func (u *ConversationUpsertBulk) UpdateAgentID() *ConversationUpsertBulk {
+	return u.Update(func(s *ConversationUpsert) {
+		s.UpdateAgentID()
+	})
+}
+
+// ClearAgentID clears the value of the "agent_id" field.
+func (u *ConversationUpsertBulk) ClearAgentID() *ConversationUpsertBulk {
+	return u.Update(func(s *ConversationUpsert) {
+		s.ClearAgentID()
+	})
+}
+
+// SetAgentDebug sets the "agent_debug" field.
+func (u *ConversationUpsertBulk) SetAgentDebug(v bool) *ConversationUpsertBulk {
+	return u.Update(func(s *ConversationUpsert) {
+		s.SetAgentDebug(v)
+	})
+}
+
+// UpdateAgentDebug sets the "agent_debug" field to the value that was provided on create.
+func (u *ConversationUpsertBulk) UpdateAgentDebug() *ConversationUpsertBulk {
+	return u.Update(func(s *ConversationUpsert) {
+		s.UpdateAgentDebug()
 	})
 }
 

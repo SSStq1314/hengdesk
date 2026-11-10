@@ -36,6 +36,10 @@ type Conversation struct {
 	KBIds []int `json:"kb_ids,omitempty"`
 	// ToolIds holds the value of the "tool_ids" field.
 	ToolIds []int `json:"tool_ids,omitempty"`
+	// AgentID holds the value of the "agent_id" field.
+	AgentID *int `json:"agent_id,omitempty"`
+	// AgentDebug holds the value of the "agent_debug" field.
+	AgentDebug bool `json:"agent_debug,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ConversationQuery when eager-loading is set.
 	Edges        ConversationEdges `json:"edges"`
@@ -67,7 +71,9 @@ func (*Conversation) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case conversation.FieldKBIds, conversation.FieldToolIds:
 			values[i] = new([]byte)
-		case conversation.FieldID, conversation.FieldOrgID, conversation.FieldUserID, conversation.FieldModelID:
+		case conversation.FieldAgentDebug:
+			values[i] = new(sql.NullBool)
+		case conversation.FieldID, conversation.FieldOrgID, conversation.FieldUserID, conversation.FieldModelID, conversation.FieldAgentID:
 			values[i] = new(sql.NullInt64)
 		case conversation.FieldTitle:
 			values[i] = new(sql.NullString)
@@ -154,6 +160,19 @@ func (_m *Conversation) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field tool_ids: %w", err)
 				}
 			}
+		case conversation.FieldAgentID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field agent_id", values[i])
+			} else if value.Valid {
+				_m.AgentID = new(int)
+				*_m.AgentID = int(value.Int64)
+			}
+		case conversation.FieldAgentDebug:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field agent_debug", values[i])
+			} else if value.Valid {
+				_m.AgentDebug = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -225,6 +244,14 @@ func (_m *Conversation) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("tool_ids=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ToolIds))
+	builder.WriteString(", ")
+	if v := _m.AgentID; v != nil {
+		builder.WriteString("agent_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("agent_debug=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AgentDebug))
 	builder.WriteByte(')')
 	return builder.String()
 }

@@ -175,6 +175,47 @@ func (_u *ConversationUpdate) ClearToolIds() *ConversationUpdate {
 	return _u
 }
 
+// SetAgentID sets the "agent_id" field.
+func (_u *ConversationUpdate) SetAgentID(v int) *ConversationUpdate {
+	_u.mutation.ResetAgentID()
+	_u.mutation.SetAgentID(v)
+	return _u
+}
+
+// SetNillableAgentID sets the "agent_id" field if the given value is not nil.
+func (_u *ConversationUpdate) SetNillableAgentID(v *int) *ConversationUpdate {
+	if v != nil {
+		_u.SetAgentID(*v)
+	}
+	return _u
+}
+
+// AddAgentID adds value to the "agent_id" field.
+func (_u *ConversationUpdate) AddAgentID(v int) *ConversationUpdate {
+	_u.mutation.AddAgentID(v)
+	return _u
+}
+
+// ClearAgentID clears the value of the "agent_id" field.
+func (_u *ConversationUpdate) ClearAgentID() *ConversationUpdate {
+	_u.mutation.ClearAgentID()
+	return _u
+}
+
+// SetAgentDebug sets the "agent_debug" field.
+func (_u *ConversationUpdate) SetAgentDebug(v bool) *ConversationUpdate {
+	_u.mutation.SetAgentDebug(v)
+	return _u
+}
+
+// SetNillableAgentDebug sets the "agent_debug" field if the given value is not nil.
+func (_u *ConversationUpdate) SetNillableAgentDebug(v *bool) *ConversationUpdate {
+	if v != nil {
+		_u.SetAgentDebug(*v)
+	}
+	return _u
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by IDs.
 func (_u *ConversationUpdate) AddMessageIDs(ids ...int) *ConversationUpdate {
 	_u.mutation.AddMessageIDs(ids...)
@@ -328,6 +369,18 @@ func (_u *ConversationUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.ToolIdsCleared() {
 		_spec.ClearField(conversation.FieldToolIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.AgentID(); ok {
+		_spec.SetField(conversation.FieldAgentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAgentID(); ok {
+		_spec.AddField(conversation.FieldAgentID, field.TypeInt, value)
+	}
+	if _u.mutation.AgentIDCleared() {
+		_spec.ClearField(conversation.FieldAgentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AgentDebug(); ok {
+		_spec.SetField(conversation.FieldAgentDebug, field.TypeBool, value)
 	}
 	if _u.mutation.MessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -539,6 +592,47 @@ func (_u *ConversationUpdateOne) ClearToolIds() *ConversationUpdateOne {
 	return _u
 }
 
+// SetAgentID sets the "agent_id" field.
+func (_u *ConversationUpdateOne) SetAgentID(v int) *ConversationUpdateOne {
+	_u.mutation.ResetAgentID()
+	_u.mutation.SetAgentID(v)
+	return _u
+}
+
+// SetNillableAgentID sets the "agent_id" field if the given value is not nil.
+func (_u *ConversationUpdateOne) SetNillableAgentID(v *int) *ConversationUpdateOne {
+	if v != nil {
+		_u.SetAgentID(*v)
+	}
+	return _u
+}
+
+// AddAgentID adds value to the "agent_id" field.
+func (_u *ConversationUpdateOne) AddAgentID(v int) *ConversationUpdateOne {
+	_u.mutation.AddAgentID(v)
+	return _u
+}
+
+// ClearAgentID clears the value of the "agent_id" field.
+func (_u *ConversationUpdateOne) ClearAgentID() *ConversationUpdateOne {
+	_u.mutation.ClearAgentID()
+	return _u
+}
+
+// SetAgentDebug sets the "agent_debug" field.
+func (_u *ConversationUpdateOne) SetAgentDebug(v bool) *ConversationUpdateOne {
+	_u.mutation.SetAgentDebug(v)
+	return _u
+}
+
+// SetNillableAgentDebug sets the "agent_debug" field if the given value is not nil.
+func (_u *ConversationUpdateOne) SetNillableAgentDebug(v *bool) *ConversationUpdateOne {
+	if v != nil {
+		_u.SetAgentDebug(*v)
+	}
+	return _u
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by IDs.
 func (_u *ConversationUpdateOne) AddMessageIDs(ids ...int) *ConversationUpdateOne {
 	_u.mutation.AddMessageIDs(ids...)
@@ -722,6 +816,18 @@ func (_u *ConversationUpdateOne) sqlSave(ctx context.Context) (_node *Conversati
 	}
 	if _u.mutation.ToolIdsCleared() {
 		_spec.ClearField(conversation.FieldToolIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.AgentID(); ok {
+		_spec.SetField(conversation.FieldAgentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAgentID(); ok {
+		_spec.AddField(conversation.FieldAgentID, field.TypeInt, value)
+	}
+	if _u.mutation.AgentIDCleared() {
+		_spec.ClearField(conversation.FieldAgentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AgentDebug(); ok {
+		_spec.SetField(conversation.FieldAgentDebug, field.TypeBool, value)
 	}
 	if _u.mutation.MessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{

@@ -33,6 +33,18 @@ func (f AgentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AgentMutation", m)
 }
 
+// The AgentRunFunc type is an adapter to allow the use of ordinary
+// function as AgentRun mutator.
+type AgentRunFunc func(context.Context, *ent.AgentRunMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AgentRunFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AgentRunMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AgentRunMutation", m)
+}
+
 // The AgentVersionFunc type is an adapter to allow the use of ordinary
 // function as AgentVersion mutator.
 type AgentVersionFunc func(context.Context, *ent.AgentVersionMutation) (ent.Value, error)

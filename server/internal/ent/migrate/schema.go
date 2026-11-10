@@ -72,6 +72,49 @@ var (
 			},
 		},
 	}
+	// AgentRunsColumns holds the columns for the "agent_runs" table.
+	AgentRunsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "agent_id", Type: field.TypeInt},
+		{Name: "agent_version", Type: field.TypeInt, Default: 0},
+		{Name: "debug", Type: field.TypeBool, Default: false},
+		{Name: "conversation_id", Type: field.TypeInt},
+		{Name: "message_id", Type: field.TypeInt, Unique: true},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "trace_id", Type: field.TypeString, Default: ""},
+		{Name: "request_id", Type: field.TypeString, Default: ""},
+		{Name: "model_name", Type: field.TypeString, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"running", "done", "awaiting_approval", "stopped", "error"}, Default: "running"},
+		{Name: "error_code", Type: field.TypeString, Default: ""},
+		{Name: "steps", Type: field.TypeInt, Default: 0},
+		{Name: "max_steps", Type: field.TypeInt, Default: 0},
+		{Name: "tool_calls", Type: field.TypeInt, Default: 0},
+		{Name: "step_limited", Type: field.TypeBool, Default: false},
+		{Name: "prompt_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "completion_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "dropped", Type: field.TypeJSON, Nullable: true},
+		{Name: "started_at", Type: field.TypeTime},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
+	}
+	// AgentRunsTable holds the schema information for the "agent_runs" table.
+	AgentRunsTable = &schema.Table{
+		Name:       "agent_runs",
+		Columns:    AgentRunsColumns,
+		PrimaryKey: []*schema.Column{AgentRunsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "agentrun_agent_id_started_at",
+				Unique:  false,
+				Columns: []*schema.Column{AgentRunsColumns[2], AgentRunsColumns[20]},
+			},
+			{
+				Name:    "agentrun_trace_id",
+				Unique:  false,
+				Columns: []*schema.Column{AgentRunsColumns[8]},
+			},
+		},
+	}
 	// AgentVersionsColumns holds the columns for the "agent_versions" table.
 	AgentVersionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -265,6 +308,8 @@ var (
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
 		{Name: "kb_ids", Type: field.TypeJSON, Nullable: true},
 		{Name: "tool_ids", Type: field.TypeJSON, Nullable: true},
+		{Name: "agent_id", Type: field.TypeInt, Nullable: true},
+		{Name: "agent_debug", Type: field.TypeBool, Default: false},
 	}
 	// ConversationsTable holds the schema information for the "conversations" table.
 	ConversationsTable = &schema.Table{
@@ -938,6 +983,7 @@ var (
 	Tables = []*schema.Table{
 		ACLTable,
 		AgentsTable,
+		AgentRunsTable,
 		AgentVersionsTable,
 		ApprovalsTable,
 		AuditLogsTable,

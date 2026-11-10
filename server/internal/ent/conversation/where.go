@@ -90,6 +90,16 @@ func DeletedAt(v time.Time) predicate.Conversation {
 	return predicate.Conversation(sql.FieldEQ(FieldDeletedAt, v))
 }
 
+// AgentID applies equality check predicate on the "agent_id" field. It's identical to AgentIDEQ.
+func AgentID(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldEQ(FieldAgentID, v))
+}
+
+// AgentDebug applies equality check predicate on the "agent_debug" field. It's identical to AgentDebugEQ.
+func AgentDebug(v bool) predicate.Conversation {
+	return predicate.Conversation(sql.FieldEQ(FieldAgentDebug, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Conversation {
 	return predicate.Conversation(sql.FieldEQ(FieldCreatedAt, v))
@@ -433,6 +443,66 @@ func ToolIdsIsNil() predicate.Conversation {
 // ToolIdsNotNil applies the NotNil predicate on the "tool_ids" field.
 func ToolIdsNotNil() predicate.Conversation {
 	return predicate.Conversation(sql.FieldNotNull(FieldToolIds))
+}
+
+// AgentIDEQ applies the EQ predicate on the "agent_id" field.
+func AgentIDEQ(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldEQ(FieldAgentID, v))
+}
+
+// AgentIDNEQ applies the NEQ predicate on the "agent_id" field.
+func AgentIDNEQ(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldNEQ(FieldAgentID, v))
+}
+
+// AgentIDIn applies the In predicate on the "agent_id" field.
+func AgentIDIn(vs ...int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldIn(FieldAgentID, vs...))
+}
+
+// AgentIDNotIn applies the NotIn predicate on the "agent_id" field.
+func AgentIDNotIn(vs ...int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldNotIn(FieldAgentID, vs...))
+}
+
+// AgentIDGT applies the GT predicate on the "agent_id" field.
+func AgentIDGT(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldGT(FieldAgentID, v))
+}
+
+// AgentIDGTE applies the GTE predicate on the "agent_id" field.
+func AgentIDGTE(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldGTE(FieldAgentID, v))
+}
+
+// AgentIDLT applies the LT predicate on the "agent_id" field.
+func AgentIDLT(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldLT(FieldAgentID, v))
+}
+
+// AgentIDLTE applies the LTE predicate on the "agent_id" field.
+func AgentIDLTE(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldLTE(FieldAgentID, v))
+}
+
+// AgentIDIsNil applies the IsNil predicate on the "agent_id" field.
+func AgentIDIsNil() predicate.Conversation {
+	return predicate.Conversation(sql.FieldIsNull(FieldAgentID))
+}
+
+// AgentIDNotNil applies the NotNil predicate on the "agent_id" field.
+func AgentIDNotNil() predicate.Conversation {
+	return predicate.Conversation(sql.FieldNotNull(FieldAgentID))
+}
+
+// AgentDebugEQ applies the EQ predicate on the "agent_debug" field.
+func AgentDebugEQ(v bool) predicate.Conversation {
+	return predicate.Conversation(sql.FieldEQ(FieldAgentDebug, v))
+}
+
+// AgentDebugNEQ applies the NEQ predicate on the "agent_debug" field.
+func AgentDebugNEQ(v bool) predicate.Conversation {
+	return predicate.Conversation(sql.FieldNEQ(FieldAgentDebug, v))
 }
 
 // HasMessages applies the HasEdge predicate on the "messages" edge.

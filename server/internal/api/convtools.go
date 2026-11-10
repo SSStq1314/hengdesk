@@ -332,12 +332,25 @@ func (h *convHandlers) continueMsg(c echo.Context) error {
 			}
 		}
 	}
-	tgt, notice, err := h.pickModel(c, p, cv, m.ModelName)
+	sess, err := h.resolveAgent(c, p, cv)
 	if err != nil {
-		tgt, notice, err = h.pickModel(c, p, cv, "")
+		return err
+	}
+	var tgt *gateway.Target
+	var notice string
+	if sess != nil {
+		tgt, notice, err = h.pickAgentModel(c, p, sess, m.ModelName)
 		if err != nil {
-			return err
+			tgt, notice, err = h.pickAgentModel(c, p, sess, "")
 		}
+	} else {
+		tgt, notice, err = h.pickModel(c, p, cv, m.ModelName)
+		if err != nil {
+			tgt, notice, err = h.pickModel(c, p, cv, "")
+		}
+	}
+	if err != nil {
+		return err
 	}
 	if err := budgetGate(c, h.ch.bs, h.db, tgt.Model.ID, tgt.Model.Name); err != nil || c.Response().Committed {
 		return err
