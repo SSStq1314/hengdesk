@@ -1195,7 +1195,8 @@ func (s *script) step14() error {
 	}
 	if len(logs.Items) > 0 {
 		id := asInt(logs.Items[0]["id"])
-		_, _, err := s.admin.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/audit-logs/%d", id), nil, 0)
+		// 产品返回 404（无删除接口）。do(..., 0) 不把 404 当错误，须显式要 200 才能区分「真成功」。
+		_, _, err := s.admin.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/audit-logs/%d", id), nil, 200)
 		if err == nil {
 			return fmt.Errorf("超管删除审计记录竟然成功")
 		}
