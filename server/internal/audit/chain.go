@@ -12,8 +12,8 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 )
 
-// 哈希链：每条记录 hash = sha256(prev_hash ‖ 规范化 JSON)。prev_hash 上有唯一索引，
-// 多实例并发写入时链不会分叉，冲突方重读链尾后重试。
+// 哈希链：每条记录 hash = sha256(prev_hash ‖ 规范化 JSON)。PostgreSQL 上写入由事务级 advisory lock
+// 跨进程串行化（见 lock.go）；prev_hash 上的唯一索引继续兜底防分叉。
 
 var chainMu sync.Mutex
 
@@ -36,17 +36,6 @@ func canonical(prev string, ts time.Time, orgID, actorID int, email, action, rty
 func rowHash(r *ent.AuditLog) string {
 	return canonical(r.PrevHash, r.Ts, r.OrgID, r.ActorID, r.ActorEmail, r.Action, r.ResourceType, r.ResourceID,
 		string(r.Phase), r.Outcome, r.IP, r.UserAgent, r.RequestID, r.TraceID, r.UpstreamTraceID, r.Detail)
-}
-
-func (w EntWriter) tip(ctx context.Context) (string, error) {
-	r, err := w.C.AuditLog.Query().Where(auditlog.HashNEQ("")).Order(ent.Desc(auditlog.FieldID)).First(ctx)
-	if ent.IsNotFound(err) {
-		return "", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	return r.Hash, nil
 }
 
 // VerifyResult 校验结果。
