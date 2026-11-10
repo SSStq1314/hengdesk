@@ -67,3 +67,53 @@
 - PR3 #62 → `1779937`：pack-offline / offline-check / uninstall；install --offline；CI 断网冒烟（显式 pull 依赖镜像、健康检查绕过 HTTP_PROXY）；`docs/ops/offline-install.md`。
 - PR4 #63 → `be55057`：用量看板、`/me/usage`、AIGC 设置页、对话角标与复制后缀。
 - PR5（本 PR）：第七块完成报告。
+
+## 第七块完成报告（PR5）
+
+### PR 与合并提交
+
+| PR | 内容 | squash 提交 |
+|---|---|---|
+| #59 | PR1：计划、`usage_hourly` 迁移与小时预聚合 worker、统计 API（overview / timeseries / summary / export）、部门子树裁剪、导出审计 | `59b2bbf` |
+| #61 | PR2：AIGC 系统设置、消息显式角标、复制/导出后缀、`X-HengDesk-AIGC` 隐式元数据、会话导出 md/json | `0185fb4` |
+| #62 | PR3：x86 离线安装包脚本、`install --offline`、CI 断网冒烟、运维文档 | `1779937` |
+| #63 | PR4：Web 用量看板、我的用量、AIGC 设置页、对话角标与复制后缀 | `be55057` |
+| PR5 | 本完成报告 | 见本 PR 合并提交 |
+
+写这份报告时，main 为 `be55057`。并行合入 D-45 #60（`3fef6a2`），新增迁移 `20261210000000_m1_agent_d45.sql`（智能体停用/回滚）。本块唯一新迁移 `20261128000000_m1_stats_pr1.sql` 已在 #59 合入、且时间戳早于 D-45，无需改名或重算 `atlas.sum`。本块未改动智能体停用/回滚逻辑。
+
+### 对应需求
+
+| 需求 | 状态 |
+|---|---|
+| FR-32 用量看板（人 / 部门 / 模型 / 智能体、趋势与成本） | 已完成（#59、#63）；权威数据源 `usage_records`，小时预聚合 `usage_hourly`；`budget.read` 部门子树；无权限 404、未登录 401 |
+| AC-16 统计与 usage_record 一致 | 已完成（#59）；看板读小时表，当前小时可用明细补齐；估算用量单独标注 |
+| FR-30 / AC-13 AIGC 显式 + 隐式标识 | 已完成（#61、#63）；角标不可关闭；复制/导出附加后缀；API 与导出写入附录 E 子集元数据 |
+| FR-35 / AC-01 x86 离线安装包、断网安装出站为 0 | 已完成（#62）；`pack-offline.sh` 生成 tar（不进仓库）；CI 在代理黑洞下 `--offline --up` 后登录成功 |
+| §10 `/` 看板、`/me/usage`、系统设置 AIGC | 已完成（#63） |
+| 演示剧本第 8、15 步 | 见下方演示方式 |
+
+### 测试情况
+
+- 每个 PR 都是 GitHub Actions 全绿后才 squash 合并：Go lint + test（-race）、PostgreSQL 17 + pgvector 集成、govulncheck、许可证扫描 + SBOM、Web lint + typecheck + build + 文案集中检查、compose 冒烟（SeaweedFS / MinIO / HTTPS）。#62 / #63 另含「断网安装冒烟（AC-01）」。
+- 本块新增 / 扩展测试：`internal/usage.TestRebuildHours` / `TestSummaryByAgent`；`internal/api.TestStatsOverviewScopeExport`（部门裁剪、导出审计 `usage.export`）、`TestUsageSummaryBudgetRead`；`internal/aigc.TestDefaultsValidateSave` / `TestAppendSuffixAndMeta`；`internal/api.TestAIGCSettingsAndExport`（设置权限、导出后缀与隐式元数据）。
+- CI 只用 mock 模型上游，不读取任何真实密钥、也不引入 DEEPSEEK。前端页面只有 lint / typecheck / build，没有端到端测试。
+- 本地 Go 须 1.26.x（`GOTOOLCHAIN=go1.26.10`）。
+
+### 演示方式
+
+1. 启动环境（`cd deploy && docker compose up -d`）。演示模型可用 `cd server && go run ./cmd/mockupstream`。
+2. 有 `budget.read` 的组织管理员打开工作台 `/`：查看活跃用户、对话数、token、折算成本，日趋势与 Top 用户，按日期导出 CSV（审计出现 `usage.export`）。部门管理员只看到本部门子树；无该权限的成员看到引导，前往「我的用量」。
+3. 普通成员打开 `/me/usage`，按模型查看本人调用与成本。
+4. 任意对话中，助手回复持续显示「AI 生成」角标；点「复制」后剪贴板文本末尾带「本内容由人工智能生成（衡台 HengDesk）」；导出会话（md / json）同样带显式后缀与隐式元数据，响应头含 `X-HengDesk-AIGC`（演示剧本第 8 步）。
+5. 有 `system.settings` 的管理员打开 `/aigc`，可改角标、后缀、ContentProducer、Label，但不能关掉标识。
+6. 离线安装（演示 / AC-01）：在有网机构建 `./deploy/pack-offline.sh --version <ver>`，把包拷到离线机后 `./install.sh --offline --up`（不 `--build`、不 pull）。文档见 `docs/ops/offline-install.md`。
+
+### 迁移
+
+- `20261128000000_m1_stats_pr1.sql`：`usage_hourlies` 小时预聚合表（本块唯一新增迁移）。
+- 并行 D-45：`20261210000000_m1_agent_d45.sql` 已在 main，不属于本块；本块未改该文件，也未改智能体停用/回滚逻辑。
+
+### 待确认（仍按默认落地，不阻塞验收）
+
+计划中的 8 条默认值均已实现，产品未另作拍板前保持不变。其中：组织关闭显式标识、独立 `stats.read` / 导出权限、对接网信办编码、ARM64 离线包、License、数字水印形式的内容隐式标识仍为 P1 / 开放问题。
