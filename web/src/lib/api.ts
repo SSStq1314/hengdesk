@@ -459,7 +459,13 @@ export type UsageTotals = {
   estimated_tokens: number
   estimated_cost_micros: number
 }
-export type UsageGroup = 'user' | 'department' | 'model'
+export type AigcSettings = {
+  badge: string
+  suffix: string
+  producer: string
+  label: string
+}
+export type UsageGroup = 'user' | 'department' | 'model' | 'agent' | 'total'
 export type UsageSummary = {
   group_by: string
   items: (UsageTotals & { key: number; name: string })[]
@@ -517,6 +523,40 @@ export const modelApi = {
     api<UsageSummary>(`/admin/usage/summary${qs({ group_by, ...f })}`),
   usageRecords: (f: UsageFilter) =>
     api<{ items: UsageRecord[] }>(`/admin/usage/records${qs(f)}`),
+
+  statsOverview: (f: UsageFilter) =>
+    api<{
+      from: string
+      to: string
+      active_users: number
+      conversations: number
+      totals: UsageTotals
+      currency: string
+      unit: string
+    }>(`/admin/stats/overview${qs(f)}`),
+  statsTimeseries: (
+    f: UsageFilter & { grain?: 'hour' | 'day'; group_by?: UsageGroup }
+  ) =>
+    api<{
+      grain: string
+      group_by: string
+      points: { bucket: string; key: number; name?: string; totals: UsageTotals }[]
+    }>(`/admin/stats/timeseries${qs(f)}`),
+  statsSummary: (group_by: UsageGroup, f: UsageFilter) =>
+    api<UsageSummary>(`/admin/stats/summary${qs({ group_by, ...f })}`),
+  statsExportUrl: (f: UsageFilter) =>
+    `/api/v1/admin/stats/export${qs(f)}`,
+  myUsage: (f: UsageFilter) =>
+    api<UsageSummary>(`/usage/me${qs(f)}`),
+  aigcPublic: () =>
+    api<{ badge: string; suffix: string; producer: string }>('/aigc'),
+  aigcGet: () =>
+    api<{ settings: AigcSettings; defaults: AigcSettings }>('/admin/aigc'),
+  aigcPut: (settings: AigcSettings) =>
+    api<{ settings: AigcSettings }>('/admin/aigc', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    }),
 }
 
 // ---- 预算与配额（M1 第二块 PR3） ----
@@ -739,6 +779,9 @@ export type ChatMessage = {
   tool_calls?: ChatToolCall[]
   /** 调试会话：因调用者无权被静默剔除的绑定资源 */
   agent_dropped?: { type: string; id: number; name?: string; reason: string }[]
+  /** FR-30：AI 生成内容显式标识 */
+  aigc?: boolean
+  aigc_badge?: string
 }
 // 对话 SSE 扩展事件：citation 自第四块 PR3 起生效（在 token 之前逐条发出），
 // tool_call / approval_pending 自第五块 PR4 起生效。解析器遇到不认识的事件一律忽略。
