@@ -501,10 +501,11 @@ func (s *script) step3() error {
 }
 
 func (s *script) grantModel(modelID int, typ string, sid int) error {
+	// 产品该接口成功时返回 204 No Content（见 models_ext.go），不是 200。
 	_, _, err := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/models/%d/acl", modelID),
-		map[string]any{"subject_type": typ, "subject_id": sid, "include_children": true}, 200)
+		map[string]any{"subject_type": typ, "subject_id": sid, "include_children": true, "perm": "use"}, 204)
 	if err != nil {
-		if he := asHTTPError(err); he != nil && he.Status == 201 {
+		if he := asHTTPError(err); he != nil && (he.Status == 200 || he.Status == 201) {
 			return nil
 		}
 		return fmt.Errorf("授予模型 ACL：%w", err)
