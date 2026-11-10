@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/csv"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -481,7 +482,7 @@ func (h *statsHandlers) summary(c echo.Context) error {
 	ctx := c.Request().Context()
 	rows, tot, err := usage.Summary(ctx, h.db, by, f)
 	if err != nil {
-		if err == usage.ErrBadGroup {
+		if errors.Is(err, usage.ErrBadGroup) {
 			return bad("group_by 只能是 user / department / model / agent / total")
 		}
 		return err
