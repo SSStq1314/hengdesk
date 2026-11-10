@@ -91,7 +91,13 @@ M1 端到端演示剧本 15 步全部通过。
 4. 审计：管理后台「审计日志」，或 `/api/v1/admin/audit-logs` 与 `/audit-logs/traces/:id`。
 5. CI：GitHub Actions job「断网 15 步验收」。该 job 还会用 iptables 拦截容器公网出站，内核日志前缀为 `HD_EGRESS`，出现即失败。
 
-不要把 `DEEPSEEK_API_KEY` 或其他密钥写进仓库、CI 日志或提交的 `.env`。真实 DeepSeek 联调只在本机有环境变量时可选，只记录通过与否。通义真实冒烟按 D-47 **挂起，M2 W1 补测**；vLLM CPU 协议冒烟见 `docs/demo/vllm-cpu-smoke.md`（需出网，不进断网 CI）。
+不要把 `DEEPSEEK_API_KEY`、通义密钥或其他密钥写进仓库、CI 日志或提交的 `.env`。真实 DeepSeek 联调只在本机有环境变量时可选，只记录通过与否。
+
+## 真实上游（D-49）
+
+- **通义真实冒烟已从 M1 验收项中移除**。M1 用按通义官方接口文档编写的契约测试，以及录制回放（样本只能来自 vLLM CPU 小模型的真实录制，或通义官方文档示例，并标明来源，不允许编造响应）。现有 `server/internal/gateway/testdata/dashscope_cassette.json` 仍为「按公开文档构造」，须在 M1 验收前按上述来源替换。
+- **vLLM CPU 真实协议冒烟仍在 M1 验收范围内**，见 `docs/demo/vllm-cpu-smoke.md`（需出网拉镜像与权重，不进断网 CI）。
+- 在客户现场用客户自己的密钥做一次通义真实冒烟，是 POC 交付步骤，见 `docs/demo/poc-delivery.md`。不要把客户密钥带离现场或写入仓库。
 
 ## 已知缺陷（M1 验收前必须关闭）
 

@@ -1,6 +1,6 @@
 # M1 第八块：端到端演示脚本与 M1 验收自测（进度与拆分）
 
-依据 PRD §13 M1 退出标准的 15 步端到端演示剧本、§14 AC-01～AC-17，以及 decisions.md 的 D-30～D-48。本块在第一至第七块均已合入 main（当时 `5e3c970`，第七块完成报告 #64）的基础上，把演示剧本做成可重复运行的验收脚本，补齐对照表中尚未被端到端覆盖的断言，并写出给验收人看的演示手册。
+依据 PRD §13 M1 退出标准的 15 步端到端演示剧本、§14 AC-01～AC-17，以及 decisions.md 的 D-30～D-49。本块在第一至第七块均已合入 main（当时 `5e3c970`，第七块完成报告 #64）的基础上，把演示剧本做成可重复运行的验收脚本，补齐对照表中尚未被端到端覆盖的断言，并写出给验收人看的演示手册。
 
 迁移时间戳若本块需要新增，占用 `20261211`–`20261219`。并行任务占用其后版本，**本块不改这些并行分支的写入代码**：
 
@@ -33,10 +33,10 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 
 `docs/demo/m1-acceptance.md`：在离线 x86 机器上一步步怎么跑、每步预期看到什么（界面与脚本输出对照）、失败时看哪些日志。给验收人看，不假定会编译代码。
 
-### 真实上游冒烟（D-47）
+### 真实上游冒烟（D-47，D-49 修订）
 
-- **通义**真实冒烟在 M1 **挂起，M2 W1 补测**。对照表不再把缺通义凭据标成本块合入阻塞。
-- **vLLM**改为官方 CPU 镜像（`vllm/vllm-openai-cpu`）+ 约 0.5B 小模型做协议冒烟，加上仓库内既有契约测试（`contract_vendors_test.go` 的 vLLM 回放带）。脚本：`tests/acceptance/vllm-cpu-smoke.sh`。本执行环境无 Docker，未能实跑；记录见 `docs/demo/vllm-cpu-smoke.md`。有 Docker 的机器按脚本跑完后补记结果。该冒烟需拉镜像与权重，**不进入断网 CI 必跑门禁**。
+- **通义**真实冒烟按 D-49 **从 M1 验收项中移除**（用户没有通义密钥，不再挂到 M2 W1 补测来挡住 M1）。M1 改为：按通义官方接口文档做契约测试，再用录制回放覆盖兼容层。回放样本**只能**来自 vLLM CPU 小模型的真实录制，或通义官方文档里的示例，并标明来源，**不允许凭空编造响应**。仓库里已有 `TestVendorContract*`（dashscope），但回放带仍标注「按公开文档构造，非真实录制」，**不符合 D-49，列为 M1 验收前待补项**。客户现场用客户自己的密钥做一次通义真实冒烟，写入 `docs/demo/poc-delivery.md`。
+- **vLLM** CPU 小模型的真实协议冒烟**保留在 M1**：官方镜像 `vllm/vllm-openai-cpu` + 约 0.5B 小模型，脚本 `tests/acceptance/vllm-cpu-smoke.sh`，记录 `docs/demo/vllm-cpu-smoke.md`。本执行环境无 Docker，未能实跑；有 Docker 的机器按脚本跑完后补记。该冒烟需拉镜像与权重，**不进入断网 CI 必跑门禁**。既有 vLLM 契约测试仍随 `go test` 跑。
 - **Ollama** 仍为待办：本机能拉起则顺手验证，否则写入完成报告。
 - **DeepSeek** 规则不变：密钥只在环境变量 `DEEPSEEK_API_KEY`，绝不打印、不写进仓库/CI/`.env`/日志，只记录通过与否。
 
@@ -63,7 +63,7 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 | AC-11 | 审计员按 trace 回放完整链路 | #36 等 | `TestAuditTraceReplay`、`TestAuditDeniedLoginAndQuery` | 部分：集成通过 | 脚本第 14 步（D 回放 A 的 8–13 步） |
 | AC-12 | 审计不可改删（含超管）；失败尝试本身入审计；哈希链可校验 | #8–#11；CI 审计表 append-only | `TestHashChainVerifyAndTamper`、CI「审计表 append-only」；应用无删除/修改审计 API | **阻塞**：真机演示越权/不可改删通过，但「校验哈希链」失败（**缺陷 D5**，usage 规范化断链）。另：多进程并发写入误拒（D-47）仍为 M1 阻塞 | 脚本第 14 步：回放、改配置 404、超管删除被拒，并调用 `GET /audit-logs/verify`（D5 修复前应失败，不放宽）。D5 由 `/workspace/hengdesk-audit` 修；本块不改审计写入代码。D-47 并发标准不变 |
 | AC-13 | 查看/复制/导出/API 均带显式或元数据标识 | #61、#63 | `TestAIGCSettingsAndExport`、`TestDefaultsValidateSave`、`TestAppendSuffixAndMeta` | 部分：集成通过；D-46 要求更严的文案校验与 Markdown front matter 尚未按拍板落地 | 脚本第 8 步与 D-46 断言：后缀、`X-HengDesk-AIGC`、JSON 元数据、**md front matter**；空文案或不含「人工智能生成 / AI 生成」保存失败 |
-| AC-14 | 本地 OpenAI 兼容端点 + 国产 API，「测试」可流式对话并记 usage | #25、#26 | `TestModelTestConnection`、`TestChatNonStreamSSEAndACL`（mock）；`TestVendorContract*`（dashscope / vLLM 回放带，文档构造） | 部分：mock 与契约回放通过；通义真实冒烟挂起；vLLM CPU 协议冒烟脚本已就绪、本环境未实跑；Ollama 未验证；DeepSeek 仅本机可选 | 脚本第 3 步对 mockupstream 点「测试」。通义：**挂起，M2 W1 补测**。vLLM：`tests/acceptance/vllm-cpu-smoke.sh` + 既有契约测试，有 Docker 的机器实跑后补记 `docs/demo/vllm-cpu-smoke.md` |
+| AC-14 | 本地 OpenAI 兼容端点 + 国产 API，「测试」可流式对话并记 usage | #25、#26、#30 | `TestModelTestConnection`、`TestChatNonStreamSSEAndACL`（mock）；`TestVendorContract*`（dashscope / vLLM 回放带） | 部分：mock 与现有契约回放通过；通义真实冒烟已按 D-49 移出 M1；vLLM CPU 协议冒烟脚本已就绪、本环境未实跑；dashscope 回放带来源不符合 D-49（见下行）；Ollama 未验证；DeepSeek 仅本机可选 | 脚本第 3 步对 mockupstream 点「测试」。通义改走契约测试 + 标明来源的回放（待补，见 D-49 行）。vLLM CPU 真实冒烟保留：`tests/acceptance/vllm-cpu-smoke.sh`，有 Docker 的机器实跑后补记 `docs/demo/vllm-cpu-smoke.md`。客户现场通义冒烟见 `docs/demo/poc-delivery.md` |
 | AC-15 | 任何角色查看配置或 API 都看不到密钥明文 | #25 | `TestModelAdminCRUDAndKeyNeverReturned`、`TestChatUpstream401Redacted` | 部分：集成通过 | 脚本第 3 步：创建供应商后 GET 响应无明文 key |
 | AC-16 | 看板与 `usage_record` 汇总 token 一致，估算单独标注 | #59、#63 | `TestStatsOverviewScopeExport`、`TestRebuildHours`、`TestSummaryByAgent` | 部分：集成通过 | 脚本第 15 步：财务部看板 vs 明细汇总 |
 | AC-17 | 发布构建许可证扫描不含白名单之外许可 | CI `license scan + SBOM` | 该 job 本身 | 通过（每个 PR 门禁） | 本块 PR 继续走该门禁；不新增例外 |
@@ -72,6 +72,7 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 | D-46 导出权限 | 只能导出自己的会话 | #61 `conv_export` 已走 `own()` | 会话属主测试有，导出越权需在脚本中显式断言 | 部分 | 脚本：B 导出 A 的会话返回 404 |
 | D-48 审计链基线 | 旧哈希不迁移；正式包须基于 `bf4d437`+ 构建；验收在新初始化的库上做；入链规范化不得静默改变，改动须带哈希版本号并按版本校验或迁移 | #68 / `bf4d437` 为方案版本 1 基线 | 文档：`docs/dev/audit.md`、`docs/release/m1.md`、演示手册 | 文档待本 PR 写清；验收须用新库 | 手册与发布说明写明构建基线与清空重建；本块不改哈希算法、不做旧链迁移 |
 | D-47 审计并发 | server+worker 并发写审计不得误拒；全链可校验 | 修复在 `/workspace/hengdesk-audit`（迁移自 20261225），尚未合入 | 待该工作区提供 200 并发测试 | **阻塞（M1 退出）** | 本块**不改审计写入代码**。验收标准：server+worker 200 并发写入失败 0、全链校验通过。合入修复后在完成报告勾选 |
+| D-49 通义替代验收 | 通义真实冒烟移出 M1；改为按官方文档做契约测试，并用录制回放测兼容层。回放样本只能来自 vLLM CPU 真实录制或通义官方文档示例，须标明来源，禁止编造。vLLM CPU 真实协议冒烟保留。POC 交付手册须含：在客户现场用客户自己的密钥做一次通义真实冒烟 | #30 已有 `TestVendorContract*` 与 `testdata/dashscope_cassette.json` | 契约测试框架已在 CI 中运行；回放带 `_source` 现为「按公开文档构造，非真实录制」 | **部分 / M1 验收前待补**：须用官方文档示例或 vLLM 真实录制替换 dashscope 回放带并标明来源，不得编造。vLLM CPU 冒烟待有 Docker 的机器实跑 | 文档见本表、`docs/demo/m1-acceptance.md`、`docs/demo/poc-delivery.md`、`docs/release/m1.md`。替换回放带如工作量在半天内另开 PR，否则保持本待补项 |
 
 ## PR 拆分
 
@@ -92,7 +93,7 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 4. **市场部只能用本地模型**：脚本按此设置模型 ACL。两个「测试」端点在 CI 中都指向 mockupstream，用不同 provider 名称区分「国产 API」与「本地」；不在 CI 里打真实 DeepSeek / Ollama。
 5. **财务部预算 X**：取演示用小值（默认 400 tokens，80% 告警、100% 拦截）。嵌入计入用量但不拦截（D-42），第 8 步与 AC-05 检索后会超过 80，故不用 80，以免第 9 步被提前拦截；第 13 步仍在 40 轮内触达 100%。
 6. **AC-05 插入位置**：剧本原文无单独一步，脚本在第 8 步后追加「授予后再问」，不改变第 1–15 步编号。
-7. **通义、vLLM、Ollama**（D-47 修订）：通义真实冒烟 **挂起，M2 W1 补测**，不挡本块合入。vLLM 用官方 CPU 镜像 + 0.5B 级小模型做协议冒烟，加上既有契约测试；本执行环境无 Docker，脚本与记录模板先合入，实跑在有 Docker 的机器补记。Ollama 本机能拉起则顺手验证，否则写入完成报告。
+7. **通义、vLLM、Ollama**（D-49 修订）：通义真实冒烟从 M1 验收项移除。M1 用官方文档契约测试 + 标明来源的录制回放（样本仅限 vLLM 真实录制或通义官方文档示例，禁止编造）；现有「文档构造」dashscope 回放带为 **M1 验收前待补项**。vLLM CPU 真实协议冒烟保留在 M1；本执行环境无 Docker，脚本与记录模板先合入，实跑在有 Docker 的机器补记。客户现场通义冒烟写入 POC 交付手册。Ollama 本机能拉起则顺手验证，否则写入完成报告。
 
 ## 真机演示发现的缺陷（M1 验收前必须关闭）
 
@@ -116,6 +117,7 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 - **缺陷 D1、D2、D3、D4、D6**：由 `/workspace/hengdesk-fix-demo` 修复（迁移 `20261228`–`20261229`）。均为 M1 验收前必须关闭。本块不改这些代码。
 - **D-46 增量已进 main（#66 / `a64fd31`）**：脚本按拍板断言 Markdown front matter、非法 AIGC 文案 400、导出他人会话 404、`uninstall --volumes` 确认。
 - **AC-01 / D-46 正式包干净断网安装记录**：真机演示因本机无 Docker 未覆盖 AC-01；须在干净断网机上用正式离线包完整安装并归档，作为 M1 验收人工步骤。
+- **D-49 通义回放带来源**：已有契约测试，但 `dashscope_cassette.json` 为「按公开文档构造」，须替换为通义官方文档示例或 vLLM CPU 真实录制，并标明来源，禁止编造。列为 M1 验收前待补项。
 
 ## 进度记录
 
