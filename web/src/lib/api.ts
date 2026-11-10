@@ -520,7 +520,7 @@ export const modelApi = {
 }
 
 // ---- 预算与配额（M1 第二块 PR3） ----
-export type BudgetScope = 'org' | 'dept' | 'user' | 'model'
+export type BudgetScope = 'org' | 'dept' | 'user' | 'model' | 'agent'
 
 export type Budget = {
   id: number
@@ -706,6 +706,10 @@ export type Conversation = {
   model_id?: number | null
   kb_ids?: number[]
   tool_ids?: number[]
+  agent_id?: number | null
+  agent_debug?: boolean
+  agent_name?: string
+  opening?: string
   created_at: string
   updated_at: string
 }
@@ -731,6 +735,8 @@ export type ChatMessage = {
   /** D-42：绑定了知识库但本条回答未引用知识库资料 */
   kb_ungrounded?: boolean
   tool_calls?: ChatToolCall[]
+  /** 调试会话：因调用者无权被静默剔除的绑定资源 */
+  agent_dropped?: { type: string; id: number; name?: string; reason: string }[]
 }
 // 对话 SSE 扩展事件：citation 自第四块 PR3 起生效（在 token 之前逐条发出），
 // tool_call / approval_pending 自第五块 PR4 起生效。解析器遇到不认识的事件一律忽略。
@@ -794,6 +800,8 @@ export const chatApi = {
     model?: string
     kb_ids?: number[]
     tool_ids?: number[]
+    agent_id?: number
+    agent_debug?: boolean
   }) => api<Conversation>('/conversations', json('POST', b)),
   get: (id: number) =>
     api<Conversation & { messages: ChatMessage[]; files: ConvFile[] }>(
@@ -1236,4 +1244,108 @@ export const approvalApi = {
     api<Approval>(`/approvals/${id}/reject`, json('POST', { comment })),
   withdraw: (id: number) =>
     api<Approval>(`/approvals/${id}/withdraw`, { method: 'POST' }),
+}
+
+// ---- 智能体（M1 第六块 PR4）----
+export type AgentPerm = 'view' | 'use' | 'edit' | 'manage'
+export type AgentConfig = {
+  name: string
+  description: string
+  system_prompt: string
+  opening: string
+  model_id?: number | null
+  kb_ids: number[]
+  tool_ids: number[]
+  max_steps: number
+}
+export type Agent = {
+  id: number
+  name: string
+  description: string
+  opening: string
+  published_version: number
+  published: boolean
+  draft_dirty?: boolean
+  perms: AgentPerm[]
+  created_by?: number
+  created_at: string
+  updated_at: string
+  draft?: AgentConfig
+}
+export type AgentInput = Partial<{
+  name: string
+  description: string
+  system_prompt: string
+  opening: string
+  model_id: number | null
+  clear_model: boolean
+  kb_ids: number[]
+  tool_ids: number[]
+  max_steps: number
+}>
+export type AgentVersion = {
+  version: number
+  note: string
+  published_by: number
+  created_at: string
+  current: boolean
+  config: AgentConfig
+}
+export type AgentDropped = {
+  type: string
+  id: number
+  name?: string
+  reason: string
+}
+export type AgentRun = {
+  id: number
+  agent_id: number
+  agent_version: number
+  debug: boolean
+  conversation_id: number
+  message_id: number
+  user_id: number
+  trace_id: string
+  request_id: string
+  model_name: string
+  status: string
+  error_code?: string
+  steps: number
+  max_steps: number
+  tool_calls: number
+  step_limited?: boolean
+  prompt_tokens: number
+  completion_tokens: number
+  dropped?: AgentDropped[]
+  started_at: string
+  finished_at?: string | null
+}
+export type AgentACLRow = KBACLRow
+export type AgentACLInput = KBACLInput
+
+export const agentApi = {
+  list: (scope: 'use' | 'manage' = 'use') => {
+    const q = scope === 'manage' ? '?scope=manage' : ''
+    return api<{ items: Agent[]; can_create: boolean }>(`/agents${q}`)
+  },
+  get: (id: number) => api<Agent>(`/agents/${id}`),
+  create: (b: AgentInput) => api<Agent>('/agents', json('POST', b)),
+  update: (id: number, b: AgentInput) =>
+    api<Agent>(`/agents/${id}`, json('PATCH', b)),
+  remove: (id: number) => api<void>(`/agents/${id}`, { method: 'DELETE' }),
+  publish: (id: number, note = '') =>
+    api<Agent>(`/agents/${id}/publish`, json('POST', { note })),
+  versions: (id: number) =>
+    api<{ items: AgentVersion[] }>(`/agents/${id}/versions`),
+  restore: (id: number, v: number) =>
+    api<Agent>(`/agents/${id}/versions/${v}/restore`, { method: 'POST' }),
+  acl: (id: number) => api<{ items: AgentACLRow[] }>(`/agents/${id}/acl`),
+  grant: (id: number, b: AgentACLInput) =>
+    api<void>(`/agents/${id}/acl`, json('POST', b)),
+  revoke: (id: number, t: string, sid: number) =>
+    api<void>(`/agents/${id}/acl/${t}/${sid}`, { method: 'DELETE' }),
+  runs: (id: number, limit = 50) =>
+    api<{ items: AgentRun[] }>(`/agents/${id}/runs?limit=${limit}`),
+  run: (id: number, rid: number) =>
+    api<AgentRun>(`/agents/${id}/runs/${rid}`),
 }

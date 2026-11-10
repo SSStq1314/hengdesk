@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Plug,
   Bot,
+  Sparkles,
   Building2,
   LayoutDashboard,
   MessagesSquare,
@@ -25,6 +26,7 @@ export const sidebarData: SidebarData = {
         { title: zh.nav.dashboard, url: '/', icon: LayoutDashboard },
         { title: zh.nav.chat, url: '/chat', icon: MessagesSquare },
         { title: zh.nav.kb, url: '/kbs', icon: BookOpen },
+        { title: zh.nav.agents, url: '/agents', icon: Bot },
         { title: zh.nav.approvals, url: '/approvals', icon: ClipboardCheck },
       ],
     },
@@ -65,6 +67,13 @@ export const sidebarData: SidebarData = {
           url: '/mcp',
           icon: Plug,
           perm: 'tool.manage',
+        },
+        {
+          title: zh.nav.adminAgents,
+          url: '/admin/agents',
+          icon: Sparkles,
+          // 有 agent.create 或任何智能体 edit 的人都可进管理列表（服务端再过滤）
+          perm: 'agent.create',
         },
         {
           title: zh.nav.budgets,
