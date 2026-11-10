@@ -23,7 +23,7 @@ type Budget struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// OrgID holds the value of the "org_id" field.
 	OrgID int `json:"org_id,omitempty"`
-	// 维度：组织 / 部门（含下级）/ 个人 / 模型
+	// 维度：组织 / 部门（含下级）/ 个人 / 模型 / 智能体
 	Scope budget.Scope `json:"scope,omitempty"`
 	// org 维度固定 0；其余为部门 / 用户 / 模型 ID
 	ScopeID int `json:"scope_id,omitempty"`

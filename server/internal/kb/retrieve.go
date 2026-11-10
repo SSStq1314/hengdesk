@@ -183,7 +183,8 @@ func (r *Retriever) embedQuery(ctx context.Context, p *auth.Principal, model, q,
 	vec, u, m, err := EmbedQuery(ctx, r.GW, model, q)
 	if m != nil {
 		rec := usage.Record{OrgID: p.OrgID, UserID: p.ID, DeptID: usage.PrimaryDept(ctx, r.DB, p.ID), Model: m, ProviderID: m.ProviderID,
-			RequestID: truncRunes("kbq-"+requestID+"-"+model, usageRequestIDLimit), Purpose: "embedding", Latency: time.Since(start)}
+			RequestID: truncRunes("kbq-"+requestID+"-"+model, usageRequestIDLimit), Purpose: "embedding", Latency: time.Since(start),
+			AgentID: usage.AgentIDFrom(ctx)}
 		if u != nil {
 			rec.Usage = *u
 		}

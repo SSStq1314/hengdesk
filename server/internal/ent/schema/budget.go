@@ -14,7 +14,7 @@ func (Budget) Mixin() []ent.Mixin { return []ent.Mixin{TimeMixin{}} }
 func (Budget) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("org_id"),
-		field.Enum("scope").Values("org", "dept", "user", "model").Comment("维度：组织 / 部门（含下级）/ 个人 / 模型"),
+		field.Enum("scope").Values("org", "dept", "user", "model", "agent").Comment("维度：组织 / 部门（含下级）/ 个人 / 模型 / 智能体"),
 		field.Int("scope_id").Default(0).Comment("org 维度固定 0；其余为部门 / 用户 / 模型 ID"),
 		field.Enum("period").Values("day", "month"),
 		field.Enum("metric").Values("tokens", "cost").Comment("tokens=总 token；cost=金额（微元）"),

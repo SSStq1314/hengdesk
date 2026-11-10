@@ -246,7 +246,8 @@ func (h *chatHandlers) recordUsage(c echo.Context, p *auth.Principal, tgt *gatew
 	ctx := context.WithoutCancel(c.Request().Context())
 	rec := usage.Record{OrgID: p.OrgID, UserID: p.ID, DeptID: usage.PrimaryDept(ctx, h.gw.DB, p.ID), Model: tgt.Model,
 		ProviderID: tgt.Model.ProviderID, RequestID: c.Response().Header().Get(echo.HeaderXRequestID),
-		Purpose: "chat", Stream: stream, Attempt: attempt, Latency: time.Since(start), FallbackFrom: from}
+		Purpose: "chat", Stream: stream, Attempt: attempt, Latency: time.Since(start), FallbackFrom: from,
+		AgentID: usage.AgentIDFrom(c.Request().Context())}
 	if ge != nil {
 		rec.ErrorCode = ge.Code
 		if ge.Usage != nil {

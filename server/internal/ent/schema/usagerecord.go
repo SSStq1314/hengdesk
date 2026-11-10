@@ -42,6 +42,8 @@ func (UsageRecord) Fields() []ent.Field {
 		field.Int("attempt").Default(1),
 		// fallback_from 切换到备用模型时的原模型名（D-39 第 7 条：model_* 记实际使用的模型，并标注「由 A 切换」）。
 		field.String("fallback_from").Default(""),
+		// agent_id 智能体会话产生的用量（M1 第六块 PR3，FR-13）；非智能体调用为空。
+		field.Int("agent_id").Optional().Nillable(),
 		field.Time("created_at").Default(time.Now).Immutable(),
 	}
 }
@@ -52,5 +54,6 @@ func (UsageRecord) Indexes() []ent.Index {
 		index.Fields("user_id", "created_at"),
 		index.Fields("department_id", "created_at"),
 		index.Fields("model_id", "created_at"),
+		index.Fields("agent_id", "created_at"),
 	}
 }

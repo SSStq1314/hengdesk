@@ -30173,6 +30173,8 @@ type UsageRecordMutation struct {
 	attempt              *int
 	addattempt           *int
 	fallback_from        *string
+	agent_id             *int
+	addagent_id          *int
 	created_at           *time.Time
 	clearedFields        map[string]struct{}
 	done                 bool
@@ -31380,6 +31382,76 @@ func (m *UsageRecordMutation) ResetFallbackFrom() {
 	m.fallback_from = nil
 }
 
+// SetAgentID sets the "agent_id" field.
+func (m *UsageRecordMutation) SetAgentID(i int) {
+	m.agent_id = &i
+	m.addagent_id = nil
+}
+
+// AgentID returns the value of the "agent_id" field in the mutation.
+func (m *UsageRecordMutation) AgentID() (r int, exists bool) {
+	v := m.agent_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAgentID returns the old "agent_id" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldAgentID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAgentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAgentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAgentID: %w", err)
+	}
+	return oldValue.AgentID, nil
+}
+
+// AddAgentID adds i to the "agent_id" field.
+func (m *UsageRecordMutation) AddAgentID(i int) {
+	if m.addagent_id != nil {
+		*m.addagent_id += i
+	} else {
+		m.addagent_id = &i
+	}
+}
+
+// AddedAgentID returns the value that was added to the "agent_id" field in this mutation.
+func (m *UsageRecordMutation) AddedAgentID() (r int, exists bool) {
+	v := m.addagent_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAgentID clears the value of the "agent_id" field.
+func (m *UsageRecordMutation) ClearAgentID() {
+	m.agent_id = nil
+	m.addagent_id = nil
+	m.clearedFields[usagerecord.FieldAgentID] = struct{}{}
+}
+
+// AgentIDCleared returns if the "agent_id" field was cleared in this mutation.
+func (m *UsageRecordMutation) AgentIDCleared() bool {
+	_, ok := m.clearedFields[usagerecord.FieldAgentID]
+	return ok
+}
+
+// ResetAgentID resets all changes to the "agent_id" field.
+func (m *UsageRecordMutation) ResetAgentID() {
+	m.agent_id = nil
+	m.addagent_id = nil
+	delete(m.clearedFields, usagerecord.FieldAgentID)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *UsageRecordMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -31450,7 +31522,7 @@ func (m *UsageRecordMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageRecordMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 25)
 	if m.org_id != nil {
 		fields = append(fields, usagerecord.FieldOrgID)
 	}
@@ -31520,6 +31592,9 @@ func (m *UsageRecordMutation) Fields() []string {
 	if m.fallback_from != nil {
 		fields = append(fields, usagerecord.FieldFallbackFrom)
 	}
+	if m.agent_id != nil {
+		fields = append(fields, usagerecord.FieldAgentID)
+	}
 	if m.created_at != nil {
 		fields = append(fields, usagerecord.FieldCreatedAt)
 	}
@@ -31577,6 +31652,8 @@ func (m *UsageRecordMutation) Field(name string) (ent.Value, bool) {
 		return m.Attempt()
 	case usagerecord.FieldFallbackFrom:
 		return m.FallbackFrom()
+	case usagerecord.FieldAgentID:
+		return m.AgentID()
 	case usagerecord.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -31634,6 +31711,8 @@ func (m *UsageRecordMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldAttempt(ctx)
 	case usagerecord.FieldFallbackFrom:
 		return m.OldFallbackFrom(ctx)
+	case usagerecord.FieldAgentID:
+		return m.OldAgentID(ctx)
 	case usagerecord.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -31806,6 +31885,13 @@ func (m *UsageRecordMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetFallbackFrom(v)
 		return nil
+	case usagerecord.FieldAgentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAgentID(v)
+		return nil
 	case usagerecord.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -31860,6 +31946,9 @@ func (m *UsageRecordMutation) AddedFields() []string {
 	if m.addattempt != nil {
 		fields = append(fields, usagerecord.FieldAttempt)
 	}
+	if m.addagent_id != nil {
+		fields = append(fields, usagerecord.FieldAgentID)
+	}
 	return fields
 }
 
@@ -31894,6 +31983,8 @@ func (m *UsageRecordMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedLatencyMs()
 	case usagerecord.FieldAttempt:
 		return m.AddedAttempt()
+	case usagerecord.FieldAgentID:
+		return m.AddedAgentID()
 	}
 	return nil, false
 }
@@ -31994,6 +32085,13 @@ func (m *UsageRecordMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddAttempt(v)
 		return nil
+	case usagerecord.FieldAgentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAgentID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown UsageRecord numeric field %s", name)
 }
@@ -32004,6 +32102,9 @@ func (m *UsageRecordMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(usagerecord.FieldDepartmentID) {
 		fields = append(fields, usagerecord.FieldDepartmentID)
+	}
+	if m.FieldCleared(usagerecord.FieldAgentID) {
+		fields = append(fields, usagerecord.FieldAgentID)
 	}
 	return fields
 }
@@ -32021,6 +32122,9 @@ func (m *UsageRecordMutation) ClearField(name string) error {
 	switch name {
 	case usagerecord.FieldDepartmentID:
 		m.ClearDepartmentID()
+		return nil
+	case usagerecord.FieldAgentID:
+		m.ClearAgentID()
 		return nil
 	}
 	return fmt.Errorf("unknown UsageRecord nullable field %s", name)
@@ -32098,6 +32202,9 @@ func (m *UsageRecordMutation) ResetField(name string) error {
 		return nil
 	case usagerecord.FieldFallbackFrom:
 		m.ResetFallbackFrom()
+		return nil
+	case usagerecord.FieldAgentID:
+		m.ResetAgentID()
 		return nil
 	case usagerecord.FieldCreatedAt:
 		m.ResetCreatedAt()

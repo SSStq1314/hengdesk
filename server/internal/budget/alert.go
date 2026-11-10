@@ -193,6 +193,10 @@ func (s *Service) ScopeName(ctx context.Context, b *ent.Budget) string {
 			}
 			return u.Email
 		}
+	case budget.ScopeAgent:
+		if a, err := s.DB.Agent.Get(ctx, b.ScopeID); err == nil {
+			return a.Name
+		}
 	case budget.ScopeModel:
 		if m, err := s.DB.Model.Get(ctx, b.ScopeID); err == nil {
 			return m.Name

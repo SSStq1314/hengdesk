@@ -60,6 +60,8 @@ const (
 	FieldAttempt = "attempt"
 	// FieldFallbackFrom holds the string denoting the fallback_from field in the database.
 	FieldFallbackFrom = "fallback_from"
+	// FieldAgentID holds the string denoting the agent_id field in the database.
+	FieldAgentID = "agent_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// Table holds the table name of the usagerecord in the database.
@@ -92,6 +94,7 @@ var Columns = []string{
 	FieldLatencyMs,
 	FieldAttempt,
 	FieldFallbackFrom,
+	FieldAgentID,
 	FieldCreatedAt,
 }
 
@@ -314,6 +317,11 @@ func ByAttempt(opts ...sql.OrderTermOption) OrderOption {
 // ByFallbackFrom orders the results by the fallback_from field.
 func ByFallbackFrom(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFallbackFrom, opts...).ToFunc()
+}
+
+// ByAgentID orders the results by the agent_id field.
+func ByAgentID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAgentID, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.
