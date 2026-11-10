@@ -14,6 +14,8 @@ import {
   ShieldCheck,
   Users,
   Wallet,
+  BarChart3,
+  BadgeCheck,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -24,6 +26,7 @@ export const sidebarData: SidebarData = {
       title: zh.nav.general,
       items: [
         { title: zh.nav.dashboard, url: '/', icon: LayoutDashboard },
+        { title: zh.nav.meUsage, url: '/me/usage', icon: BarChart3 },
         { title: zh.nav.chat, url: '/chat', icon: MessagesSquare },
         { title: zh.nav.kb, url: '/kbs', icon: BookOpen },
         { title: zh.nav.agents, url: '/agents', icon: Bot },
@@ -104,6 +107,12 @@ export const sidebarData: SidebarData = {
           icon: Archive,
           // D-41：超级管理员管理保留期并可设置保全；安全审计员查看、设置、解除保全
           perm: ['system.settings', 'audit.read'],
+        },
+        {
+          title: zh.nav.aigc,
+          url: '/aigc',
+          icon: BadgeCheck,
+          perm: 'system.settings',
         },
       ],
     },

@@ -5,6 +5,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zh } from '@/locales/zh-CN'
 import {
+  Copy,
   Download,
   FileText,
   Paperclip,
@@ -22,6 +23,7 @@ import { toast } from 'sonner'
 import {
   chatApi,
   continueMessage,
+  modelApi,
   regenerateMessage,
   sendMessage,
   type ChatMessage,
@@ -57,6 +59,7 @@ export function ChatPage() {
   const qc = useQueryClient()
   const nav = useNavigate()
   const search = useSearch({ from: '/_authenticated/chat' })
+  const aigcQ = useQuery({ queryKey: ['aigc-public'], queryFn: modelApi.aigcPublic })
   const [active, setActive] = useState<number | null>(null)
   const [pendingAgent, setPendingAgent] = useState<{
     id: number
@@ -505,7 +508,7 @@ export function ChatPage() {
                 </div>
               )}
               {messages.map((m) => (
-                <MessageBubble
+                <MessageBubble aigcSuffix={aigcQ.data?.suffix}
                   key={m.id}
                   m={m}
                   onRegenerate={
@@ -640,10 +643,12 @@ function upsertCall(list: ChatToolCall[] | undefined, c: ChatToolCall) {
 
 function MessageBubble({
   m,
+  aigcSuffix,
   onRegenerate,
   onContinue,
 }: {
   m: ChatMessage
+  aigcSuffix?: string
   onRegenerate?: (skipKB?: boolean) => void
   onContinue?: () => void
 }) {
@@ -665,6 +670,11 @@ function MessageBubble({
           <p className='whitespace-pre-wrap'>{m.content}</p>
         ) : (
           <div className='chat-md break-words'>
+            {(m.aigc || m.role === 'assistant') && (
+              <span className='mb-1 inline-block rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400'>
+                {m.aigc_badge || t.aigcBadge}
+              </span>
+            )}
             {m.content ? (
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {m.content}
@@ -741,6 +751,26 @@ function MessageBubble({
               <span className='text-destructive'>
                 {t.failed(m.error || m.error_code || '')}
               </span>
+            )}
+            {m.content && (
+              <button
+                className='inline-flex items-center gap-1 hover:text-foreground'
+                onClick={async () => {
+                  const suffix = aigcSuffix ?? ''
+                  const text = suffix
+                    ? m.content + (suffix.startsWith('\n') ? suffix : '\n' + suffix)
+                    : m.content
+                  try {
+                    await navigator.clipboard.writeText(text)
+                    toast.success(t.copied)
+                  } catch {
+                    toast.error(zh.common.opFailed)
+                  }
+                }}
+              >
+                <Copy className='size-3' />
+                {t.copy}
+              </button>
             )}
             {onRegenerate && !kbDown && (
               <button
