@@ -104,6 +104,7 @@ const (
 	ScopeDept  Scope = "dept"
 	ScopeUser  Scope = "user"
 	ScopeModel Scope = "model"
+	ScopeAgent Scope = "agent"
 )
 
 func (s Scope) String() string {
@@ -113,7 +114,7 @@ func (s Scope) String() string {
 // ScopeValidator is a validator for the "scope" field enum values. It is called by the builders before save.
 func ScopeValidator(s Scope) error {
 	switch s {
-	case ScopeOrg, ScopeDept, ScopeUser, ScopeModel:
+	case ScopeOrg, ScopeDept, ScopeUser, ScopeModel, ScopeAgent:
 		return nil
 	default:
 		return fmt.Errorf("budget: invalid enum value for scope field: %q", s)

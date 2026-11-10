@@ -63,6 +63,8 @@ type UsageRecord struct {
 	Attempt int `json:"attempt,omitempty"`
 	// FallbackFrom holds the value of the "fallback_from" field.
 	FallbackFrom string `json:"fallback_from,omitempty"`
+	// AgentID holds the value of the "agent_id" field.
+	AgentID *int `json:"agent_id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt    time.Time `json:"created_at,omitempty"`
 	selectValues sql.SelectValues
@@ -75,7 +77,7 @@ func (*UsageRecord) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case usagerecord.FieldStream, usagerecord.FieldEstimated, usagerecord.FieldUsageUnknown:
 			values[i] = new(sql.NullBool)
-		case usagerecord.FieldID, usagerecord.FieldOrgID, usagerecord.FieldUserID, usagerecord.FieldDepartmentID, usagerecord.FieldModelID, usagerecord.FieldProviderID, usagerecord.FieldPromptTokens, usagerecord.FieldCachedTokens, usagerecord.FieldCompletionTokens, usagerecord.FieldReasoningTokens, usagerecord.FieldTotalTokens, usagerecord.FieldCostMicros, usagerecord.FieldLatencyMs, usagerecord.FieldAttempt:
+		case usagerecord.FieldID, usagerecord.FieldOrgID, usagerecord.FieldUserID, usagerecord.FieldDepartmentID, usagerecord.FieldModelID, usagerecord.FieldProviderID, usagerecord.FieldPromptTokens, usagerecord.FieldCachedTokens, usagerecord.FieldCompletionTokens, usagerecord.FieldReasoningTokens, usagerecord.FieldTotalTokens, usagerecord.FieldCostMicros, usagerecord.FieldLatencyMs, usagerecord.FieldAttempt, usagerecord.FieldAgentID:
 			values[i] = new(sql.NullInt64)
 		case usagerecord.FieldModelName, usagerecord.FieldRequestID, usagerecord.FieldPurpose, usagerecord.FieldStatus, usagerecord.FieldErrorCode, usagerecord.FieldCurrency, usagerecord.FieldFallbackFrom:
 			values[i] = new(sql.NullString)
@@ -241,6 +243,13 @@ func (_m *UsageRecord) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.FallbackFrom = value.String
 			}
+		case usagerecord.FieldAgentID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field agent_id", values[i])
+			} else if value.Valid {
+				_m.AgentID = new(int)
+				*_m.AgentID = int(value.Int64)
+			}
 		case usagerecord.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -353,6 +362,11 @@ func (_m *UsageRecord) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("fallback_from=")
 	builder.WriteString(_m.FallbackFrom)
+	builder.WriteString(", ")
+	if v := _m.AgentID; v != nil {
+		builder.WriteString("agent_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

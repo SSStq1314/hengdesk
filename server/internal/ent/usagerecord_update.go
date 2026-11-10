@@ -446,6 +446,33 @@ func (_u *UsageRecordUpdate) SetNillableFallbackFrom(v *string) *UsageRecordUpda
 	return _u
 }
 
+// SetAgentID sets the "agent_id" field.
+func (_u *UsageRecordUpdate) SetAgentID(v int) *UsageRecordUpdate {
+	_u.mutation.ResetAgentID()
+	_u.mutation.SetAgentID(v)
+	return _u
+}
+
+// SetNillableAgentID sets the "agent_id" field if the given value is not nil.
+func (_u *UsageRecordUpdate) SetNillableAgentID(v *int) *UsageRecordUpdate {
+	if v != nil {
+		_u.SetAgentID(*v)
+	}
+	return _u
+}
+
+// AddAgentID adds value to the "agent_id" field.
+func (_u *UsageRecordUpdate) AddAgentID(v int) *UsageRecordUpdate {
+	_u.mutation.AddAgentID(v)
+	return _u
+}
+
+// ClearAgentID clears the value of the "agent_id" field.
+func (_u *UsageRecordUpdate) ClearAgentID() *UsageRecordUpdate {
+	_u.mutation.ClearAgentID()
+	return _u
+}
+
 // Mutation returns the UsageRecordMutation object of the builder.
 func (_u *UsageRecordUpdate) Mutation() *UsageRecordMutation {
 	return _u.mutation
@@ -615,6 +642,15 @@ func (_u *UsageRecordUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.FallbackFrom(); ok {
 		_spec.SetField(usagerecord.FieldFallbackFrom, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AgentID(); ok {
+		_spec.SetField(usagerecord.FieldAgentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAgentID(); ok {
+		_spec.AddField(usagerecord.FieldAgentID, field.TypeInt, value)
+	}
+	if _u.mutation.AgentIDCleared() {
+		_spec.ClearField(usagerecord.FieldAgentID, field.TypeInt)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -1055,6 +1091,33 @@ func (_u *UsageRecordUpdateOne) SetNillableFallbackFrom(v *string) *UsageRecordU
 	return _u
 }
 
+// SetAgentID sets the "agent_id" field.
+func (_u *UsageRecordUpdateOne) SetAgentID(v int) *UsageRecordUpdateOne {
+	_u.mutation.ResetAgentID()
+	_u.mutation.SetAgentID(v)
+	return _u
+}
+
+// SetNillableAgentID sets the "agent_id" field if the given value is not nil.
+func (_u *UsageRecordUpdateOne) SetNillableAgentID(v *int) *UsageRecordUpdateOne {
+	if v != nil {
+		_u.SetAgentID(*v)
+	}
+	return _u
+}
+
+// AddAgentID adds value to the "agent_id" field.
+func (_u *UsageRecordUpdateOne) AddAgentID(v int) *UsageRecordUpdateOne {
+	_u.mutation.AddAgentID(v)
+	return _u
+}
+
+// ClearAgentID clears the value of the "agent_id" field.
+func (_u *UsageRecordUpdateOne) ClearAgentID() *UsageRecordUpdateOne {
+	_u.mutation.ClearAgentID()
+	return _u
+}
+
 // Mutation returns the UsageRecordMutation object of the builder.
 func (_u *UsageRecordUpdateOne) Mutation() *UsageRecordMutation {
 	return _u.mutation
@@ -1254,6 +1317,15 @@ func (_u *UsageRecordUpdateOne) sqlSave(ctx context.Context) (_node *UsageRecord
 	}
 	if value, ok := _u.mutation.FallbackFrom(); ok {
 		_spec.SetField(usagerecord.FieldFallbackFrom, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AgentID(); ok {
+		_spec.SetField(usagerecord.FieldAgentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAgentID(); ok {
+		_spec.AddField(usagerecord.FieldAgentID, field.TypeInt, value)
+	}
+	if _u.mutation.AgentIDCleared() {
+		_spec.ClearField(usagerecord.FieldAgentID, field.TypeInt)
 	}
 	_node = &UsageRecord{config: _u.config}
 	_spec.Assign = _node.assignValues

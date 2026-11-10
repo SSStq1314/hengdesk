@@ -15,6 +15,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/authz"
 	bgt "github.com/SSStq1314/hengdesk/server/internal/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/agent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/budget"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/membership"
@@ -28,7 +29,7 @@ import (
 
 // ---- 调用前预检查（chat 与模型测试共用） ----
 
-var scopeLabel = map[string]string{"org": "组织", "dept": "部门", "user": "个人", "model": "模型"}
+var scopeLabel = map[string]string{"org": "组织", "dept": "部门", "user": "个人", "model": "模型", "agent": "智能体"}
 
 func fmtAmount(metric string, v int64) string {
 	if metric == string(budget.MetricCost) {
@@ -45,7 +46,7 @@ func budgetGate(c echo.Context, bs *bgt.Service, db *ent.Client, modelID int, mo
 	}
 	p := auth.Current(c)
 	ctx := c.Request().Context()
-	ex, err := bs.Precheck(ctx, bgt.Subject{OrgID: p.OrgID, UserID: p.ID, DeptID: usage.PrimaryDept(ctx, db, p.ID), ModelID: modelID})
+	ex, err := bs.Precheck(ctx, bgt.Subject{OrgID: p.OrgID, UserID: p.ID, DeptID: usage.PrimaryDept(ctx, db, p.ID), ModelID: modelID, AgentID: usage.AgentIDFrom(ctx)})
 	if err != nil {
 		if !errors.Is(err, bgt.ErrUnavailable) {
 			return err
@@ -270,6 +271,8 @@ func (h *budgetHandlers) validate(ctx context.Context, orgID int, r *budgetReq) 
 		if ent.IsNotFound(err) {
 			err = nil
 		}
+	case budget.ScopeAgent:
+		ok, err = h.db.Agent.Query().Where(agent.ID(r.ScopeID), agent.OrgID(orgID), agent.DeletedAtIsNil()).Exist(ctx)
 	}
 	if err != nil {
 		return err

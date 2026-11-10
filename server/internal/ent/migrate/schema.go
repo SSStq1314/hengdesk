@@ -249,7 +249,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "org_id", Type: field.TypeInt},
-		{Name: "scope", Type: field.TypeEnum, Enums: []string{"org", "dept", "user", "model"}},
+		{Name: "scope", Type: field.TypeEnum, Enums: []string{"org", "dept", "user", "model", "agent"}},
 		{Name: "scope_id", Type: field.TypeInt, Default: 0},
 		{Name: "period", Type: field.TypeEnum, Enums: []string{"day", "month"}},
 		{Name: "metric", Type: field.TypeEnum, Enums: []string{"tokens", "cost"}},
@@ -902,6 +902,7 @@ var (
 		{Name: "latency_ms", Type: field.TypeInt, Default: 0},
 		{Name: "attempt", Type: field.TypeInt, Default: 1},
 		{Name: "fallback_from", Type: field.TypeString, Default: ""},
+		{Name: "agent_id", Type: field.TypeInt, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 	}
 	// UsageRecordsTable holds the schema information for the "usage_records" table.
@@ -913,22 +914,27 @@ var (
 			{
 				Name:    "usagerecord_org_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[1], UsageRecordsColumns[24]},
+				Columns: []*schema.Column{UsageRecordsColumns[1], UsageRecordsColumns[25]},
 			},
 			{
 				Name:    "usagerecord_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[2], UsageRecordsColumns[24]},
+				Columns: []*schema.Column{UsageRecordsColumns[2], UsageRecordsColumns[25]},
 			},
 			{
 				Name:    "usagerecord_department_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[3], UsageRecordsColumns[24]},
+				Columns: []*schema.Column{UsageRecordsColumns[3], UsageRecordsColumns[25]},
 			},
 			{
 				Name:    "usagerecord_model_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageRecordsColumns[4], UsageRecordsColumns[24]},
+				Columns: []*schema.Column{UsageRecordsColumns[4], UsageRecordsColumns[25]},
+			},
+			{
+				Name:    "usagerecord_agent_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageRecordsColumns[24], UsageRecordsColumns[25]},
 			},
 		},
 	}

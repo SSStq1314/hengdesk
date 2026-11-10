@@ -91,6 +91,7 @@ type Subject struct {
 	UserID  int
 	DeptID  *int
 	ModelID int
+	AgentID *int // 智能体会话（M1 第六块 PR3）；非智能体调用为 nil
 }
 
 // Window 预算周期。
@@ -137,6 +138,9 @@ func (s *Service) Applicable(ctx context.Context, sub Subject) ([]*ent.Budget, e
 		}
 		or = append(or, budget.And(budget.ScopeEQ(budget.ScopeDept), budget.ScopeIDIn(anc...)))
 	}
+	if sub.AgentID != nil {
+		or = append(or, budget.And(budget.ScopeEQ(budget.ScopeAgent), budget.ScopeID(*sub.AgentID)))
+	}
 	return s.DB.Budget.Query().Where(budget.OrgID(sub.OrgID), budget.Enabled(true), budget.Or(or...)).
 		Order(ent.Asc(budget.FieldID)).All(ctx)
 }
@@ -159,6 +163,8 @@ func (s *Service) DBUsed(ctx context.Context, b *ent.Budget, w Window) (int64, e
 		}
 		ds = append(ds, b.ScopeID)
 		ps = append(ps, usagerecord.DepartmentIDIn(ds...))
+	case budget.ScopeAgent:
+		ps = append(ps, usagerecord.AgentID(b.ScopeID))
 	}
 	col := usagerecord.FieldTotalTokens
 	if b.Metric == budget.MetricCost {
@@ -251,7 +257,7 @@ func (s *Service) Settle(ctx context.Context, rec *ent.UsageRecord) {
 	if rec == nil {
 		return
 	}
-	bs, err := s.Applicable(ctx, Subject{OrgID: rec.OrgID, UserID: rec.UserID, DeptID: rec.DepartmentID, ModelID: rec.ModelID})
+	bs, err := s.Applicable(ctx, Subject{OrgID: rec.OrgID, UserID: rec.UserID, DeptID: rec.DepartmentID, ModelID: rec.ModelID, AgentID: rec.AgentID})
 	if err != nil {
 		s.log().Error("budget settle: load budgets", "err", err)
 		return

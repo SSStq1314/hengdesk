@@ -1163,7 +1163,7 @@ func init() {
 	// usagerecord.DefaultFallbackFrom holds the default value on creation for the fallback_from field.
 	usagerecord.DefaultFallbackFrom = usagerecordDescFallbackFrom.Default.(string)
 	// usagerecordDescCreatedAt is the schema descriptor for created_at field.
-	usagerecordDescCreatedAt := usagerecordFields[23].Descriptor()
+	usagerecordDescCreatedAt := usagerecordFields[24].Descriptor()
 	// usagerecord.DefaultCreatedAt holds the default value on creation for the created_at field.
 	usagerecord.DefaultCreatedAt = usagerecordDescCreatedAt.Default.(func() time.Time)
 	userMixin := schema.User{}.Mixin()

@@ -159,6 +159,11 @@ func FallbackFrom(v string) predicate.UsageRecord {
 	return predicate.UsageRecord(sql.FieldEQ(FieldFallbackFrom, v))
 }
 
+// AgentID applies equality check predicate on the "agent_id" field. It's identical to AgentIDEQ.
+func AgentID(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldEQ(FieldAgentID, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.UsageRecord {
 	return predicate.UsageRecord(sql.FieldEQ(FieldCreatedAt, v))
@@ -1087,6 +1092,56 @@ func FallbackFromEqualFold(v string) predicate.UsageRecord {
 // FallbackFromContainsFold applies the ContainsFold predicate on the "fallback_from" field.
 func FallbackFromContainsFold(v string) predicate.UsageRecord {
 	return predicate.UsageRecord(sql.FieldContainsFold(FieldFallbackFrom, v))
+}
+
+// AgentIDEQ applies the EQ predicate on the "agent_id" field.
+func AgentIDEQ(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldEQ(FieldAgentID, v))
+}
+
+// AgentIDNEQ applies the NEQ predicate on the "agent_id" field.
+func AgentIDNEQ(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldNEQ(FieldAgentID, v))
+}
+
+// AgentIDIn applies the In predicate on the "agent_id" field.
+func AgentIDIn(vs ...int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldIn(FieldAgentID, vs...))
+}
+
+// AgentIDNotIn applies the NotIn predicate on the "agent_id" field.
+func AgentIDNotIn(vs ...int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldNotIn(FieldAgentID, vs...))
+}
+
+// AgentIDGT applies the GT predicate on the "agent_id" field.
+func AgentIDGT(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldGT(FieldAgentID, v))
+}
+
+// AgentIDGTE applies the GTE predicate on the "agent_id" field.
+func AgentIDGTE(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldGTE(FieldAgentID, v))
+}
+
+// AgentIDLT applies the LT predicate on the "agent_id" field.
+func AgentIDLT(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldLT(FieldAgentID, v))
+}
+
+// AgentIDLTE applies the LTE predicate on the "agent_id" field.
+func AgentIDLTE(v int) predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldLTE(FieldAgentID, v))
+}
+
+// AgentIDIsNil applies the IsNil predicate on the "agent_id" field.
+func AgentIDIsNil() predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldIsNull(FieldAgentID))
+}
+
+// AgentIDNotNil applies the NotNil predicate on the "agent_id" field.
+func AgentIDNotNil() predicate.UsageRecord {
+	return predicate.UsageRecord(sql.FieldNotNull(FieldAgentID))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

@@ -596,5 +596,7 @@ func mountAgents(g *echo.Group, d Deps, az *authz.Service, cvh *convHandlers) *a
 	g.GET("/agents/:id/acl", h.listACL)
 	g.POST("/agents/:id/acl", h.grantACL)
 	g.DELETE("/agents/:id/acl/:type/:sid", h.revokeACL)
+	g.GET("/agents/:id/runs", h.listRuns)
+	g.GET("/agents/:id/runs/:rid", h.getRun)
 	return h
 }

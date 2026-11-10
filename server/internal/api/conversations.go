@@ -31,6 +31,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
 	"github.com/SSStq1314/hengdesk/server/internal/kb"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
+	"github.com/SSStq1314/hengdesk/server/internal/usage"
 )
 
 // 对话（M1 第三块 PR1，FR-14）。会话只属于创建人：所有接口按 user_id 过滤，非本人 / 不存在 / 已删除一律 404。
@@ -751,6 +752,9 @@ func (h *convHandlers) generateWith(c echo.Context, p *auth.Principal, cv *ent.C
 	if sess != nil {
 		work.KBIds, work.ToolIds = sess.KBIDs, sess.ToolIDs
 		stepLimit = sess.MaxSteps
+		// 让本轮模型 / embedding 用量带上 agent_id（FR-13）。
+		r := c.Request()
+		c.SetRequest(r.WithContext(usage.WithAgentID(r.Context(), sess.AgentID)))
 	}
 	files, err := h.files(ctx, cv.ID)
 	if err != nil {

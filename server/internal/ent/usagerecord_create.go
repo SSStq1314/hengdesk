@@ -304,6 +304,20 @@ func (_c *UsageRecordCreate) SetNillableFallbackFrom(v *string) *UsageRecordCrea
 	return _c
 }
 
+// SetAgentID sets the "agent_id" field.
+func (_c *UsageRecordCreate) SetAgentID(v int) *UsageRecordCreate {
+	_c.mutation.SetAgentID(v)
+	return _c
+}
+
+// SetNillableAgentID sets the "agent_id" field if the given value is not nil.
+func (_c *UsageRecordCreate) SetNillableAgentID(v *int) *UsageRecordCreate {
+	if v != nil {
+		_c.SetAgentID(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *UsageRecordCreate) SetCreatedAt(v time.Time) *UsageRecordCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -626,6 +640,10 @@ func (_c *UsageRecordCreate) createSpec() (*UsageRecord, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.FallbackFrom(); ok {
 		_spec.SetField(usagerecord.FieldFallbackFrom, field.TypeString, value)
 		_node.FallbackFrom = value
+	}
+	if value, ok := _c.mutation.AgentID(); ok {
+		_spec.SetField(usagerecord.FieldAgentID, field.TypeInt, value)
+		_node.AgentID = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(usagerecord.FieldCreatedAt, field.TypeTime, value)
@@ -1040,6 +1058,30 @@ func (u *UsageRecordUpsert) SetFallbackFrom(v string) *UsageRecordUpsert {
 // UpdateFallbackFrom sets the "fallback_from" field to the value that was provided on create.
 func (u *UsageRecordUpsert) UpdateFallbackFrom() *UsageRecordUpsert {
 	u.SetExcluded(usagerecord.FieldFallbackFrom)
+	return u
+}
+
+// SetAgentID sets the "agent_id" field.
+func (u *UsageRecordUpsert) SetAgentID(v int) *UsageRecordUpsert {
+	u.Set(usagerecord.FieldAgentID, v)
+	return u
+}
+
+// UpdateAgentID sets the "agent_id" field to the value that was provided on create.
+func (u *UsageRecordUpsert) UpdateAgentID() *UsageRecordUpsert {
+	u.SetExcluded(usagerecord.FieldAgentID)
+	return u
+}
+
+// AddAgentID adds v to the "agent_id" field.
+func (u *UsageRecordUpsert) AddAgentID(v int) *UsageRecordUpsert {
+	u.Add(usagerecord.FieldAgentID, v)
+	return u
+}
+
+// ClearAgentID clears the value of the "agent_id" field.
+func (u *UsageRecordUpsert) ClearAgentID() *UsageRecordUpsert {
+	u.SetNull(usagerecord.FieldAgentID)
 	return u
 }
 
@@ -1505,6 +1547,34 @@ func (u *UsageRecordUpsertOne) SetFallbackFrom(v string) *UsageRecordUpsertOne {
 func (u *UsageRecordUpsertOne) UpdateFallbackFrom() *UsageRecordUpsertOne {
 	return u.Update(func(s *UsageRecordUpsert) {
 		s.UpdateFallbackFrom()
+	})
+}
+
+// SetAgentID sets the "agent_id" field.
+func (u *UsageRecordUpsertOne) SetAgentID(v int) *UsageRecordUpsertOne {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.SetAgentID(v)
+	})
+}
+
+// AddAgentID adds v to the "agent_id" field.
+func (u *UsageRecordUpsertOne) AddAgentID(v int) *UsageRecordUpsertOne {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.AddAgentID(v)
+	})
+}
+
+// UpdateAgentID sets the "agent_id" field to the value that was provided on create.
+func (u *UsageRecordUpsertOne) UpdateAgentID() *UsageRecordUpsertOne {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.UpdateAgentID()
+	})
+}
+
+// ClearAgentID clears the value of the "agent_id" field.
+func (u *UsageRecordUpsertOne) ClearAgentID() *UsageRecordUpsertOne {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.ClearAgentID()
 	})
 }
 
@@ -2136,6 +2206,34 @@ func (u *UsageRecordUpsertBulk) SetFallbackFrom(v string) *UsageRecordUpsertBulk
 func (u *UsageRecordUpsertBulk) UpdateFallbackFrom() *UsageRecordUpsertBulk {
 	return u.Update(func(s *UsageRecordUpsert) {
 		s.UpdateFallbackFrom()
+	})
+}
+
+// SetAgentID sets the "agent_id" field.
+func (u *UsageRecordUpsertBulk) SetAgentID(v int) *UsageRecordUpsertBulk {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.SetAgentID(v)
+	})
+}
+
+// AddAgentID adds v to the "agent_id" field.
+func (u *UsageRecordUpsertBulk) AddAgentID(v int) *UsageRecordUpsertBulk {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.AddAgentID(v)
+	})
+}
+
+// UpdateAgentID sets the "agent_id" field to the value that was provided on create.
+func (u *UsageRecordUpsertBulk) UpdateAgentID() *UsageRecordUpsertBulk {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.UpdateAgentID()
+	})
+}
+
+// ClearAgentID clears the value of the "agent_id" field.
+func (u *UsageRecordUpsertBulk) ClearAgentID() *UsageRecordUpsertBulk {
+	return u.Update(func(s *UsageRecordUpsert) {
+		s.ClearAgentID()
 	})
 }
 
