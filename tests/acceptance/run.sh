@@ -73,11 +73,13 @@ if [ "$COMPOSE" = 1 ]; then
     unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy || true
   fi
   docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" up -d "${UP_FLAGS[@]}"
+  # web/nginx 在启动时解析 server 主机名；overlay 会重建 server，不重启 web 会一直 502。
+  docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" restart web
   # 等应用与演示依赖 healthz（mock 端口已由 acceptance compose 发布到宿主机）
   app_ok=0
   for i in $(seq 1 60); do
-    if curl -fsS "${HENGDESK_HTTP_PORT:+http://127.0.0.1:${HENGDESK_HTTP_PORT}/healthz}" >/dev/null 2>&1 \
-      || curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
+    if curl --noproxy '*' -fsS "${HENGDESK_HTTP_PORT:+http://127.0.0.1:${HENGDESK_HTTP_PORT}/healthz}" >/dev/null 2>&1 \
+      || curl --noproxy '*' -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
       app_ok=1
       break
     fi
@@ -89,9 +91,9 @@ if [ "$COMPOSE" = 1 ]; then
   fi
   mock_ok=0
   for i in $(seq 1 30); do
-    if curl -fsS http://127.0.0.1:18081/healthz >/dev/null 2>&1 \
-      && curl -fsS http://127.0.0.1:18080/healthz >/dev/null 2>&1 \
-      && curl -fsS http://127.0.0.1:18082/healthz >/dev/null 2>&1; then
+    if curl --noproxy '*' -fsS http://127.0.0.1:18081/healthz >/dev/null 2>&1 \
+      && curl --noproxy '*' -fsS http://127.0.0.1:18080/healthz >/dev/null 2>&1 \
+      && curl --noproxy '*' -fsS http://127.0.0.1:18082/healthz >/dev/null 2>&1; then
       mock_ok=1
       break
     fi
