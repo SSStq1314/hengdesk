@@ -50,7 +50,7 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 
 | AC | 含义 | 对应实现 PR（main） | 已有自动化测试 / 脚本 | 当前状态 | 本块计划 |
 |---|---|---|---|---|---|
-| AC-01 | 离线安装，出站为 0 | #62 | CI job「断网安装冒烟（AC-01）」；`deploy/pack-offline.sh` / `install.sh --offline` | 部分：CI 冒烟通过；正式包在干净断网机上的安装记录未做 | 15 步脚本第 1 步；新 CI job 跑完整剧本；`docs/demo/` 留下本机模拟记录并写明差异（D-46 第 8 条） |
+| AC-01 | 离线安装，出站为 0 | #62 | CI job「断网安装冒烟（AC-01）」；`deploy/pack-offline.sh` / `install.sh --offline` | 部分：CI 冒烟通过；**真机演示因本机无 Docker 未演示 AC-01**（改为二进制部署）。该缺口与 D-46「用正式离线包在干净、断网机器上完整安装并留记录」是同一项验收，必须在有 Docker 的干净断网机上补做并归档 | 15 步脚本第 1 步；PR3 CI 在断网环境跑完整剧本；PR4 在 `docs/demo/` 写清与真正干净机器的差异，并把该安装记录列为 M1 验收人工步骤（与真机演示未覆盖项合并，不另开一条） |
 | AC-02 | SSO 首次登录自动建号、归入部门、记审计 | #12 及后续 OIDC（`oidc_test.go` / `oidc_d34_test.go`） | `TestOIDCAutoCreateAndLinkBySub`、`TestOIDCDeptMappingByPath` / `ByCode` | 部分：集成通过；演示包无 Keycloak；OIDC 仅能通过环境变量启用 | 脚本第 2 步：mock OIDC + 部门/人员 CSV；断言建号、部门、审计。Keycloak 见待确认 |
 | AC-03 | 未授权智能体列表不可见、详情 404 | #53、#55、#60 | `TestAgentCRUDPublishVisibility`、`TestAgentDeptScope`、`TestD45RuntimeIntersection` | 部分：集成通过 | 脚本第 11 步（市场部 B） |
 | AC-04 | 文件级 RAG：无权限者检索/上下文/引用都不含该文件 | #37–#45 | `TestKBRetrieveACL`、`TestChatKBCitations`、`kb/recall` 越权为 0 | 部分：集成通过 | 脚本第 8 步（A 问差旅，不含高管文件） |
@@ -58,16 +58,16 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 | AC-06 | 需审批工具在通过前上游调用数为 0，通过后恰好 1 次 | #46–#52、#54 | `TestApproveExecutesExactlyOnceWithSnapshot`、`TestApprovalCenterEndToEnd`、`TestD44AutoContinueOnApprove` | 部分：集成通过 | 脚本第 9 步（对照 mockmcp 调用计数） |
 | AC-07 | 拒绝或超时后模型收到「已拒绝/已超时」，并记审计 | #49、#54 | `TestRejectWithdrawExpire`、`TestD44AutoContinueOnRejectAndExpire` | 部分：集成通过 | 脚本第 10 步（C 拒绝） |
 | AC-08 | 挂起审批时重启 server，通过后对话能继续 | #54（D-44） | `TestD44RestartWhileAwaiting`、`TestD44RestartDuringContinuation`（进程内重启） | 部分：集成通过；未在 compose 真重启上覆盖 | 脚本反例：等待审批时经 docker.sock / `-restart-cmd` 重启 server，再由 C 通过并续写 |
-| AC-09 | 白名单外域名与链路本地地址被阻断，记出站日志 | #28–#31、#47 | `TestMCPEgressWhitelistAndHeaders`、`TestInternalAndMetadataBlocked`、`TestGatewayEgressEndToEnd` | 部分：集成通过 | 脚本第 12 步（mockmcp 演示开关访问白名单外地址） |
-| AC-10 | 预算 80% 告警、100% 拦截并返回可读错误 | #27 | `TestBudgetBlockAlertReconcile`、`TestBudgetAlertStateAndRebuild` | 部分：集成通过 | 脚本第 13 步（财务部小额度 X） |
+| AC-09 | 白名单外域名与链路本地地址被阻断，记出站日志 | #28–#31、#47 | `TestMCPEgressWhitelistAndHeaders`、`TestInternalAndMetadataBlocked`、`TestGatewayEgressEndToEnd` | 部分：集成与真机演示（用 redirector）通过拦截；**缺陷 D3**：放行日志因 append-only 触发器无法 UPDATE，status 恒为 0 | 脚本第 12 步复用演示 `redirector` 思路（`cmd/mockredir`）；并断言放行记录写回状态码（D3 修复前应失败）。D3 为 M1 验收前必须关闭 |
+| AC-10 | 预算 80% 告警、100% 拦截并返回可读错误 | #27 | `TestBudgetBlockAlertReconcile`、`TestBudgetAlertStateAndRebuild` | 部分：真机演示后端拦截与告警通过；**D4** 自动续写被预算拦截时文案不可读且工具已执行；**D6** 前端 429 提示只闪现即被清空；**D2** 通知横幅误用预算模板 | 脚本第 13 步覆盖 HTTP 拦截与告警。D2 / D4 / D6 为 M1 验收前必须关闭（修复在 `/workspace/hengdesk-fix-demo`） |
 | AC-11 | 审计员按 trace 回放完整链路 | #36 等 | `TestAuditTraceReplay`、`TestAuditDeniedLoginAndQuery` | 部分：集成通过 | 脚本第 14 步（D 回放 A 的 8–13 步） |
-| AC-12 | 审计不可改删（含超管）；失败尝试本身入审计 | #8–#11；CI 审计表 append-only | `TestHashChainVerifyAndTamper`、CI「审计表 append-only」；应用无删除/修改审计 API | 部分：集成与 CI 通过 | 脚本第 14 步：D 改配置 404；超管删审计失败（API 不存在或被拒），尝试被记录 |
+| AC-12 | 审计不可改删（含超管）；失败尝试本身入审计；哈希链可校验 | #8–#11；CI 审计表 append-only | `TestHashChainVerifyAndTamper`、CI「审计表 append-only」；应用无删除/修改审计 API | **阻塞**：真机演示越权/不可改删通过，但「校验哈希链」失败（**缺陷 D5**，usage 规范化断链）。另：多进程并发写入误拒（D-47）仍为 M1 阻塞 | 脚本第 14 步：回放、改配置 404、超管删除被拒，并调用 `GET /audit-logs/verify`（D5 修复前应失败，不放宽）。D5 由 `/workspace/hengdesk-audit` 修；本块不改审计写入代码。D-47 并发标准不变 |
 | AC-13 | 查看/复制/导出/API 均带显式或元数据标识 | #61、#63 | `TestAIGCSettingsAndExport`、`TestDefaultsValidateSave`、`TestAppendSuffixAndMeta` | 部分：集成通过；D-46 要求更严的文案校验与 Markdown front matter 尚未按拍板落地 | 脚本第 8 步与 D-46 断言：后缀、`X-HengDesk-AIGC`、JSON 元数据、**md front matter**；空文案或不含「人工智能生成 / AI 生成」保存失败 |
 | AC-14 | 本地 OpenAI 兼容端点 + 国产 API，「测试」可流式对话并记 usage | #25、#26 | `TestModelTestConnection`、`TestChatNonStreamSSEAndACL`（mock）；`TestVendorContract*`（dashscope / vLLM 回放带，文档构造） | 部分：mock 与契约回放通过；通义真实冒烟挂起；vLLM CPU 协议冒烟脚本已就绪、本环境未实跑；Ollama 未验证；DeepSeek 仅本机可选 | 脚本第 3 步对 mockupstream 点「测试」。通义：**挂起，M2 W1 补测**。vLLM：`tests/acceptance/vllm-cpu-smoke.sh` + 既有契约测试，有 Docker 的机器实跑后补记 `docs/demo/vllm-cpu-smoke.md` |
 | AC-15 | 任何角色查看配置或 API 都看不到密钥明文 | #25 | `TestModelAdminCRUDAndKeyNeverReturned`、`TestChatUpstream401Redacted` | 部分：集成通过 | 脚本第 3 步：创建供应商后 GET 响应无明文 key |
 | AC-16 | 看板与 `usage_record` 汇总 token 一致，估算单独标注 | #59、#63 | `TestStatsOverviewScopeExport`、`TestRebuildHours`、`TestSummaryByAgent` | 部分：集成通过 | 脚本第 15 步：财务部看板 vs 明细汇总 |
 | AC-17 | 发布构建许可证扫描不含白名单之外许可 | CI `license scan + SBOM` | 该 job 本身 | 通过（每个 PR 门禁） | 本块 PR 继续走该门禁；不新增例外 |
-| D-46 安装记录 | 正式离线包在干净断网机上完整安装并留记录 | #62 提供打包/安装；记录尚未有 | 无 | 未覆盖 | `docs/demo/` 归档本机模拟记录；真正干净机器列为验收人工步骤。本执行环境无 Docker，差异与人工步骤在 PR4 写清 |
+| D-46 安装记录（与 AC-01 同一缺口） | 正式离线包在干净断网机上完整安装并留记录 | #62 提供打包/安装；记录尚未有 | CI 仅有临时 `docker save` 冒烟，不是正式包在干净机上的安装记录 | **未覆盖 / M1 验收前必须补做** | 与真机演示「本机无 Docker，AC-01 未演示」合并为同一验收项，不分开跟踪。PR3 在 CI 断网环境尽量用正式打包流程跑 15 步；PR4 写明本执行环境（无 Docker、非全新服务器）与真正干净断网机的差异，并把「验收时在干净断网机上用正式离线包完整安装并归档记录」列为人工步骤 |
 | D-46 卸载 | `--volumes` 须交互确认（非交互加 `--yes`），并提示先备份；`secrets/` 保留 | #62 已有 `-y` / `--volumes`；备份提示与文案可能未齐 | 脚本层手工/本块补测 | 部分 | 验收脚本在收尾对 `uninstall.sh` 做断言（无 `--yes` 时 `--volumes` 拒绝；有确认则删卷、保留 secrets） |
 | D-46 导出权限 | 只能导出自己的会话 | #61 `conv_export` 已走 `own()` | 会话属主测试有，导出越权需在脚本中显式断言 | 部分 | 脚本：B 导出 A 的会话返回 404 |
 | D-47 审计并发 | server+worker 并发写审计不得误拒；全链可校验 | 修复在 `/workspace/hengdesk-audit`（迁移自 20261225），尚未合入 | 待该工作区提供 200 并发测试 | **阻塞（M1 退出）** | 本块**不改审计写入代码**。验收标准：server+worker 200 并发写入失败 0、全链校验通过。合入修复后在完成报告勾选 |
@@ -93,10 +93,28 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 6. **AC-05 插入位置**：剧本原文无单独一步，脚本在第 8 步后追加「授予后再问」，不改变第 1–15 步编号。
 7. **通义、vLLM、Ollama**（D-47 修订）：通义真实冒烟 **挂起，M2 W1 补测**，不挡本块合入。vLLM 用官方 CPU 镜像 + 0.5B 级小模型做协议冒烟，加上既有契约测试；本执行环境无 Docker，脚本与记录模板先合入，实跑在有 Docker 的机器补记。Ollama 本机能拉起则顺手验证，否则写入完成报告。
 
+## 真机演示发现的缺陷（M1 验收前必须关闭）
+
+真机演示已于 2026-11-09 19:22–19:30（America/Los_Angeles）在 `/workspace/hengdesk-demo` 对 `main` @ `5e3c970` 跑完 PRD §13 的 15 步界面剧本（无 Docker，改为本机二进制；记录见该工作区 `README.md`）。演示本身不在本块合入范围。下列缺陷**必须在 M1 验收前关闭**；本块**不修改**这些产品代码。
+
+| 编号 | 影响的 AC / 步骤 | 现象 | 修复工作区 | 本块验收脚本态度 |
+|---|---|---|---|---|
+| **D1** | 第 8 步会话页（前端） | `GET /conversations/:id` 返回嵌套 `{conversation,messages,files}`，前端按扁平字段读，智能体标识/开场白/只读状态错乱 | `/workspace/hengdesk-fix-demo`（迁移 `20261228`–`20261229`） | HTTP 剧本不依赖该前端解析；对照表仍列为必须关闭 |
+| **D2** | AC-10 通知 | 所有通知（含审批）都按「预算提醒」模板渲染 | 同上 | 脚本检查 `kind=budget_alert`；UI 模板错误需前端修复 |
+| **D3** | AC-09 出站日志 | `egress_logs` append-only 触发器拒绝 `Start` 之后的 UPDATE，放行记录 status 恒为 0、无 IP/耗时 | 同上 | 第 12 步断言放行记录写回状态码，修复前应失败，不放宽 |
+| **D4** | AC-10 / 第 9 步自动续写 | 续写被预算拦截时读顶层 `message`，显示「Too Many Requests」而非可读预算提示；且工具在拦截前已执行 | 同上 | 第 13 步断言 HTTP 拦截正文含「预算/用尽/管理员」；续写路径需后端修复 |
+| **D5（严重，AC-12）** | AC-12 哈希链 | `usage` 以 struct 入链、jsonb 往返后键序变化，校验在带 usage 的 `model.call` 处报断链 | `/workspace/hengdesk-audit`（与 D-47 同路，迁移自 `20261225`） | 第 14 步调用 `GET /audit-logs/verify` 且要求 `ok=true`，修复前应失败，不放宽。本块不改审计写入代码 |
+| **D6** | AC-10 前端提示 | 429 预算拦截后 `finally` 清空实时气泡，用户看不到「预算已用尽」，输入也被丢掉 | `/workspace/hengdesk-fix-demo` | 属 UI；对照表列为必须关闭 |
+
+另外：真机演示因本机无 Docker **未能演示 AC-01**（第 1 步改为二进制部署）。这与下方 D-46「正式离线包在干净、断网机器上完整安装并留记录」是**同一项** M1 验收缺口，见对照表 AC-01 / D-46 安装记录，不重复开单。
+
 ## 阻塞（不在本块修复）
 
-- **D-47 审计链多进程写入误拒**（M1 退出阻塞）：由 `/workspace/hengdesk-audit` 修复。本块不改审计写入代码。
+- **D-47 审计链多进程写入误拒**（M1 退出阻塞）：由 `/workspace/hengdesk-audit` 修复。本块不改审计写入代码。验收标准：server+worker 200 并发写入失败 0、全链校验通过。
+- **缺陷 D5（AC-12）**：哈希链校验断链。由 `/workspace/hengdesk-audit` 修复。本块不改审计写入代码；脚本按全链通过断言。
+- **缺陷 D1、D2、D3、D4、D6**：由 `/workspace/hengdesk-fix-demo` 修复（迁移 `20261228`–`20261229`）。均为 M1 验收前必须关闭。本块不改这些代码。
 - **D-46 增量尚未进 main**：脚本按拍板断言 Markdown front matter、非法 AIGC 文案 400、导出他人会话 404；D-46 合入前这些步骤将失败，标为阻塞并复跑，不放宽断言。
+- **AC-01 / D-46 正式包干净断网安装记录**：真机演示因本机无 Docker 未覆盖 AC-01；须在干净断网机上用正式离线包完整安装并归档，作为 M1 验收人工步骤。
 
 ## 进度记录
 

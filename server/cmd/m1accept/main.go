@@ -17,6 +17,7 @@ type config struct {
 	MockMCP        string
 	MockOIDC       string
 	MockUpstream   string
+	MockRedir      string
 	RestartCmd     string
 	SkipOIDC       bool
 	SkipRestart    bool
@@ -33,6 +34,7 @@ func main() {
 	flag.StringVar(&cfg.MockMCP, "mockmcp", env("M1ACCEPT_MOCKMCP", "http://mockmcp:18090"), "mockmcp 根地址（读 /calls）")
 	flag.StringVar(&cfg.MockOIDC, "mockoidc", env("M1ACCEPT_MOCKOIDC", "http://mockoidc:18081"), "mockoidc 根地址")
 	flag.StringVar(&cfg.MockUpstream, "mockupstream", env("M1ACCEPT_MOCKUPSTREAM", "http://mockupstream:18080"), "mockupstream 根地址（写入站白名单）")
+	flag.StringVar(&cfg.MockRedir, "mockredir", env("M1ACCEPT_MOCKREDIR", "http://mockredir:18082"), "mockredir 根地址（AC-09 越界演示开关）")
 	flag.StringVar(&cfg.RestartCmd, "restart-cmd", env("M1ACCEPT_RESTART_CMD", ""), "AC-08：重启 server 的命令；空则跳过 compose 重启")
 	flag.BoolVar(&cfg.SkipOIDC, "skip-oidc", envBool("M1ACCEPT_SKIP_OIDC"), "不走 SSO，改为管理员给演示账号设密码后本地登录（仅排障）")
 	flag.BoolVar(&cfg.SkipRestart, "skip-restart", envBool("M1ACCEPT_SKIP_RESTART"), "跳过 AC-08 compose 重启")

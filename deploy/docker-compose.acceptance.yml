@@ -50,6 +50,13 @@ services:
     ports: ["18081:18081"]
     restart: unless-stopped
 
+  mockredir:
+    image: hengdesk/mocks:${HENGDESK_VERSION:-dev}
+    command: ["mockredir", "-addr", ":18082"]
+    expose: ["18082"]
+    ports: ["18082:18082"]
+    restart: unless-stopped
+
   m1accept:
     image: hengdesk/mocks:${HENGDESK_VERSION:-dev}
     profiles: ["accept"]
@@ -58,6 +65,7 @@ services:
       - mockupstream
       - mockmcp
       - mockoidc
+      - mockredir
     environment:
       M1ACCEPT_BASE: http://web
       M1ACCEPT_ADMIN_EMAIL: ${HENGDESK_ADMIN_EMAIL:-admin@hengdesk.local}
@@ -65,6 +73,7 @@ services:
       M1ACCEPT_MOCKMCP: http://mockmcp:18090
       M1ACCEPT_MOCKOIDC: http://mockoidc:18081
       M1ACCEPT_MOCKUPSTREAM: http://mockupstream:18080
+      M1ACCEPT_MOCKREDIR: http://mockredir:18082
       M1ACCEPT_RESTART_CMD: ${M1ACCEPT_RESTART_CMD:-}
       M1ACCEPT_COMPOSE_PROJECT: ${M1ACCEPT_COMPOSE_PROJECT:-hengdesk}
     volumes:

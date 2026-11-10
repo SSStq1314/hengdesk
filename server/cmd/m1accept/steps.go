@@ -120,7 +120,7 @@ func (s *script) step1() error {
 	_, _, _ = s.admin.do(http.MethodPost, "/api/v1/admin/system/master-key/ack", map[string]any{}, 0)
 
 	// 出站白名单：mockupstream、mockmcp、mockoidc（内网主机需显式放行）
-	for _, u := range []string{s.cfg.MockUpstream, s.cfg.MockMCP, s.cfg.MockOIDC} {
+	for _, u := range []string{s.cfg.MockUpstream, s.cfg.MockMCP, s.cfg.MockOIDC, s.cfg.MockRedir} {
 		if strings.TrimSpace(u) == "" {
 			continue
 		}
@@ -964,7 +964,7 @@ func (s *script) step11() error {
 
 func (s *script) step12() error {
 	s.step(12, "访问白名单外地址被阻断，并写入站日志")
-	// 登记一个白名单外 MCP 应失败；再调用 egress/check 与 169.254.169.254
+	// 保存时直连白名单外 / 链路本地应被拒绝
 	_, _, err := s.admin.do(http.MethodPost, "/api/v1/admin/mcp-servers", map[string]any{
 		"name": "越权探测", "url": "http://169.254.169.254/mcp", "transport": "streamable_http",
 	}, 400)
@@ -980,11 +980,24 @@ func (s *script) step12() error {
 	if hint["allowed"] == true {
 		return fmt.Errorf("169.254.169.254 不应被放行：%v", hint)
 	}
-	// 尝试一次真实出站（发现外网 MCP）以产生日志
-	if id, e := s.admin.getID(http.MethodPost, "/api/v1/admin/mcp-servers", map[string]any{
-		"name": "外网探测", "url": "http://example.invalid/mcp", "transport": "streamable_http",
-	}, 0); e == nil && id > 0 {
-		_, _, _ = s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/mcp-servers/%d/discover", id), map[string]any{}, 0)
+	// 复用真机演示 redirector 思路：登记已放行的 mockredir，发现时 307 到白名单外，由出站客户端拦截（AC-09）
+	if redir := strings.TrimRight(strings.TrimSpace(s.cfg.MockRedir), "/"); redir != "" {
+		for _, pair := range []struct{ name, path string }{
+			{"越界演示开关", "/mcp"},
+			{"越界到元数据地址", "/meta/mcp"},
+		} {
+			id, e := s.admin.getID(http.MethodPost, "/api/v1/admin/mcp-servers", map[string]any{
+				"name": pair.name, "url": redir + pair.path, "transport": "streamable_http",
+			}, 0)
+			if e != nil || id == 0 {
+				s.log("警告：登记 %s 失败：%v", pair.name, e)
+				continue
+			}
+			_, _, discErr := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/mcp-servers/%d/discover", id), map[string]any{}, 0)
+			if discErr == nil {
+				return fmt.Errorf("AC-09：发现 %s 不应成功（应被出站拦截）", pair.name)
+			}
+		}
 	}
 	var logs struct {
 		Items []map[string]any `json:"items"`
@@ -1001,6 +1014,12 @@ func (s *script) step12() error {
 		dec := asString(it["decision"])
 		if dec == "deny" || dec == "blocked" || dec == "rejected" {
 			blocked++
+		}
+	}
+	// 缺陷 D3：放行记录必须写回状态码（append-only 触发器曾拒绝 UPDATE，导致 status 恒为 0）
+	for _, it := range logs.Items {
+		if asString(it["decision"]) == "allow" && asInt(it["status"]) == 0 && asInt(it["status_code"]) == 0 {
+			return fmt.Errorf("缺陷 D3：放行的出站日志 #%d 未记录状态码", asInt(it["id"]))
 		}
 	}
 	if blocked == 0 && len(logs.Items) == 0 {
@@ -1124,7 +1143,15 @@ func (s *script) step14() error {
 			return fmt.Errorf("超管删除审计应失败，实际 HTTP %d", he.Status)
 		}
 	}
-	s.log("审计回放与不可改断言完成")
+	// AC-12 / D5：审计员全链校验必须通过（真机演示发现 usage 规范化导致断链）
+	var ver map[string]any
+	if _, err := s.d.json(http.MethodGet, "/api/v1/admin/audit-logs/verify", nil, 200, &ver); err != nil {
+		return fmt.Errorf("AC-12 校验哈希链：%w", err)
+	}
+	if ver["ok"] != true {
+		return fmt.Errorf("AC-12（缺陷 D5）：哈希链校验未通过：%v", ver)
+	}
+	s.log("审计回放与不可改断言完成，哈希链校验通过")
 	return nil
 }
 

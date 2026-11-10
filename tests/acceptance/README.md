@@ -6,7 +6,7 @@
 
 - `run.sh`：入口。可叠加 `deploy/docker-compose.acceptance.yml` 拉起 mockupstream / mockmcp / mockoidc，再在同一网络里跑 `m1accept`。
 - `server/cmd/m1accept`：15 步 Go 脚本。
-- `server/cmd/mockoidc`、`mockupstream -demo-script`、`mockmcp`（`/calls` 供 AC-06 计数）。
+- `server/cmd/mockoidc`、`mockupstream -demo-script`、`mockmcp`（`/calls` 供 AC-06 计数）、`mockredir`（第 12 步：白名单内端点 307 到白名单外，复用真机演示 redirector 思路）。
 - `server/Dockerfile.mocks`：把上述二进制打成 `hengdesk/mocks` 镜像（不进入默认生产离线包）。
 - `testdata/`：部门 CSV 与三份知识库样例（高管文件含标记 `HD-EXEC-SECRET-991`）。
 
