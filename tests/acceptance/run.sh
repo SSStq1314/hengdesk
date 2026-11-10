@@ -4,6 +4,7 @@
 #   ./tests/acceptance/run.sh --compose          # 已有 deploy/.env，叠加 acceptance compose 后跑 15 步
 #   ./tests/acceptance/run.sh --base-url URL --admin-password PW [--skip-oidc]
 #   ./tests/acceptance/run.sh --build-mocks      # 只构建 hengdesk/mocks:$VERSION
+#   ./tests/acceptance/run.sh --compose --offline  # 离线：不 build/pull，只用已 load 的镜像
 #
 # 离线安装 + 15 步（CI / 验收机）见 docs/demo/m1-acceptance.md 与后续 CI job。
 set -euo pipefail
@@ -15,6 +16,7 @@ ADMIN_EMAIL="${HENGDESK_ADMIN_EMAIL:-admin@hengdesk.local}"
 ADMIN_PASSWORD="${M1ACCEPT_ADMIN_PASSWORD:-${HENGDESK_ADMIN_PASSWORD:-}}"
 SKIP_OIDC=0
 SKIP_RESTART=0
+OFFLINE=0
 VERSION="${HENGDESK_VERSION:-dev}"
 DEPLOY="${ROOT}/deploy"
 
@@ -29,6 +31,7 @@ while [ $# -gt 0 ]; do
     --admin-password) ADMIN_PASSWORD="$2"; shift ;;
     --skip-oidc) SKIP_OIDC=1 ;;
     --skip-restart) SKIP_RESTART=1 ;;
+    --offline) OFFLINE=1 ;;
     --version) VERSION="$2"; shift ;;
     --deploy) DEPLOY="$2"; shift ;;
     -h|--help) usage 0 ;;
@@ -38,6 +41,14 @@ while [ $# -gt 0 ]; do
 done
 
 build_mocks() {
+  if [ "$OFFLINE" = 1 ]; then
+    if docker image inspect "hengdesk/mocks:$VERSION" >/dev/null 2>&1; then
+      echo "==> 离线模式：使用已有 hengdesk/mocks:$VERSION"
+      return
+    fi
+    echo "离线模式但找不到镜像 hengdesk/mocks:$VERSION，请先 docker load" >&2
+    exit 1
+  fi
   echo "==> 构建 hengdesk/mocks:$VERSION"
   docker build -f "$ROOT/server/Dockerfile.mocks" -t "hengdesk/mocks:$VERSION" "$ROOT/server"
 }
@@ -55,7 +66,13 @@ if [ "$COMPOSE" = 1 ]; then
   ADMIN_PASSWORD="${ADMIN_PASSWORD:-${HENGDESK_ADMIN_PASSWORD:-}}"
   export HENGDESK_VERSION="$VERSION"
   echo "==> 启动演示依赖并重启应用以加载 OIDC"
-  docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" up -d
+  UP_FLAGS=()
+  if [ "$OFFLINE" = 1 ]; then
+    UP_FLAGS+=(--no-build --pull never)
+    # 不要把宿主机的代理黑洞注入容器，否则 server 访问 mock 也会走 127.0.0.1:9
+    unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy || true
+  fi
+  docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" up -d "${UP_FLAGS[@]}"
   # 等 healthz
   for i in $(seq 1 60); do
     curl -fsS "${HENGDESK_HTTP_PORT:+http://127.0.0.1:${HENGDESK_HTTP_PORT}/healthz}" >/dev/null 2>&1 && break

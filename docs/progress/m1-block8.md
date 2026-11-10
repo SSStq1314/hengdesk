@@ -77,8 +77,8 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 | PR | 内容 | 对应 | 状态 |
 |---|---|---|---|
 | PR1 | 本计划与 AC 对照表 | 本块起步 | 已合并 #65（`2f9771a`，2026-11-09 19:13 America/Los_Angeles） |
-| PR2 | `tests/acceptance/`：run.sh、15 步 Go 脚本、testdata、`hengdesk/mocks` 与 `docker-compose.acceptance.yml`；vLLM CPU 协议冒烟脚本；对照表按 D-47 修订 | §13 第 1–15 步，AC-01～AC-16 端到端，D-46 断言，D-47 记录项 | 进行中 |
-| PR3 | CI job：断网安装环境跑完整 15 步，断言无外连；必要时把 mocks 打进验收用离线包 | AC-01、D-46 安装项的自动化部分 | 待开始 |
+| PR2 | `tests/acceptance/`：run.sh、15 步 Go 脚本、testdata、`hengdesk/mocks` 与 `docker-compose.acceptance.yml`；vLLM CPU 协议冒烟脚本；对照表按 D-47 修订 | §13 第 1–15 步，AC-01～AC-16 端到端，D-46 断言，D-47 记录项 | 已合并 #67（`e39fa83`，2026-11-09 20:13 America/Los_Angeles） |
+| PR3 | CI job「断网 15 步验收」：`pack-offline.sh --with-acceptance`，断网安装后跑完整 15 步，iptables 断言无公网出站；`run.sh --offline` | AC-01、D-46 安装项的自动化部分 | 进行中 |
 | PR4 | `docs/demo/m1-acceptance.md` 演示手册 + 本机模拟干净安装记录（含与真正干净机器的差异） | 验收人手册 | 待开始 |
 | 缺陷修复 | 跑脚本时发现的缺陷就地修，每个缺陷一个小 PR；AC 未覆盖则补实现或测试 | 视发现而定 | 按需 |
 | 完成报告 | 第八块完成报告（含对照表最终状态、演示方式、待确认、阻塞） | — | 最后 |
@@ -110,10 +110,10 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 
 ## 阻塞（不在本块修复）
 
-- **D-47 审计链多进程写入误拒**（M1 退出阻塞）：由 `/workspace/hengdesk-audit` 修复。本块不改审计写入代码。验收标准：server+worker 200 并发写入失败 0、全链校验通过。
-- **缺陷 D5（AC-12）**：哈希链校验断链。由 `/workspace/hengdesk-audit` 修复。本块不改审计写入代码；脚本按全链通过断言。
+- **D-47 审计链多进程写入误拒**（M1 退出阻塞）：修复已合入 #68（`bf4d437`）。验收标准：server+worker 200 并发写入失败 0、全链校验通过（该并发测试在审计工作区，本 job 跑 `GET /audit-logs/verify`）。
+- **缺陷 D5（AC-12）**：哈希链校验断链，修复已随 #68 合入。脚本仍断言 `ok=true`。
 - **缺陷 D1、D2、D3、D4、D6**：由 `/workspace/hengdesk-fix-demo` 修复（迁移 `20261228`–`20261229`）。均为 M1 验收前必须关闭。本块不改这些代码。
-- **D-46 增量尚未进 main**：脚本按拍板断言 Markdown front matter、非法 AIGC 文案 400、导出他人会话 404；D-46 合入前这些步骤将失败，标为阻塞并复跑，不放宽断言。
+- **D-46 增量已进 main（#66 / `a64fd31`）**：脚本按拍板断言 Markdown front matter、非法 AIGC 文案 400、导出他人会话 404、`uninstall --volumes` 确认。
 - **AC-01 / D-46 正式包干净断网安装记录**：真机演示因本机无 Docker 未覆盖 AC-01；须在干净断网机上用正式离线包完整安装并归档，作为 M1 验收人工步骤。
 
 ## 进度记录
@@ -121,3 +121,5 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 （每个 PR 合并后在这里补一条：PR 号、squash 提交、内容摘要。）
 
 - PR1（#65 / `2f9771a`）：第八块计划与 AC-01～AC-17 / D-46 对照表。
+- PR2（#67 / `e39fa83`）：15 步脚本、演示 mock、对照表按 D-47 与真机演示缺陷修订。已基于 D-46（#66）rebase。
+- 依赖进展：D-46 #66、审计/D5 #68 已进 main。演示缺陷 D1–D4、D6 的修复工作区尚未开 PR，D3 仍可能让第 12 步（放行日志状态码）失败；合入后 rebase 复跑，不放宽断言。

@@ -436,3 +436,75 @@ jobs:
           cd /tmp/hd-off/deploy 2>/dev/null || cd deploy
           docker compose ps -a || true
           docker compose logs --no-color --tail 200 || true
+
+  m1-acceptance:
+    name: 断网 15 步验收
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: 脚本自检
+        run: |
+          bash -n deploy/pack-offline.sh deploy/install.sh deploy/uninstall.sh \
+            tests/acceptance/run.sh tests/acceptance/ci/assert-no-egress.sh \
+            tests/acceptance/vllm-cpu-smoke.sh
+          ./deploy/uninstall_test.sh
+      - name: 构建验收离线包（有网）
+        run: |
+          set -euo pipefail
+          ./deploy/pack-offline.sh --version ci-accept --out /tmp/hd-acc --with-acceptance
+          docker compose -f deploy/docker-compose.yml down --volumes --remove-orphans || true
+          # 删除本地镜像，强迫只能从 tar load（模拟离线机）
+          docker rmi \
+            hengdesk/server:ci-accept hengdesk/web:ci-accept hengdesk/mocks:ci-accept \
+            hengdesk/server:dev hengdesk/web:dev \
+            pgvector/pgvector:0.8.7-pg17 valkey/valkey:8.1.11-alpine chrislusf/seaweedfs:4.52 \
+            || true
+      - name: 断网安装并跑完整 15 步（代理黑洞 + --pull never + 出站拦截）
+        run: |
+          set -euo pipefail
+          PKG_TAR=/tmp/hd-acc/hengdesk-offline-ci-accept-amd64-acceptance.tar.gz
+          test -f "$PKG_TAR"
+          mkdir -p /tmp/hd-acc-extract
+          tar -C /tmp/hd-acc-extract -xzf "$PKG_TAR"
+          PKG="$(find /tmp/hd-acc-extract -mindepth 1 -maxdepth 1 -type d | head -1)"
+          cd "$PKG/deploy"
+
+          export HTTP_PROXY=http://127.0.0.1:9
+          export HTTPS_PROXY=http://127.0.0.1:9
+          export ALL_PROXY=http://127.0.0.1:9
+          export NO_PROXY=localhost,127.0.0.1,::1,web,mockupstream,mockmcp,mockoidc,mockredir,postgres,valkey,seaweedfs,server,worker,migrate
+
+          ./install.sh --non-interactive --ack-master-key --offline --version ci-accept \
+            --storage seaweedfs --admin-password ci-only-password-123 --force --up
+          for i in $(seq 1 90); do curl --noproxy '*' -fsS localhost:8080/healthz && break; sleep 2; done
+          curl --noproxy '*' -fsS localhost:8080/healthz
+
+          # 容器公网出站由 iptables 拦截并记日志；依赖未合入时也不放宽脚本断言
+          sudo -n "$PKG/tests/acceptance/ci/assert-no-egress.sh" start
+
+          "$PKG/tests/acceptance/run.sh" --compose --offline --version ci-accept --deploy "$PKG/deploy" \
+            --admin-password ci-only-password-123
+
+          # D-46：非交互 --volumes 无 --yes 必须拒绝；成功卸载后 secrets/ 仍在
+          set +e
+          ./uninstall.sh --volumes </dev/null
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "uninstall.sh --volumes 在非交互且无 --yes 时不应成功" >&2
+            exit 1
+          fi
+          test -d secrets
+          ./uninstall.sh -y --volumes
+          test -d secrets
+
+          sudo -n "$PKG/tests/acceptance/ci/assert-no-egress.sh" check
+          sudo -n "$PKG/tests/acceptance/ci/assert-no-egress.sh" stop || true
+      - name: 失败时输出日志
+        if: failure()
+        run: |
+          sudo -n tests/acceptance/ci/assert-no-egress.sh stop || true
+          cd /tmp/hd-acc-extract/*/deploy 2>/dev/null || cd deploy
+          docker compose -f docker-compose.yml -f docker-compose.acceptance.yml ps -a || true
+          docker compose -f docker-compose.yml -f docker-compose.acceptance.yml logs --no-color --tail 300 || true

@@ -26,7 +26,20 @@
 
 ## 离线包
 
-默认 `pack-offline.sh` 不含 mocks。带验收依赖请用 `--with-acceptance`（PR3 落地）。手册见 `docs/demo/m1-acceptance.md`。
+默认 `pack-offline.sh` 不含 mocks。验收包：
+
+```bash
+./deploy/pack-offline.sh --with-acceptance --version VER --out dist
+# 产物：dist/hengdesk-offline-VER-amd64-acceptance.tar.gz
+```
+
+在已 `docker load`、且不再出网的机器上：
+
+```bash
+./tests/acceptance/run.sh --compose --offline --version VER
+```
+
+`--offline` 不执行 `docker build` / `pull`，只用已 load 的 `hengdesk/mocks:VER`。CI job「断网 15 步验收」在代理黑洞 + `--pull never` + iptables 出站拦截下跑完整 15 步，并检查内核日志无 `HD_EGRESS`。手册见 `docs/demo/m1-acceptance.md`。
 
 ## 硬规则
 
