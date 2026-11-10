@@ -93,7 +93,8 @@ func (e *DeniedError) Message() string {
 
 // Record 一条出站日志。
 type Record struct {
-	// ID Sink.Start 返回的记录号；Write 时大于 0 表示更新这条记录。
+	// ID Sink.Start 返回的记录号。文件日志用它关联 start/result 两行；
+	// DBSink 因 append-only 不再回填，Start 返回 0，由 Write 一次性 INSERT 完整记录。
 	ID         int
 	TS         time.Time
 	Caller     Caller
@@ -114,8 +115,8 @@ type Record struct {
 
 // Sink 出站日志落地。
 //
-// 放行的请求在发出之前先 Start 写一条记录（D-38 第 9 条：日志写不进去时，未声明审计 fail-closed 的调用方直接拒绝），
-// 请求结束后 Write 用同一个 ID 回填结果；拒绝的请求直接 Write。
+// 放行的请求在发出之前先 Start（D-38 第 9 条：Start 失败且未声明审计 fail-closed 的调用方直接拒绝），
+// 请求结束后 Write 一次性写入完整记录（egress_logs 为 append-only，不能 UPDATE）；拒绝的请求直接 Write。
 type Sink interface {
 	Start(ctx context.Context, r Record) (int, error)
 	Write(ctx context.Context, r Record) error

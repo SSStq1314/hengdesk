@@ -314,6 +314,49 @@ func nonEmptyArgs(s string) string {
 	return s
 }
 
+// syncResolvedToolResults 把已有结果的审批（通过并已执行 / 驳回 / 超时 / 撤回）写回消息的 tool_calls 与 tool_state。
+// 在预算拦截等续写失败之前调用，保证用户能在会话里看到已执行的工具结果。这里不会再次执行工具，也不改 trace
+// （避免后续 generateWith / runTools 把同一条工具结果再交给模型一遍）。
+func (h *convHandlers) syncResolvedToolResults(ctx context.Context, p *auth.Principal, m *ent.Message, st *toolState) error {
+	if h.ap == nil {
+		return nil
+	}
+	a := actorOf(p)
+	changed := false
+	for _, tc := range st.Queue {
+		v := callView(st, tc)
+		if v.ApprovalID == 0 {
+			continue
+		}
+		ap, err := h.ap.Get(ctx, a, v.ApprovalID)
+		if err != nil {
+			return err
+		}
+		r, ok := approval.ModelResult(ap)
+		if !ok {
+			continue
+		}
+		switch {
+		case ap.Status != entapproval.StatusApproved:
+			v.Status, v.ErrorCode = ToolCallRejected, string(ap.Status)
+		case r.IsError:
+			v.Status = ToolCallFailed
+		default:
+			v.Status = ToolCallSucceeded
+		}
+		v.ResultSummary = truncRunes(r.Text, 200)
+		changed = true
+	}
+	if !changed {
+		return nil
+	}
+	b, err := json.Marshal(st)
+	if err != nil {
+		return err
+	}
+	return h.db.Message.UpdateOneID(m.ID).SetToolState(b).SetToolCalls(st.Calls).Exec(context.WithoutCancel(ctx))
+}
+
 // continueMsg POST /conversations/:id/messages/:mid/continue：审批结束（通过 / 拒绝 / 超时 / 撤回）后继续生成。
 // 只有会话本人可调用；消息必须是最后一条且处于 awaiting_approval；仍有审批未结束时 409。
 func (h *convHandlers) continueMsg(c echo.Context) error {
@@ -361,6 +404,9 @@ func (h *convHandlers) continueMsg(c echo.Context) error {
 				return echo.NewHTTPError(http.StatusConflict, "工具调用仍在等待审批")
 			}
 		}
+	}
+	if err := h.syncResolvedToolResults(ctx, p, m, &st); err != nil {
+		return err
 	}
 	sess, err := h.resolveAgent(c, p, cv)
 	if err != nil {

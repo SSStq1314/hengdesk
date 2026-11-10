@@ -135,18 +135,31 @@ func (x *Continuer) Continue(ctx context.Context, msgID int) error {
 		return herr
 	}
 	if rec.Code >= 400 {
-		// 预算拦截等处理器直接写了 JSON 错误响应。
-		var body struct {
-			Message string `json:"message"`
-		}
-		_ = json.Unmarshal(rec.Body.Bytes(), &body)
-		if body.Message == "" {
-			body.Message = http.StatusText(rec.Code)
-		}
-		return x.fail(ctx, m, cv, ap, body.Message)
+		// 预算拦截等处理器直接写了 JSON 错误响应（形如 {"error":{"code","message"}}）。
+		return x.fail(ctx, m, cv, ap, parseHTTPErrorMessage(rec.Body.Bytes(), rec.Code))
 	}
 	x.notify(ctx, cv, m, ap, "")
 	return nil
+}
+
+// parseHTTPErrorMessage 解析 API 错误体。预算拦截是 {"error":{"message":"本月部门预算已用尽…"}}，
+// 不能只读顶层 message，否则会退化成 HTTP 状态文本（「Too Many Requests」）。
+func parseHTTPErrorMessage(body []byte, status int) string {
+	var wrap struct {
+		Message string `json:"message"`
+		Error   struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	_ = json.Unmarshal(body, &wrap)
+	if wrap.Error.Message != "" {
+		return wrap.Error.Message
+	}
+	if wrap.Message != "" {
+		return wrap.Message
+	}
+	return http.StatusText(status)
 }
 
 // recoverOrphan 续写 / 生成中进程崩溃：消息停在 streaming 且会话锁已过期 → 退回 awaiting_approval（只做一次，条件更新）。

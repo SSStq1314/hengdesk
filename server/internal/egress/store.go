@@ -63,29 +63,21 @@ func (p *DBPolicy) Invalidate() {
 // DBSink 写 egress_logs。
 type DBSink struct{ DB *ent.Client }
 
-// Start 请求发出前写入「进行中」的放行记录。
-func (s DBSink) Start(ctx context.Context, r Record) (int, error) {
-	q := s.DB.EgressLog.Create().SetTs(r.TS).SetActorEmail(r.Caller.Email).SetModule(r.Caller.Module).
-		SetMethod(r.Method).SetScheme(r.Scheme).SetHost(r.Host).SetPort(r.Port).SetPath(r.Path).
-		SetDecision(egresslog.DecisionAllow).SetBytesOut(r.BytesOut).SetError(r.Error)
-	if r.Caller.UserID != 0 {
-		q.SetUserID(r.Caller.UserID)
-	}
-	row, err := q.Save(ctx)
-	if err != nil {
+// Start 不再向 append-only 的 egress_logs 写入「进行中」记录（完成后无法 UPDATE）。
+// 这里做一次可读性检查：数据库不可用则返回错误，由 Client 按既有 fail-closed 拒绝放行；
+// 完整记录由 Write 在请求结束后一次性 INSERT。
+func (s DBSink) Start(ctx context.Context, _ Record) (int, error) {
+	if _, err := s.DB.EgressLog.Query().Limit(1).IDs(ctx); err != nil {
 		return 0, err
 	}
-	return row.ID, nil
+	return 0, nil
 }
 
 func (s DBSink) Write(ctx context.Context, r Record) error {
+	// 始终 INSERT 完整记录，忽略 r.ID：egress_logs 为 append-only，禁止 UPDATE。
 	decision := "deny"
 	if r.Allowed {
 		decision = "allow"
-	}
-	if r.ID > 0 {
-		return s.DB.EgressLog.UpdateOneID(r.ID).SetIP(r.IP).SetDecision(egresslog.Decision(decision)).SetReason(r.Reason).
-			SetStatus(r.Status).SetDurationMs(r.DurationMS).SetBytesOut(r.BytesOut).SetBytesIn(r.BytesIn).SetError(r.Error).Exec(ctx)
 	}
 	q := s.DB.EgressLog.Create().SetTs(r.TS).SetActorEmail(r.Caller.Email).SetModule(r.Caller.Module).
 		SetMethod(r.Method).SetScheme(r.Scheme).SetHost(r.Host).SetPort(r.Port).SetPath(r.Path).SetIP(r.IP).

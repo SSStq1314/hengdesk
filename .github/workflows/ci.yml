@@ -66,6 +66,8 @@ jobs:
           HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -p 1 -run 'PG' ./internal/kb/
           # E-1 / D-47：审计哈希链跨进程 advisory lock（2 进程 × 100 并发，0 失败 + 全链校验）
           HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -p 1 -timeout 3m -run 'PG' ./internal/audit/
+          # 出站日志 append-only：放行记录一次 INSERT 即含 status/IP/耗时，且无 append-only 报错
+          HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -p 1 -run 'PG' ./internal/egress/
       - name: migrate（两次，验证幂等）
         run: /tmp/hengdesk migrate && /tmp/hengdesk migrate
       - name: 审计保留期 CLI（FR-40）
