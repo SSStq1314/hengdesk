@@ -1048,13 +1048,20 @@ func (s *script) step12() error {
 				s.log("警告：登记 %s 失败：%v", pair.name, e)
 				continue
 			}
-			// 期望非 2xx。do 的 want=0 不把 4xx/5xx 当错误，这里显式要 200，成功则判定失败。
+			// 产品出站拒绝时 discover 返回 502，正文含「出站被拒绝」。do(..., 0) 不把 4xx/5xx 当错误，须显式要 200。
 			_, _, discErr := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/mcp-servers/%d/discover", id), map[string]any{}, 200)
 			if discErr == nil {
 				return fmt.Errorf("AC-09：发现 %s 不应成功（应被出站拦截）", pair.name)
 			}
-			if he := asHTTPError(discErr); he != nil && he.Status >= 200 && he.Status < 300 {
-				return fmt.Errorf("AC-09：发现 %s 不应成功（应被出站拦截），实际 HTTP %d", pair.name, he.Status)
+			he := asHTTPError(discErr)
+			if he == nil {
+				return fmt.Errorf("AC-09：发现 %s 失败但不是 HTTP 错误：%v", pair.name, discErr)
+			}
+			if he.Status != 502 {
+				return fmt.Errorf("AC-09：发现 %s 期望 HTTP 502（出站被拒绝），实际 HTTP %d：%s", pair.name, he.Status, trimBody(he.Body))
+			}
+			if !strings.Contains(he.Body, "出站被拒绝") {
+				return fmt.Errorf("AC-09：发现 %s 返回 502 但正文不是出站拒绝：%s", pair.name, trimBody(he.Body))
 			}
 			s.log("发现 %s 已被拦截：%v", pair.name, discErr)
 		}
@@ -1195,13 +1202,17 @@ func (s *script) step14() error {
 	}
 	if len(logs.Items) > 0 {
 		id := asInt(logs.Items[0]["id"])
-		// 产品返回 404（无删除接口）。do(..., 0) 不把 404 当错误，须显式要 200 才能区分「真成功」。
+		// 产品无删除接口，返回 404；若路由在但方法不允许则为 405。do(..., 0) 不把 4xx 当错误，须显式要 200。
 		_, _, err := s.admin.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/audit-logs/%d", id), nil, 200)
 		if err == nil {
 			return fmt.Errorf("超管删除审计记录竟然成功")
 		}
-		if he := asHTTPError(err); he != nil && he.Status != 404 && he.Status != 405 && he.Status != 403 && he.Status != 401 {
-			return fmt.Errorf("超管删除审计应失败，实际 HTTP %d", he.Status)
+		he := asHTTPError(err)
+		if he == nil {
+			return fmt.Errorf("超管删除审计失败但不是 HTTP 错误：%v", err)
+		}
+		if he.Status != 404 && he.Status != 405 {
+			return fmt.Errorf("超管删除审计应返回 404 或 405，实际 HTTP %d：%s", he.Status, trimBody(he.Body))
 		}
 	}
 	// AC-12 / D5：审计员全链校验必须通过（真机演示发现 usage 规范化导致断链）
