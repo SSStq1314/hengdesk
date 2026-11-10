@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { describeNotification, unreadNoticesTitle } from './notice-text.ts'
+import { describeNotification, unreadNoticesTitle } from '../src/lib/notice-text.ts'
+
+const titles = {
+  budget: (n: number) => `有 ${n} 条未读的预算提醒`,
+  approval: (n: number) => `有 ${n} 条未读的审批提醒`,
+  mixed: (n: number) => `有 ${n} 条未读提醒`,
+}
 
 test('describeNotification 预算告警走用量模板', () => {
   const text = describeNotification(
@@ -33,12 +39,12 @@ test('describeNotification 未知类型也回退到标题', () => {
 
 test('unreadNoticesTitle 按未读类型区分标题', () => {
   assert.equal(
-    unreadNoticesTitle(2, ['budget_alert', 'budget_alert']),
+    unreadNoticesTitle(2, ['budget_alert', 'budget_alert'], titles),
     '有 2 条未读的预算提醒'
   )
-  assert.equal(unreadNoticesTitle(1, ['approval']), '有 1 条未读的审批提醒')
+  assert.equal(unreadNoticesTitle(1, ['approval'], titles), '有 1 条未读的审批提醒')
   assert.equal(
-    unreadNoticesTitle(3, ['budget_alert', 'approval']),
+    unreadNoticesTitle(3, ['budget_alert', 'approval'], titles),
     '有 3 条未读提醒'
   )
 })

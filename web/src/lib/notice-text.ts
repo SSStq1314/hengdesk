@@ -8,6 +8,12 @@ export type NoticeLike = {
   title: string
 }
 
+export type NoticeTitles = {
+  budget: (n: number) => string
+  approval: (n: number) => string
+  mixed: (n: number) => string
+}
+
 // describeNotification 预算告警用 formatBudget 生成用量说明；其它类型（审批等）直接用服务端标题。
 export function describeNotification(
   n: NoticeLike,
@@ -18,13 +24,17 @@ export function describeNotification(
 }
 
 // unreadNoticesTitle 横幅标题随未读类型变化，避免审批通知也写成「预算提醒」。
-export function unreadNoticesTitle(unread: number, kinds: string[]): string {
+export function unreadNoticesTitle(
+  unread: number,
+  kinds: string[],
+  titles: NoticeTitles
+): string {
   const unique = new Set(kinds)
   if (unique.size === 1 && unique.has(NOTICE_KIND_BUDGET)) {
-    return `有 ${unread} 条未读的预算提醒`
+    return titles.budget(unread)
   }
   if (unique.size === 1 && unique.has(NOTICE_KIND_APPROVAL)) {
-    return `有 ${unread} 条未读的审批提醒`
+    return titles.approval(unread)
   }
-  return `有 ${unread} 条未读提醒`
+  return titles.mixed(unread)
 }

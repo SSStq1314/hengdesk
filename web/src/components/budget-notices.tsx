@@ -55,7 +55,13 @@ export function BudgetNotices() {
     <div className='px-4 pt-4' role='status'>
       <Alert>
         <NoticeIcon kinds={kinds} />
-        <AlertTitle>{unreadNoticesTitle(data.unread, kinds)}</AlertTitle>
+        <AlertTitle>
+          {unreadNoticesTitle(data.unread, kinds, {
+            budget: zh.notices.titleBudget,
+            approval: zh.notices.titleApproval,
+            mixed: zh.notices.title,
+          })}
+        </AlertTitle>
         <AlertDescription>
           <ul className='list-disc ps-4'>
             {shown.map((n) => (

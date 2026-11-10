@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import {
   unwrapConversationDetail,
   type ConversationGetResponse,
-} from './conversation-detail.ts'
+} from '../src/lib/conversation-detail.ts'
 
 const conversation = {
   id: 42,

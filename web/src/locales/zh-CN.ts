@@ -103,7 +103,8 @@ export const zh = {
     badgeHint: '不能为空，且必须包含「人工智能生成」或「AI 生成」',
     suffixHint: '不能为空，且必须包含「人工智能生成」或「AI 生成」',
     copyInvalid: '标识文案不能为空，且必须包含「人工智能生成」或「AI 生成」',
-    hasRequiredMark: (s: string) => s.includes('人工智能生成') || s.includes('AI 生成'),
+    hasRequiredMark: (s: string) =>
+      s.includes('人工智能生成') || s.includes('AI 生成'),
     needPerm: '需要 system.settings 权限',
     loading: '加载中…',
   },
@@ -484,6 +485,8 @@ export const zh = {
   },
   notices: {
     title: (n: number) => `有 ${n} 条未读提醒`,
+    titleBudget: (n: number) => `有 ${n} 条未读的预算提醒`,
+    titleApproval: (n: number) => `有 ${n} 条未读的审批提醒`,
     markRead: '全部标记为已读',
     budget: (
       who: string,
