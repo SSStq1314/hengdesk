@@ -876,6 +876,62 @@ var (
 			},
 		},
 	}
+	// UsageHourliesColumns holds the columns for the "usage_hourlies" table.
+	UsageHourliesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "org_id", Type: field.TypeInt},
+		{Name: "bucket_at", Type: field.TypeTime},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "department_id", Type: field.TypeInt, Default: 0},
+		{Name: "model_id", Type: field.TypeInt},
+		{Name: "agent_id", Type: field.TypeInt, Default: 0},
+		{Name: "calls", Type: field.TypeInt64, Default: 0},
+		{Name: "error_calls", Type: field.TypeInt64, Default: 0},
+		{Name: "prompt_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "cached_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "completion_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "reasoning_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "total_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "cost_micros", Type: field.TypeInt64, Default: 0},
+		{Name: "estimated_calls", Type: field.TypeInt64, Default: 0},
+		{Name: "estimated_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "estimated_cost_micros", Type: field.TypeInt64, Default: 0},
+		{Name: "unknown_calls", Type: field.TypeInt64, Default: 0},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// UsageHourliesTable holds the schema information for the "usage_hourlies" table.
+	UsageHourliesTable = &schema.Table{
+		Name:       "usage_hourlies",
+		Columns:    UsageHourliesColumns,
+		PrimaryKey: []*schema.Column{UsageHourliesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "usagehourly_org_id_bucket_at_user_id_department_id_model_id_agent_id",
+				Unique:  true,
+				Columns: []*schema.Column{UsageHourliesColumns[1], UsageHourliesColumns[2], UsageHourliesColumns[3], UsageHourliesColumns[4], UsageHourliesColumns[5], UsageHourliesColumns[6]},
+			},
+			{
+				Name:    "usagehourly_org_id_bucket_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageHourliesColumns[1], UsageHourliesColumns[2]},
+			},
+			{
+				Name:    "usagehourly_org_id_department_id_bucket_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageHourliesColumns[1], UsageHourliesColumns[4], UsageHourliesColumns[2]},
+			},
+			{
+				Name:    "usagehourly_org_id_model_id_bucket_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageHourliesColumns[1], UsageHourliesColumns[5], UsageHourliesColumns[2]},
+			},
+			{
+				Name:    "usagehourly_org_id_agent_id_bucket_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageHourliesColumns[1], UsageHourliesColumns[6], UsageHourliesColumns[2]},
+			},
+		},
+	}
 	// UsageRecordsColumns holds the columns for the "usage_records" table.
 	UsageRecordsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1014,6 +1070,7 @@ var (
 		RolesTable,
 		SystemSettingsTable,
 		ToolsTable,
+		UsageHourliesTable,
 		UsageRecordsTable,
 		UsersTable,
 	}

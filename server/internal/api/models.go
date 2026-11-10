@@ -34,6 +34,7 @@ type modelHandlers struct {
 	gw *gateway.Service
 	bs *budget.Service
 	eg *egress.Client
+	az *authz.Service
 }
 
 type providerView struct {

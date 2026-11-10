@@ -333,6 +333,18 @@ func (f ToolFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ToolMutation", m)
 }
 
+// The UsageHourlyFunc type is an adapter to allow the use of ordinary
+// function as UsageHourly mutator.
+type UsageHourlyFunc func(context.Context, *ent.UsageHourlyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UsageHourlyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UsageHourlyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UsageHourlyMutation", m)
+}
+
 // The UsageRecordFunc type is an adapter to allow the use of ordinary
 // function as UsageRecord mutator.
 type UsageRecordFunc func(context.Context, *ent.UsageRecordMutation) (ent.Value, error)

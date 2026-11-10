@@ -39,6 +39,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/role"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/systemsetting"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/tool"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/usagehourly"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/usagerecord"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
 )
@@ -128,6 +129,7 @@ func checkColumn(t, c string) error {
 			role.Table:             role.ValidColumn,
 			systemsetting.Table:    systemsetting.ValidColumn,
 			tool.Table:             tool.ValidColumn,
+			usagehourly.Table:      usagehourly.ValidColumn,
 			usagerecord.Table:      usagerecord.ValidColumn,
 			user.Table:             user.ValidColumn,
 		})

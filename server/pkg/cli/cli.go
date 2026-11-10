@@ -41,6 +41,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/queue"
 	"github.com/SSStq1314/hengdesk/server/internal/session"
 	"github.com/SSStq1314/hengdesk/server/internal/store"
+	"github.com/SSStq1314/hengdesk/server/internal/usage"
 )
 
 // Main 执行命令行。
@@ -285,6 +286,14 @@ func workerCmd() *cobra.Command {
 			}
 			return err
 		})
+		// FR-32：按小时预聚合用量（上一完整小时 + 当前小时）。
+		mux.HandleFunc(usage.TaskAggregate, func(ctx context.Context, _ *asynq.Task) error {
+			n, err := usage.RebuildRecent(ctx, client, cfg.Timezone, time.Now())
+			if n > 0 {
+				lg.Info("usage hourly aggregated", "rows", n)
+			}
+			return err
+		})
 		if err := srv.Start(mux); err != nil {
 			return err
 		}
@@ -302,6 +311,9 @@ func workerCmd() *cobra.Command {
 			return err
 		}
 		if _, err := sch.Register("@every 1m", asynq.NewTask(approval.TaskContinueSweep, nil), asynq.Unique(50*time.Second)); err != nil {
+			return err
+		}
+		if _, err := sch.Register("@every 10m", asynq.NewTask(usage.TaskAggregate, nil), asynq.Unique(9*time.Minute)); err != nil {
 			return err
 		}
 		if err := sch.Start(); err != nil {
