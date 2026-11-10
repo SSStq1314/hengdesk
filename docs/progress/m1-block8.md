@@ -137,11 +137,13 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 - 界面复跑：`/workspace/hengdesk-demo/fix-verify.md` 于 2026-11-09 21:08–21:13 America/Los_Angeles 对 main `50797cb`（含 #70、#71）跑完 15 步界面剧本，退出码 0，耗时 250 秒；哈希链「链完整，已校验 300 条」；密钥自检 0 命中。#73 随后关闭该记录中「连接复用时放行日志 IP 为空」的遗留。
 - PR3（#69 / `8268127`，2026-11-09 23:38 America/Los_Angeles）：CI「断网 15 步验收」。合入前提交 `c653350` 的 run [42774002679](https://github.com/SSStq1314/hengdesk/actions/runs/42774002679) 全绿：断网探测通过，15 步全部通过，哈希链校验通过，overview=summary=records=676，D-46 文案与导出属主断言通过，mark 之后未发现 `HD_EGRESS`。产品出站控制（D-47 DNS `local_verify`）未改；CI 层 iptables 不放行公网解析器。
 - PR4（#72 / `dec4e1e`，2026-11-09 23:58 America/Los_Angeles）：演示手册、干净安装记录差异、D-48 / D-49 与 POC 交付手册。rebase 到 #69 之后 run [42776879051](https://github.com/SSStq1314/hengdesk/actions/runs/42776879051) 全绿，15 步再次全部通过，mark 之后无 `HD_EGRESS`。
+- 修复 #75（`bf4c9ec`，2026-11-10 01:13 America/Los_Angeles）：SQLite 预算用量窗口按进程本地墙钟比较，避免 TZ=Asia/Shanghai 下当地 ≥ 16:00 时 used=0。
 - 完成报告：本 PR。
+
 
 ## 第八块完成报告
 
-写这份报告时，main 为 `dec4e1e`（已含 #69、#72 及下方修复 PR）。本 PR 合入后以合并提交为准。
+写这份报告时，main 为 `bf4c9ec`（已含 #69、#72、#75 及下方修复 PR）。本 PR 合入后以合并提交为准。
 
 ### PR 与合并提交
 
@@ -156,6 +158,7 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 | #73 | 连接复用时放行日志补全对端 IP（fix-verify 遗留） | `560ca84` | 2026-11-09 21:40 |
 | #69 | PR3：断网环境跑完整 15 步验收（CI iptables + 探测后 mark） | `8268127` | 2026-11-09 23:38 |
 | #72 | PR4：演示手册、干净安装记录差异、D-48 / D-49、POC 交付手册 | `dec4e1e` | 2026-11-09 23:58 |
+| #75 | 修复 SQLite 预算用量窗口在 TZ=Asia/Shanghai 且当地 ≥ 16:00 时漏计（#55 同类，非 Redis） | `bf4c9ec` | 2026-11-10 01:13 |
 | 本 PR | 第八块完成报告（更新对照表最终状态） | 见本 PR 合并提交 | — |
 
 以上均在 CI 全绿后 squash 合入，未强合。#72 在 #69 进 main 之后 rebase 再合。
@@ -167,6 +170,8 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 - 产品出站控制未改（D-47：DNS 默认 `local_verify`）。CI 层 `tests/acceptance/ci/assert-no-egress.sh` 只在 `DOCKER-USER` 上放行已建立连接、RFC1918 / 回环（含 Docker 嵌入 DNS `127.0.0.11`）与相应 IPv6，**不**放行公网解析器的 UDP/TCP 53；验收容器内对 `8.8.8.8` / `1.1.1.1` 与公网域名的解析或连接必须失败。
 - `/workspace/hengdesk-demo/fix-verify.md`：2026-11-09 21:08–21:13 America/Los_Angeles 对 main `50797cb`（已含 #70、#71）复跑界面 15 步，退出码 0，耗时 250 秒。D1–D6 关闭；第 14 步界面「链完整，已校验 300 条」。密钥自检文本 44 个文件、截图 OCR 122 张，命中 0。该记录中「连接复用时放行日志 IP 为空」的遗留已由随后合入的 #73 关闭。
 - 本执行环境无 Docker，15 步实跑仅在 CI 完成；未在本机跑 vLLM CPU 冒烟或正式包干净安装。
+- 本完成报告初稿 CI 的 `go (lint + test)` 曾两次在 `TZ=Asia/Shanghai` 失败（#74 run [42779642770](https://github.com/SSStq1314/hengdesk/actions/runs/42779642770) 及其 rerun）：`TestBudgetBlockAlertReconcile` 等 5 个用例 `used=0` / 未拦截。不是 Redis 偶发（日志里的 `127.0.0.1:45687` 连接拒绝来自 `TestBudgetFailClosed` 故意关闭的 miniredis）。根因与 #55 同类：`DBUsed` 用 `.UTC()` 边界去比 SQLite 进程本地墙钟，上海当地 ≥ 16:00 时把当天用量漏计。已由 #75（`bf4c9ec`）改为按 `time.Local` 比较，并补 16:00 前后单测。生产 PostgreSQL `timestamptz` 按瞬时比较，不受此墙钟问题影响。
+
 
 ### AC-01～AC-17 最终状态（摘要）
 
