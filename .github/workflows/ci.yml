@@ -18,7 +18,12 @@ jobs:
         with: {version: latest, working-directory: server}
       - run: go vet ./...
       # 预算周期默认 Asia/Shanghai（D-37）；与生产进程时区对齐，避免 SQLite 时间比较受 CI 默认 UTC 影响。
-      - run: go test -race ./...
+      # D-47：TZ=UTC 与 Asia/Shanghai 各跑一遍，防止时区相关比较只在一种环境下通过。
+      - name: go test (TZ=UTC)
+        run: go test -race ./...
+        env: {TZ: UTC}
+      - name: go test (TZ=Asia/Shanghai)
+        run: go test -race ./...
         env: {TZ: Asia/Shanghai}
       - run: CGO_ENABLED=0 go build -o /tmp/hengdesk ./cmd/hengdesk
 
@@ -59,6 +64,8 @@ jobs:
           HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -p 1 -run 'PG' ./internal/auditarchive/
           # FR-16 知识库切片存储：pgvector / tsvector 写入、替换、删除
           HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -p 1 -run 'PG' ./internal/kb/
+          # E-1 / D-47：审计哈希链跨进程 advisory lock（2 进程 × 100 并发，0 失败 + 全链校验）
+          HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -p 1 -timeout 3m -run 'PG' ./internal/audit/
       - name: migrate（两次，验证幂等）
         run: /tmp/hengdesk migrate && /tmp/hengdesk migrate
       - name: 审计保留期 CLI（FR-40）

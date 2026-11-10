@@ -5,7 +5,9 @@ package audit
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -59,42 +61,56 @@ func (w EntWriter) Write(ctx context.Context, e Entry) error {
 	if e.UpstreamTraceID == "" {
 		e.UpstreamTraceID = UpstreamTraceFrom(ctx)
 	}
+	d, err := NormalizeDetail(e.Detail)
+	if err != nil {
+		return err
+	}
+	e.Detail = d
 	phase := auditlog.PhaseResult
 	if e.Phase == "attempt" {
 		phase = auditlog.PhaseAttempt
 	}
-	chainMu.Lock()
-	defer chainMu.Unlock()
-	for i := 0; i < chainRetries; i++ {
-		prev, err := w.tip(ctx)
-		if err != nil {
-			return err
-		}
-		ts := time.Now().UTC().Truncate(time.Microsecond)
-		h := canonical(prev, ts, e.OrgID, e.ActorID, e.ActorEmail, e.Action, e.ResourceType, e.ResourceID,
-			string(phase), e.Outcome, e.IP, e.UserAgent, e.RequestID, e.TraceID, e.UpstreamTraceID, e.Detail)
-		q := w.C.AuditLog.Create().SetTs(ts).SetAction(e.Action).SetPhase(phase).
-			SetActorEmail(e.ActorEmail).SetResourceType(e.ResourceType).SetResourceID(e.ResourceID).
-			SetOutcome(e.Outcome).SetIP(e.IP).SetUserAgent(e.UserAgent).
-			SetRequestID(e.RequestID).SetTraceID(e.TraceID).SetUpstreamTraceID(e.UpstreamTraceID).SetPrevHash(prev).SetHash(h)
-		if e.OrgID != 0 {
-			q.SetOrgID(e.OrgID)
-		}
-		if e.ActorID != 0 {
-			q.SetActorID(e.ActorID)
-		}
-		if e.Detail != nil {
-			q.SetDetail(e.Detail)
-		}
-		err = q.Exec(ctx)
-		if err == nil {
-			return nil
-		}
-		if !ent.IsConstraintError(err) {
-			return err
-		}
+	return w.append(ctx, e, phase)
+}
+
+// NormalizeDetail 把 detail 规范成「JSON 往返后」的形态（D5）：struct、具名类型、整数等先 marshal
+// 再 unmarshal 成 map[string]any / []any / float64 / string / bool / nil。
+// 这与从 jsonb（或 SQLite JSON 文本）读回时 ent 的反序列化结果完全一致，所以入链时算的哈希
+// 与 Verify 重算的哈希逐字节相同（json.Marshal 对 map 按键排序）。序列化失败时返回错误（fail-closed）。
+func NormalizeDetail(d map[string]any) (map[string]any, error) {
+	if d == nil {
+		return nil, nil
 	}
-	return errors.New("audit: chain contention")
+	b, err := json.Marshal(d)
+	if err != nil {
+		return nil, fmt.Errorf("audit: detail not serializable: %w", err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(b, &out); err != nil {
+		return nil, fmt.Errorf("audit: detail normalize: %w", err)
+	}
+	return out, nil
+}
+
+// insert 计算哈希并插入一条记录（调用方负责串行化）。
+func insert(ctx context.Context, c *ent.Client, prev string, e Entry, phase auditlog.Phase) error {
+	ts := time.Now().UTC().Truncate(time.Microsecond)
+	h := canonical(prev, ts, e.OrgID, e.ActorID, e.ActorEmail, e.Action, e.ResourceType, e.ResourceID,
+		string(phase), e.Outcome, e.IP, e.UserAgent, e.RequestID, e.TraceID, e.UpstreamTraceID, e.Detail)
+	q := c.AuditLog.Create().SetTs(ts).SetAction(e.Action).SetPhase(phase).
+		SetActorEmail(e.ActorEmail).SetResourceType(e.ResourceType).SetResourceID(e.ResourceID).
+		SetOutcome(e.Outcome).SetIP(e.IP).SetUserAgent(e.UserAgent).
+		SetRequestID(e.RequestID).SetTraceID(e.TraceID).SetUpstreamTraceID(e.UpstreamTraceID).SetPrevHash(prev).SetHash(h)
+	if e.OrgID != 0 {
+		q.SetOrgID(e.OrgID)
+	}
+	if e.ActorID != 0 {
+		q.SetActorID(e.ActorID)
+	}
+	if e.Detail != nil {
+		q.SetDetail(e.Detail)
+	}
+	return q.Exec(ctx)
 }
 
 // ActorFunc 从请求上下文取当前操作者（未登录返回 0, ""）。
