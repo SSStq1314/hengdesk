@@ -376,6 +376,7 @@ jobs:
       - name: 脚本自检
         run: |
           bash -n deploy/install.sh deploy/pack-offline.sh deploy/offline-check.sh deploy/uninstall.sh
+          ./deploy/uninstall_test.sh
           ./deploy/offline-check.sh || true
       - name: 构建并导出离线镜像
         working-directory: deploy

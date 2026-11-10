@@ -73,7 +73,7 @@ cat > "$STAGE/README.md" <<MD
 3. \`./upgrade.sh\`（不要加 \`--build\`）
 
 ## 卸载
-\`./uninstall.sh\`（加 \`--volumes\` 才删数据卷；secrets/ 默认保留）
+\`./uninstall.sh\`（加 \`--volumes\` 才删数据卷，须交互确认或非交互加 \`--yes\`；请先备份；secrets/ 始终保留）
 MD
 
 TAR="$OUT/hengdesk-offline-$VERSION-amd64.tar.gz"

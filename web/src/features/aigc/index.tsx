@@ -32,8 +32,16 @@ export function AigcSettingsPage() {
       setDraft(null)
       qc.invalidateQueries({ queryKey: ['aigc-settings'] })
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message || t.copyInvalid),
   })
+  const onSave = () => {
+    if (!st) return
+    if (!st.badge.trim() || !st.suffix.trim() || !t.hasRequiredMark(st.badge) || !t.hasRequiredMark(st.suffix)) {
+      toast.error(t.copyInvalid)
+      return
+    }
+    save.mutate()
+  }
   return (
     <>
       <Header>
@@ -65,6 +73,7 @@ export function AigcSettingsPage() {
                 value={st.suffix}
                 onChange={(e) => setDraft({ ...st, suffix: e.target.value })}
               />
+              <p className='text-xs text-muted-foreground'>{t.suffixHint}</p>
             </Field>
             <Field label={t.producer}>
               <Input
@@ -78,7 +87,7 @@ export function AigcSettingsPage() {
                 onChange={(e) => setDraft({ ...st, label: e.target.value })}
               />
             </Field>
-            <Button disabled={save.isPending || !draft} onClick={() => save.mutate()}>
+            <Button disabled={save.isPending || !draft} onClick={onSave}>
               {t.save}
             </Button>
           </>

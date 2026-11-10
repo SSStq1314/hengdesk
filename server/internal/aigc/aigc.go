@@ -48,15 +48,15 @@ func Defaults() Settings {
 	return Settings{Badge: DefaultBadge, Suffix: DefaultSuffix, Producer: DefaultProducer, Label: DefaultLabel}
 }
 
-// Normalize 填补空字段为默认值；拒绝「空角标 / 空后缀」以防止实质关闭标识。
+// PhraseAIGen / PhraseAIGenShort 管理员改后的标识文案必须包含二者之一（D-46 第 4 条）。
+const (
+	PhraseAIGen      = "人工智能生成"
+	PhraseAIGenShort = "AI 生成"
+)
+
+// Normalize 填补空的元数据字段为默认值。角标与后缀为空时不填补，由 Validate 拒绝（防止实质关闭标识）。
 func (s Settings) Normalize() Settings {
 	d := Defaults()
-	if strings.TrimSpace(s.Badge) == "" {
-		s.Badge = d.Badge
-	}
-	if strings.TrimSpace(s.Suffix) == "" {
-		s.Suffix = d.Suffix
-	}
 	if strings.TrimSpace(s.Producer) == "" {
 		s.Producer = d.Producer
 	}
@@ -66,14 +66,19 @@ func (s Settings) Normalize() Settings {
 	return s
 }
 
-// Validate 校验：角标须同时暗示 AI 与生成（含「AI」或「人工智能」，且含「生成」或「合成」）。
+// HasRequiredMark 文案是否包含「人工智能生成」或「AI 生成」。
+func HasRequiredMark(s string) bool {
+	return strings.Contains(s, PhraseAIGen) || strings.Contains(s, PhraseAIGenShort)
+}
+
+// Validate 校验：角标与后缀不能为空，且必须包含「人工智能生成」或「AI 生成」（D-46 第 4 条）。
 func (s Settings) Validate() error {
 	s = s.Normalize()
-	b := s.Badge
-	hasAI := strings.Contains(b, "AI") || strings.Contains(b, "人工智能")
-	hasGen := strings.Contains(b, "生成") || strings.Contains(b, "合成")
-	if !hasAI || !hasGen {
-		return fmt.Errorf("显式标识须同时包含「人工智能/AI」与「生成/合成」要素")
+	if strings.TrimSpace(s.Badge) == "" || strings.TrimSpace(s.Suffix) == "" {
+		return fmt.Errorf("标识文案不能为空")
+	}
+	if !HasRequiredMark(s.Badge) || !HasRequiredMark(s.Suffix) {
+		return fmt.Errorf("标识文案必须包含「人工智能生成」或「AI 生成」")
 	}
 	if len([]rune(s.Badge)) > 40 || len([]rune(s.Suffix)) > 200 || len([]rune(s.Producer)) > 80 {
 		return fmt.Errorf("文案过长")
@@ -106,7 +111,7 @@ func Load(ctx context.Context, c *ent.Client) (Settings, error) {
 	return st.Normalize(), nil
 }
 
-// Save 写设置（调用方负责审计）。
+// Save 写设置（调用方负责审计）。空角标/后缀会校验失败，不会回落到默认值。
 func Save(ctx context.Context, c *ent.Client, st Settings, by int) error {
 	st = st.Normalize()
 	if err := st.Validate(); err != nil {
@@ -170,7 +175,8 @@ func AppendSuffix(content, suffix string) string {
 	return c + "\n\n—— " + suffix
 }
 
-// MarkdownComment 导出 Markdown 时写入的 HTML 注释元数据。
-func MarkdownComment(m Meta) string {
-	return fmt.Sprintf("<!-- AIGC %s -->\n", HeaderValue(m))
+// MarkdownFrontMatter 导出 Markdown 时写在文件开头的 YAML front matter（D-46 第 5 条）。
+func MarkdownFrontMatter(m Meta) string {
+	return fmt.Sprintf("---\nAIGC:\n  Label: %q\n  ContentProducer: %q\n  ProduceID: %q\n---\n",
+		m.Label, m.ContentProducer, m.ProduceID)
 }

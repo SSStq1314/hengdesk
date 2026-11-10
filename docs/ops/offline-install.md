@@ -37,9 +37,12 @@ cd deploy
 ## 卸载
 
 ```bash
-./uninstall.sh          # 只删容器
-./uninstall.sh --volumes  # 连同命名卷；secrets/ 仍保留
+./uninstall.sh                 # 只删容器（交互确认）
+./uninstall.sh --volumes       # 连同命名卷；会提示先备份，需交互确认
+./uninstall.sh --volumes --yes # 非交互删除数据卷（必须带 --yes，否则退出非 0）
 ```
+
+`--volumes` 会清除数据库等命名卷中的数据，请先备份。`secrets/`（含 D-36 主密钥）始终保留，请与数据库备份分开保管。非交互模式（无终端）必须加 `--yes`。
 
 ## CI
 

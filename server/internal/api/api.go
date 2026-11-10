@@ -141,7 +141,7 @@ func mount(e *echo.Echo, d Deps) *convHandlers {
 		bs = &budget.Service{DB: d.DB, R: d.Auth.Sessions.R, Log: d.Log, Loc: d.Timezone}
 		d.Budget = bs
 	}
-	mdh := &modelHandlers{db: d.DB, gw: gw, bs: bs, eg: d.Egress, az: az}
+	mdh := &modelHandlers{db: d.DB, gw: gw, bs: bs, eg: d.Egress, az: az, loc: d.Timezone}
 	eh := &egressHandlers{db: d.DB, client: d.Egress, policy: d.EgressPolicy}
 	admin.GET("/egress/rules", eh.listRules, authz.Require(rbac.EgressManage))
 	admin.POST("/egress/rules", eh.createRule, authz.Require(rbac.EgressManage))

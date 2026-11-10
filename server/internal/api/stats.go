@@ -77,16 +77,10 @@ func (h *statsHandlers) usageScope(c echo.Context, f *usage.Filter) error {
 	return nil
 }
 
-func parseStatsRange(c echo.Context) (from, to time.Time, err error) {
+func parseStatsRange(c echo.Context, loc *time.Location) (from, to time.Time, err error) {
+	loc = systemLoc(loc)
 	parseT := func(k string) (time.Time, error) {
-		v := c.QueryParam(k)
-		if v == "" {
-			return time.Time{}, nil
-		}
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			return t, nil
-		}
-		t, err := time.ParseInLocation("2006-01-02", v, time.Local)
+		t, err := parseDateParam(c.QueryParam(k), loc)
 		if err != nil {
 			return t, bad(k + " 格式应为 YYYY-MM-DD 或 RFC3339")
 		}
@@ -102,9 +96,9 @@ func parseStatsRange(c echo.Context) (from, to time.Time, err error) {
 		to = to.AddDate(0, 0, 1)
 	}
 	if from.IsZero() && to.IsZero() {
-		// 默认近 7 天（含今天）
-		now := time.Now().In(time.Local)
-		to = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local).AddDate(0, 0, 1)
+		// 默认近 7 天（含今天），按系统时区切日界
+		now := time.Now().In(loc)
+		to = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc).AddDate(0, 0, 1)
 		from = to.AddDate(0, 0, -7)
 	}
 	return
@@ -113,7 +107,7 @@ func parseStatsRange(c echo.Context) (from, to time.Time, err error) {
 // overview GET /admin/stats/overview：指标卡（活跃用户、对话数、token、成本）。
 func (h *statsHandlers) overview(c echo.Context) error {
 	p := auth.Current(c)
-	from, to, err := parseStatsRange(c)
+	from, to, err := parseStatsRange(c, h.loc)
 	if err != nil {
 		return err
 	}
@@ -178,7 +172,7 @@ func (h *statsHandlers) conversationCount(ctx context.Context, f usage.Filter) (
 // timeseries GET /admin/stats/timeseries?grain=hour|day&group_by=total|model|department|agent
 func (h *statsHandlers) timeseries(c echo.Context) error {
 	p := auth.Current(c)
-	from, to, err := parseStatsRange(c)
+	from, to, err := parseStatsRange(c, h.loc)
 	if err != nil {
 		return err
 	}
@@ -277,10 +271,7 @@ func (h *statsHandlers) seriesFromHourly(ctx context.Context, f usage.Filter, gr
 	}
 	idx := map[string]*acc{}
 	order := []string{}
-	loc := h.loc
-	if loc == nil {
-		loc = time.Local
-	}
+	loc := systemLoc(h.loc)
 	for _, r := range rows {
 		b := r.BucketAt.In(loc)
 		var bucket string
@@ -350,10 +341,7 @@ func (h *statsHandlers) seriesFromRecords(ctx context.Context, f usage.Filter, g
 	}
 	idx := map[string]*acc{}
 	order := []string{}
-	loc := h.loc
-	if loc == nil {
-		loc = time.Local
-	}
+	loc := systemLoc(h.loc)
 	for _, r := range rs {
 		b := r.CreatedAt.In(loc)
 		var bucket string
@@ -461,7 +449,7 @@ func (h *statsHandlers) fillSeriesNames(ctx context.Context, orgID int, by usage
 // summary GET /admin/stats/summary?group_by=user|department|model|agent|total —— 与 /admin/usage/summary 相同，但按 budget.read 裁剪范围。
 func (h *statsHandlers) summary(c echo.Context) error {
 	p := auth.Current(c)
-	f, err := parseUsageFilter(c, p.OrgID)
+	f, err := parseUsageFilter(c, p.OrgID, h.loc)
 	if err != nil {
 		return err
 	}
@@ -537,7 +525,7 @@ func (h *statsHandlers) statsNames(ctx context.Context, orgID int, by usage.Grou
 // export GET /admin/stats/export：导出明细 CSV（最多 usageExportMax 行），记审计；审计失败则不导出。
 func (h *statsHandlers) export(c echo.Context) error {
 	p := auth.Current(c)
-	f, err := parseUsageFilter(c, p.OrgID)
+	f, err := parseUsageFilter(c, p.OrgID, h.loc)
 	if err != nil {
 		return err
 	}

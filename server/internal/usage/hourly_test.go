@@ -71,3 +71,22 @@ func TestSummaryByAgent(t *testing.T) {
 		t.Fatalf("rows=%+v tot=%+v err=%v", rows, tot, err)
 	}
 }
+
+func TestHourBucketTimezoneBoundary(t *testing.T) {
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := time.Date(2026, 11, 10, 0, 30, 0, 0, loc)
+	b := usage.HourBucket(ts, loc)
+	want := time.Date(2026, 11, 10, 0, 0, 0, 0, loc).UTC()
+	if !b.Equal(want) {
+		t.Fatalf("00:30 shanghai bucket %v want %v", b, want)
+	}
+	prev := time.Date(2026, 11, 9, 23, 30, 0, 0, loc)
+	b2 := usage.HourBucket(prev, loc)
+	want2 := time.Date(2026, 11, 9, 23, 0, 0, 0, loc).UTC()
+	if !b2.Equal(want2) {
+		t.Fatalf("23:30 shanghai bucket %v want %v", b2, want2)
+	}
+}

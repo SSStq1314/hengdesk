@@ -4,11 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/SSStq1314/hengdesk/server/internal/api"
+	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 	"github.com/SSStq1314/hengdesk/server/internal/store"
 	"github.com/SSStq1314/hengdesk/server/internal/usage"
@@ -83,13 +88,18 @@ func TestStatsOverviewScopeExport(t *testing.T) {
 		t.Fatalf("timeseries %d %s", rec.Code, rec.Body)
 	}
 
-	// 导出记审计
-	rec = g.admin.do(http.MethodGet, "/api/v1/admin/stats/export", "", false)
+	// 导出记审计（含筛选条件与行数，D-46 第 3 条）
+	rec = g.admin.do(http.MethodGet, "/api/v1/admin/stats/export?from=2020-01-01&to=2099-12-31", "", false)
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "total_tokens") {
 		t.Fatalf("export %d %s", rec.Code, rec.Body)
 	}
-	if n := g.c.AuditLog.Query().Where(auditlog.Action("usage.export")).CountX(ctx); n < 1 {
-		t.Fatalf("export audit %d", n)
+	ex := g.c.AuditLog.Query().Where(auditlog.Action("usage.export"), auditlog.PhaseEQ(auditlog.PhaseResult)).Order(ent.Desc(auditlog.FieldID)).FirstX(ctx)
+	if ex.Detail["rows"] == nil {
+		t.Fatalf("export audit missing rows: %+v", ex.Detail)
+	}
+	raw, _ := json.Marshal(ex.Detail)
+	if !strings.Contains(string(raw), `"rows"`) || !strings.Contains(string(raw), `"from"`) || !strings.Contains(string(raw), `"to"`) {
+		t.Fatalf("export audit filters: %s", raw)
 	}
 
 	// 小时聚合后 timeseries 仍可读
@@ -111,5 +121,87 @@ func TestUsageSummaryBudgetRead(t *testing.T) {
 	// 组织管理员无 ModelManage，但有 BudgetRead，应能看用量
 	if got := oa.do(http.MethodGet, "/api/v1/admin/usage/summary?group_by=total", "", false).Code; got != 200 {
 		t.Fatalf("orgadmin usage summary %d", got)
+	}
+}
+
+func TestD46UsageDetailAuditAndDayBoundary(t *testing.T) {
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := newGW(t, false, func(d *api.Deps) { d.Timezone = loc })
+	ctx := context.Background()
+	org := g.c.Organization.Query().OnlyX(ctx)
+	m := g.c.Model.Query().OnlyX(ctx)
+	dev := g.addUser(t, "dev2@x.local", org, rbac.Member, nil)
+	// 日界：2026-11-10 00:30 上海 = 2026-11-09 16:30 UTC
+	ts := time.Date(2026, 11, 10, 0, 30, 0, 0, loc)
+	g.c.UsageRecord.Create().SetOrgID(org.ID).SetUserID(dev.ID).SetModelID(m.ID).
+		SetModelName(m.Name).SetProviderID(m.ProviderID).SetTotalTokens(42).SetCostMicros(100).
+		SetPromptTokens(20).SetCompletionTokens(22).SetCreatedAt(ts).SaveX(ctx)
+
+	// 按系统时区切日：11-10 含这条，11-09 不含
+	rec := g.admin.do(http.MethodGet, "/api/v1/admin/stats/overview?from=2026-11-10&to=2026-11-10", "", false)
+	if rec.Code != 200 {
+		t.Fatalf("overview 11-10 %d %s", rec.Code, rec.Body)
+	}
+	var ov struct {
+		Totals usage.Totals `json:"totals"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &ov)
+	if ov.Totals.TotalTokens != 42 {
+		t.Fatalf("shanghai 11-10 should include 00:30 record: %+v %s", ov, rec.Body)
+	}
+	rec = g.admin.do(http.MethodGet, "/api/v1/admin/stats/overview?from=2026-11-09&to=2026-11-09", "", false)
+	_ = json.Unmarshal(rec.Body.Bytes(), &ov)
+	if ov.Totals.TotalTokens != 0 {
+		t.Fatalf("shanghai 11-09 should exclude 00:30 record: %+v %s", ov, rec.Body)
+	}
+
+	if _, err := usage.RebuildHours(ctx, g.c, loc, ts.Add(-time.Hour), ts.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	rec = g.admin.do(http.MethodGet, "/api/v1/admin/stats/timeseries?grain=day&group_by=total&from=2026-11-10&to=2026-11-10", "", false)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"2026-11-10"`) {
+		t.Fatalf("timeseries bucket %d %s", rec.Code, rec.Body)
+	}
+	if strings.Contains(rec.Body.String(), `"2026-11-09"`) {
+		t.Fatalf("should not bucket into UTC date 11-09: %s", rec.Body)
+	}
+
+	adminID := g.c.User.Query().Where(user.Email("admin@x.local")).OnlyX(ctx).ID
+	before := g.c.AuditLog.Query().Where(auditlog.Action("usage.detail.read")).CountX(ctx)
+	rec = g.admin.do(http.MethodGet, "/api/v1/admin/usage/records?user_id="+strconv.Itoa(dev.ID), "", false)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"total_tokens":42`) {
+		t.Fatalf("records %d %s", rec.Code, rec.Body)
+	}
+	after := g.c.AuditLog.Query().Where(auditlog.Action("usage.detail.read"), auditlog.PhaseEQ(auditlog.PhaseResult)).CountX(ctx)
+	if after <= before {
+		t.Fatal("missing usage.detail.read audit")
+	}
+	lg := g.c.AuditLog.Query().Where(auditlog.Action("usage.detail.read"), auditlog.PhaseEQ(auditlog.PhaseResult)).Order(ent.Desc(auditlog.FieldID)).FirstX(ctx)
+	raw, _ := json.Marshal(lg.Detail)
+	if !strings.Contains(string(raw), `"rows"`) || !strings.Contains(string(raw), strconv.Itoa(dev.ID)) {
+		t.Fatalf("detail audit %s", raw)
+	}
+
+	before = g.c.AuditLog.Query().Where(auditlog.Action("usage.detail.read")).CountX(ctx)
+	rec = g.admin.do(http.MethodGet, "/api/v1/admin/usage/records?user_id="+strconv.Itoa(adminID), "", false)
+	if rec.Code != 200 {
+		t.Fatalf("own records %d %s", rec.Code, rec.Body)
+	}
+	if got := g.c.AuditLog.Query().Where(auditlog.Action("usage.detail.read")).CountX(ctx); got != before {
+		t.Fatalf("own detail should not audit, %d -> %d", before, got)
+	}
+
+	rec = httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/usage/records", nil)
+	g.h.ServeHTTP(rec, req)
+	if rec.Code != 401 {
+		t.Fatalf("anon records %d", rec.Code)
+	}
+	mem := g.loginAs(t, "dev2@x.local", "password123")
+	if got := mem.do(http.MethodGet, "/api/v1/admin/usage/records", "", false).Code; got != 404 {
+		t.Fatalf("member records %d", got)
 	}
 }
