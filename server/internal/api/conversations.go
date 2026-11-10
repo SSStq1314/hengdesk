@@ -16,6 +16,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/SSStq1314/hengdesk/server/internal/aigc"
 	"github.com/SSStq1314/hengdesk/server/internal/approval"
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
@@ -97,6 +98,9 @@ type msgView struct {
 	UsageEstimated bool `json:"usage_estimated,omitempty"`
 	// AgentDropped 调试会话中因调用者无权而被静默剔除的绑定资源（正式会话不返回）。
 	AgentDropped []schema.AgentDropped `json:"agent_dropped,omitempty"`
+	// AIGC 本条为 AI 生成内容（FR-30）；AIGCBadge 为界面显式角标文案。
+	AIGC      bool   `json:"aigc,omitempty"`
+	AIGCBadge string `json:"aigc_badge,omitempty"`
 }
 
 // enrichConv 补齐智能体名称与开场白（正式取发布版，调试取草稿）。
@@ -128,9 +132,18 @@ func toConv(c *ent.Conversation) convView {
 }
 
 func toMsg(m *ent.Message) msgView {
-	return msgView{ID: m.ID, Role: string(m.Role), Content: m.Content, Status: string(m.Status), ModelName: m.ModelName,
+	return toMsgAIGC(m, aigc.Defaults())
+}
+
+func toMsgAIGC(m *ent.Message, st aigc.Settings) msgView {
+	v := msgView{ID: m.ID, Role: string(m.Role), Content: m.Content, Status: string(m.Status), ModelName: m.ModelName,
 		FallbackFrom: m.FallbackFrom, ErrorCode: m.ErrorCode, Error: m.Error, PromptTokens: m.PromptTokens, UsageEstimated: m.UsageEstimated,
 		CompletionTokens: m.CompletionTokens, CreatedAt: m.CreatedAt, Citations: m.Citations, KBUngrounded: m.KBUngrounded, ToolCalls: m.ToolCalls}
+	if m.Role == message.RoleAssistant {
+		st = st.Normalize()
+		v.AIGC, v.AIGCBadge = true, st.Badge
+	}
+	return v
 }
 
 // own 取当前用户自己的、未删除的会话；其它情况记越权审计并返回 404（不区分不存在与非本人）。
@@ -299,9 +312,17 @@ func (h *convHandlers) get(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	st, err := aigc.Load(c.Request().Context(), h.db)
+	if err != nil {
+		return err
+	}
 	out := make([]msgView, len(ms))
+	var lastMeta aigc.Meta
 	for i, m := range ms {
-		out[i] = toMsg(m)
+		out[i] = toMsgAIGC(m, st)
+		if m.Role == message.RoleAssistant {
+			lastMeta = aigc.BuildMeta(st, m.RequestID, fmt.Sprintf("msg-%d", m.ID))
+		}
 	}
 	if err := h.filterCitations(c.Request().Context(), p, out); err != nil {
 		return err
@@ -318,7 +339,10 @@ func (h *convHandlers) get(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, map[string]any{"conversation": v, "messages": out, "files": fv})
+	if lastMeta.ProduceID != "" {
+		c.Response().Header().Set(aigc.HeaderName, aigc.HeaderValue(lastMeta))
+	}
+	return c.JSON(http.StatusOK, map[string]any{"conversation": v, "messages": out, "files": fv, "aigc": map[string]string{"badge": st.Badge, "suffix": st.Suffix}})
 }
 
 func (h *convHandlers) update(c echo.Context) error {
@@ -893,11 +917,14 @@ func (h *convHandlers) generateWith(c echo.Context, p *auth.Principal, cv *ent.C
 		awaiting, ter = h.runTools(c, p, cv, asst, tmap, st, summary)
 		started = started || c.Response().Committed
 	}
+	aigcSt, _ := aigc.Load(ctx, h.db)
+	aigcSt = aigcSt.Normalize()
 	view := func(status string, used, primary *gateway.Target) msgView {
 		mv := msgView{ID: asst.ID, Role: "assistant", Content: buf.String(), Status: status, ModelName: used.Model.Name,
 			FallbackFrom: fallbackFrom(used, primary), PromptTokens: usage.PromptTokens, UsageEstimated: usage.Estimated,
 			CompletionTokens: usage.CompletionTokens, CreatedAt: asst.CreatedAt, ContextTruncated: ctxCut, HistoryTruncated: histCut,
-			Notice: notice, Citations: cites, KBUngrounded: ungrounded, ToolCalls: st.Calls}
+			Notice: notice, Citations: cites, KBUngrounded: ungrounded, ToolCalls: st.Calls,
+			AIGC: true, AIGCBadge: aigcSt.Badge}
 		if sess != nil && sess.Debug && len(sess.Dropped) > 0 {
 			mv.AgentDropped = sess.Dropped
 		}

@@ -107,6 +107,10 @@ func mount(e *echo.Echo, d Deps) *convHandlers {
 	admin.GET("/chat-retention", rth.get, authz.Require(rbac.SettingsManage))
 	admin.PUT("/chat-retention", rth.put, authz.Require(rbac.SettingsManage))
 	admin.POST("/chat-retention/run", rth.run, authz.Require(rbac.SettingsManage))
+	agh := &aigcHandlers{db: d.DB}
+	admin.GET("/aigc", agh.getAdmin, authz.Require(rbac.SettingsManage))
+	admin.PUT("/aigc", agh.putAdmin, authz.Require(rbac.SettingsManage))
+	g.GET("/aigc", agh.getPublic)
 	// 法律保全（D-41 第 3 条）：安全审计员可设置与解除；超级管理员只能设置（同时通知审计员），解除越权 404。
 	admin.GET("/legal-holds", rth.listHolds, authz.RequireAny(rbac.AuditRead, rbac.SettingsManage))
 	admin.POST("/legal-holds", rth.createHold, authz.RequireAny(rbac.AuditRead, rbac.SettingsManage))
@@ -181,6 +185,7 @@ func mount(e *echo.Echo, d Deps) *convHandlers {
 	g.GET("/conversations", cvh.list)
 	g.POST("/conversations", cvh.create)
 	g.GET("/conversations/:id", cvh.get)
+	g.GET("/conversations/:id/export", cvh.export)
 	g.PATCH("/conversations/:id", cvh.update)
 	g.DELETE("/conversations/:id", cvh.remove)
 	g.POST("/conversations/:id/messages", cvh.send)

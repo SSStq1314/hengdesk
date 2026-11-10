@@ -42,7 +42,7 @@
 | PR | 内容 | 对应 | 状态 |
 |---|---|---|---|
 | PR1 | 本计划；`usage_hourly` 迁移（≤20261209）；按小时聚合 worker；统计 API（overview / timeseries / 按 agent 汇总、部门范围裁剪）；用量导出 CSV + 审计 | FR-32、AC-16 | 本 PR |
-| PR2 | AIGC：系统设置、消息/API 显式与隐式标识、会话导出（含标识）、相关测试 | FR-30、AC-13、演示第 8 步 | 待开始 |
+| PR2 | AIGC：系统设置、消息/API 显式与隐式标识、会话导出（含标识）、相关测试 | FR-30、AC-13、演示第 8 步 | 进行中 |
 | PR3 | 离线包脚本（pack / uninstall / offline-check）、install 离线模式、CI 断网冒烟 job、运维文档 | FR-35、AC-01 | 待开始 |
 | PR4 | Web：概览统计看板、我的用量、对话 AIGC 角标与复制后缀、系统设置 AIGC 文案 | §9.8 / §10、演示第 15 步 | 待开始 |
 | PR5 | 第七块完成报告 | — | 待开始 |
@@ -62,4 +62,6 @@
 
 （每个 PR 合并后在这里补一条：PR 号、squash 提交、内容摘要。）
 
-- PR1（进行中）：计划文档；`usage_hourlies` 迁移 `20261128000000_m1_stats_pr1.sql`；`usage.RebuildHours` / worker 每 10 分钟；`GET /admin/stats/{overview,timeseries,summary,export}`；`group_by=agent`；`budget.read` 部门子树裁剪；导出记 `usage.export` 审计。
+- PR1：计划文档；`usage_hourlies` 迁移 `20261128000000_m1_stats_pr1.sql`；`usage.RebuildHours` / worker 每 10 分钟；`GET /admin/stats/{overview,timeseries,summary,export}`；`group_by=agent`；`budget.read` 部门子树裁剪；导出记 `usage.export` 审计。
+
+- PR2（进行中）：`internal/aigc`；`GET/PUT /admin/aigc`、`GET /aigc`；消息 `aigc`/`aigc_badge`；`X-HengDesk-AIGC` 响应头；会话导出 md/json（显式后缀+元数据）；审计 `conversation.export` / `aigc.settings.update`。
