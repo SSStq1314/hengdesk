@@ -148,8 +148,12 @@ func (s *Service) Applicable(ctx context.Context, sub Subject) ([]*ent.Budget, e
 // DBUsed 从 usage_records 汇总 b 在 w 内的已用量（权威值）。
 // 计入所有用量记录（对话、模型测试、带 usage 的失败调用）；上游超时 / 5xx 且无 usage 的记录为 0，不占预算。
 func (s *Service) DBUsed(ctx context.Context, b *ent.Budget, w Window) (int64, error) {
-	// 边界统一成 UTC 再查：SQLite 在 TZ=UTC 时若用带 +08:00 的边界做比较，会把上海时区当天的用量漏掉。
-	ps := []predicate.UsageRecord{usagerecord.OrgID(b.OrgID), usagerecord.CreatedAtGTE(w.Start.UTC()), usagerecord.CreatedAtLT(w.End.UTC())}
+	// SQLite 把 datetime 存成进程本地墙钟（无时区）。周期按 D-37 在 Asia/Shanghai 切开。
+	// 比较前把边界转到 time.Local，才能同时覆盖：
+	// - TZ=UTC（#55）：不能用带 +08:00 的墙钟去比 UTC 存储的 created_at；
+	// - TZ=Asia/Shanghai 且当地 ≥ 16:00：不能用 End.UTC() 的 16:00 墙钟去比 16:12 的本地存储。
+	// PostgreSQL timestamptz 按瞬时比较，In(time.Local) 与 UTC() 是同一瞬间。
+	ps := []predicate.UsageRecord{usagerecord.OrgID(b.OrgID), usagerecord.CreatedAtGTE(w.Start.In(time.Local)), usagerecord.CreatedAtLT(w.End.In(time.Local))}
 	switch b.Scope {
 	case budget.ScopeUser:
 		ps = append(ps, usagerecord.UserID(b.ScopeID))
