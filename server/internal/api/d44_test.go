@@ -426,3 +426,51 @@ func TestD44RestartDuringContinuation(t *testing.T) {
 		t.Fatalf("%s", last)
 	}
 }
+
+// 审批通过后工具已执行，续写模型被预算拦截：工具结果必须保留在会话里，失败原因是可读的预算提示而不是「Too Many Requests」。
+// 顺序保持「先执行已批准的工具，再续写模型」：批准意味着工具应当执行；预算只约束后续模型调用。结果不丢，由用户在会话中看到并提示预算用尽。
+func TestD44ContinueBudgetExceededKeepsToolResult(t *testing.T) {
+	ce := newContEnv(t)
+	ctx := context.Background()
+	m, apID := ce.awaiting(t)
+	if rec := ce.appr.do(http.MethodPost, fmt.Sprintf("/api/v1/approvals/%d/approve", apID), `{}`, true); rec.Code != 200 {
+		t.Fatalf("approve %d %s", rec.Code, rec.Body)
+	}
+	if n := len(ce.mock.Calls("create_ticket")); n != 1 {
+		t.Fatalf("审批通过后应已执行工具 %d", n)
+	}
+	// 把预算压到已超额后再续写（第一次发送已消耗 token）。工具结果在续写入口同步进会话，即使模型被拦截也可见。
+	if rec := ce.admin.do(http.MethodPost, "/api/v1/admin/budgets", `{"scope":"org","period":"day","metric":"tokens","limit":1}`, true); rec.Code != 201 {
+		t.Fatalf("budget %d %s", rec.Code, rec.Body)
+	}
+	ids := ce.take()
+	if len(ids) == 0 {
+		t.Fatal("没有投递续写任务")
+	}
+	if err := ce.worker().Continue(ctx, ids[0]); err != nil {
+		t.Fatal(err)
+	}
+	m = ce.c.Message.GetX(ctx, m.ID)
+	if m.Status != message.StatusAwaitingApproval || m.ErrorCode != api.AutoContinueFailed {
+		t.Fatalf("应标记自动续写失败 %+v", m)
+	}
+	if !strings.Contains(m.Error, "预算已用尽") || strings.Contains(m.Error, "Too Many Requests") {
+		t.Fatalf("失败原因应为可读预算提示，得到 %q", m.Error)
+	}
+	if n := len(ce.mock.Calls("create_ticket")); n != 1 {
+		t.Fatalf("工具不得重复执行或丢失 %d", n)
+	}
+	if len(m.ToolCalls) == 0 || m.ToolCalls[0].Status != "succeeded" || m.ToolCalls[0].ResultSummary == "" {
+		t.Fatalf("工具结果必须保留在会话里 %+v", m.ToolCalls)
+	}
+	ns := ce.notes(t, "member@x.local")
+	if len(ns) != 1 || !strings.Contains(ns[0].Title, "预算已用尽") {
+		t.Fatalf("发起人提醒应含预算提示 %+v", ns)
+	}
+	rec := ce.mem.do(http.MethodGet, fmt.Sprintf("/api/v1/conversations/%d", ce.conv), ``, false)
+	body := rec.Body.String()
+	if rec.Code != 200 || !strings.Contains(body, `"status":"succeeded"`) ||
+		!strings.Contains(body, "T-1001") || !strings.Contains(body, "预算已用尽") {
+		t.Fatalf("会话应对用户可见工具结果与预算提示 %s", rec.Body)
+	}
+}
