@@ -13,6 +13,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/auditlog"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/tool"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
+	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 )
 
 type approvalResp struct {
@@ -49,6 +50,9 @@ func TestApprovalCenterEndToEnd(t *testing.T) {
 	member := e.c.User.Query().Where(user.Email("member@x.local")).OnlyX(ctx)
 	tl := e.c.Tool.Query().Where(tool.Name("create_ticket")).OnlyX(ctx)
 	tl = e.c.Tool.UpdateOne(tl).SetEnabled(true).SetNeedsReview(false).SetRiskLevel("write").SetApproverIds([]int{appr.ID}).SaveX(ctx)
+	// D-44 第 11 条：执行前复核发起人权限；本测试直接建审批单，也要给发起人 use 授权。
+	e.c.ACL.Create().SetOrgID(org.ID).SetResourceType(rbac.ResTool).SetResourceID(tl.Key).
+		SetSubjectType("user").SetSubjectID(member.ID).SetPerms(int(rbac.BitUse)).ExecX(ctx)
 	mk := func() *ent.Approval {
 		return e.c.Approval.Create().SetOrgID(org.ID).SetToolID(tl.ID).SetToolKey(tl.Key).SetToolName(tl.Name).
 			SetRequesterID(member.ID).SetArgs(map[string]any{"title": "打印机坏了"}).SetApproverIds([]int{appr.ID}).

@@ -57,6 +57,7 @@
 - PR3 #49 → `b47501f`：MCP 工具发现（tools/list 同步，新增 / 变更 / 下线标记待复核）、审批单（待办 / 我发起、通过即执行、驳回 / 撤回 / 超时落库）、工具调用审计（参数脱敏、审计写失败拒绝执行）。CI 全绿。
 - PR4 #50 → `6ad8f7b`：会话选择工具（≤20 个）、工具调用循环（≤5 步，超限 tool_choice=none）、`tool_call` / `approval_pending` 事件、挂起与「继续」接口、拒绝 / 超时 / 撤回结果交回模型、审计写失败拒绝执行；`tool_state` 改用 `rawjson.Raw`（新版 Go 下 ent 会把 json.RawMessage 生成为 jsontext 导入，CI 的 Go 1.26 编译失败）。CI 全绿。
 - PR5 #51 → `7dfc283`：Web 连接器与工具页（服务器登记 / 发现、工具治理、工具授权）、审批中心（待我审批 / 我发起的 / 详情 / 通过 / 驳回 / 撤回）、对话页工具选择、工具调用卡片与「继续」。CI 全绿。
+- D-44：高危永不自动（含超管）、执行前复核发起人权限、空审批人提醒工具管理员、审批结果后 worker 自动续写（「继续」仅兜底）、撤回后自动续写、AC-08 重启恢复测试；P1（步数可配、角色授权 UI）只记文档。决策副本 `docs/decisions/D-44-mcp-approval-defaults.md`。
 
 ## 第五块完成报告（PR6）
 
@@ -81,7 +82,7 @@
 | FR-25 执行策略与审批 / FR-28 审批中心 | 已完成（#47、#49、#50、#51）；高危不可自动执行，不可自批 |
 | FR-27 工具调用审计 | 已完成；参数脱敏，审计写失败即拒绝执行（API 与对话两条路径都有测试） |
 | AC-06 / AC-07 审批通过 / 拒绝 | 已完成，有后端测试；拒绝 / 超时 / 撤回结果交回模型 |
-| AC-08 重启恢复 | 状态全部落库（`tool_state`、审批单），**未单独写重启测试** |
+| AC-08 重启恢复 | 状态全部落库（`tool_state`、审批单）；D-44 补重启恢复测试（等待审批中 / 续写中） |
 | 越权 404 / 未登录 401 | 各接口有测试 |
 
 ### 测试情况
@@ -97,5 +98,25 @@
 2. 「连接器与工具」（`/mcp`，需 `tool.manage`）：登记服务器并点「发现」，看到 `create_ticket`、`query_ticket` 两个工具，状态为禁用。
 3. 把 `query_ticket` 设为只读 / 自动执行并启用；把 `create_ticket` 设为写入 / 需要审批，指定审批人 B 并启用；在「授权」里把两个工具授权给成员 A。
 4. 成员 A 在「对话」里选择这两个工具并提问：只读工具直接执行，卡片显示结果；写入工具卡片显示「等待审批」，发送按钮禁用。
-5. 成员 B 打开「审批中心」（`/approvals`，或点卡片链接）通过 / 驳回；A 回到对话点「继续」，模型根据结果作答。
+5. 成员 B 打开「审批中心」（`/approvals`，或点卡片链接）通过 / 驳回；worker 自动续写后 A 打开对话即可看到结果（自动续写失败时才显示「继续」兜底）。
 6. 「审计日志」里可按 `tool.call`、`approval.*` 过滤查看（参数已脱敏）。
+
+## D-44 落地（产品经理定稿后的补充）
+
+产品经理在 `decisions.md` D-44 对「待确认」做了补充与修改（仓库副本：`docs/decisions/D-44-mcp-approval-defaults.md`）。本段记录相对 PR1–PR6 仍需补齐或改口的项：
+
+| 条目 | D-44 要求 | 落地 |
+|---|---|---|
+| 10 | 高危工具永不自动执行，超级管理员也不能放开 | 保存拒绝 + Decide 兜底；`TestD44HighRiskNeverAutoEvenSuperAdmin` |
+| 11 | 通过即执行，且执行前复核发起人仍有 use 权限 | `approval.Service.Access`；`TestD44RecheckACLBeforeExec` |
+| 13 | 审批人为空时给所有工具管理员发站内提醒 | `Managers` + Create 通知池；`TestD44NotifyManagersWhenNoApprovers` |
+| 15 | worker 自动续写并通知发起人；「继续」仅自动续写失败时兜底 | asynq `approval:continue` + `Continuer`；前端仅 `auto_continue_failed` 显示按钮并轮询 |
+| 16 | 等待审批锁定；撤回解锁并自动续写，告知模型已撤回 | 既有 409 锁定 + Withdraw → OnResolved；`TestD44WithdrawUnlocksAndContinues` |
+| AC-08 | 等待审批中重启、续写中重启须有测试 | `TestD44RestartWhileAwaiting` / `TestD44RestartDuringContinuation` |
+| 17 P1 | 工具调用次数上限可配 | **仅文档，不实现** |
+| 20 P1 | 角色授权 UI | **仅文档，不实现** |
+
+### 进度
+
+- D-44 PR：见本 PR（分支 `feat/d44-approvals`）。后端自动续写、权限复核、管理员提醒、AC-08 重启恢复测试与决策副本一并合入。
+

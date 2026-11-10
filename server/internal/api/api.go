@@ -2,6 +2,7 @@
 package api
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"strconv"
@@ -51,10 +52,15 @@ type Deps struct {
 	KBEnqueue kb.Enqueuer
 	// KBFileMaxBytes 知识库单文件上限，默认 50 MiB（待确认 7）。
 	KBFileMaxBytes int64
+	// ContinueEnqueue 审批有结果后投递自动续写任务（D-44 第 15 条，生产为 asynq）；为 nil 时不自动续写（测试 / 开发）。
+	ContinueEnqueue func(ctx context.Context, messageID int) error
 }
 
 // Mount 挂载路由。所有 /admin 接口都经统一授权层：未登录 401，无权限或越权 404。
-func Mount(e *echo.Echo, d Deps) {
+func Mount(e *echo.Echo, d Deps) { mount(e, d) }
+
+// mount 挂载路由并返回会话处理器（worker 自动续写复用同一套生成逻辑，见 continuer.go）。
+func mount(e *echo.Echo, d Deps) *convHandlers {
 	az := &authz.Service{DB: d.DB}
 	d.Auth.Target = func(c echo.Context) (*ent.User, error) {
 		id, err := strconv.Atoi(c.Param("id"))
@@ -183,7 +189,7 @@ func Mount(e *echo.Echo, d Deps) {
 	mountKB(g, d, az, gw)
 	mcph := mountMCP(admin, d, gw)
 	mountTools(g, admin, d, az)
-	apsvc := newApprovalService(d, mcph)
+	apsvc := newApprovalService(d, mcph, az)
 	mountApprovals(g, apsvc)
 	cvh.az, cvh.ap = az, apsvc
 	mountAgents(g, d, az, cvh)
@@ -206,4 +212,5 @@ func Mount(e *echo.Echo, d Deps) {
 	admin.GET("/roles", rh.matrix, authz.Require(rbac.RoleRead))
 	admin.POST("/users/:id/roles", rh.assign, authz.Require(rbac.RoleAssign))
 	admin.DELETE("/users/:id/roles/:role", rh.revoke, authz.Require(rbac.RoleAssign))
+	return cvh
 }

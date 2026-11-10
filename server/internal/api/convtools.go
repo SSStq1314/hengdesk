@@ -185,6 +185,17 @@ func (h *convHandlers) runTools(c echo.Context, p *auth.Principal, cv *ent.Conve
 	for i, tc := range st.Queue {
 		v := callView(st, tc)
 		var res approval.Result
+		if v.ApprovalID == 0 && v.Status == ToolCallRunning {
+			// AC-08：上次执行到一半进程中断（检查点里仍是 running）：结果未知，不重新执行。
+			res, v.Status, v.ErrorCode = approval.Result{Text: approval.StuckExecMsg, IsError: true}, ToolCallFailed, "interrupted"
+			v.ResultSummary = truncRunes(res.Text, 200)
+			st.Trace = append(st.Trace, toolMessage(tc.ID, res))
+			sse(c, EventToolCall, v)
+			if err := h.checkpoint(ctx, asst.ID, st, i+1); err != nil {
+				return false, err
+			}
+			continue
+		}
 		if v.ApprovalID != 0 {
 			ap, err := h.ap.Get(ctx, a, v.ApprovalID)
 			if err != nil {
@@ -244,6 +255,10 @@ func (h *convHandlers) runTools(c echo.Context, p *auth.Principal, cv *ent.Conve
 						return false, err
 					}
 					v.Status = ToolCallRunning
+					// 执行前先落检查点：进程若在执行中崩溃，恢复时看到 running 就不会再执行一次（AC-08）。
+					if err := h.checkpoint(ctx, asst.ID, st, i); err != nil {
+						return false, err
+					}
 					sse(c, EventToolCall, v)
 					if res, err = h.ap.Execute(ctx, a, t, srv, args, 0); err != nil {
 						v.Status, v.ErrorCode = ToolCallFailed, "audit_failed"
@@ -272,9 +287,24 @@ func (h *convHandlers) runTools(c echo.Context, p *auth.Principal, cv *ent.Conve
 		v.ResultSummary = truncRunes(res.Text, 200)
 		st.Trace = append(st.Trace, toolMessage(tc.ID, res))
 		sse(c, EventToolCall, v)
+		if err := h.checkpoint(ctx, asst.ID, st, i+1); err != nil {
+			return false, err
+		}
 	}
 	st.Queue = nil
 	return false, nil
+}
+
+// checkpoint 把工具循环状态（剩余调用从 st.Queue[from] 开始）落库到 tool_state，供进程重启后恢复续写（AC-08）。
+// 写失败则不继续执行工具。
+func (h *convHandlers) checkpoint(ctx context.Context, msgID int, st *toolState, from int) error {
+	cp := *st
+	cp.Queue = st.Queue[min(from, len(st.Queue)):]
+	b, err := json.Marshal(cp)
+	if err != nil {
+		return err
+	}
+	return h.db.Message.UpdateOneID(msgID).SetToolState(b).Exec(context.WithoutCancel(ctx))
 }
 
 func nonEmptyArgs(s string) string {
@@ -360,7 +390,7 @@ func (h *convHandlers) continueMsg(c echo.Context) error {
 		return err // fail-closed
 	}
 	n, err := h.db.Message.Update().Where(message.ID(m.ID), message.StatusEQ(message.StatusAwaitingApproval)).
-		SetStatus(message.StatusStreaming).Save(ctx)
+		SetStatus(message.StatusStreaming).SetErrorCode("").SetError("").Save(ctx)
 	if err != nil {
 		return err
 	}

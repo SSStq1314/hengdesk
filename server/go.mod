@@ -19,7 +19,7 @@ require (
 	github.com/klippa-app/go-pdfium v1.21.4
 	github.com/labstack/echo/v4 v4.16.3
 	github.com/ledongthuc/pdf v0.0.0-20261020125853-5e46805f718e
-	github.com/mark3labs/mcp-go v1.5.0
+	github.com/mark3labs/mcp-go v1.5.1-0.20261109144041-2f5b9637ea84
 	github.com/redis/go-redis/v9 v9.23.0
 	github.com/spf13/cobra v1.10.2
 	github.com/xuri/excelize/v2 v2.11.1

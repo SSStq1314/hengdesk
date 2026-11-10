@@ -16,10 +16,12 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/approval"
 	"github.com/SSStq1314/hengdesk/server/internal/audit"
 	"github.com/SSStq1314/hengdesk/server/internal/auth"
+	"github.com/SSStq1314/hengdesk/server/internal/authz"
 	"github.com/SSStq1314/hengdesk/server/internal/egress"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	entapproval "github.com/SSStq1314/hengdesk/server/internal/ent/approval"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
+	"github.com/SSStq1314/hengdesk/server/internal/policy"
 	"github.com/SSStq1314/hengdesk/server/internal/rbac"
 )
 
@@ -45,8 +47,67 @@ func (m mcpCaller) Call(ctx context.Context, t *ent.Tool, s *ent.McpServer, args
 	return res.Text, res.IsError, nil
 }
 
-func newApprovalService(d Deps, mh *mcpHandlers) *approval.Service {
-	return &approval.Service{DB: d.DB, Audit: d.Audit, Caller: mcpCaller{h: mh}, Log: d.Log}
+func newApprovalService(d Deps, mh *mcpHandlers, az *authz.Service) *approval.Service {
+	s := &approval.Service{DB: d.DB, Audit: d.Audit, Caller: mcpCaller{h: mh}, Log: d.Log,
+		Access: requesterAccess(d.DB, az), Managers: toolManagers(d.DB)}
+	if d.ContinueEnqueue != nil {
+		lg := d.Log
+		s.OnResolved = func(ctx context.Context, ap *ent.Approval) {
+			if ap.MessageID == nil {
+				return
+			}
+			// 投递失败只记日志：定时补投（approval:continue_sweep）会再投一次。
+			if err := d.ContinueEnqueue(ctx, *ap.MessageID); err != nil && lg != nil {
+				lg.Warn("enqueue approval continue failed", "approval", ap.ID, "message", *ap.MessageID, "err", err)
+			}
+		}
+	}
+	return s
+}
+
+// requesterAccess 按发起人当前的权限现算工具是否可用（策略 + use 授权）；账号已停用 / 删除视为无权限。
+func requesterAccess(db *ent.Client, az *authz.Service) func(ctx context.Context, orgID, userID int, t *ent.Tool) (policy.Decision, error) {
+	return func(ctx context.Context, orgID, userID int, t *ent.Tool) (policy.Decision, error) {
+		p, err := auth.LoadPrincipal(ctx, db, userID)
+		if ent.IsNotFound(err) {
+			return policy.Decision{Reason: "requester_inactive"}, nil
+		}
+		if err != nil {
+			return policy.Decision{}, err
+		}
+		if p.OrgID != orgID {
+			return policy.Decision{Reason: "requester_inactive"}, nil
+		}
+		d, err := az.ToolAccess(ctx, p, t)
+		if err == nil && !d.Usable && d.Reason == "" {
+			d.Reason = "no_permission"
+		}
+		return d, err
+	}
+}
+
+// toolManagers 组织内所有在职、拥有组织范围 tool.manage 的用户（审批人为空时由他们审批）。
+func toolManagers(db *ent.Client) func(ctx context.Context, orgID int) ([]int, error) {
+	return func(ctx context.Context, orgID int) ([]int, error) {
+		ids, err := db.User.Query().Where(user.OrgID(orgID), user.StatusEQ(user.StatusActive)).Order(ent.Asc(user.FieldID)).Limit(5000).IDs(ctx)
+		if err != nil {
+			return nil, err
+		}
+		var out []int
+		for _, id := range ids {
+			p, err := auth.LoadPrincipal(ctx, db, id)
+			if ent.IsNotFound(err) {
+				continue
+			}
+			if err != nil {
+				return out, err
+			}
+			if p.Perms.Has(rbac.ToolManage) {
+				out = append(out, id)
+			}
+		}
+		return out, nil
+	}
 }
 
 type approvalHandlers struct {

@@ -30,6 +30,23 @@ import (
 // TaskExpire 定时把到期的待审批单落库为 expired。
 const TaskExpire = "approval:expire"
 
+// TaskContinue 审批有结果后由 worker 自动续写挂起的回复（D-44 第 15 条），载荷见 ContinuePayload。
+const TaskContinue = "approval:continue"
+
+// TaskContinueSweep 定时补投：漏投的续写任务、进程重启遗留的续写（D-44 第 15 条、AC-08）。
+const TaskContinueSweep = "approval:continue_sweep"
+
+// ContinuePayload 续写任务载荷。
+type ContinuePayload struct {
+	MessageID int `json:"message_id"`
+}
+
+// StuckExecAfter 审批通过后执行一直停在 running（执行中进程崩溃）超过这个时长，按「结果未知」落库，不重试。
+const StuckExecAfter = 15 * time.Minute
+
+// StuckExecMsg 执行中断、结果未知时交回模型的说明。
+const StuckExecMsg = "工具执行过程中服务中断，执行结果未知；为避免重复执行，未重试。"
+
 // NotifyKind 站内提醒类型。
 const NotifyKind = "approval"
 
@@ -54,6 +71,18 @@ type Service struct {
 	Caller Caller
 	Log    *slog.Logger
 	Now    func() time.Time
+	// Access 执行前按发起人当前权限重新判定（authz.ToolAccess：策略 + use 授权，D-44 第 11 条）。nil 时只判策略。
+	Access func(ctx context.Context, orgID, userID int, t *ent.Tool) (policy.Decision, error)
+	// Managers 组织内拥有 tool.manage 的管理员（审批人为空时提醒他们，D-44 第 13 条）。
+	Managers func(ctx context.Context, orgID int) ([]int, error)
+	// OnResolved 审批有结果（通过并执行 / 拒绝 / 超时 / 撤回）后调用，用于投递自动续写任务（D-44 第 15 条）。
+	OnResolved func(ctx context.Context, ap *ent.Approval)
+}
+
+func (s *Service) resolved(ctx context.Context, ap *ent.Approval) {
+	if s.OnResolved != nil && ap != nil {
+		s.OnResolved(context.WithoutCancel(ctx), ap)
+	}
 }
 
 var (
@@ -236,8 +265,17 @@ func (s *Service) Create(ctx context.Context, a Actor, in CreateInput) (*ent.App
 		_ = tx.Rollback()
 		return nil, err
 	}
+	pool := approvers
+	if len(pool) == 0 && s.Managers != nil {
+		// D-44 第 13 条：审批人为空时提醒本组织所有拥有 tool.manage 的管理员（他们可以审批）。
+		ms, err := s.Managers(ctx, a.OrgID)
+		if err != nil {
+			s.log().Error("list tool managers failed", "org", a.OrgID, "err", err)
+		}
+		pool = ms
+	}
 	var recips []int
-	for _, id := range approvers {
+	for _, id := range pool {
 		if id != a.ID {
 			recips = append(recips, id)
 		}
@@ -321,6 +359,7 @@ func (s *Service) expireIfDue(ctx context.Context, ap *ent.Approval) (*ent.Appro
 	}
 	if n == 1 {
 		s.result(ctx, Actor{OrgID: ap.OrgID, Email: "system"}, "approval.expire", fresh, "expired", nil)
+		s.resolved(ctx, fresh)
 	}
 	return fresh, nil
 }
@@ -387,8 +426,15 @@ func (s *Service) Decide(ctx context.Context, a Actor, id int, approve bool, com
 	}
 	s.result(ctx, a, action, ap, "success", map[string]any{"comment": comment})
 	if approve {
-		return s.RunApproved(ctx, ap)
+		ran, err := s.RunApproved(ctx, ap)
+		if ran != nil {
+			s.resolved(ctx, ran)
+		} else {
+			s.resolved(ctx, ap)
+		}
+		return ran, err
 	}
+	s.resolved(ctx, ap)
 	return ap, nil
 }
 
@@ -414,6 +460,7 @@ func (s *Service) Withdraw(ctx context.Context, a Actor, id int) (*ent.Approval,
 		return fresh, ErrNotPending
 	}
 	s.result(ctx, a, "approval.withdraw", fresh, "success", nil)
+	s.resolved(ctx, fresh)
 	return fresh, nil
 }
 
@@ -424,7 +471,7 @@ func (s *Service) RunApproved(ctx context.Context, ap *ent.Approval) (*ent.Appro
 		return ap, nil
 	}
 	n, err := s.DB.Approval.Update().Where(approval.ID(ap.ID), approval.StatusEQ(approval.StatusApproved),
-		approval.ExecStatusEQ(approval.ExecStatusNone)).SetExecStatus(approval.ExecStatusRunning).Save(ctx)
+		approval.ExecStatusEQ(approval.ExecStatusNone)).SetExecStatus(approval.ExecStatusRunning).SetExecutedAt(s.now()).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -461,6 +508,32 @@ func (s *Service) RunApproved(ctx context.Context, ap *ent.Approval) (*ent.Appro
 	if err == nil {
 		email = req.Email
 	}
+	// D-44 第 11 条：审批通过后、执行前，重新确认发起人仍有该工具的使用权限（ACL 可能已被收回、账号可能已停用）。
+	// 没有权限就不执行，把原因作为工具结果交回模型，并写审计（审计写失败同样不执行，回到 none 等待重试）。
+	if s.Access != nil {
+		d, err := s.Access(ctx, ap.OrgID, ap.RequesterID, t)
+		if err != nil {
+			_, _ = s.DB.Approval.UpdateOneID(ap.ID).SetExecStatus(approval.ExecStatusNone).Save(context.WithoutCancel(ctx))
+			return nil, err
+		}
+		if !d.Usable {
+			reason := d.Reason
+			if reason == "" {
+				reason = "no_permission"
+			}
+			if err := s.Audit.Write(ctx, audit.Entry{OrgID: ap.OrgID, ActorID: ap.RequesterID, ActorEmail: email, Action: "tool.call",
+				ResourceType: "tool", ResourceID: fmt.Sprint(t.ID), Phase: "result", Outcome: "denied", TraceID: ap.TraceID,
+				Detail: map[string]any{"tool": t.Key, "approval_id": ap.ID, "reason": reason, "stage": "pre_exec_recheck"}}); err != nil {
+				_, _ = s.DB.Approval.UpdateOneID(ap.ID).SetExecStatus(approval.ExecStatusNone).Save(context.WithoutCancel(ctx))
+				fresh, gerr := s.DB.Approval.Get(context.WithoutCancel(ctx), ap.ID)
+				if gerr != nil {
+					return nil, gerr
+				}
+				return fresh, ErrAudit
+			}
+			return finish(Result{Text: "发起人已没有该工具的使用权限（" + reason + "），未执行。", IsError: true})
+		}
+	}
 	res, err := s.Execute(ctx, Actor{OrgID: ap.OrgID, ID: ap.RequesterID, Email: email}, t, srv, ap.Args, ap.ID)
 	if errors.Is(err, ErrAudit) {
 		_, _ = s.DB.Approval.UpdateOneID(ap.ID).SetExecStatus(approval.ExecStatusNone).Save(context.WithoutCancel(ctx))
@@ -492,4 +565,32 @@ func ModelResult(ap *ent.Approval) (Result, bool) {
 		}
 	}
 	return Result{}, false
+}
+
+// RecoverStuck 审批通过后执行停在 running 超过 StuckExecAfter 的单子（执行中进程崩溃）：按「结果未知」落库为 failed，
+// 不重新执行（AC-08：任务可以重投，但工具不能重复执行）。返回处理的单子。
+func (s *Service) RecoverStuck(ctx context.Context) ([]*ent.Approval, error) {
+	stuck, err := s.DB.Approval.Query().Where(approval.StatusEQ(approval.StatusApproved), approval.ExecStatusEQ(approval.ExecStatusRunning),
+		approval.Or(approval.ExecutedAtIsNil(), approval.ExecutedAtLT(s.now().Add(-StuckExecAfter)))).Limit(200).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []*ent.Approval
+	for _, ap := range stuck {
+		n, err := s.DB.Approval.Update().Where(approval.ID(ap.ID), approval.ExecStatusEQ(approval.ExecStatusRunning)).
+			SetExecStatus(approval.ExecStatusFailed).SetResult(StuckExecMsg).SetResultIsError(true).SetExecutedAt(s.now()).Save(ctx)
+		if err != nil {
+			return out, err
+		}
+		if n == 0 {
+			continue
+		}
+		fresh, err := s.DB.Approval.Get(ctx, ap.ID)
+		if err != nil {
+			return out, err
+		}
+		s.result(ctx, Actor{OrgID: ap.OrgID, Email: "system"}, "approval.exec_interrupted", fresh, "unknown", nil)
+		out = append(out, fresh)
+	}
+	return out, nil
 }

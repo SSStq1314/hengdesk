@@ -7,6 +7,7 @@ package cli
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -127,7 +128,7 @@ func serverCmd() *cobra.Command {
 		}
 		aq := asynq.NewClient(queue.RedisOpt(cfg.RedisAddr))
 		defer func() { _ = aq.Close() }()
-		api.Mount(e, api.Deps{KBStore: kb.PGStore{DB: sqlDB}, KBEnqueue: kb.AsynqEnqueuer{C: aq}, KBFileMaxBytes: int64(cfg.KBFileMaxMB) << 20,
+		api.Mount(e, api.Deps{ContinueEnqueue: continueEnqueuer(aq), KBStore: kb.PGStore{DB: sqlDB}, KBEnqueue: kb.AsynqEnqueuer{C: aq}, KBFileMaxBytes: int64(cfg.KBFileMaxMB) << 20,
 			Files: files, FileLimits: api.FileLimits{MaxBytes: int64(cfg.ChatFileMaxMB) << 20}, Timezone: cfg.Timezone, Gateway: gw, Egress: eg, EgressPolicy: egPolicy, DB: client, Audit: w, Log: lg, Auth: &auth.Service{OIDC: oidcSvc, EnforceSSO: cfg.OIDCEnforce, BreakGlass: cfg.OIDCBreakGlass,
 				DB: client, Audit: w, Secure: cfg.CookieSecure,
 				Sessions:  &session.Store{R: rdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle},
@@ -189,13 +190,14 @@ func workerCmd() *cobra.Command {
 		})
 		// FR-40 / D-40 第 2 条：对话消息保留期清理（默认不开启；开启后按保留期删除，跳过法律保留）。
 		var objs chatretention.ObjectDeleter
+		var convFiles api.FileStore
 		if cfg.S3AccessKey != "" {
 			st, err := objstore.New(objstore.Config{Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, AccessKey: cfg.S3AccessKey,
 				SecretKey: cfg.S3SecretKey, Bucket: cfg.S3Bucket, PathStyle: cfg.S3PathStyle})
 			if err != nil {
 				return fmt.Errorf("对象存储配置错误: %w", err)
 			}
-			objs = st
+			objs, convFiles = st, st
 		}
 		mux.HandleFunc(chatretention.TaskPurge, func(ctx context.Context, _ *asynq.Task) error {
 			res, err := chatretention.Purge(ctx, client, audit.EntWriter{C: client}, objs,
@@ -211,7 +213,7 @@ func workerCmd() *cobra.Command {
 			return nil
 		})
 		// FR-16：知识库文件解析与索引。嵌入调用同样经过出站控制与主密钥。
-		eg, _ := egress.New(client, audit.EntWriter{C: client}, lg)
+		eg, egPolicy := egress.New(client, audit.EntWriter{C: client}, lg)
 		keys, err := gateway.LoadKeyring(cfg.MasterKeyFile, cfg.MasterKey)
 		if err != nil {
 			return masterKeyLoadError(cfg.MasterKeyFile, err)
@@ -236,12 +238,50 @@ func workerCmd() *cobra.Command {
 			}
 			return err
 		})
-		// FR-25 / D-27：到期的待审批单按拒绝（超时）落库；读取时也会实时判定。
-		apx := &approval.Service{DB: client, Audit: audit.EntWriter{C: client}, Log: lg}
+		// D-44 第 15 条：审批有结果后由 worker 以发起人身份自动续写（与「继续」接口同一套逻辑、同一把会话锁）。
+		// 续写需要调用模型与 MCP 工具：网关、出站控制、预算、对象存储与 API 服务一致。
+		enq := continueEnqueuer(aq)
+		cont := api.NewContinuer(api.Deps{DB: client, Audit: audit.EntWriter{C: client}, Log: lg, Timezone: cfg.Timezone,
+			Gateway: &gateway.Service{DB: client, Keys: keys, Client: &gateway.Client{HTTP: eg.HTTP()}}, Egress: eg, EgressPolicy: egPolicy,
+			Budget: wbs, Files: convFiles, FileLimits: api.FileLimits{MaxBytes: int64(cfg.ChatFileMaxMB) << 20},
+			KBStore: kb.PGStore{DB: sqlDB}, KBEnqueue: kb.AsynqEnqueuer{C: aq}, KBFileMaxBytes: int64(cfg.KBFileMaxMB) << 20,
+			ContinueEnqueue: enq,
+			Auth:            &auth.Service{DB: client, Audit: audit.EntWriter{C: client}, Sessions: &session.Store{R: wrdb, TTL: cfg.SessionTTL, IdleTimeout: cfg.SessionIdle}}})
+		// FR-25 / D-27：到期的待审批单按拒绝（超时）落库；读取时也会实时判定。超时同样触发自动续写。
+		apx := cont.Approvals()
 		mux.HandleFunc(approval.TaskExpire, func(ctx context.Context, _ *asynq.Task) error {
 			n, err := apx.ExpireDue(ctx)
 			if n > 0 {
 				lg.Info("approvals expired", "count", n)
+			}
+			return err
+		})
+		mux.HandleFunc(approval.TaskContinue, func(ctx context.Context, t *asynq.Task) error {
+			var pl approval.ContinuePayload
+			if err := json.Unmarshal(t.Payload(), &pl); err != nil || pl.MessageID <= 0 {
+				return fmt.Errorf("bad payload: %w", asynq.SkipRetry)
+			}
+			err := cont.Continue(ctx, pl.MessageID)
+			if err == nil {
+				return nil
+			}
+			retried, _ := asynq.GetRetryCount(ctx)
+			maxRetry, _ := asynq.GetMaxRetry(ctx)
+			if retried >= maxRetry {
+				reason := "系统繁忙"
+				if errors.Is(err, api.ErrContinueBusy) {
+					reason = "会话一直在生成中"
+				}
+				if merr := cont.MarkFailed(context.WithoutCancel(ctx), pl.MessageID, reason); merr != nil {
+					lg.Error("mark auto continue failed", "message", pl.MessageID, "err", merr)
+				}
+			}
+			return err
+		})
+		mux.HandleFunc(approval.TaskContinueSweep, func(ctx context.Context, _ *asynq.Task) error {
+			n, err := cont.Sweep(ctx, enq)
+			if n > 0 {
+				lg.Info("approval continue sweep requeued", "messages", n)
 			}
 			return err
 		})
@@ -261,6 +301,9 @@ func workerCmd() *cobra.Command {
 		if _, err := sch.Register("@every 5m", asynq.NewTask(kb.TaskSweep, nil), asynq.Unique(4*time.Minute)); err != nil {
 			return err
 		}
+		if _, err := sch.Register("@every 1m", asynq.NewTask(approval.TaskContinueSweep, nil), asynq.Unique(50*time.Second)); err != nil {
+			return err
+		}
 		if err := sch.Start(); err != nil {
 			return err
 		}
@@ -270,6 +313,20 @@ func workerCmd() *cobra.Command {
 		srv.Shutdown()
 		return nil
 	}}
+}
+
+// continueEnqueuer 投递自动续写任务（D-44 第 15 条）。同一条消息同时只排一个任务（TaskID 去重）；
+// 锁被占用等临时失败由 asynq 退避重试，重试用尽后标记「自动继续失败」。
+func continueEnqueuer(aq *asynq.Client) func(ctx context.Context, messageID int) error {
+	return func(ctx context.Context, messageID int) error {
+		b, _ := json.Marshal(approval.ContinuePayload{MessageID: messageID})
+		_, err := aq.EnqueueContext(ctx, asynq.NewTask(approval.TaskContinue, b), asynq.TaskID(fmt.Sprintf("approval-continue:%d", messageID)),
+			asynq.MaxRetry(8), asynq.Timeout(30*time.Minute))
+		if errors.Is(err, asynq.ErrTaskIDConflict) {
+			return nil
+		}
+		return err
+	}
 }
 
 func waitDB(ctx context.Context, db *sql.DB) error {

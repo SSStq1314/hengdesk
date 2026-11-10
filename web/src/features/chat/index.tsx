@@ -73,6 +73,12 @@ export function ChatPage() {
     queryKey: ['conversation', active],
     queryFn: () => chatApi.get(active!),
     enabled: active != null,
+    // D-44 第 15 条：审批有结果后 worker 自动续写；轮询直到离开 awaiting_approval。
+    refetchInterval: (q) => {
+      const msgs = q.state.data?.messages ?? []
+      const last = msgs[msgs.length - 1]
+      return last?.status === 'awaiting_approval' && !streaming ? 2000 : false
+    },
   })
 
   const modelItems = models.data?.items ?? []
@@ -114,7 +120,7 @@ export function ChatPage() {
     ...live,
   ]
   const lastId = messages.length ? messages[messages.length - 1].id : null
-  // 最后一条回复在等待审批时不能发送新消息（服务端同样返回 409），需先「继续」。
+  // 最后一条回复在等待审批时不能发送新消息（服务端同样返回 409）；自动续写失败时才显示「继续」。
   const awaiting =
     messages.length > 0 &&
     messages[messages.length - 1].status === 'awaiting_approval'
@@ -266,7 +272,7 @@ export function ChatPage() {
     )
   }
 
-  // resume 审批有结果后继续生成同一条回复（第五块 PR4 的 continue 接口）。
+  // resume 自动续写失败时的兜底「继续」（D-44 第 15 条）；正常路径由 worker 自动续写。
   async function resume(m: ChatMessage) {
     if (streaming || active == null) return
     const id = active
@@ -426,7 +432,8 @@ export function ChatPage() {
                     m.id > 0 &&
                     m.id === lastId &&
                     !streaming &&
-                    m.status === 'awaiting_approval'
+                    m.status === 'awaiting_approval' &&
+                    m.error_code === 'auto_continue_failed'
                       ? () => void resume(m)
                       : undefined
                   }
@@ -578,7 +585,9 @@ function MessageBubble({
         )}
         {m.status === 'awaiting_approval' && (
           <div className='mt-1 flex items-center gap-2 text-xs'>
-            <span className='text-amber-600'>{t.awaiting}</span>
+            <span className='text-amber-600'>
+              {onContinue ? t.autoContinueFailed : t.awaiting}
+            </span>
             {onContinue && (
               <Button
                 size='sm'
