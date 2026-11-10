@@ -11,19 +11,20 @@ import (
 )
 
 type config struct {
-	Base           string
-	AdminEmail     string
-	AdminPassword  string
-	MockMCP        string
-	MockOIDC       string
-	MockUpstream   string
-	MockRedir      string
-	RestartCmd     string
-	SkipOIDC       bool
-	SkipRestart    bool
-	BudgetLimit    int64
-	DataDir        string
-	ComposeProject string
+	Base               string
+	AdminEmail         string
+	AdminPassword      string
+	MockMCP            string
+	MockOIDC           string
+	MockUpstream       string
+	MockRedir          string
+	RestartCmd         string
+	SkipOIDC           bool
+	SkipRestart        bool
+	BudgetLimit        int64
+	DataDir            string
+	RequireNoPublicNet bool
+	ComposeProject     string
 }
 
 func main() {
@@ -41,6 +42,7 @@ func main() {
 	flag.Int64Var(&cfg.BudgetLimit, "budget-limit", 80, "财务部月预算 token 上限（演示用小值）")
 	flag.StringVar(&cfg.DataDir, "data-dir", env("M1ACCEPT_DATA_DIR", ""), "testdata 目录；空则用内置样例")
 	flag.StringVar(&cfg.ComposeProject, "compose-project", env("M1ACCEPT_COMPOSE_PROJECT", "hengdesk"), "compose 项目名（AC-08 经 docker.sock 重启 server 时使用）")
+	flag.BoolVar(&cfg.RequireNoPublicNet, "require-no-public-net", envBool("M1ACCEPT_REQUIRE_NO_PUBLIC_NET"), "断言本进程无法访问外网解析器与公网地址（仅 CI/断网模拟层）")
 	flag.Parse()
 	if cfg.AdminPassword == "" {
 		fmt.Fprintln(os.Stderr, "请通过 -admin-password 或 M1ACCEPT_ADMIN_PASSWORD 提供管理员密码")
@@ -66,6 +68,12 @@ func envBool(k string) bool {
 }
 
 func run(cfg config) error {
+	if cfg.RequireNoPublicNet {
+		if err := probeNoPublicNet(); err != nil {
+			return err
+		}
+		fmt.Println("断网探测通过：验收进程无法访问外网解析器或公网地址")
+	}
 	s := &script{cfg: cfg, started: time.Now()}
 	return s.run()
 }

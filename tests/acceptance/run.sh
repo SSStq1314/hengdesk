@@ -98,6 +98,9 @@ if [ "$COMPOSE" = 1 ]; then
   if [ "$SKIP_OIDC" = 1 ]; then
     ACCEPT_ENV+=(-e M1ACCEPT_SKIP_OIDC=1)
   fi
+  if [ "$OFFLINE" = 1 ]; then
+    ACCEPT_ENV+=(-e M1ACCEPT_REQUIRE_NO_PUBLIC_NET=1)
+  fi
   echo "==> 运行 15 步脚本（容器内访问 http://web；AC-08 经 docker.sock 重启）"
   docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" \
     run --rm --no-deps \
