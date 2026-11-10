@@ -411,7 +411,7 @@ export function AgentDetailPage() {
                           <TableCell>{r.status}</TableCell>
                           <TableCell>
                             {r.steps}/{r.max_steps}
-                            {r.step_limited ? ' · 上限' : ''}
+                            {r.step_limited ? t.stepLimited : ''}
                           </TableCell>
                           <TableCell>{r.tool_calls}</TableCell>
                           <TableCell>{r.model_name || '—'}</TableCell>

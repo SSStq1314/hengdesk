@@ -787,6 +787,7 @@ export const zh = {
     runDropped: '被剔除资源',
     runModel: '模型',
     runStarted: '开始时间',
+    stepLimited: ' · 上限',
     openTrace: '在审计中心打开',
     openChat: '打开对话',
     agentBadge: (name: string) => `智能体：${name}`,
