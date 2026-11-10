@@ -22,5 +22,6 @@
 | D-43 | HNSW 召回参数：ef_search 默认 1000（可按可见比例自适应但不得低于各档目标）、100% 可见档纳入考核（M1 recall@10 ≥0.93、M2 ≥0.95：无过滤路径调大 ef_search 并调 m / ef_construction）、按知识库过滤 P1、M1 验收复测不强制 32 GB | [D-43-hnsw-recall.md](D-43-hnsw-recall.md) |
 | D-44 | MCP 与审批默认值：高危永不自动（含超管）、通过即执行且复核发起人权限、空审批人提醒工具管理员、审批结果后 worker 自动续写（「继续」仅兜底）、等待审批锁定与撤回续写、AC-08 重启恢复测试；工具步数可配与角色授权 UI 列 P1 | [D-44-mcp-approval-defaults.md](D-44-mcp-approval-defaults.md) |
 | D-45 | 智能体运行时：发布快照可回滚、运行时调用人权限交集与越权测试、步数 1–10 默认 5、可逆停用与只读会话；正式下架/上架 P1、委托授权 P2 | [D-45-agent-runtime-defaults.md](D-45-agent-runtime-defaults.md) |
+| D-46 | 统计 / AIGC / 离线包：查看他人明细记审计、日界按系统时区、导出审计含筛选与行数、标识文案校验、导出 front matter、卸载确认与保留 secrets；P1/开放项不进 M1 | [D-46-stats-aigc-offline.md](D-46-stats-aigc-offline.md) |
 
 > D-27（ACL 检索分档策略与性能基线）由产品经理维护，不在此复制。

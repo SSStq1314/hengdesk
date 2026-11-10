@@ -71,13 +71,14 @@ func (h *convHandlers) export(c echo.Context) error {
 		}
 		c.Response().Header().Set(echo.HeaderContentType, "application/json; charset=utf-8")
 		c.Response().Header().Set(echo.HeaderContentDisposition, fmt.Sprintf(`attachment; filename="conversation-%d.json"`, cv.ID))
+		// 隐式标识放在元数据字段 aigc（D-46 第 5 条）
 		return c.JSON(http.StatusOK, map[string]any{
 			"conversation_id": cv.ID, "title": cv.Title, "exported_at": time.Now().UTC(),
 			"aigc": map[string]any{"AIGC": lastMeta}, "messages": items,
 		})
 	}
 	var b strings.Builder
-	b.WriteString(aigc.MarkdownComment(lastMeta))
+	b.WriteString(aigc.MarkdownFrontMatter(lastMeta))
 	title := cv.Title
 	if title == "" {
 		title = "对话"

@@ -30,11 +30,12 @@ import (
 // 模型网关管理（FR-09/10 的一部分）：供应商与模型 CRUD。
 // 上游 API Key 只写不读：接口只返回 has_api_key，不返回明文、密文或片段。
 type modelHandlers struct {
-	db *ent.Client
-	gw *gateway.Service
-	bs *budget.Service
-	eg *egress.Client
-	az *authz.Service
+	db  *ent.Client
+	gw  *gateway.Service
+	bs  *budget.Service
+	eg  *egress.Client
+	az  *authz.Service
+	loc *time.Location
 }
 
 type providerView struct {

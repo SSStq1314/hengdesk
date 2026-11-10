@@ -306,17 +306,11 @@ func (h *modelHandlers) recordTest(c echo.Context, action, resType string, id in
 
 // ---- 用量统计 ----
 
-func parseUsageFilter(c echo.Context, orgID int) (usage.Filter, error) {
+func parseUsageFilter(c echo.Context, orgID int, loc *time.Location) (usage.Filter, error) {
 	f := usage.Filter{OrgID: orgID}
+	loc = systemLoc(loc)
 	parseT := func(k string) (time.Time, error) {
-		v := c.QueryParam(k)
-		if v == "" {
-			return time.Time{}, nil
-		}
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			return t, nil
-		}
-		t, err := time.ParseInLocation("2006-01-02", v, time.Local)
+		t, err := parseDateParam(c.QueryParam(k), loc)
 		if err != nil {
 			return t, bad(k + " 格式应为 YYYY-MM-DD 或 RFC3339")
 		}
@@ -377,7 +371,7 @@ type usageRowView struct {
 // usageSummary GET /admin/usage/summary?group_by=user|department|model|total&from=&to=
 func (h *modelHandlers) usageSummary(c echo.Context) error {
 	p := auth.Current(c)
-	f, err := parseUsageFilter(c, p.OrgID)
+	f, err := parseUsageFilter(c, p.OrgID, h.loc)
 	if err != nil {
 		return err
 	}
@@ -444,10 +438,23 @@ func (h *modelHandlers) names(ctx context.Context, orgID int, by usage.GroupBy, 
 	return out
 }
 
+// auditOthersUsageDetail 查看他人个人用量明细时记审计（D-46 第 1 条）。
+// 仅当过滤条件限定为当前用户本人时不记；审计写失败则拒绝（fail-closed）。
+func auditOthersUsageDetail(c echo.Context, selfID int, f usage.Filter, rows int) error {
+	if f.UserID != nil && *f.UserID == selfID {
+		return nil
+	}
+	return audit.Record(c, audit.Entry{
+		Action: "usage.detail.read", Phase: "result", Outcome: "ok", ResourceType: "usage",
+		Detail: map[string]any{"rows": rows, "from": f.From, "to": f.To,
+			"user_id": f.UserID, "department_ids": f.DeptIDs, "model_id": f.ModelID, "agent_id": f.AgentID},
+	})
+}
+
 // usageRecords GET /admin/usage/records：明细（最近 200 条，可用同样的过滤条件）。
 func (h *modelHandlers) usageRecords(c echo.Context) error {
 	p := auth.Current(c)
-	f, err := parseUsageFilter(c, p.OrgID)
+	f, err := parseUsageFilter(c, p.OrgID, h.loc)
 	if err != nil {
 		return err
 	}
@@ -457,6 +464,9 @@ func (h *modelHandlers) usageRecords(c echo.Context) error {
 	rs, err := usage.List(c.Request().Context(), h.db, f, 200)
 	if err != nil {
 		return err
+	}
+	if err := auditOthersUsageDetail(c, p.ID, f, len(rs)); err != nil {
+		return echo.NewHTTPError(http.StatusServiceUnavailable, "审计不可用，拒绝查看用量明细")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"items": rs})
 }
@@ -507,7 +517,7 @@ func (h *modelHandlers) myUsage(c echo.Context) error {
 	if p == nil {
 		return authz.ErrUnauthenticated
 	}
-	f, err := parseUsageFilter(c, p.OrgID)
+	f, err := parseUsageFilter(c, p.OrgID, h.loc)
 	if err != nil {
 		return err
 	}
