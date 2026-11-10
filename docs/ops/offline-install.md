@@ -1,5 +1,7 @@
 # 离线安装（x86_64 · FR-35 / AC-01）
 
+验收演示步骤见 `docs/demo/m1-acceptance.md`；正式包在干净断网机上的安装记录要求见 `docs/demo/offline-clean-install.md`。
+
 ## 打包（有网构建机）
 
 ```bash
