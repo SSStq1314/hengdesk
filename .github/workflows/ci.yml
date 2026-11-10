@@ -68,6 +68,9 @@ jobs:
           HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -p 1 -timeout 3m -run 'PG' ./internal/audit/
           # 出站日志 append-only：放行记录一次 INSERT 即含 status/IP/耗时，且无 append-only 报错
           HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' go test -count=1 -v -p 1 -run 'PG' ./internal/egress/
+          # D-37 / #75：PG timestamptz 用量窗口，固定时钟模拟上海 16:00–24:00；两种进程 TZ 都跑
+          HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' TZ=UTC go test -count=1 -v -p 1 -run 'PG' ./internal/budget/
+          HENGDESK_PG_IT=1 HENGDESK_TEST_DATABASE_URL='postgres://hengdesk:hengdesk@localhost:5432/hengdesk_it?sslmode=disable' TZ=Asia/Shanghai go test -count=1 -v -p 1 -run 'PG' ./internal/budget/
       - name: migrate（两次，验证幂等）
         run: /tmp/hengdesk migrate && /tmp/hengdesk migrate
       - name: 审计保留期 CLI（FR-40）
