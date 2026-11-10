@@ -411,12 +411,13 @@ jobs:
           export HTTP_PROXY=http://127.0.0.1:9
           export HTTPS_PROXY=http://127.0.0.1:9
           export ALL_PROXY=http://127.0.0.1:9
-          export NO_PROXY=
+          # 本机健康检查与登录不走代理；外连仍被黑洞
+          export NO_PROXY=localhost,127.0.0.1,::1
           ./install.sh --non-interactive --ack-master-key --offline --version ci-offline \
             --storage seaweedfs --admin-password ci-only-password-123 --force --up
-          for i in $(seq 1 90); do curl -fsS localhost:8080/healthz && break; sleep 2; done
-          curl -fsS localhost:8080/healthz
-          curl -fsS -H 'Content-Type: application/json' \
+          for i in $(seq 1 90); do curl --noproxy '*' -fsS localhost:8080/healthz && break; sleep 2; done
+          curl --noproxy '*' -fsS localhost:8080/healthz
+          curl --noproxy '*' -fsS -H 'Content-Type: application/json' \
             -d '{"email":"admin@hengdesk.local","password":"ci-only-password-123"}' localhost:8080/api/v1/auth/login >/dev/null
           ./uninstall.sh -y
       - name: 失败时输出日志
