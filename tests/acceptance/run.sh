@@ -116,14 +116,24 @@ if [ "$COMPOSE" = 1 ]; then
   if [ "$SKIP_OIDC" = 1 ]; then
     ACCEPT_ENV+=(-e M1ACCEPT_SKIP_OIDC=1)
   fi
+  COMPOSE_BIN=(docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml")
   if [ "$OFFLINE" = 1 ]; then
-    ACCEPT_ENV+=(-e M1ACCEPT_REQUIRE_NO_PUBLIC_NET=1)
+    echo "==> 断网探测：验收容器故意访问外网解析器与公网地址，必须失败（iptables 记 HD_EGRESS 并拒绝）"
+    "${COMPOSE_BIN[@]}" run --rm --no-deps "${ACCEPT_ENV[@]}" -e M1ACCEPT_PROBE_ONLY=1 m1accept
+    # 探测日志与 15 步之间留 1 秒，再打 check 起点，避免同一秒的探测记录被算进出站失败。
+    sleep 1
+    EGRESS_SH="$ROOT/tests/acceptance/ci/assert-no-egress.sh"
+    if [ ! -x "$EGRESS_SH" ]; then
+      echo "找不到 $EGRESS_SH，无法标记出站检查起点" >&2
+      exit 1
+    fi
+    if ! sudo -n "$EGRESS_SH" mark; then
+      echo "无法标记出站检查起点（需要免密 sudo）。若不 mark，探测产生的 HD_EGRESS 会被 check 误判为验收出站。" >&2
+      exit 1
+    fi
   fi
   echo "==> 运行 15 步脚本（容器内访问 http://web；AC-08 经 docker.sock 重启）"
-  docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" \
-    run --rm --no-deps \
-    "${ACCEPT_ENV[@]}" \
-    m1accept
+  "${COMPOSE_BIN[@]}" run --rm --no-deps "${ACCEPT_ENV[@]}" m1accept
   exit $?
 fi
 

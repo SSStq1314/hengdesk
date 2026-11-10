@@ -8,13 +8,17 @@
 #
 # 用法：
 #   sudo ./assert-no-egress.sh start
-#   sudo ./assert-no-egress.sh check   # 内核日志出现 HD_EGRESS 则失败
+#   sudo ./assert-no-egress.sh mark    # 探测结束后打点；check 只看此后的 HD_EGRESS
+#   sudo ./assert-no-egress.sh check   # 标记之后（无标记则全部）内核日志出现 HD_EGRESS 则失败
 #   sudo ./assert-no-egress.sh stop
 set -euo pipefail
 CMD="${1:-}"
 CHAIN4=HD_NO_EGRESS
 CHAIN6=HD_NO_EGRESS6
 PREFIX="HD_EGRESS "
+# check 只统计 mark 之后的内核日志。探测阶段故意打外网会被 LOG+REJECT，
+# 那些记录在 mark 之前，不能当成验收出站失败。
+MARK_FILE="${HD_NO_EGRESS_MARK:-/tmp/hengdesk-hd-no-egress-since}"
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
   if command -v sudo >/dev/null && sudo -n true 2>/dev/null; then
@@ -76,6 +80,11 @@ remove6() {
 }
 
 hits() {
+  if [ -f "$MARK_FILE" ]; then
+    since="$(tr -d '\n' < "$MARK_FILE")"
+    journalctl -k --since="$since" --no-pager 2>/dev/null | grep -F "$PREFIX" || true
+    return 0
+  fi
   dmesg -T 2>/dev/null | grep -F "$PREFIX" || true
   journalctl -k -n 500 --no-pager 2>/dev/null | grep -F "$PREFIX" || true
 }
@@ -95,13 +104,19 @@ case "$CMD" in
     fi
     echo "未在内核日志中发现 ${PREFIX} 出站记录"
     ;;
+  mark)
+    # journalctl --since 含等号时刻；调用方应在探测结束后稍等再 mark，避免同一秒的探测日志被算进去。
+    date -u +'%Y-%m-%d %H:%M:%S UTC' | tee "$MARK_FILE" >/dev/null
+    echo "已记录出站检查起点 $(cat "$MARK_FILE")（此前的探测拒绝日志不再计入）"
+    ;;
   stop)
     remove4
     remove6
+    rm -f "$MARK_FILE"
     echo "已拆除出站拦截规则"
     ;;
   *)
-    echo "用法：$0 start|check|stop" >&2
+    echo "用法：$0 start|check|mark|stop" >&2
     exit 2
     ;;
 esac

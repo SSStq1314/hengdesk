@@ -24,6 +24,7 @@ type config struct {
 	BudgetLimit        int64
 	DataDir            string
 	RequireNoPublicNet bool
+	ProbeOnly          bool
 	ComposeProject     string
 }
 
@@ -43,6 +44,7 @@ func main() {
 	flag.StringVar(&cfg.DataDir, "data-dir", env("M1ACCEPT_DATA_DIR", ""), "testdata 目录；空则用内置样例")
 	flag.StringVar(&cfg.ComposeProject, "compose-project", env("M1ACCEPT_COMPOSE_PROJECT", "hengdesk"), "compose 项目名（AC-08 经 docker.sock 重启 server 时使用）")
 	flag.BoolVar(&cfg.RequireNoPublicNet, "require-no-public-net", envBool("M1ACCEPT_REQUIRE_NO_PUBLIC_NET"), "断言本进程无法访问外网解析器与公网地址（仅 CI/断网模拟层）")
+	flag.BoolVar(&cfg.ProbeOnly, "probe-only", envBool("M1ACCEPT_PROBE_ONLY"), "只跑断网探测后退出（供宿主机在探测日志之后打 check 起点）")
 	flag.Parse()
 	if cfg.AdminPassword == "" {
 		fmt.Fprintln(os.Stderr, "请通过 -admin-password 或 M1ACCEPT_ADMIN_PASSWORD 提供管理员密码")
@@ -68,11 +70,14 @@ func envBool(k string) bool {
 }
 
 func run(cfg config) error {
-	if cfg.RequireNoPublicNet {
+	if cfg.RequireNoPublicNet || cfg.ProbeOnly {
 		if err := probeNoPublicNet(); err != nil {
 			return err
 		}
 		fmt.Println("断网探测通过：验收进程无法访问外网解析器或公网地址")
+		if cfg.ProbeOnly {
+			return nil
+		}
 	}
 	s := &script{cfg: cfg, started: time.Now()}
 	return s.run()
