@@ -1055,7 +1055,7 @@ func (s *script) step12() error {
 			}
 			he := asHTTPError(discErr)
 			if he == nil {
-				return fmt.Errorf("AC-09：发现 %s 失败但不是 HTTP 错误：%v", pair.name, discErr)
+				return fmt.Errorf("AC-09：发现 %s 失败但不是 HTTP 错误：%w", pair.name, discErr)
 			}
 			if he.Status != 502 {
 				return fmt.Errorf("AC-09：发现 %s 期望 HTTP 502（出站被拒绝），实际 HTTP %d：%s", pair.name, he.Status, trimBody(he.Body))
@@ -1209,7 +1209,7 @@ func (s *script) step14() error {
 		}
 		he := asHTTPError(err)
 		if he == nil {
-			return fmt.Errorf("超管删除审计失败但不是 HTTP 错误：%v", err)
+			return fmt.Errorf("超管删除审计失败但不是 HTTP 错误：%w", err)
 		}
 		if he.Status != 404 && he.Status != 405 {
 			return fmt.Errorf("超管删除审计应返回 404 或 405，实际 HTTP %d：%s", he.Status, trimBody(he.Body))
