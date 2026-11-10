@@ -1048,10 +1048,15 @@ func (s *script) step12() error {
 				s.log("警告：登记 %s 失败：%v", pair.name, e)
 				continue
 			}
-			_, _, discErr := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/mcp-servers/%d/discover", id), map[string]any{}, 0)
+			// 期望非 2xx。do 的 want=0 不把 4xx/5xx 当错误，这里显式要 200，成功则判定失败。
+			_, _, discErr := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/mcp-servers/%d/discover", id), map[string]any{}, 200)
 			if discErr == nil {
 				return fmt.Errorf("AC-09：发现 %s 不应成功（应被出站拦截）", pair.name)
 			}
+			if he := asHTTPError(discErr); he != nil && he.Status >= 200 && he.Status < 300 {
+				return fmt.Errorf("AC-09：发现 %s 不应成功（应被出站拦截），实际 HTTP %d", pair.name, he.Status)
+			}
+			s.log("发现 %s 已被拦截：%v", pair.name, discErr)
 		}
 	}
 	var logs struct {
