@@ -366,3 +366,63 @@ jobs:
             go-licenses.csv
             npm-licenses.json
           if-no-files-found: warn
+
+  offline-install:
+    name: 断网安装冒烟（AC-01）
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: 脚本自检
+        run: |
+          bash -n deploy/install.sh deploy/pack-offline.sh deploy/offline-check.sh deploy/uninstall.sh
+          ./deploy/offline-check.sh || true
+      - name: 构建并导出离线镜像
+        working-directory: deploy
+        run: |
+          set -euo pipefail
+          ./install.sh --non-interactive --ack-master-key --storage seaweedfs --admin-password ci-only-password-123 --force
+          docker compose build
+          VERSION=ci-offline
+          docker tag "hengdesk/server:dev" "hengdesk/server:$VERSION"
+          docker tag "hengdesk/web:dev" "hengdesk/web:$VERSION"
+          # 依赖镜像未必因 compose build 拉取，显式 pull 后再 save
+          docker pull pgvector/pgvector:0.8.7-pg17
+          docker pull valkey/valkey:8.1.11-alpine
+          docker pull chrislusf/seaweedfs:4.52
+          mkdir -p /tmp/hd-off/images /tmp/hd-off/deploy
+          echo "$VERSION" > /tmp/hd-off/VERSION
+          docker save -o /tmp/hd-off/images/hengdesk-server.tar "hengdesk/server:$VERSION"
+          docker save -o /tmp/hd-off/images/hengdesk-web.tar "hengdesk/web:$VERSION"
+          docker save -o /tmp/hd-off/images/deps.tar \
+            pgvector/pgvector:0.8.7-pg17 valkey/valkey:8.1.11-alpine chrislusf/seaweedfs:4.52
+          # 干净部署目录（不含旧 .env / volumes）
+          cp -a . /tmp/hd-off/deploy/
+          rm -f /tmp/hd-off/deploy/.env
+          docker compose down --volumes --remove-orphans || true
+          # 删除本地镜像，强迫只能从 tar load（模拟离线机）
+          docker rmi "hengdesk/server:$VERSION" "hengdesk/web:$VERSION" "hengdesk/server:dev" "hengdesk/web:dev" \
+            pgvector/pgvector:0.8.7-pg17 valkey/valkey:8.1.11-alpine chrislusf/seaweedfs:4.52 || true
+      - name: 断网环境 load + install（代理黑洞 + --pull never）
+        run: |
+          set -euo pipefail
+          cd /tmp/hd-off/deploy
+          # 任何意外 pull 都会失败
+          export HTTP_PROXY=http://127.0.0.1:9
+          export HTTPS_PROXY=http://127.0.0.1:9
+          export ALL_PROXY=http://127.0.0.1:9
+          # 本机健康检查与登录不走代理；外连仍被黑洞
+          export NO_PROXY=localhost,127.0.0.1,::1
+          ./install.sh --non-interactive --ack-master-key --offline --version ci-offline \
+            --storage seaweedfs --admin-password ci-only-password-123 --force --up
+          for i in $(seq 1 90); do curl --noproxy '*' -fsS localhost:8080/healthz && break; sleep 2; done
+          curl --noproxy '*' -fsS localhost:8080/healthz
+          curl --noproxy '*' -fsS -H 'Content-Type: application/json' \
+            -d '{"email":"admin@hengdesk.local","password":"ci-only-password-123"}' localhost:8080/api/v1/auth/login >/dev/null
+          ./uninstall.sh -y
+      - name: 失败时输出日志
+        if: failure()
+        run: |
+          cd /tmp/hd-off/deploy 2>/dev/null || cd deploy
+          docker compose ps -a || true
+          docker compose logs --no-color --tail 200 || true
