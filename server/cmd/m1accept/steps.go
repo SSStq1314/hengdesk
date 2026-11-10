@@ -2,15 +2,20 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/SSStq1314/hengdesk/server/internal/egress"
 )
 
 const (
@@ -147,22 +152,51 @@ func (s *script) allowEgress(raw, note string) error {
 	if i := strings.LastIndex(hostport, ":"); i > 0 && !strings.Contains(hostport[i:], "]") {
 		host, ports = hostport[:i], hostport[i+1:]
 	}
+	if err := s.postEgressRule("host", host, ports, note); err != nil {
+		return err
+	}
+	s.log("已放行出站 %s 端口 %s", host, ports)
+	// 产品出站控制：host 规则解析到 RFC1918 / 环回等内网地址时仍拒绝，须再用 ip/cidr 显式放行（D-38）。
+	// 验收 mock 都在 compose 网段内，这里解析后补 ip 规则；不改产品出站行为。
+	if _, perr := netip.ParseAddr(host); perr == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	addrs, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+	if err != nil || len(addrs) == 0 {
+		s.log("警告：无法解析 %s，未补内网 ip 规则：%v", host, err)
+		return nil
+	}
+	for _, a := range addrs {
+		a = a.Unmap()
+		if !egress.IsInternal(a) {
+			continue
+		}
+		ip := a.String()
+		if err := s.postEgressRule("ip", ip, ports, note+"（"+host+" 解析到的内网地址）"); err != nil {
+			return err
+		}
+		s.log("已放行出站内网地址 %s 端口 %s（%s）", ip, ports, host)
+	}
+	return nil
+}
+
+func (s *script) postEgressRule(kind, value, ports, note string) error {
 	var out map[string]any
 	_, err := s.admin.json(http.MethodPost, "/api/v1/admin/egress/rules", map[string]any{
-		"kind": "host", "value": host, "ports": ports, "note": note,
+		"kind": kind, "value": value, "ports": ports, "note": note,
 	}, 201, &out)
 	if err != nil {
 		if he := asHTTPError(err); he != nil && (he.Status == 409 || he.Status == 400) && strings.Contains(he.Body, "已存在") {
-			s.log("出站规则已存在：%s:%s", host, ports)
+			s.log("出站规则已存在：%s %s:%s", kind, value, ports)
 			return nil
 		}
-		// 有的实现用 200 表示更新
 		if he := asHTTPError(err); he != nil && he.Status == 200 {
 			return nil
 		}
-		return fmt.Errorf("添加出站白名单 %s:%s：%w", host, ports, err)
+		return fmt.Errorf("添加出站白名单 %s %s:%s：%w", kind, value, ports, err)
 	}
-	s.log("已放行出站 %s 端口 %s", host, ports)
 	return nil
 }
 
