@@ -1,4 +1,4 @@
-// Package oidctest 提供一个最小的 OIDC 模拟 IdP，仅用于测试（自行编写，不含第三方 IdP 代码）。
+// Package oidctest 提供一个最小的 OIDC 模拟 IdP，仅用于测试与 M1 演示（自行编写，不含第三方 IdP 代码）。
 //
 // 支持 discovery、JWKS、/authorize（自动同意，返回 code）、/token（校验 client 凭据与 PKCE S256）。
 package oidctest
@@ -20,7 +20,7 @@ import (
 	"github.com/go-jose/go-jose/v4/jwt"
 )
 
-// Identity 下一次登录时 IdP 返回的身份。
+// Identity 登录时 IdP 返回的身份。
 type Identity struct {
 	Sub           string
 	Email         string
@@ -39,10 +39,14 @@ type grant struct {
 // IdP 模拟身份提供方。
 type IdP struct {
 	*httptest.Server
+	// BaseURL 对外公布的 issuer（发现文档与 ID Token 的 iss）。空则用 httptest 的 URL。
+	// 容器网络里应设为 http://mockoidc:18081 这类对端都能访问的地址。
+	BaseURL                string
 	ClientID, ClientSecret string
 
 	mu     sync.Mutex
 	next   Identity
+	users  map[string]Identity // 按邮箱注册，authorize 可用 login_hint 选用
 	codes  map[string]grant
 	tokens map[string]Identity
 	key    *rsa.PrivateKey
@@ -51,8 +55,7 @@ type IdP struct {
 	BadNonce bool
 }
 
-// New 启动模拟 IdP。
-func New(clientID, secret string) *IdP {
+func newIDP(clientID, secret string) *IdP {
 	k, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		panic(err)
@@ -61,19 +64,84 @@ func New(clientID, secret string) *IdP {
 	if err != nil {
 		panic(err)
 	}
-	m := &IdP{ClientID: clientID, ClientSecret: secret, codes: map[string]grant{}, tokens: map[string]Identity{}, key: k, signer: sg}
+	return &IdP{ClientID: clientID, ClientSecret: secret, users: map[string]Identity{}, codes: map[string]grant{}, tokens: map[string]Identity{}, key: k, signer: sg}
+}
+
+func (m *IdP) mux() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/.well-known/openid-configuration", m.discovery)
 	mux.HandleFunc("/jwks", m.jwks)
 	mux.HandleFunc("/authorize", m.authorize)
 	mux.HandleFunc("/token", m.token)
 	mux.HandleFunc("/userinfo", m.userinfo)
-	m.Server = httptest.NewServer(mux)
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
+	mux.HandleFunc("/set-identity", m.setIdentityHTTP)
+	return mux
+}
+
+// New 启动 httptest 模拟 IdP（单元测试用）。
+func New(clientID, secret string) *IdP {
+	m := newIDP(clientID, secret)
+	m.Server = httptest.NewServer(m.mux())
 	return m
 }
 
-// SetIdentity 设置下一次登录的身份。
+// NewStandalone 构造可在真实端口上 Serve 的 IdP（演示 / 验收用）。publicURL 为 issuer，例如 http://mockoidc:18081。
+func NewStandalone(clientID, secret, publicURL string) *IdP {
+	m := newIDP(clientID, secret)
+	m.BaseURL = strings.TrimRight(publicURL, "/")
+	return m
+}
+
+// Handler 返回 HTTP 处理函数，供 ListenAndServe 使用。
+func (m *IdP) Handler() http.Handler { return m.mux() }
+
+// Issuer 发现文档与 ID Token 中的 iss。
+func (m *IdP) Issuer() string {
+	if m.BaseURL != "" {
+		return strings.TrimRight(m.BaseURL, "/")
+	}
+	if m.Server != nil {
+		return m.URL
+	}
+	return ""
+}
+
+// SetIdentity 设置下一次登录的默认身份（无 login_hint 且未命中已注册用户时使用）。
 func (m *IdP) SetIdentity(id Identity) { m.mu.Lock(); m.next = id; m.mu.Unlock() }
+
+// AddUser 注册一个可被 login_hint 选中的用户。
+func (m *IdP) AddUser(id Identity) {
+	email := strings.ToLower(strings.TrimSpace(id.Email))
+	if email == "" {
+		return
+	}
+	if id.Sub == "" {
+		id.Sub = email
+	}
+	m.mu.Lock()
+	m.users[email] = id
+	m.mu.Unlock()
+}
+
+func (m *IdP) pick(r *http.Request) Identity {
+	q := r.URL.Query()
+	hint := strings.ToLower(strings.TrimSpace(q.Get("login_hint")))
+	if hint == "" {
+		hint = strings.ToLower(strings.TrimSpace(q.Get("hd_user")))
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if hint != "" {
+		if id, ok := m.users[hint]; ok {
+			return id
+		}
+	}
+	if m.next.Email != "" || m.next.Sub != "" {
+		return m.next
+	}
+	return Identity{}
+}
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -81,10 +149,28 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+func (m *IdP) setIdentityHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var id Identity
+	if err := json.NewDecoder(r.Body).Decode(&id); err != nil || (id.Email == "" && id.Sub == "") {
+		http.Error(w, "bad identity", http.StatusBadRequest)
+		return
+	}
+	m.SetIdentity(id)
+	if id.Email != "" {
+		m.AddUser(id)
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "email": id.Email})
+}
+
 func (m *IdP) discovery(w http.ResponseWriter, _ *http.Request) {
+	iss := m.Issuer()
 	writeJSON(w, 200, map[string]any{
-		"issuer": m.URL, "authorization_endpoint": m.URL + "/authorize", "token_endpoint": m.URL + "/token",
-		"jwks_uri": m.URL + "/jwks", "userinfo_endpoint": m.URL + "/userinfo", "response_types_supported": []string{"code"},
+		"issuer": iss, "authorization_endpoint": iss + "/authorize", "token_endpoint": iss + "/token",
+		"jwks_uri": iss + "/jwks", "userinfo_endpoint": iss + "/userinfo", "response_types_supported": []string{"code"},
 		"subject_types_supported": []string{"public"}, "id_token_signing_alg_values_supported": []string{"RS256"},
 		"code_challenge_methods_supported": []string{"S256"},
 	})
@@ -106,9 +192,10 @@ func (m *IdP) authorize(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid_request", http.StatusBadRequest)
 		return
 	}
+	id := m.pick(r)
 	code := rnd()
 	m.mu.Lock()
-	m.codes[code] = grant{challenge: q.Get("code_challenge"), nonce: q.Get("nonce"), redirect: q.Get("redirect_uri"), id: m.next}
+	m.codes[code] = grant{challenge: q.Get("code_challenge"), nonce: q.Get("nonce"), redirect: q.Get("redirect_uri"), id: id}
 	m.mu.Unlock()
 	u, _ := url.Parse(q.Get("redirect_uri"))
 	v := u.Query()
@@ -143,7 +230,8 @@ func (m *IdP) token(w http.ResponseWriter, r *http.Request) {
 		nonce = "wrong"
 	}
 	now := time.Now()
-	claims := map[string]any{"iss": m.URL, "aud": m.ClientID, "sub": g.id.Sub, "nonce": nonce,
+	iss := m.Issuer()
+	claims := map[string]any{"iss": iss, "aud": m.ClientID, "sub": g.id.Sub, "nonce": nonce,
 		"iat": now.Unix(), "exp": now.Add(5 * time.Minute).Unix(),
 		"email": g.id.Email, "email_verified": g.id.EmailVerified, "name": g.id.Name}
 	if !g.id.ExtraInUserInfo {
@@ -172,7 +260,7 @@ func (m *IdP) userinfo(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 401, map[string]string{"error": "invalid_token"})
 		return
 	}
-	out := map[string]any{"sub": id.Sub, "email": id.Email, "email_verified": id.EmailVerified}
+	out := map[string]any{"sub": id.Sub, "email": id.Email, "email_verified": id.EmailVerified, "name": id.Name}
 	for k, v := range id.Extra {
 		out[k] = v
 	}

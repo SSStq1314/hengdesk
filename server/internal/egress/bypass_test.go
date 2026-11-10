@@ -33,6 +33,11 @@ func TestNoEgressBypass(t *testing.T) {
 			case "internal/egress", "internal/ent", "node_modules", "vendor":
 				return filepath.SkipDir
 			}
+			// cmd/m1accept 是对已安装实例和 docker.sock 发请求的验收脚本；
+			// cmd/mock* 是断网演示依赖。它们不是产品出站路径。
+			if rel == "cmd/m1accept" || strings.HasPrefix(rel, "cmd/mock") {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {

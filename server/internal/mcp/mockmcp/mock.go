@@ -127,8 +127,12 @@ func (m *Mock) Handler() http.Handler {
 	mux.Handle("/sse", sse.SSEHandler())
 	mux.Handle("/message", sse.MessageHandler())
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
+	mux.HandleFunc("/calls", m.serveCalls)
+	mux.HandleFunc("/calls/reset", m.serveReset)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if m.Token != "" && r.URL.Path != "/healthz" && r.Header.Get("Authorization") != "Bearer "+m.Token &&
+		// /healthz、/calls 供验收脚本统计 AC-06，不走 MCP 鉴权。
+		open := r.URL.Path == "/healthz" || r.URL.Path == "/calls" || r.URL.Path == "/calls/reset"
+		if m.Token != "" && !open && r.Header.Get("Authorization") != "Bearer "+m.Token &&
 			!strings.HasPrefix(r.URL.Path, "/message") { // SSE 消息端点靠会话 ID 关联，鉴权在 /sse 建立时完成
 			m.authErr.Add(1)
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -136,6 +140,34 @@ func (m *Mock) Handler() http.Handler {
 		}
 		mux.ServeHTTP(w, r)
 	})
+}
+
+// serveCalls GET /calls：各工具实际收到的调用次数与参数（AC-06）。
+func (m *Mock) serveCalls(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	m.mu.Lock()
+	out := map[string]any{}
+	for name, calls := range m.calls {
+		out[name] = calls
+	}
+	m.mu.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(out)
+}
+
+// serveReset POST /calls/reset：清空调用记录。
+func (m *Mock) serveReset(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	m.mu.Lock()
+	m.calls = map[string][]map[string]any{}
+	m.mu.Unlock()
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // Server 测试用：启动 httptest server。
