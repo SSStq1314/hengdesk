@@ -66,6 +66,8 @@ type Tx struct {
 	SystemSetting *SystemSettingClient
 	// Tool is the client for interacting with the Tool builders.
 	Tool *ToolClient
+	// UsageHourly is the client for interacting with the UsageHourly builders.
+	UsageHourly *UsageHourlyClient
 	// UsageRecord is the client for interacting with the UsageRecord builders.
 	UsageRecord *UsageRecordClient
 	// User is the client for interacting with the User builders.
@@ -228,6 +230,7 @@ func (tx *Tx) init() {
 	tx.Role = NewRoleClient(tx.config)
 	tx.SystemSetting = NewSystemSettingClient(tx.config)
 	tx.Tool = NewToolClient(tx.config)
+	tx.UsageHourly = NewUsageHourlyClient(tx.config)
 	tx.UsageRecord = NewUsageRecordClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }

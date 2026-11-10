@@ -1,4 +1,4 @@
-// Package usage 模型调用用量：写入 usage_records、按价格表计费、按人 / 部门 / 模型汇总。
+// Package usage 模型调用用量：写入 usage_records、按价格表计费、按人 / 部门 / 模型 / 智能体汇总。
 // 这是 PR3 预算与配额的数据源：预算检查直接复用 Summary（或同样的过滤条件）读取已用金额 / token。
 //
 // 金额单位为「微元」（1 元 = 1e6 微元），价格为「每百万 token 的微元数」，全程整数运算。
@@ -123,10 +123,11 @@ type Filter struct {
 	UserID  *int
 	DeptIDs []int // 任一部门（PR3 部门预算可传入部门子树）
 	ModelID *int
-	Purpose string // 为空表示全部；chat / test
+	AgentID *int   // 智能体维度（第七块）；nil 不限
+	Purpose string // 为空表示全部；chat / test / embedding
 }
 
-func (f Filter) predicates() []predicate.UsageRecord {
+func (f Filter) Predicates() []predicate.UsageRecord {
 	ps := []predicate.UsageRecord{usagerecord.OrgID(f.OrgID)}
 	if !f.From.IsZero() {
 		ps = append(ps, usagerecord.CreatedAtGTE(f.From))
@@ -143,6 +144,9 @@ func (f Filter) predicates() []predicate.UsageRecord {
 	if f.ModelID != nil {
 		ps = append(ps, usagerecord.ModelID(*f.ModelID))
 	}
+	if f.AgentID != nil {
+		ps = append(ps, usagerecord.AgentID(*f.AgentID))
+	}
 	if f.Purpose != "" {
 		ps = append(ps, usagerecord.PurposeEQ(usagerecord.Purpose(f.Purpose)))
 	}
@@ -156,6 +160,7 @@ const (
 	ByUser  GroupBy = "user"
 	ByDept  GroupBy = "department"
 	ByModel GroupBy = "model"
+	ByAgent GroupBy = "agent"
 	ByNone  GroupBy = "total"
 )
 
@@ -186,6 +191,7 @@ type aggRow struct {
 	UserID     sql.NullInt64 `json:"user_id"`
 	DeptID     sql.NullInt64 `json:"department_id"`
 	ModelID    sql.NullInt64 `json:"model_id"`
+	AgentID    sql.NullInt64 `json:"agent_id"`
 	Estimated  bool          `json:"estimated"`
 	Unknown    bool          `json:"usage_unknown"`
 	Status     string        `json:"status"`
@@ -206,6 +212,8 @@ func (r aggRow) key(by GroupBy) int {
 		return int(r.DeptID.Int64)
 	case ByModel:
 		return int(r.ModelID.Int64)
+	case ByAgent:
+		return int(r.AgentID.Int64)
 	}
 	return 0
 }
@@ -220,13 +228,15 @@ func Summary(ctx context.Context, db *ent.Client, by GroupBy, f Filter) ([]Row, 
 		fields = append(fields, usagerecord.FieldDepartmentID)
 	case ByModel:
 		fields = append(fields, usagerecord.FieldModelID)
+	case ByAgent:
+		fields = append(fields, usagerecord.FieldAgentID)
 	case ByNone, "":
 		by = ByNone
 	default:
 		return nil, Totals{}, ErrBadGroup
 	}
 	var rows []aggRow
-	err := db.UsageRecord.Query().Where(f.predicates()...).GroupBy(fields[0], fields[1:]...).Aggregate(
+	err := db.UsageRecord.Query().Where(f.Predicates()...).GroupBy(fields[0], fields[1:]...).Aggregate(
 		ent.As(ent.Count(), "calls"),
 		ent.As(ent.Sum(usagerecord.FieldPromptTokens), "prompt"),
 		ent.As(ent.Sum(usagerecord.FieldCachedTokens), "cached"),
@@ -301,6 +311,6 @@ var ErrBadGroup = errors.New("usage: 不支持的分组维度")
 
 // List 按时间倒序返回明细，最多 limit 条。
 func List(ctx context.Context, db *ent.Client, f Filter, limit int) ([]*ent.UsageRecord, error) {
-	return db.UsageRecord.Query().Where(f.predicates()...).Order(ent.Desc(usagerecord.FieldCreatedAt), ent.Desc(usagerecord.FieldID)).
+	return db.UsageRecord.Query().Where(f.Predicates()...).Order(ent.Desc(usagerecord.FieldCreatedAt), ent.Desc(usagerecord.FieldID)).
 		Limit(limit).All(ctx)
 }

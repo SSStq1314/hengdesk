@@ -15,6 +15,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/authz"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/acl"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/agent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/department"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/model"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/modelprovider"
@@ -348,6 +349,9 @@ func parseUsageFilter(c echo.Context, orgID int) (usage.Filter, error) {
 	if f.ModelID, err = intp("model_id"); err != nil {
 		return f, err
 	}
+	if f.AgentID, err = intp("agent_id"); err != nil {
+		return f, err
+	}
 	d, err := intp("department_id")
 	if err != nil {
 		return f, err
@@ -377,6 +381,9 @@ func (h *modelHandlers) usageSummary(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := (&statsHandlers{db: h.db, az: h.az}).usageScope(c, &f); err != nil {
+		return err
+	}
 	by := usage.GroupBy(c.QueryParam("group_by"))
 	if by == "" {
 		by = usage.ByModel
@@ -385,7 +392,7 @@ func (h *modelHandlers) usageSummary(c echo.Context) error {
 	rows, tot, err := usage.Summary(ctx, h.db, by, f)
 	if err != nil {
 		if errors.Is(err, usage.ErrBadGroup) {
-			return bad("group_by 只能是 user / department / model / total")
+			return bad("group_by 只能是 user / department / model / agent / total")
 		}
 		return err
 	}
@@ -428,6 +435,11 @@ func (h *modelHandlers) names(ctx context.Context, orgID int, by usage.GroupBy, 
 		for _, m := range ms {
 			out[m.ID] = m.Name
 		}
+	case usage.ByAgent:
+		as, _ := h.db.Agent.Query().Where(agent.IDIn(ids...), agent.OrgID(orgID)).All(ctx)
+		for _, a := range as {
+			out[a.ID] = a.Name
+		}
 	}
 	return out
 }
@@ -437,6 +449,9 @@ func (h *modelHandlers) usageRecords(c echo.Context) error {
 	p := auth.Current(c)
 	f, err := parseUsageFilter(c, p.OrgID)
 	if err != nil {
+		return err
+	}
+	if err := (&statsHandlers{db: h.db, az: h.az}).usageScope(c, &f); err != nil {
 		return err
 	}
 	rs, err := usage.List(c.Request().Context(), h.db, f, 200)

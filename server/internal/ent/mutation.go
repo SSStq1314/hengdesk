@@ -40,6 +40,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/systemsetting"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/tool"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/usagehourly"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/usagerecord"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
 	"github.com/SSStq1314/hengdesk/server/internal/rawjson"
@@ -81,6 +82,7 @@ const (
 	TypeRole             = "Role"
 	TypeSystemSetting    = "SystemSetting"
 	TypeTool             = "Tool"
+	TypeUsageHourly      = "UsageHourly"
 	TypeUsageRecord      = "UsageRecord"
 	TypeUser             = "User"
 )
@@ -30129,6 +30131,1868 @@ func (m *ToolMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *ToolMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Tool edge %s", name)
+}
+
+// UsageHourlyMutation represents an operation that mutates the UsageHourly nodes in the graph.
+type UsageHourlyMutation struct {
+	config
+	op                       Op
+	typ                      string
+	id                       *int
+	org_id                   *int
+	addorg_id                *int
+	bucket_at                *time.Time
+	user_id                  *int
+	adduser_id               *int
+	department_id            *int
+	adddepartment_id         *int
+	model_id                 *int
+	addmodel_id              *int
+	agent_id                 *int
+	addagent_id              *int
+	calls                    *int64
+	addcalls                 *int64
+	error_calls              *int64
+	adderror_calls           *int64
+	prompt_tokens            *int64
+	addprompt_tokens         *int64
+	cached_tokens            *int64
+	addcached_tokens         *int64
+	completion_tokens        *int64
+	addcompletion_tokens     *int64
+	reasoning_tokens         *int64
+	addreasoning_tokens      *int64
+	total_tokens             *int64
+	addtotal_tokens          *int64
+	cost_micros              *int64
+	addcost_micros           *int64
+	estimated_calls          *int64
+	addestimated_calls       *int64
+	estimated_tokens         *int64
+	addestimated_tokens      *int64
+	estimated_cost_micros    *int64
+	addestimated_cost_micros *int64
+	unknown_calls            *int64
+	addunknown_calls         *int64
+	updated_at               *time.Time
+	clearedFields            map[string]struct{}
+	done                     bool
+	oldValue                 func(context.Context) (*UsageHourly, error)
+	predicates               []predicate.UsageHourly
+}
+
+var _ ent.Mutation = (*UsageHourlyMutation)(nil)
+
+// usagehourlyOption allows management of the mutation configuration using functional options.
+type usagehourlyOption func(*UsageHourlyMutation)
+
+// newUsageHourlyMutation creates new mutation for the UsageHourly entity.
+func newUsageHourlyMutation(c config, op Op, opts ...usagehourlyOption) *UsageHourlyMutation {
+	m := &UsageHourlyMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUsageHourly,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUsageHourlyID sets the ID field of the mutation.
+func withUsageHourlyID(id int) usagehourlyOption {
+	return func(m *UsageHourlyMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UsageHourly
+		)
+		m.oldValue = func(ctx context.Context) (*UsageHourly, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UsageHourly.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUsageHourly sets the old UsageHourly of the mutation.
+func withUsageHourly(node *UsageHourly) usagehourlyOption {
+	return func(m *UsageHourlyMutation) {
+		m.oldValue = func(context.Context) (*UsageHourly, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UsageHourlyMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UsageHourlyMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UsageHourlyMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UsageHourlyMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UsageHourly.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetOrgID sets the "org_id" field.
+func (m *UsageHourlyMutation) SetOrgID(i int) {
+	m.org_id = &i
+	m.addorg_id = nil
+}
+
+// OrgID returns the value of the "org_id" field in the mutation.
+func (m *UsageHourlyMutation) OrgID() (r int, exists bool) {
+	v := m.org_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrgID returns the old "org_id" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldOrgID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrgID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrgID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrgID: %w", err)
+	}
+	return oldValue.OrgID, nil
+}
+
+// AddOrgID adds i to the "org_id" field.
+func (m *UsageHourlyMutation) AddOrgID(i int) {
+	if m.addorg_id != nil {
+		*m.addorg_id += i
+	} else {
+		m.addorg_id = &i
+	}
+}
+
+// AddedOrgID returns the value that was added to the "org_id" field in this mutation.
+func (m *UsageHourlyMutation) AddedOrgID() (r int, exists bool) {
+	v := m.addorg_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrgID resets all changes to the "org_id" field.
+func (m *UsageHourlyMutation) ResetOrgID() {
+	m.org_id = nil
+	m.addorg_id = nil
+}
+
+// SetBucketAt sets the "bucket_at" field.
+func (m *UsageHourlyMutation) SetBucketAt(t time.Time) {
+	m.bucket_at = &t
+}
+
+// BucketAt returns the value of the "bucket_at" field in the mutation.
+func (m *UsageHourlyMutation) BucketAt() (r time.Time, exists bool) {
+	v := m.bucket_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBucketAt returns the old "bucket_at" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldBucketAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBucketAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBucketAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBucketAt: %w", err)
+	}
+	return oldValue.BucketAt, nil
+}
+
+// ResetBucketAt resets all changes to the "bucket_at" field.
+func (m *UsageHourlyMutation) ResetBucketAt() {
+	m.bucket_at = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *UsageHourlyMutation) SetUserID(i int) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *UsageHourlyMutation) UserID() (r int, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldUserID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *UsageHourlyMutation) AddUserID(i int) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *UsageHourlyMutation) AddedUserID() (r int, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *UsageHourlyMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetDepartmentID sets the "department_id" field.
+func (m *UsageHourlyMutation) SetDepartmentID(i int) {
+	m.department_id = &i
+	m.adddepartment_id = nil
+}
+
+// DepartmentID returns the value of the "department_id" field in the mutation.
+func (m *UsageHourlyMutation) DepartmentID() (r int, exists bool) {
+	v := m.department_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDepartmentID returns the old "department_id" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldDepartmentID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDepartmentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDepartmentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDepartmentID: %w", err)
+	}
+	return oldValue.DepartmentID, nil
+}
+
+// AddDepartmentID adds i to the "department_id" field.
+func (m *UsageHourlyMutation) AddDepartmentID(i int) {
+	if m.adddepartment_id != nil {
+		*m.adddepartment_id += i
+	} else {
+		m.adddepartment_id = &i
+	}
+}
+
+// AddedDepartmentID returns the value that was added to the "department_id" field in this mutation.
+func (m *UsageHourlyMutation) AddedDepartmentID() (r int, exists bool) {
+	v := m.adddepartment_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDepartmentID resets all changes to the "department_id" field.
+func (m *UsageHourlyMutation) ResetDepartmentID() {
+	m.department_id = nil
+	m.adddepartment_id = nil
+}
+
+// SetModelID sets the "model_id" field.
+func (m *UsageHourlyMutation) SetModelID(i int) {
+	m.model_id = &i
+	m.addmodel_id = nil
+}
+
+// ModelID returns the value of the "model_id" field in the mutation.
+func (m *UsageHourlyMutation) ModelID() (r int, exists bool) {
+	v := m.model_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelID returns the old "model_id" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldModelID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelID: %w", err)
+	}
+	return oldValue.ModelID, nil
+}
+
+// AddModelID adds i to the "model_id" field.
+func (m *UsageHourlyMutation) AddModelID(i int) {
+	if m.addmodel_id != nil {
+		*m.addmodel_id += i
+	} else {
+		m.addmodel_id = &i
+	}
+}
+
+// AddedModelID returns the value that was added to the "model_id" field in this mutation.
+func (m *UsageHourlyMutation) AddedModelID() (r int, exists bool) {
+	v := m.addmodel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetModelID resets all changes to the "model_id" field.
+func (m *UsageHourlyMutation) ResetModelID() {
+	m.model_id = nil
+	m.addmodel_id = nil
+}
+
+// SetAgentID sets the "agent_id" field.
+func (m *UsageHourlyMutation) SetAgentID(i int) {
+	m.agent_id = &i
+	m.addagent_id = nil
+}
+
+// AgentID returns the value of the "agent_id" field in the mutation.
+func (m *UsageHourlyMutation) AgentID() (r int, exists bool) {
+	v := m.agent_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAgentID returns the old "agent_id" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldAgentID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAgentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAgentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAgentID: %w", err)
+	}
+	return oldValue.AgentID, nil
+}
+
+// AddAgentID adds i to the "agent_id" field.
+func (m *UsageHourlyMutation) AddAgentID(i int) {
+	if m.addagent_id != nil {
+		*m.addagent_id += i
+	} else {
+		m.addagent_id = &i
+	}
+}
+
+// AddedAgentID returns the value that was added to the "agent_id" field in this mutation.
+func (m *UsageHourlyMutation) AddedAgentID() (r int, exists bool) {
+	v := m.addagent_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAgentID resets all changes to the "agent_id" field.
+func (m *UsageHourlyMutation) ResetAgentID() {
+	m.agent_id = nil
+	m.addagent_id = nil
+}
+
+// SetCalls sets the "calls" field.
+func (m *UsageHourlyMutation) SetCalls(i int64) {
+	m.calls = &i
+	m.addcalls = nil
+}
+
+// Calls returns the value of the "calls" field in the mutation.
+func (m *UsageHourlyMutation) Calls() (r int64, exists bool) {
+	v := m.calls
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCalls returns the old "calls" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldCalls(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCalls is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCalls requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCalls: %w", err)
+	}
+	return oldValue.Calls, nil
+}
+
+// AddCalls adds i to the "calls" field.
+func (m *UsageHourlyMutation) AddCalls(i int64) {
+	if m.addcalls != nil {
+		*m.addcalls += i
+	} else {
+		m.addcalls = &i
+	}
+}
+
+// AddedCalls returns the value that was added to the "calls" field in this mutation.
+func (m *UsageHourlyMutation) AddedCalls() (r int64, exists bool) {
+	v := m.addcalls
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCalls resets all changes to the "calls" field.
+func (m *UsageHourlyMutation) ResetCalls() {
+	m.calls = nil
+	m.addcalls = nil
+}
+
+// SetErrorCalls sets the "error_calls" field.
+func (m *UsageHourlyMutation) SetErrorCalls(i int64) {
+	m.error_calls = &i
+	m.adderror_calls = nil
+}
+
+// ErrorCalls returns the value of the "error_calls" field in the mutation.
+func (m *UsageHourlyMutation) ErrorCalls() (r int64, exists bool) {
+	v := m.error_calls
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldErrorCalls returns the old "error_calls" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldErrorCalls(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldErrorCalls is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldErrorCalls requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldErrorCalls: %w", err)
+	}
+	return oldValue.ErrorCalls, nil
+}
+
+// AddErrorCalls adds i to the "error_calls" field.
+func (m *UsageHourlyMutation) AddErrorCalls(i int64) {
+	if m.adderror_calls != nil {
+		*m.adderror_calls += i
+	} else {
+		m.adderror_calls = &i
+	}
+}
+
+// AddedErrorCalls returns the value that was added to the "error_calls" field in this mutation.
+func (m *UsageHourlyMutation) AddedErrorCalls() (r int64, exists bool) {
+	v := m.adderror_calls
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetErrorCalls resets all changes to the "error_calls" field.
+func (m *UsageHourlyMutation) ResetErrorCalls() {
+	m.error_calls = nil
+	m.adderror_calls = nil
+}
+
+// SetPromptTokens sets the "prompt_tokens" field.
+func (m *UsageHourlyMutation) SetPromptTokens(i int64) {
+	m.prompt_tokens = &i
+	m.addprompt_tokens = nil
+}
+
+// PromptTokens returns the value of the "prompt_tokens" field in the mutation.
+func (m *UsageHourlyMutation) PromptTokens() (r int64, exists bool) {
+	v := m.prompt_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPromptTokens returns the old "prompt_tokens" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldPromptTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPromptTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPromptTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPromptTokens: %w", err)
+	}
+	return oldValue.PromptTokens, nil
+}
+
+// AddPromptTokens adds i to the "prompt_tokens" field.
+func (m *UsageHourlyMutation) AddPromptTokens(i int64) {
+	if m.addprompt_tokens != nil {
+		*m.addprompt_tokens += i
+	} else {
+		m.addprompt_tokens = &i
+	}
+}
+
+// AddedPromptTokens returns the value that was added to the "prompt_tokens" field in this mutation.
+func (m *UsageHourlyMutation) AddedPromptTokens() (r int64, exists bool) {
+	v := m.addprompt_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPromptTokens resets all changes to the "prompt_tokens" field.
+func (m *UsageHourlyMutation) ResetPromptTokens() {
+	m.prompt_tokens = nil
+	m.addprompt_tokens = nil
+}
+
+// SetCachedTokens sets the "cached_tokens" field.
+func (m *UsageHourlyMutation) SetCachedTokens(i int64) {
+	m.cached_tokens = &i
+	m.addcached_tokens = nil
+}
+
+// CachedTokens returns the value of the "cached_tokens" field in the mutation.
+func (m *UsageHourlyMutation) CachedTokens() (r int64, exists bool) {
+	v := m.cached_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCachedTokens returns the old "cached_tokens" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldCachedTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCachedTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCachedTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCachedTokens: %w", err)
+	}
+	return oldValue.CachedTokens, nil
+}
+
+// AddCachedTokens adds i to the "cached_tokens" field.
+func (m *UsageHourlyMutation) AddCachedTokens(i int64) {
+	if m.addcached_tokens != nil {
+		*m.addcached_tokens += i
+	} else {
+		m.addcached_tokens = &i
+	}
+}
+
+// AddedCachedTokens returns the value that was added to the "cached_tokens" field in this mutation.
+func (m *UsageHourlyMutation) AddedCachedTokens() (r int64, exists bool) {
+	v := m.addcached_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCachedTokens resets all changes to the "cached_tokens" field.
+func (m *UsageHourlyMutation) ResetCachedTokens() {
+	m.cached_tokens = nil
+	m.addcached_tokens = nil
+}
+
+// SetCompletionTokens sets the "completion_tokens" field.
+func (m *UsageHourlyMutation) SetCompletionTokens(i int64) {
+	m.completion_tokens = &i
+	m.addcompletion_tokens = nil
+}
+
+// CompletionTokens returns the value of the "completion_tokens" field in the mutation.
+func (m *UsageHourlyMutation) CompletionTokens() (r int64, exists bool) {
+	v := m.completion_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCompletionTokens returns the old "completion_tokens" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldCompletionTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCompletionTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCompletionTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCompletionTokens: %w", err)
+	}
+	return oldValue.CompletionTokens, nil
+}
+
+// AddCompletionTokens adds i to the "completion_tokens" field.
+func (m *UsageHourlyMutation) AddCompletionTokens(i int64) {
+	if m.addcompletion_tokens != nil {
+		*m.addcompletion_tokens += i
+	} else {
+		m.addcompletion_tokens = &i
+	}
+}
+
+// AddedCompletionTokens returns the value that was added to the "completion_tokens" field in this mutation.
+func (m *UsageHourlyMutation) AddedCompletionTokens() (r int64, exists bool) {
+	v := m.addcompletion_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCompletionTokens resets all changes to the "completion_tokens" field.
+func (m *UsageHourlyMutation) ResetCompletionTokens() {
+	m.completion_tokens = nil
+	m.addcompletion_tokens = nil
+}
+
+// SetReasoningTokens sets the "reasoning_tokens" field.
+func (m *UsageHourlyMutation) SetReasoningTokens(i int64) {
+	m.reasoning_tokens = &i
+	m.addreasoning_tokens = nil
+}
+
+// ReasoningTokens returns the value of the "reasoning_tokens" field in the mutation.
+func (m *UsageHourlyMutation) ReasoningTokens() (r int64, exists bool) {
+	v := m.reasoning_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReasoningTokens returns the old "reasoning_tokens" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldReasoningTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReasoningTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReasoningTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReasoningTokens: %w", err)
+	}
+	return oldValue.ReasoningTokens, nil
+}
+
+// AddReasoningTokens adds i to the "reasoning_tokens" field.
+func (m *UsageHourlyMutation) AddReasoningTokens(i int64) {
+	if m.addreasoning_tokens != nil {
+		*m.addreasoning_tokens += i
+	} else {
+		m.addreasoning_tokens = &i
+	}
+}
+
+// AddedReasoningTokens returns the value that was added to the "reasoning_tokens" field in this mutation.
+func (m *UsageHourlyMutation) AddedReasoningTokens() (r int64, exists bool) {
+	v := m.addreasoning_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetReasoningTokens resets all changes to the "reasoning_tokens" field.
+func (m *UsageHourlyMutation) ResetReasoningTokens() {
+	m.reasoning_tokens = nil
+	m.addreasoning_tokens = nil
+}
+
+// SetTotalTokens sets the "total_tokens" field.
+func (m *UsageHourlyMutation) SetTotalTokens(i int64) {
+	m.total_tokens = &i
+	m.addtotal_tokens = nil
+}
+
+// TotalTokens returns the value of the "total_tokens" field in the mutation.
+func (m *UsageHourlyMutation) TotalTokens() (r int64, exists bool) {
+	v := m.total_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalTokens returns the old "total_tokens" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldTotalTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalTokens: %w", err)
+	}
+	return oldValue.TotalTokens, nil
+}
+
+// AddTotalTokens adds i to the "total_tokens" field.
+func (m *UsageHourlyMutation) AddTotalTokens(i int64) {
+	if m.addtotal_tokens != nil {
+		*m.addtotal_tokens += i
+	} else {
+		m.addtotal_tokens = &i
+	}
+}
+
+// AddedTotalTokens returns the value that was added to the "total_tokens" field in this mutation.
+func (m *UsageHourlyMutation) AddedTotalTokens() (r int64, exists bool) {
+	v := m.addtotal_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalTokens resets all changes to the "total_tokens" field.
+func (m *UsageHourlyMutation) ResetTotalTokens() {
+	m.total_tokens = nil
+	m.addtotal_tokens = nil
+}
+
+// SetCostMicros sets the "cost_micros" field.
+func (m *UsageHourlyMutation) SetCostMicros(i int64) {
+	m.cost_micros = &i
+	m.addcost_micros = nil
+}
+
+// CostMicros returns the value of the "cost_micros" field in the mutation.
+func (m *UsageHourlyMutation) CostMicros() (r int64, exists bool) {
+	v := m.cost_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCostMicros returns the old "cost_micros" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldCostMicros(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCostMicros is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCostMicros requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCostMicros: %w", err)
+	}
+	return oldValue.CostMicros, nil
+}
+
+// AddCostMicros adds i to the "cost_micros" field.
+func (m *UsageHourlyMutation) AddCostMicros(i int64) {
+	if m.addcost_micros != nil {
+		*m.addcost_micros += i
+	} else {
+		m.addcost_micros = &i
+	}
+}
+
+// AddedCostMicros returns the value that was added to the "cost_micros" field in this mutation.
+func (m *UsageHourlyMutation) AddedCostMicros() (r int64, exists bool) {
+	v := m.addcost_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCostMicros resets all changes to the "cost_micros" field.
+func (m *UsageHourlyMutation) ResetCostMicros() {
+	m.cost_micros = nil
+	m.addcost_micros = nil
+}
+
+// SetEstimatedCalls sets the "estimated_calls" field.
+func (m *UsageHourlyMutation) SetEstimatedCalls(i int64) {
+	m.estimated_calls = &i
+	m.addestimated_calls = nil
+}
+
+// EstimatedCalls returns the value of the "estimated_calls" field in the mutation.
+func (m *UsageHourlyMutation) EstimatedCalls() (r int64, exists bool) {
+	v := m.estimated_calls
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEstimatedCalls returns the old "estimated_calls" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldEstimatedCalls(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEstimatedCalls is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEstimatedCalls requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEstimatedCalls: %w", err)
+	}
+	return oldValue.EstimatedCalls, nil
+}
+
+// AddEstimatedCalls adds i to the "estimated_calls" field.
+func (m *UsageHourlyMutation) AddEstimatedCalls(i int64) {
+	if m.addestimated_calls != nil {
+		*m.addestimated_calls += i
+	} else {
+		m.addestimated_calls = &i
+	}
+}
+
+// AddedEstimatedCalls returns the value that was added to the "estimated_calls" field in this mutation.
+func (m *UsageHourlyMutation) AddedEstimatedCalls() (r int64, exists bool) {
+	v := m.addestimated_calls
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetEstimatedCalls resets all changes to the "estimated_calls" field.
+func (m *UsageHourlyMutation) ResetEstimatedCalls() {
+	m.estimated_calls = nil
+	m.addestimated_calls = nil
+}
+
+// SetEstimatedTokens sets the "estimated_tokens" field.
+func (m *UsageHourlyMutation) SetEstimatedTokens(i int64) {
+	m.estimated_tokens = &i
+	m.addestimated_tokens = nil
+}
+
+// EstimatedTokens returns the value of the "estimated_tokens" field in the mutation.
+func (m *UsageHourlyMutation) EstimatedTokens() (r int64, exists bool) {
+	v := m.estimated_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEstimatedTokens returns the old "estimated_tokens" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldEstimatedTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEstimatedTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEstimatedTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEstimatedTokens: %w", err)
+	}
+	return oldValue.EstimatedTokens, nil
+}
+
+// AddEstimatedTokens adds i to the "estimated_tokens" field.
+func (m *UsageHourlyMutation) AddEstimatedTokens(i int64) {
+	if m.addestimated_tokens != nil {
+		*m.addestimated_tokens += i
+	} else {
+		m.addestimated_tokens = &i
+	}
+}
+
+// AddedEstimatedTokens returns the value that was added to the "estimated_tokens" field in this mutation.
+func (m *UsageHourlyMutation) AddedEstimatedTokens() (r int64, exists bool) {
+	v := m.addestimated_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetEstimatedTokens resets all changes to the "estimated_tokens" field.
+func (m *UsageHourlyMutation) ResetEstimatedTokens() {
+	m.estimated_tokens = nil
+	m.addestimated_tokens = nil
+}
+
+// SetEstimatedCostMicros sets the "estimated_cost_micros" field.
+func (m *UsageHourlyMutation) SetEstimatedCostMicros(i int64) {
+	m.estimated_cost_micros = &i
+	m.addestimated_cost_micros = nil
+}
+
+// EstimatedCostMicros returns the value of the "estimated_cost_micros" field in the mutation.
+func (m *UsageHourlyMutation) EstimatedCostMicros() (r int64, exists bool) {
+	v := m.estimated_cost_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEstimatedCostMicros returns the old "estimated_cost_micros" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldEstimatedCostMicros(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEstimatedCostMicros is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEstimatedCostMicros requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEstimatedCostMicros: %w", err)
+	}
+	return oldValue.EstimatedCostMicros, nil
+}
+
+// AddEstimatedCostMicros adds i to the "estimated_cost_micros" field.
+func (m *UsageHourlyMutation) AddEstimatedCostMicros(i int64) {
+	if m.addestimated_cost_micros != nil {
+		*m.addestimated_cost_micros += i
+	} else {
+		m.addestimated_cost_micros = &i
+	}
+}
+
+// AddedEstimatedCostMicros returns the value that was added to the "estimated_cost_micros" field in this mutation.
+func (m *UsageHourlyMutation) AddedEstimatedCostMicros() (r int64, exists bool) {
+	v := m.addestimated_cost_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetEstimatedCostMicros resets all changes to the "estimated_cost_micros" field.
+func (m *UsageHourlyMutation) ResetEstimatedCostMicros() {
+	m.estimated_cost_micros = nil
+	m.addestimated_cost_micros = nil
+}
+
+// SetUnknownCalls sets the "unknown_calls" field.
+func (m *UsageHourlyMutation) SetUnknownCalls(i int64) {
+	m.unknown_calls = &i
+	m.addunknown_calls = nil
+}
+
+// UnknownCalls returns the value of the "unknown_calls" field in the mutation.
+func (m *UsageHourlyMutation) UnknownCalls() (r int64, exists bool) {
+	v := m.unknown_calls
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUnknownCalls returns the old "unknown_calls" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldUnknownCalls(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUnknownCalls is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUnknownCalls requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUnknownCalls: %w", err)
+	}
+	return oldValue.UnknownCalls, nil
+}
+
+// AddUnknownCalls adds i to the "unknown_calls" field.
+func (m *UsageHourlyMutation) AddUnknownCalls(i int64) {
+	if m.addunknown_calls != nil {
+		*m.addunknown_calls += i
+	} else {
+		m.addunknown_calls = &i
+	}
+}
+
+// AddedUnknownCalls returns the value that was added to the "unknown_calls" field in this mutation.
+func (m *UsageHourlyMutation) AddedUnknownCalls() (r int64, exists bool) {
+	v := m.addunknown_calls
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUnknownCalls resets all changes to the "unknown_calls" field.
+func (m *UsageHourlyMutation) ResetUnknownCalls() {
+	m.unknown_calls = nil
+	m.addunknown_calls = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *UsageHourlyMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *UsageHourlyMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the UsageHourly entity.
+// If the UsageHourly object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageHourlyMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *UsageHourlyMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the UsageHourlyMutation builder.
+func (m *UsageHourlyMutation) Where(ps ...predicate.UsageHourly) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UsageHourlyMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UsageHourlyMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UsageHourly, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UsageHourlyMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UsageHourlyMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UsageHourly).
+func (m *UsageHourlyMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UsageHourlyMutation) Fields() []string {
+	fields := make([]string, 0, 19)
+	if m.org_id != nil {
+		fields = append(fields, usagehourly.FieldOrgID)
+	}
+	if m.bucket_at != nil {
+		fields = append(fields, usagehourly.FieldBucketAt)
+	}
+	if m.user_id != nil {
+		fields = append(fields, usagehourly.FieldUserID)
+	}
+	if m.department_id != nil {
+		fields = append(fields, usagehourly.FieldDepartmentID)
+	}
+	if m.model_id != nil {
+		fields = append(fields, usagehourly.FieldModelID)
+	}
+	if m.agent_id != nil {
+		fields = append(fields, usagehourly.FieldAgentID)
+	}
+	if m.calls != nil {
+		fields = append(fields, usagehourly.FieldCalls)
+	}
+	if m.error_calls != nil {
+		fields = append(fields, usagehourly.FieldErrorCalls)
+	}
+	if m.prompt_tokens != nil {
+		fields = append(fields, usagehourly.FieldPromptTokens)
+	}
+	if m.cached_tokens != nil {
+		fields = append(fields, usagehourly.FieldCachedTokens)
+	}
+	if m.completion_tokens != nil {
+		fields = append(fields, usagehourly.FieldCompletionTokens)
+	}
+	if m.reasoning_tokens != nil {
+		fields = append(fields, usagehourly.FieldReasoningTokens)
+	}
+	if m.total_tokens != nil {
+		fields = append(fields, usagehourly.FieldTotalTokens)
+	}
+	if m.cost_micros != nil {
+		fields = append(fields, usagehourly.FieldCostMicros)
+	}
+	if m.estimated_calls != nil {
+		fields = append(fields, usagehourly.FieldEstimatedCalls)
+	}
+	if m.estimated_tokens != nil {
+		fields = append(fields, usagehourly.FieldEstimatedTokens)
+	}
+	if m.estimated_cost_micros != nil {
+		fields = append(fields, usagehourly.FieldEstimatedCostMicros)
+	}
+	if m.unknown_calls != nil {
+		fields = append(fields, usagehourly.FieldUnknownCalls)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, usagehourly.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UsageHourlyMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case usagehourly.FieldOrgID:
+		return m.OrgID()
+	case usagehourly.FieldBucketAt:
+		return m.BucketAt()
+	case usagehourly.FieldUserID:
+		return m.UserID()
+	case usagehourly.FieldDepartmentID:
+		return m.DepartmentID()
+	case usagehourly.FieldModelID:
+		return m.ModelID()
+	case usagehourly.FieldAgentID:
+		return m.AgentID()
+	case usagehourly.FieldCalls:
+		return m.Calls()
+	case usagehourly.FieldErrorCalls:
+		return m.ErrorCalls()
+	case usagehourly.FieldPromptTokens:
+		return m.PromptTokens()
+	case usagehourly.FieldCachedTokens:
+		return m.CachedTokens()
+	case usagehourly.FieldCompletionTokens:
+		return m.CompletionTokens()
+	case usagehourly.FieldReasoningTokens:
+		return m.ReasoningTokens()
+	case usagehourly.FieldTotalTokens:
+		return m.TotalTokens()
+	case usagehourly.FieldCostMicros:
+		return m.CostMicros()
+	case usagehourly.FieldEstimatedCalls:
+		return m.EstimatedCalls()
+	case usagehourly.FieldEstimatedTokens:
+		return m.EstimatedTokens()
+	case usagehourly.FieldEstimatedCostMicros:
+		return m.EstimatedCostMicros()
+	case usagehourly.FieldUnknownCalls:
+		return m.UnknownCalls()
+	case usagehourly.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UsageHourlyMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case usagehourly.FieldOrgID:
+		return m.OldOrgID(ctx)
+	case usagehourly.FieldBucketAt:
+		return m.OldBucketAt(ctx)
+	case usagehourly.FieldUserID:
+		return m.OldUserID(ctx)
+	case usagehourly.FieldDepartmentID:
+		return m.OldDepartmentID(ctx)
+	case usagehourly.FieldModelID:
+		return m.OldModelID(ctx)
+	case usagehourly.FieldAgentID:
+		return m.OldAgentID(ctx)
+	case usagehourly.FieldCalls:
+		return m.OldCalls(ctx)
+	case usagehourly.FieldErrorCalls:
+		return m.OldErrorCalls(ctx)
+	case usagehourly.FieldPromptTokens:
+		return m.OldPromptTokens(ctx)
+	case usagehourly.FieldCachedTokens:
+		return m.OldCachedTokens(ctx)
+	case usagehourly.FieldCompletionTokens:
+		return m.OldCompletionTokens(ctx)
+	case usagehourly.FieldReasoningTokens:
+		return m.OldReasoningTokens(ctx)
+	case usagehourly.FieldTotalTokens:
+		return m.OldTotalTokens(ctx)
+	case usagehourly.FieldCostMicros:
+		return m.OldCostMicros(ctx)
+	case usagehourly.FieldEstimatedCalls:
+		return m.OldEstimatedCalls(ctx)
+	case usagehourly.FieldEstimatedTokens:
+		return m.OldEstimatedTokens(ctx)
+	case usagehourly.FieldEstimatedCostMicros:
+		return m.OldEstimatedCostMicros(ctx)
+	case usagehourly.FieldUnknownCalls:
+		return m.OldUnknownCalls(ctx)
+	case usagehourly.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown UsageHourly field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UsageHourlyMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case usagehourly.FieldOrgID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrgID(v)
+		return nil
+	case usagehourly.FieldBucketAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBucketAt(v)
+		return nil
+	case usagehourly.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case usagehourly.FieldDepartmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDepartmentID(v)
+		return nil
+	case usagehourly.FieldModelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelID(v)
+		return nil
+	case usagehourly.FieldAgentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAgentID(v)
+		return nil
+	case usagehourly.FieldCalls:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCalls(v)
+		return nil
+	case usagehourly.FieldErrorCalls:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetErrorCalls(v)
+		return nil
+	case usagehourly.FieldPromptTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPromptTokens(v)
+		return nil
+	case usagehourly.FieldCachedTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCachedTokens(v)
+		return nil
+	case usagehourly.FieldCompletionTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCompletionTokens(v)
+		return nil
+	case usagehourly.FieldReasoningTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReasoningTokens(v)
+		return nil
+	case usagehourly.FieldTotalTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalTokens(v)
+		return nil
+	case usagehourly.FieldCostMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCostMicros(v)
+		return nil
+	case usagehourly.FieldEstimatedCalls:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEstimatedCalls(v)
+		return nil
+	case usagehourly.FieldEstimatedTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEstimatedTokens(v)
+		return nil
+	case usagehourly.FieldEstimatedCostMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEstimatedCostMicros(v)
+		return nil
+	case usagehourly.FieldUnknownCalls:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUnknownCalls(v)
+		return nil
+	case usagehourly.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UsageHourly field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UsageHourlyMutation) AddedFields() []string {
+	var fields []string
+	if m.addorg_id != nil {
+		fields = append(fields, usagehourly.FieldOrgID)
+	}
+	if m.adduser_id != nil {
+		fields = append(fields, usagehourly.FieldUserID)
+	}
+	if m.adddepartment_id != nil {
+		fields = append(fields, usagehourly.FieldDepartmentID)
+	}
+	if m.addmodel_id != nil {
+		fields = append(fields, usagehourly.FieldModelID)
+	}
+	if m.addagent_id != nil {
+		fields = append(fields, usagehourly.FieldAgentID)
+	}
+	if m.addcalls != nil {
+		fields = append(fields, usagehourly.FieldCalls)
+	}
+	if m.adderror_calls != nil {
+		fields = append(fields, usagehourly.FieldErrorCalls)
+	}
+	if m.addprompt_tokens != nil {
+		fields = append(fields, usagehourly.FieldPromptTokens)
+	}
+	if m.addcached_tokens != nil {
+		fields = append(fields, usagehourly.FieldCachedTokens)
+	}
+	if m.addcompletion_tokens != nil {
+		fields = append(fields, usagehourly.FieldCompletionTokens)
+	}
+	if m.addreasoning_tokens != nil {
+		fields = append(fields, usagehourly.FieldReasoningTokens)
+	}
+	if m.addtotal_tokens != nil {
+		fields = append(fields, usagehourly.FieldTotalTokens)
+	}
+	if m.addcost_micros != nil {
+		fields = append(fields, usagehourly.FieldCostMicros)
+	}
+	if m.addestimated_calls != nil {
+		fields = append(fields, usagehourly.FieldEstimatedCalls)
+	}
+	if m.addestimated_tokens != nil {
+		fields = append(fields, usagehourly.FieldEstimatedTokens)
+	}
+	if m.addestimated_cost_micros != nil {
+		fields = append(fields, usagehourly.FieldEstimatedCostMicros)
+	}
+	if m.addunknown_calls != nil {
+		fields = append(fields, usagehourly.FieldUnknownCalls)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UsageHourlyMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case usagehourly.FieldOrgID:
+		return m.AddedOrgID()
+	case usagehourly.FieldUserID:
+		return m.AddedUserID()
+	case usagehourly.FieldDepartmentID:
+		return m.AddedDepartmentID()
+	case usagehourly.FieldModelID:
+		return m.AddedModelID()
+	case usagehourly.FieldAgentID:
+		return m.AddedAgentID()
+	case usagehourly.FieldCalls:
+		return m.AddedCalls()
+	case usagehourly.FieldErrorCalls:
+		return m.AddedErrorCalls()
+	case usagehourly.FieldPromptTokens:
+		return m.AddedPromptTokens()
+	case usagehourly.FieldCachedTokens:
+		return m.AddedCachedTokens()
+	case usagehourly.FieldCompletionTokens:
+		return m.AddedCompletionTokens()
+	case usagehourly.FieldReasoningTokens:
+		return m.AddedReasoningTokens()
+	case usagehourly.FieldTotalTokens:
+		return m.AddedTotalTokens()
+	case usagehourly.FieldCostMicros:
+		return m.AddedCostMicros()
+	case usagehourly.FieldEstimatedCalls:
+		return m.AddedEstimatedCalls()
+	case usagehourly.FieldEstimatedTokens:
+		return m.AddedEstimatedTokens()
+	case usagehourly.FieldEstimatedCostMicros:
+		return m.AddedEstimatedCostMicros()
+	case usagehourly.FieldUnknownCalls:
+		return m.AddedUnknownCalls()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UsageHourlyMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case usagehourly.FieldOrgID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrgID(v)
+		return nil
+	case usagehourly.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case usagehourly.FieldDepartmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDepartmentID(v)
+		return nil
+	case usagehourly.FieldModelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddModelID(v)
+		return nil
+	case usagehourly.FieldAgentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAgentID(v)
+		return nil
+	case usagehourly.FieldCalls:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCalls(v)
+		return nil
+	case usagehourly.FieldErrorCalls:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddErrorCalls(v)
+		return nil
+	case usagehourly.FieldPromptTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPromptTokens(v)
+		return nil
+	case usagehourly.FieldCachedTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCachedTokens(v)
+		return nil
+	case usagehourly.FieldCompletionTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCompletionTokens(v)
+		return nil
+	case usagehourly.FieldReasoningTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReasoningTokens(v)
+		return nil
+	case usagehourly.FieldTotalTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalTokens(v)
+		return nil
+	case usagehourly.FieldCostMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCostMicros(v)
+		return nil
+	case usagehourly.FieldEstimatedCalls:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEstimatedCalls(v)
+		return nil
+	case usagehourly.FieldEstimatedTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEstimatedTokens(v)
+		return nil
+	case usagehourly.FieldEstimatedCostMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEstimatedCostMicros(v)
+		return nil
+	case usagehourly.FieldUnknownCalls:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUnknownCalls(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UsageHourly numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UsageHourlyMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UsageHourlyMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UsageHourlyMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown UsageHourly nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UsageHourlyMutation) ResetField(name string) error {
+	switch name {
+	case usagehourly.FieldOrgID:
+		m.ResetOrgID()
+		return nil
+	case usagehourly.FieldBucketAt:
+		m.ResetBucketAt()
+		return nil
+	case usagehourly.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case usagehourly.FieldDepartmentID:
+		m.ResetDepartmentID()
+		return nil
+	case usagehourly.FieldModelID:
+		m.ResetModelID()
+		return nil
+	case usagehourly.FieldAgentID:
+		m.ResetAgentID()
+		return nil
+	case usagehourly.FieldCalls:
+		m.ResetCalls()
+		return nil
+	case usagehourly.FieldErrorCalls:
+		m.ResetErrorCalls()
+		return nil
+	case usagehourly.FieldPromptTokens:
+		m.ResetPromptTokens()
+		return nil
+	case usagehourly.FieldCachedTokens:
+		m.ResetCachedTokens()
+		return nil
+	case usagehourly.FieldCompletionTokens:
+		m.ResetCompletionTokens()
+		return nil
+	case usagehourly.FieldReasoningTokens:
+		m.ResetReasoningTokens()
+		return nil
+	case usagehourly.FieldTotalTokens:
+		m.ResetTotalTokens()
+		return nil
+	case usagehourly.FieldCostMicros:
+		m.ResetCostMicros()
+		return nil
+	case usagehourly.FieldEstimatedCalls:
+		m.ResetEstimatedCalls()
+		return nil
+	case usagehourly.FieldEstimatedTokens:
+		m.ResetEstimatedTokens()
+		return nil
+	case usagehourly.FieldEstimatedCostMicros:
+		m.ResetEstimatedCostMicros()
+		return nil
+	case usagehourly.FieldUnknownCalls:
+		m.ResetUnknownCalls()
+		return nil
+	case usagehourly.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UsageHourly field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UsageHourlyMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UsageHourlyMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UsageHourlyMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UsageHourlyMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UsageHourlyMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UsageHourlyMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UsageHourlyMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown UsageHourly unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UsageHourlyMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown UsageHourly edge %s", name)
 }
 
 // UsageRecordMutation represents an operation that mutates the UsageRecord nodes in the graph.

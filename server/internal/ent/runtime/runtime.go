@@ -33,6 +33,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/ent/schema"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/systemsetting"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/tool"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/usagehourly"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/usagerecord"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/user"
 )
@@ -1100,6 +1101,70 @@ func init() {
 	toolDescRemoved := toolFields[16].Descriptor()
 	// tool.DefaultRemoved holds the default value on creation for the removed field.
 	tool.DefaultRemoved = toolDescRemoved.Default.(bool)
+	usagehourlyFields := schema.UsageHourly{}.Fields()
+	_ = usagehourlyFields
+	// usagehourlyDescDepartmentID is the schema descriptor for department_id field.
+	usagehourlyDescDepartmentID := usagehourlyFields[3].Descriptor()
+	// usagehourly.DefaultDepartmentID holds the default value on creation for the department_id field.
+	usagehourly.DefaultDepartmentID = usagehourlyDescDepartmentID.Default.(int)
+	// usagehourlyDescAgentID is the schema descriptor for agent_id field.
+	usagehourlyDescAgentID := usagehourlyFields[5].Descriptor()
+	// usagehourly.DefaultAgentID holds the default value on creation for the agent_id field.
+	usagehourly.DefaultAgentID = usagehourlyDescAgentID.Default.(int)
+	// usagehourlyDescCalls is the schema descriptor for calls field.
+	usagehourlyDescCalls := usagehourlyFields[6].Descriptor()
+	// usagehourly.DefaultCalls holds the default value on creation for the calls field.
+	usagehourly.DefaultCalls = usagehourlyDescCalls.Default.(int64)
+	// usagehourlyDescErrorCalls is the schema descriptor for error_calls field.
+	usagehourlyDescErrorCalls := usagehourlyFields[7].Descriptor()
+	// usagehourly.DefaultErrorCalls holds the default value on creation for the error_calls field.
+	usagehourly.DefaultErrorCalls = usagehourlyDescErrorCalls.Default.(int64)
+	// usagehourlyDescPromptTokens is the schema descriptor for prompt_tokens field.
+	usagehourlyDescPromptTokens := usagehourlyFields[8].Descriptor()
+	// usagehourly.DefaultPromptTokens holds the default value on creation for the prompt_tokens field.
+	usagehourly.DefaultPromptTokens = usagehourlyDescPromptTokens.Default.(int64)
+	// usagehourlyDescCachedTokens is the schema descriptor for cached_tokens field.
+	usagehourlyDescCachedTokens := usagehourlyFields[9].Descriptor()
+	// usagehourly.DefaultCachedTokens holds the default value on creation for the cached_tokens field.
+	usagehourly.DefaultCachedTokens = usagehourlyDescCachedTokens.Default.(int64)
+	// usagehourlyDescCompletionTokens is the schema descriptor for completion_tokens field.
+	usagehourlyDescCompletionTokens := usagehourlyFields[10].Descriptor()
+	// usagehourly.DefaultCompletionTokens holds the default value on creation for the completion_tokens field.
+	usagehourly.DefaultCompletionTokens = usagehourlyDescCompletionTokens.Default.(int64)
+	// usagehourlyDescReasoningTokens is the schema descriptor for reasoning_tokens field.
+	usagehourlyDescReasoningTokens := usagehourlyFields[11].Descriptor()
+	// usagehourly.DefaultReasoningTokens holds the default value on creation for the reasoning_tokens field.
+	usagehourly.DefaultReasoningTokens = usagehourlyDescReasoningTokens.Default.(int64)
+	// usagehourlyDescTotalTokens is the schema descriptor for total_tokens field.
+	usagehourlyDescTotalTokens := usagehourlyFields[12].Descriptor()
+	// usagehourly.DefaultTotalTokens holds the default value on creation for the total_tokens field.
+	usagehourly.DefaultTotalTokens = usagehourlyDescTotalTokens.Default.(int64)
+	// usagehourlyDescCostMicros is the schema descriptor for cost_micros field.
+	usagehourlyDescCostMicros := usagehourlyFields[13].Descriptor()
+	// usagehourly.DefaultCostMicros holds the default value on creation for the cost_micros field.
+	usagehourly.DefaultCostMicros = usagehourlyDescCostMicros.Default.(int64)
+	// usagehourlyDescEstimatedCalls is the schema descriptor for estimated_calls field.
+	usagehourlyDescEstimatedCalls := usagehourlyFields[14].Descriptor()
+	// usagehourly.DefaultEstimatedCalls holds the default value on creation for the estimated_calls field.
+	usagehourly.DefaultEstimatedCalls = usagehourlyDescEstimatedCalls.Default.(int64)
+	// usagehourlyDescEstimatedTokens is the schema descriptor for estimated_tokens field.
+	usagehourlyDescEstimatedTokens := usagehourlyFields[15].Descriptor()
+	// usagehourly.DefaultEstimatedTokens holds the default value on creation for the estimated_tokens field.
+	usagehourly.DefaultEstimatedTokens = usagehourlyDescEstimatedTokens.Default.(int64)
+	// usagehourlyDescEstimatedCostMicros is the schema descriptor for estimated_cost_micros field.
+	usagehourlyDescEstimatedCostMicros := usagehourlyFields[16].Descriptor()
+	// usagehourly.DefaultEstimatedCostMicros holds the default value on creation for the estimated_cost_micros field.
+	usagehourly.DefaultEstimatedCostMicros = usagehourlyDescEstimatedCostMicros.Default.(int64)
+	// usagehourlyDescUnknownCalls is the schema descriptor for unknown_calls field.
+	usagehourlyDescUnknownCalls := usagehourlyFields[17].Descriptor()
+	// usagehourly.DefaultUnknownCalls holds the default value on creation for the unknown_calls field.
+	usagehourly.DefaultUnknownCalls = usagehourlyDescUnknownCalls.Default.(int64)
+	// usagehourlyDescUpdatedAt is the schema descriptor for updated_at field.
+	usagehourlyDescUpdatedAt := usagehourlyFields[18].Descriptor()
+	// usagehourly.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	usagehourly.DefaultUpdatedAt = usagehourlyDescUpdatedAt.Default.(func() time.Time)
+	// usagehourly.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	usagehourly.UpdateDefaultUpdatedAt = usagehourlyDescUpdatedAt.UpdateDefault.(func() time.Time)
 	usagerecordFields := schema.UsageRecord{}.Fields()
 	_ = usagerecordFields
 	// usagerecordDescRequestID is the schema descriptor for request_id field.

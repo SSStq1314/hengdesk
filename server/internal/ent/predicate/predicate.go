@@ -87,6 +87,9 @@ type SystemSetting func(*sql.Selector)
 // Tool is the predicate function for tool builders.
 type Tool func(*sql.Selector)
 
+// UsageHourly is the predicate function for usagehourly builders.
+type UsageHourly func(*sql.Selector)
+
 // UsageRecord is the predicate function for usagerecord builders.
 type UsageRecord func(*sql.Selector)
 

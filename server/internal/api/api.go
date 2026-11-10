@@ -137,7 +137,7 @@ func mount(e *echo.Echo, d Deps) *convHandlers {
 		bs = &budget.Service{DB: d.DB, R: d.Auth.Sessions.R, Log: d.Log, Loc: d.Timezone}
 		d.Budget = bs
 	}
-	mdh := &modelHandlers{db: d.DB, gw: gw, bs: bs, eg: d.Egress}
+	mdh := &modelHandlers{db: d.DB, gw: gw, bs: bs, eg: d.Egress, az: az}
 	eh := &egressHandlers{db: d.DB, client: d.Egress, policy: d.EgressPolicy}
 	admin.GET("/egress/rules", eh.listRules, authz.Require(rbac.EgressManage))
 	admin.POST("/egress/rules", eh.createRule, authz.Require(rbac.EgressManage))
@@ -162,8 +162,13 @@ func mount(e *echo.Echo, d Deps) *convHandlers {
 	admin.GET("/models/:id/acl", mdh.listACL, authz.Require(rbac.ModelManage))
 	admin.POST("/models/:id/acl", mdh.grantACL, authz.Require(rbac.ModelManage))
 	admin.DELETE("/models/:id/acl/:type/:sid", mdh.revokeACL, authz.Require(rbac.ModelManage))
-	admin.GET("/usage/summary", mdh.usageSummary, authz.Require(rbac.ModelManage))
-	admin.GET("/usage/records", mdh.usageRecords, authz.Require(rbac.ModelManage))
+	admin.GET("/usage/summary", mdh.usageSummary, authz.Require(rbac.BudgetRead))
+	admin.GET("/usage/records", mdh.usageRecords, authz.Require(rbac.BudgetRead))
+	sth := &statsHandlers{db: d.DB, az: az, loc: d.Timezone}
+	admin.GET("/stats/overview", sth.overview, authz.Require(rbac.BudgetRead))
+	admin.GET("/stats/timeseries", sth.timeseries, authz.Require(rbac.BudgetRead))
+	admin.GET("/stats/summary", sth.summary, authz.Require(rbac.BudgetRead))
+	admin.GET("/stats/export", sth.export, authz.Require(rbac.BudgetRead), audit.Sensitive("usage.export"))
 	g.GET("/models", func(c echo.Context) error { return mdh.myModels(c, az) })
 	g.GET("/usage/me", mdh.myUsage)
 	ch := &chatHandlers{gw: gw, az: az, log: d.Log, bs: bs}
