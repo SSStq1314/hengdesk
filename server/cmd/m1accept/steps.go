@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -151,12 +152,12 @@ func (s *script) allowEgress(raw, note string) error {
 		"kind": "host", "value": host, "ports": ports, "note": note,
 	}, 201, &out)
 	if err != nil {
-		if he, ok := err.(*httpError); ok && (he.Status == 409 || he.Status == 400) && strings.Contains(he.Body, "已存在") {
+		if he := asHTTPError(err); he != nil && (he.Status == 409 || he.Status == 400) && strings.Contains(he.Body, "已存在") {
 			s.log("出站规则已存在：%s:%s", host, ports)
 			return nil
 		}
 		// 有的实现用 200 表示更新
-		if he, ok := err.(*httpError); ok && he.Status == 200 {
+		if he := asHTTPError(err); he != nil && he.Status == 200 {
 			return nil
 		}
 		return fmt.Errorf("添加出站白名单 %s:%s：%w", host, ports, err)
@@ -186,7 +187,7 @@ func (s *script) step2() error {
 			Items []map[string]any `json:"items"`
 		}
 		if _, err2 := s.admin.json(http.MethodGet, "/api/v1/admin/departments", nil, 200, &wrap); err2 != nil {
-			return fmt.Errorf("列出部门：%w / %v", err, err2)
+			return fmt.Errorf("列出部门：%w / %w", err, err2)
 		}
 		depts = wrap.Items
 	}
@@ -326,14 +327,9 @@ func (s *script) ssoAll() error {
 }
 
 func (c *Client) oidcLogin(oidcBase, email string) error {
-	body, _ := json.Marshal(map[string]any{
-		"sub": email, "email": email, "email_verified": true, "name": email,
-		"Extra": map[string]any{"department": deptOf(email)},
-	})
-	// Identity 的 JSON 字段是导出的 Extra，大小写敏感。用结构更稳妥：
-	payload := map[string]any{"Sub": email, "Email": email, "EmailVerified": true, "Name": email,
-		"Extra": map[string]any{"department": deptOf(email)}}
-	body, _ = json.Marshal(payload)
+	// Identity 的 JSON 字段是导出名（Sub/Email/.../Extra）。
+	body, _ := json.Marshal(map[string]any{"Sub": email, "Email": email, "EmailVerified": true, "Name": email,
+		"Extra": map[string]any{"department": deptOf(email)}})
 	req, err := http.NewRequest(http.MethodPost, strings.TrimRight(oidcBase, "/")+"/set-identity", bytes.NewReader(body))
 	if err != nil {
 		return err
@@ -343,8 +339,8 @@ func (c *Client) oidcLogin(oidcBase, email string) error {
 	if err != nil {
 		return fmt.Errorf("set-identity：%w", err)
 	}
-	io.Copy(io.Discard, res.Body)
-	res.Body.Close()
+	_, _ = io.Copy(io.Discard, res.Body)
+	_ = res.Body.Close()
 	if res.StatusCode != 200 {
 		return fmt.Errorf("set-identity HTTP %d", res.StatusCode)
 	}
@@ -353,7 +349,7 @@ func (c *Client) oidcLogin(oidcBase, email string) error {
 	if err != nil {
 		return err
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 	b, _ := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	c.captureCSRF(r)
 	if r.Request != nil && r.Request.URL != nil && strings.Contains(r.Request.URL.RawQuery, "error=sso") {
@@ -457,7 +453,7 @@ func (s *script) step3() error {
 			Items []map[string]any `json:"items"`
 		}
 		if _, err2 := s.b.json(http.MethodGet, "/api/v1/models", nil, 200, &wrap); err2 != nil {
-			return fmt.Errorf("B 列出模型：%w", err)
+			return fmt.Errorf("列出模型（员工B）：%w", err)
 		}
 		models = wrap.Items
 	}
@@ -474,7 +470,7 @@ func (s *script) grantModel(modelID int, typ string, sid int) error {
 	_, _, err := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/models/%d/acl", modelID),
 		map[string]any{"subject_type": typ, "subject_id": sid, "include_children": true}, 200)
 	if err != nil {
-		if he, ok := err.(*httpError); ok && he.Status == 201 {
+		if he := asHTTPError(err); he != nil && he.Status == 201 {
 			return nil
 		}
 		return fmt.Errorf("授予模型 ACL：%w", err)
@@ -657,7 +653,7 @@ func (s *script) step7() error {
 	}
 	if _, _, err := s.admin.do(http.MethodPost, fmt.Sprintf("/api/v1/agents/%d/publish", s.agentID), map[string]any{"note": "M1 演示"}, 200); err != nil {
 		// 有的实现 201/204
-		if he, ok := err.(*httpError); ok && he.Status != 201 && he.Status != 204 {
+		if he := asHTTPError(err); he != nil && he.Status != 201 && he.Status != 204 {
 			return fmt.Errorf("发布智能体：%w", err)
 		}
 	}
@@ -671,13 +667,13 @@ func (s *script) step8() error {
 	if s.convID, err = s.a.getID(http.MethodPost, "/api/v1/conversations", map[string]any{
 		"title": "差旅咨询", "agent_id": s.agentID,
 	}, 201); err != nil {
-		return fmt.Errorf("A 开对话：%w", err)
+		return fmt.Errorf("开对话（员工A）：%w", err)
 	}
 	evs, hdr, err := s.a.sse(fmt.Sprintf("/api/v1/conversations/%d/messages", s.convID), map[string]any{
 		"content": "请问普通员工的差旅标准是什么？",
 	})
 	if err != nil {
-		return fmt.Errorf("A 发消息：%w", err)
+		return fmt.Errorf("发消息（员工A）：%w", err)
 	}
 	s.trace8 = hdr.Get(traceHeader)
 	text, cits, pending, errEv := foldSSE(evs)
@@ -725,9 +721,8 @@ func foldSSE(evs []SSEEvent) (text string, cits []string, pending bool, errEv st
 			if c := asString(m["content"]); c != "" {
 				text = c
 			}
-			if badge := asString(m["aigc_badge"]); badge != "" && !strings.Contains(text, badge) {
-				// 角标在字段里即可
-			}
+			// 角标可能只在元数据字段、尚未拼进正文。
+			_ = asString(m["aigc_badge"])
 		case "error":
 			errEv = ev.Data
 		}
@@ -808,7 +803,7 @@ func (s *script) mcpCalls(name string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	var all map[string][]map[string]any
 	if err := json.NewDecoder(res.Body).Decode(&all); err != nil {
 		return 0, err
@@ -860,7 +855,7 @@ func (s *script) step9() error {
 	}
 	if _, _, err := s.c.do(http.MethodPost, fmt.Sprintf("/api/v1/approvals/%d/approve", apID),
 		map[string]any{"comment": "演示通过"}, 200); err != nil {
-		return fmt.Errorf("C 审批通过：%w", err)
+		return fmt.Errorf("审批通过（员工C）：%w", err)
 	}
 	if err := s.waitConvNotAwaiting(s.a, s.convID, 90*time.Second); err != nil {
 		return err
@@ -926,7 +921,7 @@ func (s *script) step10() error {
 	}
 	if _, _, err := s.c.do(http.MethodPost, fmt.Sprintf("/api/v1/approvals/%d/reject", apID),
 		map[string]any{"comment": "演示拒绝"}, 200); err != nil {
-		return fmt.Errorf("C 拒绝：%w", err)
+		return fmt.Errorf("拒绝审批（员工C）：%w", err)
 	}
 	if err := s.waitConvNotAwaiting(s.a, s.convID, 90*time.Second); err != nil {
 		return err
@@ -961,7 +956,7 @@ func (s *script) step11() error {
 		return fmt.Errorf("市场部列表中出现了财务助手")
 	}
 	if _, _, err := s.b.do(http.MethodGet, fmt.Sprintf("/api/v1/agents/%d", s.agentID), nil, 404); err != nil {
-		return fmt.Errorf("B 访问详情应 404：%w", err)
+		return fmt.Errorf("访问详情应 404（员工B）：%w", err)
 	}
 	s.log("越权 404 断言通过")
 	return nil
@@ -974,7 +969,7 @@ func (s *script) step12() error {
 		"name": "越权探测", "url": "http://169.254.169.254/mcp", "transport": "streamable_http",
 	}, 400)
 	if err != nil {
-		if he, ok := err.(*httpError); ok && he.Status != 403 && he.Status != 400 && he.Status != 422 {
+		if he := asHTTPError(err); he != nil && he.Status != 403 && he.Status != 400 && he.Status != 422 {
 			return fmt.Errorf("登记链路本地 MCP 应被拒绝，实际：%w", err)
 		}
 	}
@@ -1025,7 +1020,7 @@ func (s *script) step13() error {
 		})
 		lastHdr = hdr
 		if err != nil {
-			if he, ok := err.(*httpError); ok && (he.Status == 403 || he.Status == 429 || he.Status == 402 || he.Status == 409 || he.Status == 400) {
+			if he := asHTTPError(err); he != nil && (he.Status == 403 || he.Status == 429 || he.Status == 402 || he.Status == 409 || he.Status == 400) {
 				if strings.Contains(he.Body, "预算") || strings.Contains(he.Body, "管理员") || strings.Contains(he.Body, "上限") || strings.Contains(he.Body, "用尽") {
 					blocked = true
 					s.log("已拦截：HTTP %d %s", he.Status, trimBody(he.Body))
@@ -1125,7 +1120,7 @@ func (s *script) step14() error {
 		if err == nil {
 			return fmt.Errorf("超管删除审计记录竟然成功")
 		}
-		if he, ok := err.(*httpError); ok && he.Status != 404 && he.Status != 405 && he.Status != 403 && he.Status != 401 {
+		if he := asHTTPError(err); he != nil && he.Status != 404 && he.Status != 405 && he.Status != 403 && he.Status != 401 {
 			return fmt.Errorf("超管删除审计应失败，实际 HTTP %d", he.Status)
 		}
 	}
@@ -1143,7 +1138,7 @@ func (s *script) step15() error {
 		Items  []map[string]any `json:"items"`
 		Totals map[string]any   `json:"totals"`
 	}
-	if _, err := s.admin.json(http.MethodGet, fmt.Sprintf("/api/v1/admin/stats/summary?group_by=department"), nil, 200, &summary); err != nil {
+	if _, err := s.admin.json(http.MethodGet, "/api/v1/admin/stats/summary?group_by=department", nil, 200, &summary); err != nil {
 		return fmt.Errorf("summary：%w", err)
 	}
 	var recs struct {
@@ -1210,7 +1205,7 @@ func (s *script) stepD46() error {
 	}
 	// B 不能导出 A 的会话
 	if _, _, err := s.b.do(http.MethodGet, fmt.Sprintf("/api/v1/conversations/%d/export?format=md", s.convID), nil, 404); err != nil {
-		return fmt.Errorf("B 导出 A 的会话应 404：%w", err)
+		return fmt.Errorf("导出他人会话应 404（员工B）：%w", err)
 	}
 	s.log("D-46 文案校验与导出属主断言通过")
 	return nil
@@ -1222,8 +1217,8 @@ func (s *script) waitHTTP(raw string, d time.Duration) error {
 	for time.Now().Before(deadline) {
 		res, err := http.Get(raw)
 		if err == nil {
-			io.Copy(io.Discard, res.Body)
-			res.Body.Close()
+			_, _ = io.Copy(io.Discard, res.Body)
+			_ = res.Body.Close()
 			if res.StatusCode < 500 {
 				return nil
 			}
@@ -1255,4 +1250,12 @@ func (s *script) file(rel string) []byte {
 	default:
 		return nil
 	}
+}
+
+func asHTTPError(err error) *httpError {
+	var he *httpError
+	if errors.As(err, &he) {
+		return he
+	}
+	return nil
 }

@@ -90,7 +90,7 @@ func (s *script) restartViaDockerSock() error {
 		return fmt.Errorf("列举 server 容器：%w", err)
 	}
 	body, _ := io.ReadAll(res.Body)
-	res.Body.Close()
+	_ = res.Body.Close()
 	if res.StatusCode >= 300 {
 		return fmt.Errorf("列举 server 容器：HTTP %d %s", res.StatusCode, truncate(string(body), 200))
 	}
@@ -115,7 +115,7 @@ func (s *script) restartViaDockerSock() error {
 		return fmt.Errorf("重启容器：%w", err)
 	}
 	body, _ = io.ReadAll(res.Body)
-	res.Body.Close()
+	_ = res.Body.Close()
 	if res.StatusCode >= 300 {
 		return fmt.Errorf("重启容器：HTTP %d %s", res.StatusCode, truncate(string(body), 200))
 	}

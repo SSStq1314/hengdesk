@@ -99,7 +99,7 @@ func (c *Client) do(method, path string, body any, want int) ([]byte, http.Heade
 	if err != nil {
 		return nil, nil, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	b, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if err != nil {
 		return nil, res.Header, err
@@ -134,11 +134,6 @@ func (c *Client) login(email, password string) error {
 	}
 	c.Email = email
 	return nil
-}
-
-func (c *Client) logout() {
-	_, _, _ = c.do(http.MethodPost, "/api/v1/auth/logout", map[string]any{}, 0)
-	c.CSRF, c.Email = "", ""
 }
 
 func (c *Client) json(method, path string, body any, want int, dest any) (http.Header, error) {
@@ -191,7 +186,7 @@ func (c *Client) upload(path, filename string, content []byte, want int) ([]byte
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	b, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if err != nil {
 		return nil, err
@@ -227,7 +222,7 @@ func (c *Client) sse(path string, body any) ([]SSEEvent, http.Header, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	b, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if err != nil {
 		return nil, res.Header, err
@@ -257,10 +252,7 @@ func parseSSE(s string) []SSEEvent {
 		case strings.HasPrefix(line, "event:"):
 			ev = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
 		case strings.HasPrefix(line, "data:"):
-			chunk := strings.TrimPrefix(line, "data:")
-			if strings.HasPrefix(chunk, " ") {
-				chunk = chunk[1:]
-			}
+			chunk := strings.TrimPrefix(strings.TrimPrefix(line, "data:"), " ")
 			if data != "" {
 				data += "\n"
 			}
