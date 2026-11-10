@@ -1,0 +1,6 @@
+dept_path,name,email,employee_no
+财务部,员工A,a.finance@hengdesk.local,A001
+市场部,员工B,b.marketing@hengdesk.local,B001
+财务部,审批人C,c.approver@hengdesk.local,C001
+财务部,审计员D,d.auditor@hengdesk.local,D001
+财务部,财务经理,m.manager@hengdesk.local,M001

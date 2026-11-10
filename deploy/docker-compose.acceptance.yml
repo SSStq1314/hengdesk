@@ -1,0 +1,73 @@
+# M1 第八块验收 / 演示覆盖件。
+# 用法（在已有 deploy/.env 的目录）：
+#   docker compose -f docker-compose.yml -f docker-compose.acceptance.yml up -d
+#   docker compose -f docker-compose.yml -f docker-compose.acceptance.yml run --rm --no-deps m1accept
+#
+# issuer / redirect 使用容器名，验收脚本与 server 都在同一网络内访问。
+services:
+  server:
+    environment:
+      HENGDESK_OIDC_ISSUER: ${HENGDESK_OIDC_ISSUER:-http://mockoidc:18081}
+      HENGDESK_OIDC_CLIENT_ID: ${HENGDESK_OIDC_CLIENT_ID:-hengdesk-demo}
+      HENGDESK_OIDC_CLIENT_SECRET: ${HENGDESK_OIDC_CLIENT_SECRET:-demo-secret}
+      HENGDESK_OIDC_REDIRECT_URL: ${HENGDESK_OIDC_REDIRECT_URL:-http://web/api/v1/auth/oidc/callback}
+      HENGDESK_OIDC_AUTO_CREATE: ${HENGDESK_OIDC_AUTO_CREATE:-true}
+      HENGDESK_OIDC_LINK_BY: ${HENGDESK_OIDC_LINK_BY:-email}
+      HENGDESK_OIDC_DEPT_CLAIM: ${HENGDESK_OIDC_DEPT_CLAIM:-department}
+      HENGDESK_OIDC_DEPT_MATCH: ${HENGDESK_OIDC_DEPT_MATCH:-path}
+      HENGDESK_OIDC_ENFORCE: ${HENGDESK_OIDC_ENFORCE:-false}
+  migrate:
+    environment:
+      HENGDESK_OIDC_ISSUER: ${HENGDESK_OIDC_ISSUER:-http://mockoidc:18081}
+      HENGDESK_OIDC_CLIENT_ID: ${HENGDESK_OIDC_CLIENT_ID:-hengdesk-demo}
+      HENGDESK_OIDC_CLIENT_SECRET: ${HENGDESK_OIDC_CLIENT_SECRET:-demo-secret}
+      HENGDESK_OIDC_REDIRECT_URL: ${HENGDESK_OIDC_REDIRECT_URL:-http://web/api/v1/auth/oidc/callback}
+  worker:
+    environment:
+      HENGDESK_OIDC_ISSUER: ${HENGDESK_OIDC_ISSUER:-http://mockoidc:18081}
+      HENGDESK_OIDC_CLIENT_ID: ${HENGDESK_OIDC_CLIENT_ID:-hengdesk-demo}
+      HENGDESK_OIDC_CLIENT_SECRET: ${HENGDESK_OIDC_CLIENT_SECRET:-demo-secret}
+      HENGDESK_OIDC_REDIRECT_URL: ${HENGDESK_OIDC_REDIRECT_URL:-http://web/api/v1/auth/oidc/callback}
+
+  mockupstream:
+    image: hengdesk/mocks:${HENGDESK_VERSION:-dev}
+    command: ["mockupstream", "-addr", ":18080", "-key", "sk-demo", "-demo-script"]
+    expose: ["18080"]
+    ports: ["18080:18080"]
+    restart: unless-stopped
+
+  mockmcp:
+    image: hengdesk/mocks:${HENGDESK_VERSION:-dev}
+    command: ["mockmcp", "-addr", ":18090"]
+    expose: ["18090"]
+    ports: ["18090:18090"]
+    restart: unless-stopped
+
+  mockoidc:
+    image: hengdesk/mocks:${HENGDESK_VERSION:-dev}
+    command: ["mockoidc", "-addr", ":18081", "-public-url", "http://mockoidc:18081", "-client-id", "hengdesk-demo", "-client-secret", "demo-secret"]
+    expose: ["18081"]
+    ports: ["18081:18081"]
+    restart: unless-stopped
+
+  m1accept:
+    image: hengdesk/mocks:${HENGDESK_VERSION:-dev}
+    profiles: ["accept"]
+    depends_on:
+      - web
+      - mockupstream
+      - mockmcp
+      - mockoidc
+    environment:
+      M1ACCEPT_BASE: http://web
+      M1ACCEPT_ADMIN_EMAIL: ${HENGDESK_ADMIN_EMAIL:-admin@hengdesk.local}
+      M1ACCEPT_ADMIN_PASSWORD: ${HENGDESK_ADMIN_PASSWORD:-}
+      M1ACCEPT_MOCKMCP: http://mockmcp:18090
+      M1ACCEPT_MOCKOIDC: http://mockoidc:18081
+      M1ACCEPT_MOCKUPSTREAM: http://mockupstream:18080
+      M1ACCEPT_RESTART_CMD: ${M1ACCEPT_RESTART_CMD:-}
+      M1ACCEPT_COMPOSE_PROJECT: ${M1ACCEPT_COMPOSE_PROJECT:-hengdesk}
+    volumes:
+      # AC-08：在等待审批时经 Docker API 重启 server 容器
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["m1accept"]

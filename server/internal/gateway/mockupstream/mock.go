@@ -48,6 +48,9 @@ type Server struct {
 	EmbedFail  int
 	// CutAfter 非 0 时流式回答输出 CutAfter 个字符后直接断开连接（用于首 token 之后失败的测试）。
 	CutAfter int
+	// DemoScript 为 true 时按用户最后一条消息决定是否调用工具（M1 演示剧本第 8–10 步）：
+	// 含「工单 / 创建 / 报销」则调用 create_ticket，否则只返回文本、不调用工具。
+	DemoScript bool
 }
 
 // New 启动模拟上游；key 为期望的 API Key。
@@ -81,9 +84,14 @@ func writeErr(w http.ResponseWriter, status int, typ, msg string) {
 }
 
 func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/healthz" {
+		_, _ = w.Write([]byte("ok"))
+		return
+	}
 	if r.URL.Path == "/models" || r.URL.Path == "/v1/models" {
 		_ = json.NewEncoder(w).Encode(map[string]any{"object": "list", "data": []map[string]any{
-			{"id": "deepseek-flash", "object": "model"}, {"id": "deepseek-v4-pro", "object": "model"}}})
+			{"id": "deepseek-flash", "object": "model"}, {"id": "deepseek-v4-pro", "object": "model"},
+			{"id": "mock-local", "object": "model"}, {"id": "mock-embed", "object": "model"}}})
 		return
 	}
 	if strings.HasSuffix(r.URL.Path, "/embeddings") {
@@ -130,8 +138,8 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	model, _ := body["model"].(string)
-	if model != "deepseek-flash" && model != "deepseek-v4-pro" {
-		writeErr(w, 400, "invalid_request_error", "Model Not Exist. Supported: deepseek-flash, deepseek-v4-pro")
+	if !modelAllowed(model, s.DemoScript) {
+		writeErr(w, 400, "invalid_request_error", "Model Not Exist. Supported: deepseek-flash, deepseek-v4-pro, mock-local")
 		return
 	}
 	thinking := true
@@ -189,6 +197,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	content := "你好，我是模拟模型。"
 	if lastRole == "tool" {
 		content = "工单 T-1 状态：处理中。"
+	}
+	if s.DemoScript {
+		callTool, toolName, content, argPieces, toolArgs = applyDemoScript(msgs, tools, lastRole, callTool, toolName, content, argPieces, toolArgs)
 	}
 	usage := map[string]any{"prompt_tokens": 12, "completion_tokens": 7, "total_tokens": 19,
 		"prompt_cache_hit_tokens": 0, "prompt_cache_miss_tokens": 12,
@@ -293,4 +304,64 @@ func nonEmpty(s, def string) string {
 		return s
 	}
 	return def
+}
+
+func modelAllowed(model string, demo bool) bool {
+	switch model {
+	case "deepseek-flash", "deepseek-v4-pro":
+		return true
+	case "mock-local":
+		return demo
+	default:
+		return demo && model != "" && model != "mock-embed" && model != "mock-embed-768"
+	}
+}
+
+func applyDemoScript(msgs, tools []any, lastRole string, callTool bool, toolName, content string, argPieces []string, toolArgs string) (bool, string, string, []string, string) {
+	if lastRole == "tool" {
+		content = "已根据工具返回结果继续作答。若审批被拒绝或撤回，将如实告知用户。"
+		return false, toolName, content, argPieces, toolArgs
+	}
+	last := lastUserText(msgs)
+	if isTicketIntent(last) {
+		name := findToolName(tools, "create_ticket")
+		if name == "" {
+			name = toolName
+		}
+		args := `{"title":"报销工单","content":"演示剧本自动创建"}`
+		return true, name, content, []string{args}, args
+	}
+	return false, toolName, "根据已提供的资料，我来回答差旅相关问题。普通员工标准见引用，我不会使用你无权查看的文件。", argPieces, toolArgs
+}
+
+func lastUserText(msgs []any) string {
+	for i := len(msgs) - 1; i >= 0; i-- {
+		mm, _ := msgs[i].(map[string]any)
+		if mm["role"] == "user" {
+			if s, _ := mm["content"].(string); s != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
+func isTicketIntent(s string) bool {
+	for _, k := range []string{"工单", "创建", "报销", "建单", "create_ticket"} {
+		if strings.Contains(s, k) {
+			return true
+		}
+	}
+	return false
+}
+
+func findToolName(tools []any, want string) string {
+	for _, t := range tools {
+		tm, _ := t.(map[string]any)
+		fn, _ := tm["function"].(map[string]any)
+		if n, _ := fn["name"].(string); n == want {
+			return n
+		}
+	}
+	return ""
 }

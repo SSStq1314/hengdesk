@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# M1 第八块端到端演示剧本入口。
+# 用法：
+#   ./tests/acceptance/run.sh --compose          # 已有 deploy/.env，叠加 acceptance compose 后跑 15 步
+#   ./tests/acceptance/run.sh --base-url URL --admin-password PW [--skip-oidc]
+#   ./tests/acceptance/run.sh --build-mocks      # 只构建 hengdesk/mocks:$VERSION
+#
+# 离线安装 + 15 步（CI / 验收机）见 docs/demo/m1-acceptance.md 与后续 CI job。
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+COMPOSE=0
+BUILD_MOCKS=0
+BASE=""
+ADMIN_EMAIL="${HENGDESK_ADMIN_EMAIL:-admin@hengdesk.local}"
+ADMIN_PASSWORD="${M1ACCEPT_ADMIN_PASSWORD:-${HENGDESK_ADMIN_PASSWORD:-}}"
+SKIP_OIDC=0
+SKIP_RESTART=0
+VERSION="${HENGDESK_VERSION:-dev}"
+DEPLOY="${ROOT}/deploy"
+
+usage() { sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --compose) COMPOSE=1 ;;
+    --build-mocks) BUILD_MOCKS=1 ;;
+    --base-url) BASE="$2"; shift ;;
+    --admin-email) ADMIN_EMAIL="$2"; shift ;;
+    --admin-password) ADMIN_PASSWORD="$2"; shift ;;
+    --skip-oidc) SKIP_OIDC=1 ;;
+    --skip-restart) SKIP_RESTART=1 ;;
+    --version) VERSION="$2"; shift ;;
+    --deploy) DEPLOY="$2"; shift ;;
+    -h|--help) usage 0 ;;
+    *) echo "未知参数：$1" >&2; usage 1 ;;
+  esac
+  shift
+done
+
+build_mocks() {
+  echo "==> 构建 hengdesk/mocks:$VERSION"
+  docker build -f "$ROOT/server/Dockerfile.mocks" -t "hengdesk/mocks:$VERSION" "$ROOT/server"
+}
+
+if [ "$BUILD_MOCKS" = 1 ]; then
+  build_mocks
+  [ "$COMPOSE" = 1 ] || [ -n "$BASE" ] || exit 0
+fi
+
+if [ "$COMPOSE" = 1 ]; then
+  build_mocks
+  [ -f "$DEPLOY/.env" ] || { echo "缺少 $DEPLOY/.env，请先运行 deploy/install.sh" >&2; exit 1; }
+  # shellcheck disable=SC1091
+  set -a; . "$DEPLOY/.env"; set +a
+  ADMIN_PASSWORD="${ADMIN_PASSWORD:-${HENGDESK_ADMIN_PASSWORD:-}}"
+  export HENGDESK_VERSION="$VERSION"
+  echo "==> 启动演示依赖并重启应用以加载 OIDC"
+  docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" up -d
+  # 等 healthz
+  for i in $(seq 1 60); do
+    curl -fsS "${HENGDESK_HTTP_PORT:+http://127.0.0.1:${HENGDESK_HTTP_PORT}/healthz}" >/dev/null 2>&1 && break
+    curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1 && break
+    sleep 2
+  done
+  ACCEPT_ENV=(
+    -e M1ACCEPT_ADMIN_PASSWORD="$ADMIN_PASSWORD"
+    -e M1ACCEPT_ADMIN_EMAIL="$ADMIN_EMAIL"
+    -e M1ACCEPT_COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-hengdesk}"
+  )
+  # AC-08 默认经容器内 docker.sock 重启 server；--skip-restart 时显式跳过
+  if [ "$SKIP_RESTART" = 1 ]; then
+    ACCEPT_ENV+=(-e M1ACCEPT_SKIP_RESTART=1)
+  fi
+  if [ "$SKIP_OIDC" = 1 ]; then
+    ACCEPT_ENV+=(-e M1ACCEPT_SKIP_OIDC=1)
+  fi
+  echo "==> 运行 15 步脚本（容器内访问 http://web；AC-08 经 docker.sock 重启）"
+  docker compose -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.acceptance.yml" \
+    run --rm --no-deps \
+    "${ACCEPT_ENV[@]}" \
+    m1accept
+  exit $?
+fi
+
+if [ -z "$BASE" ]; then
+  echo "请指定 --compose 或 --base-url" >&2
+  usage 1
+fi
+[ -n "$ADMIN_PASSWORD" ] || { echo "请提供 --admin-password" >&2; exit 1; }
+
+echo "==> 本机编译并运行 m1accept 对 $BASE"
+export GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.10}"
+ARGS=( -base "$BASE" -admin-email "$ADMIN_EMAIL" -admin-password "$ADMIN_PASSWORD"
+  -data-dir "$ROOT/tests/acceptance/testdata" )
+[ "$SKIP_OIDC" = 1 ] && ARGS+=( -skip-oidc )
+[ "$SKIP_RESTART" = 1 ] && ARGS+=( -skip-restart )
+( cd "$ROOT/server" && go run ./cmd/m1accept "${ARGS[@]}" )
