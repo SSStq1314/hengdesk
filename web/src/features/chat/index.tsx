@@ -1,12 +1,14 @@
 // 对话工作台（FR-14）：会话列表、流式显示、Markdown 渲染、停止生成、模型选择；会话内上传文件（FR-15）。
 // 布局参考 shadcn-admin 的 chats 页面（MIT）。
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zh } from '@/locales/zh-CN'
 import {
   Download,
   FileText,
   Paperclip,
+  Bot,
   Plus,
   RotateCcw,
   Send,
@@ -27,6 +29,7 @@ import {
   type ConvFile,
   type StreamHandlers,
 } from '@/lib/api'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -52,7 +55,13 @@ function fmtSize(n: number) {
 
 export function ChatPage() {
   const qc = useQueryClient()
+  const nav = useNavigate()
+  const search = useSearch({ from: '/_authenticated/chat' })
   const [active, setActive] = useState<number | null>(null)
+  const [pendingAgent, setPendingAgent] = useState<{
+    id: number
+    debug?: boolean
+  } | null>(null)
   const [model, setModel] = useState('')
   const [draftKBs, setDraftKBs] = useState<number[]>([])
   const [draftTools, setDraftTools] = useState<number[]>([])
@@ -81,7 +90,56 @@ export function ChatPage() {
     },
   })
 
+  // 广场 / 管理页跳转：?agent=&debug= 开新会话；?conv= 打开已有会话。
+  useEffect(() => {
+    if (search.conv && search.conv > 0) {
+      setActive(search.conv)
+      setLive([])
+      nav({ to: '/chat', search: {}, replace: true })
+      return
+    }
+    if (search.agent && search.agent > 0) {
+      setPendingAgent({ id: search.agent, debug: !!search.debug })
+      setActive(null)
+      setLive([])
+      nav({ to: '/chat', search: {}, replace: true })
+    }
+  }, [search.agent, search.debug, search.conv, nav])
+
+  useEffect(() => {
+    if (!pendingAgent) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const c = await chatApi.create({
+          agent_id: pendingAgent.id,
+          agent_debug: pendingAgent.debug || undefined,
+        })
+        if (cancelled) return
+        setActive(c.id)
+        setLive([])
+        qc.invalidateQueries({ queryKey: ['conversations'] })
+      } catch (e) {
+        toast.error(String((e as Error).message ?? e))
+      } finally {
+        if (!cancelled) setPendingAgent(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [pendingAgent, qc])
+
   const modelItems = models.data?.items ?? []
+  const agentBound = !!(
+    (active != null && conv.data?.agent_id) ||
+    pendingAgent
+  )
+  const agentName =
+    conv.data?.agent_name ||
+    (pendingAgent ? zh.agents.chatWithAgent : '')
+  const agentOpening = conv.data?.opening || ''
+  const agentDebug = !!(conv.data?.agent_debug || pendingAgent?.debug)
   const kbIDs = active != null ? (conv.data?.kb_ids ?? []) : draftKBs
   const setKBs = useMutation({
     mutationFn: (ids: number[]) => chatApi.setKBs(active!, ids),
@@ -221,6 +279,15 @@ export function ChatPage() {
             patch((m) => ({ ...m, tool_calls: upsertCall(m.tool_calls, c) })),
           onDone: (m) => {
             if (m.notice) toast.info(m.notice)
+            if (m.agent_dropped?.length) {
+              toast.warning(
+                zh.agents.runDropped +
+                  '：' +
+                  m.agent_dropped
+                    .map((d) => `${d.type}#${d.id}${d.name ? ' ' + d.name : ''}`)
+                    .join('、')
+              )
+            }
             patch(() => ({ ...m, id: -2 }))
           },
           onError: (code, msg) =>
@@ -382,37 +449,54 @@ export function ChatPage() {
                 {t.dropHere}
               </div>
             )}
-            <div className='flex items-center gap-2 border-b pb-2'>
-              <span className='text-sm text-muted-foreground'>{t.model}</span>
-              {modelItems.length === 0 ? (
-                <span className='text-sm text-destructive'>{t.noModel}</span>
+            <div className='flex flex-wrap items-center gap-2 border-b pb-2'>
+              {agentBound ? (
+                <Badge variant='secondary' className='gap-1'>
+                  <Bot className='size-3' />
+                  {zh.agents.agentBadge(agentName || '…')}
+                  {agentDebug && (
+                    <span className='ms-1'>({zh.agents.debugBadge})</span>
+                  )}
+                </Badge>
               ) : (
-                <NativeSelect
-                  ariaLabel={t.model}
-                  value={effectiveModel}
-                  onChange={(v) => !streaming && setModel(v)}
-                  options={modelItems.map((m) => ({
-                    value: m.name,
-                    label: m.name,
-                  }))}
-                />
+                <>
+                  <span className='text-sm text-muted-foreground'>{t.model}</span>
+                  {modelItems.length === 0 ? (
+                    <span className='text-sm text-destructive'>{t.noModel}</span>
+                  ) : (
+                    <NativeSelect
+                      ariaLabel={t.model}
+                      value={effectiveModel}
+                      onChange={(v) => !streaming && setModel(v)}
+                      options={modelItems.map((m) => ({
+                        value: m.name,
+                        label: m.name,
+                      }))}
+                    />
+                  )}
+                  <KBPicker
+                    value={kbIDs}
+                    onChange={changeKBs}
+                    disabled={streaming || setKBs.isPending}
+                  />
+                  <ToolPicker
+                    value={toolIDs}
+                    onChange={changeTools}
+                    disabled={streaming || setTools.isPending}
+                  />
+                </>
               )}
-              <KBPicker
-                value={kbIDs}
-                onChange={changeKBs}
-                disabled={streaming || setKBs.isPending}
-              />
-              <ToolPicker
-                value={toolIDs}
-                onChange={changeTools}
-                disabled={streaming || setTools.isPending}
-              />
             </div>
             <div className='flex-1 space-y-4 overflow-y-auto py-4'>
-              {active == null && live.length === 0 && (
+              {active == null && live.length === 0 && !agentBound && (
                 <p className='text-center text-sm text-muted-foreground'>
                   {t.selectHint}
                 </p>
+              )}
+              {agentBound && agentOpening && messages.length === 0 && (
+                <div className='rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground'>
+                  {agentOpening}
+                </div>
               )}
               {messages.map((m) => (
                 <MessageBubble
@@ -510,7 +594,9 @@ export function ChatPage() {
                 <Button
                   onClick={() => void send()}
                   disabled={
-                    !input.trim() || modelItems.length === 0 || awaiting
+                    !input.trim() ||
+                    (!agentBound && modelItems.length === 0) ||
+                    awaiting
                   }
                 >
                   <Send className='size-4' />

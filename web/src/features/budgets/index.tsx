@@ -7,6 +7,7 @@ import {
   budgetApi,
   deptApi,
   memberApi,
+  agentApi,
   modelApi,
   type Budget,
   type BudgetInput,
@@ -44,6 +45,7 @@ const scopeLabel: Record<string, string> = {
   dept: zh.budgets.scopeDept,
   user: zh.budgets.scopeUser,
   model: zh.budgets.scopeModel,
+  agent: zh.budgets.scopeAgent,
 }
 
 // 编辑态：金额以「元」字符串输入，保存时换算为微元。
@@ -113,6 +115,12 @@ export function BudgetsPage() {
     queryFn: modelApi.models,
     enabled: edit?.v.scope === 'model',
   })
+  const agents = useQuery({
+    queryKey: ['agents', 'manage'],
+    queryFn: () => agentApi.list('manage'),
+    enabled: edit?.v.scope === 'agent',
+    retry: false,
+  })
   const members = useQuery({
     queryKey: ['members', 'budget-pick', q],
     queryFn: () => memberApi.list({ q }),
@@ -160,6 +168,11 @@ export function BudgetsPage() {
     targets = (models.data?.items ?? []).map((m) => ({
       value: String(m.id),
       label: m.name,
+    }))
+  if (edit?.v.scope === 'agent')
+    targets = (agents.data?.items ?? []).map((a) => ({
+      value: String(a.id),
+      label: a.name,
     }))
   if (edit?.v.scope === 'user')
     targets = (members.data?.items ?? []).map((m) => ({
