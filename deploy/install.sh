@@ -4,7 +4,7 @@
 # 非交互：./install.sh --non-interactive --storage seaweedfs|minio|external \
 #   [--s3-endpoint URL --s3-region R --s3-access-key AK --s3-secret-key SK --s3-bucket B --s3-path-style true|false] \
 #   [--admin-email E] [--admin-password P] [--auditor-email E [--auditor-password P]] [--http-port 8080] \
-#   [--tls-cert 证书.pem --tls-key 私钥.pem | --self-signed [--san 域名或IP ...]] [--https-port 443] [--redirect-port 80] [--no-http-redirect] [--force] [--up] [--ack-master-key]
+#   [--tls-cert 证书.pem --tls-key 私钥.pem | --self-signed [--san 域名或IP ...]] [--https-port 443] [--redirect-port 80] [--no-http-redirect] [--force] [--up] [--ack-master-key] [--offline] [--version VER]
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -16,6 +16,8 @@ TLS_CERT="" TLS_KEY=""
 SELF_SIGNED=0 SANS=() SAN_LIST=""
 HTTPS_PORT="443" REDIRECT_PORT="80" HTTP_REDIRECT="true"
 ACK_MASTER_KEY=0
+OFFLINE=0
+VERSION=""
 
 usage() { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 die() { echo "错误：$*" >&2; exit 1; }
@@ -46,6 +48,8 @@ while [ $# -gt 0 ]; do
     --force) FORCE=1 ;;
     --up) UP=1 ;;
     --ack-master-key) ACK_MASTER_KEY=1 ;;
+    --offline) OFFLINE=1 ;;
+    --version) VERSION="$2"; shift ;;
     -h|--help) usage 0 ;;
     *) echo "未知参数：$1" >&2; usage 1 ;;
   esac
@@ -181,10 +185,31 @@ if [ "$INTERACTIVE" = 1 ]; then
 elif [ "$ACK_MASTER_KEY" != 1 ]; then
   die "非交互安装需加 --ack-master-key，表示已知晓主密钥位置并会单独备份：$MASTER_KEY_PATH"
 fi
+# 离线模式：自检 + 加载镜像 tar（包根目录的 images/ 或 ../images/）
+if [ "$OFFLINE" = 1 ]; then
+  if [ -x ./offline-check.sh ]; then ./offline-check.sh; fi
+  IMG_DIR=""
+  for d in ../images ./images; do
+    [ -d "$d" ] && IMG_DIR="$d" && break
+  done
+  [ -n "$IMG_DIR" ] || die "离线安装需要 images/ 目录（含 *.tar），请使用 pack-offline.sh 生成的安装包"
+  echo "==> 加载离线镜像（$IMG_DIR）"
+  shopt -s nullglob
+  for tar in "$IMG_DIR"/*.tar; do
+    echo "  docker load -i $tar"
+    docker load -i "$tar"
+  done
+  shopt -u nullglob
+  if [ -z "$VERSION" ] && [ -f ../VERSION ]; then VERSION=$(tr -d ' \n' < ../VERSION); fi
+  if [ -z "$VERSION" ] && [ -f ./VERSION ]; then VERSION=$(tr -d ' \n' < ./VERSION); fi
+  [ -n "$VERSION" ] || die "离线安装须指定 --version 或提供 VERSION 文件"
+fi
+[ -n "$VERSION" ] || VERSION=dev
+
 cat > .env <<ENV
 # 由 install.sh 于 $(date '+%Y-%m-%d %H:%M:%S %z') 生成，存储：$STORAGE
 COMPOSE_FILE=$COMPOSE_FILE
-HENGDESK_VERSION=dev
+HENGDESK_VERSION=$VERSION
 HENGDESK_HTTP_PORT=$HTTP_PORT
 HENGDESK_HTTPS_PORT=$HTTPS_PORT
 HENGDESK_REDIRECT_PORT=$REDIRECT_PORT
@@ -226,4 +251,16 @@ if [ -n "$AUDITOR_EMAIL" ]; then
 else
   echo "提示：未指派安全审计员，管理后台会常驻提示；可稍后在「角色」页面指派。"
 fi
-if [ "$UP" = 1 ]; then docker compose up -d --build; else echo "启动：cd $(pwd) && docker compose up -d --build"; fi
+if [ "$UP" = 1 ]; then
+  if [ "$OFFLINE" = 1 ]; then
+    docker compose up -d --no-build --pull never
+  else
+    docker compose up -d --build
+  fi
+else
+  if [ "$OFFLINE" = 1 ]; then
+    echo "启动：cd $(pwd) && docker compose up -d --no-build --pull never"
+  else
+    echo "启动：cd $(pwd) && docker compose up -d --build"
+  fi
+fi
