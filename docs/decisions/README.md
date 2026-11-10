@@ -21,5 +21,6 @@
 | D-42 | 知识库检索性能定稿：按硬件档与可见比例定目标（推荐 32 GB + 预热）、ef_search 400、halfvec 索引、启动预热、索引超内存一半提示、按知识库过滤列 P1；超管给自己授权记高风险审计、embedding 计入用量与告警；检索失败 503 + 重试 / 不用知识库继续、未检索到资料标「未引用知识库资料」、按知识库「仅依据资料回答」；改写追问 P1、多层代理 P2 | [D-42-kb-perf-defaults.md](D-42-kb-perf-defaults.md) |
 | D-43 | HNSW 召回参数：ef_search 默认 1000（可按可见比例自适应但不得低于各档目标）、100% 可见档纳入考核（M1 recall@10 ≥0.93、M2 ≥0.95：无过滤路径调大 ef_search 并调 m / ef_construction）、按知识库过滤 P1、M1 验收复测不强制 32 GB | [D-43-hnsw-recall.md](D-43-hnsw-recall.md) |
 | D-44 | MCP 与审批默认值：高危永不自动（含超管）、通过即执行且复核发起人权限、空审批人提醒工具管理员、审批结果后 worker 自动续写（「继续」仅兜底）、等待审批锁定与撤回续写、AC-08 重启恢复测试；工具步数可配与角色授权 UI 列 P1 | [D-44-mcp-approval-defaults.md](D-44-mcp-approval-defaults.md) |
+| D-45 | 智能体运行时：发布快照可回滚、运行时调用人权限交集与越权测试、步数 1–10 默认 5、可逆停用与只读会话；正式下架/上架 P1、委托授权 P2 | [D-45-agent-runtime-defaults.md](D-45-agent-runtime-defaults.md) |
 
 > D-27（ACL 检索分档策略与性能基线）由产品经理维护，不在此复制。

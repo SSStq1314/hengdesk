@@ -178,6 +178,20 @@ func (_c *AgentCreate) SetCreatedBy(v int) *AgentCreate {
 	return _c
 }
 
+// SetDisabled sets the "disabled" field.
+func (_c *AgentCreate) SetDisabled(v bool) *AgentCreate {
+	_c.mutation.SetDisabled(v)
+	return _c
+}
+
+// SetNillableDisabled sets the "disabled" field if the given value is not nil.
+func (_c *AgentCreate) SetNillableDisabled(v *bool) *AgentCreate {
+	if v != nil {
+		_c.SetDisabled(*v)
+	}
+	return _c
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_c *AgentCreate) SetDeletedAt(v time.Time) *AgentCreate {
 	_c.mutation.SetDeletedAt(v)
@@ -259,6 +273,10 @@ func (_c *AgentCreate) defaults() {
 		v := agent.DefaultDraftDirty
 		_c.mutation.SetDraftDirty(v)
 	}
+	if _, ok := _c.mutation.Disabled(); !ok {
+		v := agent.DefaultDisabled
+		_c.mutation.SetDisabled(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -310,6 +328,9 @@ func (_c *AgentCreate) check() error {
 	}
 	if _, ok := _c.mutation.CreatedBy(); !ok {
 		return &ValidationError{Name: "created_by", err: errors.New(`ent: missing required field "Agent.created_by"`)}
+	}
+	if _, ok := _c.mutation.Disabled(); !ok {
+		return &ValidationError{Name: "disabled", err: errors.New(`ent: missing required field "Agent.disabled"`)}
 	}
 	return nil
 }
@@ -393,6 +414,10 @@ func (_c *AgentCreate) createSpec() (*Agent, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CreatedBy(); ok {
 		_spec.SetField(agent.FieldCreatedBy, field.TypeInt, value)
 		_node.CreatedBy = value
+	}
+	if value, ok := _c.mutation.Disabled(); ok {
+		_spec.SetField(agent.FieldDisabled, field.TypeBool, value)
+		_node.Disabled = value
 	}
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(agent.FieldDeletedAt, field.TypeTime, value)
@@ -651,6 +676,18 @@ func (u *AgentUpsert) UpdateCreatedBy() *AgentUpsert {
 // AddCreatedBy adds v to the "created_by" field.
 func (u *AgentUpsert) AddCreatedBy(v int) *AgentUpsert {
 	u.Add(agent.FieldCreatedBy, v)
+	return u
+}
+
+// SetDisabled sets the "disabled" field.
+func (u *AgentUpsert) SetDisabled(v bool) *AgentUpsert {
+	u.Set(agent.FieldDisabled, v)
+	return u
+}
+
+// UpdateDisabled sets the "disabled" field to the value that was provided on create.
+func (u *AgentUpsert) UpdateDisabled() *AgentUpsert {
+	u.SetExcluded(agent.FieldDisabled)
 	return u
 }
 
@@ -952,6 +989,20 @@ func (u *AgentUpsertOne) AddCreatedBy(v int) *AgentUpsertOne {
 func (u *AgentUpsertOne) UpdateCreatedBy() *AgentUpsertOne {
 	return u.Update(func(s *AgentUpsert) {
 		s.UpdateCreatedBy()
+	})
+}
+
+// SetDisabled sets the "disabled" field.
+func (u *AgentUpsertOne) SetDisabled(v bool) *AgentUpsertOne {
+	return u.Update(func(s *AgentUpsert) {
+		s.SetDisabled(v)
+	})
+}
+
+// UpdateDisabled sets the "disabled" field to the value that was provided on create.
+func (u *AgentUpsertOne) UpdateDisabled() *AgentUpsertOne {
+	return u.Update(func(s *AgentUpsert) {
+		s.UpdateDisabled()
 	})
 }
 
@@ -1422,6 +1473,20 @@ func (u *AgentUpsertBulk) AddCreatedBy(v int) *AgentUpsertBulk {
 func (u *AgentUpsertBulk) UpdateCreatedBy() *AgentUpsertBulk {
 	return u.Update(func(s *AgentUpsert) {
 		s.UpdateCreatedBy()
+	})
+}
+
+// SetDisabled sets the "disabled" field.
+func (u *AgentUpsertBulk) SetDisabled(v bool) *AgentUpsertBulk {
+	return u.Update(func(s *AgentUpsert) {
+		s.SetDisabled(v)
+	})
+}
+
+// UpdateDisabled sets the "disabled" field to the value that was provided on create.
+func (u *AgentUpsertBulk) UpdateDisabled() *AgentUpsertBulk {
+	return u.Update(func(s *AgentUpsert) {
+		s.UpdateDisabled()
 	})
 }
 

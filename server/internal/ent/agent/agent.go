@@ -41,6 +41,8 @@ const (
 	FieldDraftDirty = "draft_dirty"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
 	FieldCreatedBy = "created_by"
+	// FieldDisabled holds the string denoting the disabled field in the database.
+	FieldDisabled = "disabled"
 	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
 	FieldDeletedAt = "deleted_at"
 	// Table holds the table name of the agent in the database.
@@ -64,6 +66,7 @@ var Columns = []string{
 	FieldPublishedVersion,
 	FieldDraftDirty,
 	FieldCreatedBy,
+	FieldDisabled,
 	FieldDeletedAt,
 }
 
@@ -102,6 +105,8 @@ var (
 	DefaultPublishedVersion int
 	// DefaultDraftDirty holds the default value on creation for the "draft_dirty" field.
 	DefaultDraftDirty bool
+	// DefaultDisabled holds the default value on creation for the "disabled" field.
+	DefaultDisabled bool
 )
 
 // OrderOption defines the ordering options for the Agent queries.
@@ -170,6 +175,11 @@ func ByDraftDirty(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedBy orders the results by the created_by field.
 func ByCreatedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedBy, opts...).ToFunc()
+}
+
+// ByDisabled orders the results by the disabled field.
+func ByDisabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDisabled, opts...).ToFunc()
 }
 
 // ByDeletedAt orders the results by the deleted_at field.

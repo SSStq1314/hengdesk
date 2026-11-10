@@ -140,6 +140,7 @@ export function ChatPage() {
     (pendingAgent ? zh.agents.chatWithAgent : '')
   const agentOpening = conv.data?.opening || ''
   const agentDebug = !!(conv.data?.agent_debug || pendingAgent?.debug)
+  const agentReadonly = !!conv.data?.agent_readonly
   const kbIDs = active != null ? (conv.data?.kb_ids ?? []) : draftKBs
   const setKBs = useMutation({
     mutationFn: (ids: number[]) => chatApi.setKBs(active!, ids),
@@ -498,6 +499,11 @@ export function ChatPage() {
                   {agentOpening}
                 </div>
               )}
+              {agentReadonly && (
+                <div className='rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive'>
+                  {zh.agents.readonlyHint}
+                </div>
+              )}
               {messages.map((m) => (
                 <MessageBubble
                   key={m.id}
@@ -560,7 +566,10 @@ export function ChatPage() {
                 aria-label={t.attach}
                 title={t.attachHint}
                 disabled={
-                  streaming || uploading != null || modelItems.length === 0
+                  streaming ||
+                  uploading != null ||
+                  modelItems.length === 0 ||
+                  agentReadonly
                 }
                 onClick={() => fileRef.current?.click()}
               >
@@ -568,8 +577,9 @@ export function ChatPage() {
               </Button>
               <Textarea
                 value={input}
-                placeholder={t.placeholder}
+                placeholder={agentReadonly ? zh.agents.readonlyHint : t.placeholder}
                 rows={3}
+                readOnly={agentReadonly}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (
@@ -596,7 +606,8 @@ export function ChatPage() {
                   disabled={
                     !input.trim() ||
                     (!agentBound && modelItems.length === 0) ||
-                    awaiting
+                    awaiting ||
+                    agentReadonly
                   }
                 >
                   <Send className='size-4' />

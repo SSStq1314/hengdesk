@@ -57,6 +57,7 @@ var (
 		{Name: "published_version", Type: field.TypeInt, Default: 0},
 		{Name: "draft_dirty", Type: field.TypeBool, Default: true},
 		{Name: "created_by", Type: field.TypeInt},
+		{Name: "disabled", Type: field.TypeBool, Default: false},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
 	}
 	// AgentsTable holds the schema information for the "agents" table.
@@ -68,7 +69,7 @@ var (
 			{
 				Name:    "agent_org_id_deleted_at",
 				Unique:  false,
-				Columns: []*schema.Column{AgentsColumns[3], AgentsColumns[15]},
+				Columns: []*schema.Column{AgentsColumns[3], AgentsColumns[16]},
 			},
 		},
 	}

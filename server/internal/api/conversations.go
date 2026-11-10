@@ -22,6 +22,7 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/authz"
 	"github.com/SSStq1314/hengdesk/server/internal/docparse"
 	"github.com/SSStq1314/hengdesk/server/internal/ent"
+	"github.com/SSStq1314/hengdesk/server/internal/ent/agent"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversation"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/conversationfile"
 	"github.com/SSStq1314/hengdesk/server/internal/ent/kbfile"
@@ -57,17 +58,18 @@ type convHandlers struct {
 }
 
 type convView struct {
-	ID         int       `json:"id"`
-	Title      string    `json:"title"`
-	ModelID    *int      `json:"model_id"`
-	KBIDs      []int     `json:"kb_ids"`
-	ToolIDs    []int     `json:"tool_ids"`
-	AgentID    *int      `json:"agent_id,omitempty"`
-	AgentDebug bool      `json:"agent_debug,omitempty"`
-	AgentName  string    `json:"agent_name,omitempty"`
-	Opening    string    `json:"opening,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID            int       `json:"id"`
+	Title         string    `json:"title"`
+	ModelID       *int      `json:"model_id"`
+	KBIDs         []int     `json:"kb_ids"`
+	ToolIDs       []int     `json:"tool_ids"`
+	AgentID       *int      `json:"agent_id,omitempty"`
+	AgentDebug    bool      `json:"agent_debug,omitempty"`
+	AgentName     string    `json:"agent_name,omitempty"`
+	Opening       string    `json:"opening,omitempty"`
+	AgentReadonly bool      `json:"agent_readonly,omitempty"` // D-45：智能体停用/删除后会话只读
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type msgView struct {
@@ -99,14 +101,27 @@ type msgView struct {
 	AgentDropped []schema.AgentDropped `json:"agent_dropped,omitempty"`
 }
 
-// enrichConv 补齐智能体名称与开场白（正式取发布版，调试取草稿）。
+// enrichConv 补齐智能体名称与开场白（正式取发布版，调试取草稿）；停用/删除时标记只读。
 func (h *convHandlers) enrichConv(c echo.Context, p *auth.Principal, cv *ent.Conversation) (convView, error) {
 	v := toConv(cv)
 	if cv.AgentID == nil {
 		return v, nil
 	}
-	_, cfg, _, err := h.bindAgent(c, p, *cv.AgentID, cv.AgentDebug)
+	_, cfg, _, err := h.bindAgent(c, p, *cv.AgentID, cv.AgentDebug, true)
 	if err != nil {
+		if err == errAgentReadonly {
+			v.AgentReadonly = true
+			// 尽量带上名称，便于前端提示。
+			if a, e := h.db.Agent.Query().Where(agent.ID(*cv.AgentID), agent.OrgID(p.OrgID)).Only(c.Request().Context()); e == nil {
+				v.AgentName = a.Name
+				if !cv.AgentDebug {
+					if pub, e2 := (&agentHandlers{db: h.db, az: h.az}).published(c.Request().Context(), a); e2 == nil && pub != nil {
+						v.AgentName, v.Opening = pub.Name, pub.Opening
+					}
+				}
+			}
+			return v, nil
+		}
 		// 绑定后失去权限：仍返回基本字段，名称留空（发消息时会 404）。
 		return v, nil
 	}

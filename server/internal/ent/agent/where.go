@@ -114,6 +114,11 @@ func CreatedBy(v int) predicate.Agent {
 	return predicate.Agent(sql.FieldEQ(FieldCreatedBy, v))
 }
 
+// Disabled applies equality check predicate on the "disabled" field. It's identical to DisabledEQ.
+func Disabled(v bool) predicate.Agent {
+	return predicate.Agent(sql.FieldEQ(FieldDisabled, v))
+}
+
 // DeletedAt applies equality check predicate on the "deleted_at" field. It's identical to DeletedAtEQ.
 func DeletedAt(v time.Time) predicate.Agent {
 	return predicate.Agent(sql.FieldEQ(FieldDeletedAt, v))
@@ -697,6 +702,16 @@ func CreatedByLT(v int) predicate.Agent {
 // CreatedByLTE applies the LTE predicate on the "created_by" field.
 func CreatedByLTE(v int) predicate.Agent {
 	return predicate.Agent(sql.FieldLTE(FieldCreatedBy, v))
+}
+
+// DisabledEQ applies the EQ predicate on the "disabled" field.
+func DisabledEQ(v bool) predicate.Agent {
+	return predicate.Agent(sql.FieldEQ(FieldDisabled, v))
+}
+
+// DisabledNEQ applies the NEQ predicate on the "disabled" field.
+func DisabledNEQ(v bool) predicate.Agent {
+	return predicate.Agent(sql.FieldNEQ(FieldDisabled, v))
 }
 
 // DeletedAtEQ applies the EQ predicate on the "deleted_at" field.

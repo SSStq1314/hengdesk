@@ -252,6 +252,20 @@ func (_u *AgentUpdate) AddCreatedBy(v int) *AgentUpdate {
 	return _u
 }
 
+// SetDisabled sets the "disabled" field.
+func (_u *AgentUpdate) SetDisabled(v bool) *AgentUpdate {
+	_u.mutation.SetDisabled(v)
+	return _u
+}
+
+// SetNillableDisabled sets the "disabled" field if the given value is not nil.
+func (_u *AgentUpdate) SetNillableDisabled(v *bool) *AgentUpdate {
+	if v != nil {
+		_u.SetDisabled(*v)
+	}
+	return _u
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_u *AgentUpdate) SetDeletedAt(v time.Time) *AgentUpdate {
 	_u.mutation.SetDeletedAt(v)
@@ -417,6 +431,9 @@ func (_u *AgentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedCreatedBy(); ok {
 		_spec.AddField(agent.FieldCreatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Disabled(); ok {
+		_spec.SetField(agent.FieldDisabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.DeletedAt(); ok {
 		_spec.SetField(agent.FieldDeletedAt, field.TypeTime, value)
@@ -667,6 +684,20 @@ func (_u *AgentUpdateOne) AddCreatedBy(v int) *AgentUpdateOne {
 	return _u
 }
 
+// SetDisabled sets the "disabled" field.
+func (_u *AgentUpdateOne) SetDisabled(v bool) *AgentUpdateOne {
+	_u.mutation.SetDisabled(v)
+	return _u
+}
+
+// SetNillableDisabled sets the "disabled" field if the given value is not nil.
+func (_u *AgentUpdateOne) SetNillableDisabled(v *bool) *AgentUpdateOne {
+	if v != nil {
+		_u.SetDisabled(*v)
+	}
+	return _u
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_u *AgentUpdateOne) SetDeletedAt(v time.Time) *AgentUpdateOne {
 	_u.mutation.SetDeletedAt(v)
@@ -862,6 +893,9 @@ func (_u *AgentUpdateOne) sqlSave(ctx context.Context) (_node *Agent, err error)
 	}
 	if value, ok := _u.mutation.AddedCreatedBy(); ok {
 		_spec.AddField(agent.FieldCreatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Disabled(); ok {
+		_spec.SetField(agent.FieldDisabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.DeletedAt(); ok {
 		_spec.SetField(agent.FieldDeletedAt, field.TypeTime, value)
