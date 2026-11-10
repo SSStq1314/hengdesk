@@ -710,6 +710,8 @@ export type Conversation = {
   agent_debug?: boolean
   agent_name?: string
   opening?: string
+  /** D-45：智能体停用或删除后会话只读 */
+  agent_readonly?: boolean
   created_at: string
   updated_at: string
 }
@@ -1265,6 +1267,7 @@ export type Agent = {
   opening: string
   published_version: number
   published: boolean
+  disabled: boolean
   draft_dirty?: boolean
   perms: AgentPerm[]
   created_by?: number
@@ -1335,10 +1338,16 @@ export const agentApi = {
   remove: (id: number) => api<void>(`/agents/${id}`, { method: 'DELETE' }),
   publish: (id: number, note = '') =>
     api<Agent>(`/agents/${id}/publish`, json('POST', { note })),
+  disable: (id: number) =>
+    api<Agent>(`/agents/${id}/disable`, { method: 'POST' }),
+  enable: (id: number) =>
+    api<Agent>(`/agents/${id}/enable`, { method: 'POST' }),
   versions: (id: number) =>
     api<{ items: AgentVersion[] }>(`/agents/${id}/versions`),
   restore: (id: number, v: number) =>
     api<Agent>(`/agents/${id}/versions/${v}/restore`, { method: 'POST' }),
+  rollback: (id: number, v: number) =>
+    api<Agent>(`/agents/${id}/versions/${v}/rollback`, { method: 'POST' }),
   acl: (id: number) => api<{ items: AgentACLRow[] }>(`/agents/${id}/acl`),
   grant: (id: number, b: AgentACLInput) =>
     api<void>(`/agents/${id}/acl`, json('POST', b)),

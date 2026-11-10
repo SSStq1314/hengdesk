@@ -1030,6 +1030,7 @@ type AgentMutation struct {
 	draft_dirty          *bool
 	created_by           *int
 	addcreated_by        *int
+	disabled             *bool
 	deleted_at           *time.Time
 	clearedFields        map[string]struct{}
 	done                 bool
@@ -1811,6 +1812,42 @@ func (m *AgentMutation) ResetCreatedBy() {
 	m.addcreated_by = nil
 }
 
+// SetDisabled sets the "disabled" field.
+func (m *AgentMutation) SetDisabled(b bool) {
+	m.disabled = &b
+}
+
+// Disabled returns the value of the "disabled" field in the mutation.
+func (m *AgentMutation) Disabled() (r bool, exists bool) {
+	v := m.disabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisabled returns the old "disabled" field's value of the Agent entity.
+// If the Agent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentMutation) OldDisabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisabled: %w", err)
+	}
+	return oldValue.Disabled, nil
+}
+
+// ResetDisabled resets all changes to the "disabled" field.
+func (m *AgentMutation) ResetDisabled() {
+	m.disabled = nil
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (m *AgentMutation) SetDeletedAt(t time.Time) {
 	m.deleted_at = &t
@@ -1894,7 +1931,7 @@ func (m *AgentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AgentMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.created_at != nil {
 		fields = append(fields, agent.FieldCreatedAt)
 	}
@@ -1937,6 +1974,9 @@ func (m *AgentMutation) Fields() []string {
 	if m.created_by != nil {
 		fields = append(fields, agent.FieldCreatedBy)
 	}
+	if m.disabled != nil {
+		fields = append(fields, agent.FieldDisabled)
+	}
 	if m.deleted_at != nil {
 		fields = append(fields, agent.FieldDeletedAt)
 	}
@@ -1976,6 +2016,8 @@ func (m *AgentMutation) Field(name string) (ent.Value, bool) {
 		return m.DraftDirty()
 	case agent.FieldCreatedBy:
 		return m.CreatedBy()
+	case agent.FieldDisabled:
+		return m.Disabled()
 	case agent.FieldDeletedAt:
 		return m.DeletedAt()
 	}
@@ -2015,6 +2057,8 @@ func (m *AgentMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldDraftDirty(ctx)
 	case agent.FieldCreatedBy:
 		return m.OldCreatedBy(ctx)
+	case agent.FieldDisabled:
+		return m.OldDisabled(ctx)
 	case agent.FieldDeletedAt:
 		return m.OldDeletedAt(ctx)
 	}
@@ -2123,6 +2167,13 @@ func (m *AgentMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCreatedBy(v)
+		return nil
+	case agent.FieldDisabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisabled(v)
 		return nil
 	case agent.FieldDeletedAt:
 		v, ok := value.(time.Time)
@@ -2311,6 +2362,9 @@ func (m *AgentMutation) ResetField(name string) error {
 		return nil
 	case agent.FieldCreatedBy:
 		m.ResetCreatedBy()
+		return nil
+	case agent.FieldDisabled:
+		m.ResetDisabled()
 		return nil
 	case agent.FieldDeletedAt:
 		m.ResetDeletedAt()

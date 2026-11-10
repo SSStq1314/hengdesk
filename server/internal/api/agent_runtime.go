@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -46,19 +47,33 @@ type agentSession struct {
 	RunID    int
 }
 
+// errAgentReadonly 智能体停用或软删除后，已有会话改为只读（D-45 第 8 条）。
+var errAgentReadonly = errors.New("agent_readonly")
+
+func agentReadonlyHTTP() *echo.HTTPError {
+	return echo.NewHTTPError(http.StatusConflict, "智能体已停用或已删除，会话只读，不能继续对话").SetInternal(errAgentReadonly)
+}
+
 // bindAgent 校验并返回可绑定的智能体配置。
-// debug=false 需要 use 且已发布；debug=true 需要 edit（可用草稿）。
-func (h *convHandlers) bindAgent(c echo.Context, p *auth.Principal, id int, debug bool) (*ent.Agent, *schema.AgentConfig, int, error) {
+// existing=true 表示已有会话（停用/删除 → 409 只读）；false 表示新建/改绑（停用/删除 → 404）。
+func (h *convHandlers) bindAgent(c echo.Context, p *auth.Principal, id int, debug, existing bool) (*ent.Agent, *schema.AgentConfig, int, error) {
 	if id <= 0 {
 		return nil, nil, 0, authz.Deny(c, "agent:bad_id")
 	}
 	ctx := c.Request().Context()
-	a, err := h.db.Agent.Query().Where(agent.ID(id), agent.OrgID(p.OrgID), agent.DeletedAtIsNil()).Only(ctx)
+	// 含已删除行：已有会话需区分「不存在」与「只读」。
+	a, err := h.db.Agent.Query().Where(agent.ID(id), agent.OrgID(p.OrgID)).Only(ctx)
 	if ent.IsNotFound(err) {
 		return nil, nil, 0, authz.Deny(c, "agent:missing")
 	}
 	if err != nil {
 		return nil, nil, 0, err
+	}
+	if a.DeletedAt != nil || a.Disabled {
+		if existing {
+			return nil, nil, 0, agentReadonlyHTTP()
+		}
+		return nil, nil, 0, authz.Deny(c, "agent:disabled")
 	}
 	ah := &agentHandlers{db: h.db, az: h.az}
 	perms, err := ah.agentPerms(ctx, p, []int{id})
@@ -86,12 +101,12 @@ func (h *convHandlers) bindAgent(c echo.Context, p *auth.Principal, id int, debu
 	return a, cfg, a.PublishedVersion, nil
 }
 
-// resolveAgent 按会话绑定加载配置，并按调用者当前权限静默剔除不可用的知识库 / 工具。
+// resolveAgent 按会话绑定加载配置，并按调用者当前权限静默剔除不可用的知识库 / 工具（D-45 第 4 条：调用人权限 ∩ 绑定范围）。
 func (h *convHandlers) resolveAgent(c echo.Context, p *auth.Principal, cv *ent.Conversation) (*agentSession, error) {
 	if cv.AgentID == nil {
 		return nil, nil
 	}
-	a, cfg, ver, err := h.bindAgent(c, p, *cv.AgentID, cv.AgentDebug)
+	a, cfg, ver, err := h.bindAgent(c, p, *cv.AgentID, cv.AgentDebug, true)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +266,7 @@ func (h *convHandlers) finishAgentRun(ctx context.Context, sess *agentSession, s
 }
 
 func (h *convHandlers) setAgentOnCreate(c echo.Context, p *auth.Principal, q *ent.ConversationCreate, agentID int, debug bool) error {
-	a, cfg, _, err := h.bindAgent(c, p, agentID, debug)
+	a, cfg, _, err := h.bindAgent(c, p, agentID, debug, false)
 	if err != nil {
 		return err
 	}
@@ -268,7 +283,7 @@ func (h *convHandlers) setAgentOnCreate(c echo.Context, p *auth.Principal, q *en
 }
 
 func (h *convHandlers) setAgentOnUpdate(c echo.Context, p *auth.Principal, u *ent.ConversationUpdateOne, agentID int, debug bool) error {
-	a, cfg, _, err := h.bindAgent(c, p, agentID, debug)
+	a, cfg, _, err := h.bindAgent(c, p, agentID, debug, false)
 	if err != nil {
 		return err
 	}

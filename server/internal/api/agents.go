@@ -62,12 +62,12 @@ func (h *agentHandlers) agentPerms(ctx context.Context, p *auth.Principal, ids [
 	return out, nil
 }
 
-// visible 未发布只对 edit 可见；已发布对 view 可见。
+// visible 未发布只对 edit 可见；已发布对 view 可见；停用的对无 edit 者不可见（D-45）。
 func agentVisible(a *ent.Agent, bits int) bool {
 	if bits&rbac.BitEdit != 0 {
 		return true
 	}
-	return a.PublishedVersion > 0 && bits&rbac.BitView != 0
+	return a.PublishedVersion > 0 && !a.Disabled && bits&rbac.BitView != 0
 }
 
 // agentOr404 取本人可见且拥有 bit 的智能体；否则 404（不暴露存在性）。
@@ -106,6 +106,7 @@ type agentView struct {
 	Opening          string    `json:"opening"`
 	PublishedVersion int       `json:"published_version"`
 	Published        bool      `json:"published"`
+	Disabled         bool      `json:"disabled"`
 	DraftDirty       bool      `json:"draft_dirty,omitempty"`
 	Perms            []string  `json:"perms"`
 	CreatedBy        int       `json:"created_by,omitempty"`
@@ -143,7 +144,7 @@ func (h *agentHandlers) published(ctx context.Context, a *ent.Agent) (*schema.Ag
 // view 对外展示：未拥有 edit 的人看到的是发布版本的名称 / 描述 / 开场白。
 func (h *agentHandlers) view(ctx context.Context, a *ent.Agent, bits int) (agentView, error) {
 	v := agentView{ID: a.ID, Name: a.Name, Description: a.Description, Opening: a.Opening, PublishedVersion: a.PublishedVersion,
-		Published: a.PublishedVersion > 0, Perms: permNames(bits), CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}
+		Published: a.PublishedVersion > 0, Disabled: a.Disabled, Perms: permNames(bits), CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}
 	if bits&rbac.BitEdit != 0 {
 		d := agentDraft(a)
 		v.Draft, v.DraftDirty, v.CreatedBy = &d, a.DraftDirty, a.CreatedBy
@@ -183,7 +184,7 @@ func (h *agentHandlers) list(c echo.Context) error {
 	if len(ids) > 0 {
 		q := h.db.Agent.Query().Where(agent.OrgID(p.OrgID), agent.IDIn(ids...), agent.DeletedAtIsNil())
 		if !manage {
-			q = q.Where(agent.PublishedVersionGT(0))
+			q = q.Where(agent.PublishedVersionGT(0), agent.DisabledEQ(false))
 		}
 		as, err := q.Order(ent.Desc(agent.FieldUpdatedAt), ent.Desc(agent.FieldID)).All(ctx)
 		if err != nil {
@@ -579,6 +580,89 @@ func (h *agentHandlers) revokeACL(c echo.Context) error {
 	return h.kbh.grant(c, p, rbac.ResAgent, strconv.Itoa(a.ID), in, 0, "agent.acl.revoke", agentDetail(a, nil))
 }
 
+// setDisabled POST /agents/:id/disable|enable（manage，D-45 第 8 条）：可逆停用；记审计。
+func (h *agentHandlers) setDisabled(disabled bool) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		p, a, bits, err := h.agentOr404(c, rbac.BitManage)
+		if err != nil {
+			return err
+		}
+		if a.Disabled == disabled {
+			v, err := h.view(c.Request().Context(), a, bits)
+			if err != nil {
+				return err
+			}
+			return c.JSON(http.StatusOK, v)
+		}
+		action := "agent.enable"
+		if disabled {
+			action = "agent.disable"
+		}
+		d := agentDetail(a, nil)
+		d["disabled"] = disabled
+		d["actor_id"] = p.ID
+		if err := h.record(c, action, "attempt", "", a.ID, d); err != nil {
+			return err
+		}
+		na, err := a.Update().SetDisabled(disabled).Save(c.Request().Context())
+		if err != nil {
+			return notFoundOr(err)
+		}
+		v, err := h.view(c.Request().Context(), na, bits)
+		if err != nil {
+			return err
+		}
+		return c.JSON(http.StatusOK, v)
+	}
+}
+
+// rollback POST /agents/:id/versions/:v/rollback（manage，D-45 第 2 条）：把线上发布指针回滚到历史版本快照，并同步草稿；记审计。
+func (h *agentHandlers) rollback(c echo.Context) error {
+	p, a, bits, err := h.agentOr404(c, rbac.BitManage)
+	if err != nil {
+		return err
+	}
+	ver, err := strconv.Atoi(c.Param("v"))
+	if err != nil || ver <= 0 {
+		return authz.Deny(c, "agent_version:bad_id")
+	}
+	ctx := c.Request().Context()
+	vrow, err := h.db.AgentVersion.Query().Where(agentversion.AgentID(a.ID), agentversion.Version(ver)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return authz.Deny(c, "agent_version:missing")
+	}
+	if err != nil {
+		return err
+	}
+	if a.PublishedVersion == ver {
+		out, err := h.view(ctx, a, bits)
+		if err != nil {
+			return err
+		}
+		return c.JSON(http.StatusOK, out)
+	}
+	cfg := vrow.Config
+	d := agentDetail(a, &cfg)
+	d["to_version"], d["from_version"] = ver, a.PublishedVersion
+	d["actor_id"] = p.ID
+	if err := h.record(c, "agent.rollback", "attempt", "", a.ID, d); err != nil {
+		return err
+	}
+	na, err := h.saveDraft(ctx, a, cfg)
+	if err != nil {
+		return notFoundOr(err)
+	}
+	na, err = na.Update().SetPublishedVersion(ver).SetDraftDirty(false).Save(ctx)
+	if err != nil {
+		return notFoundOr(err)
+	}
+	out, err := h.view(ctx, na, bits)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, out)
+}
+
 func mountAgents(g *echo.Group, d Deps, az *authz.Service, cvh *convHandlers) *agentHandlers {
 	lg := d.Log
 	if lg == nil {
@@ -591,8 +675,11 @@ func mountAgents(g *echo.Group, d Deps, az *authz.Service, cvh *convHandlers) *a
 	g.PATCH("/agents/:id", h.update)
 	g.DELETE("/agents/:id", h.remove)
 	g.POST("/agents/:id/publish", h.publish)
+	g.POST("/agents/:id/disable", h.setDisabled(true))
+	g.POST("/agents/:id/enable", h.setDisabled(false))
 	g.GET("/agents/:id/versions", h.versions)
 	g.POST("/agents/:id/versions/:v/restore", h.restore)
+	g.POST("/agents/:id/versions/:v/rollback", h.rollback)
 	g.GET("/agents/:id/acl", h.listACL)
 	g.POST("/agents/:id/acl", h.grantACL)
 	g.DELETE("/agents/:id/acl/:type/:sid", h.revokeACL)

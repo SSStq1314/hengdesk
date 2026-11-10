@@ -77,6 +77,8 @@ export function AgentDetailPage() {
   const [publishNote, setPublishNote] = useState('')
   const [confirmPub, setConfirmPub] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
+  const [confirmDisable, setConfirmDisable] = useState(false)
+  const [confirmRollback, setConfirmRollback] = useState<number | null>(null)
   const [runDetail, setRunDetail] = useState<AgentRun | null>(null)
 
   const canEdit = !!agent.data?.perms.includes('edit')
@@ -141,6 +143,29 @@ export function AgentDetailPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   })
+  const setDisabled = useMutation({
+    mutationFn: (disabled: boolean) =>
+      disabled ? agentApi.disable(id) : agentApi.enable(id),
+    onSuccess: (_a, disabled) => {
+      toast.success(disabled ? t.disabledOk : t.enabledOk)
+      setConfirmDisable(false)
+      qc.invalidateQueries({ queryKey: ['agent', id] })
+      qc.invalidateQueries({ queryKey: ['agents'] })
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const rollback = useMutation({
+    mutationFn: (v: number) => agentApi.rollback(id, v),
+    onSuccess: () => {
+      toast.success(t.rollbackOk)
+      setConfirmRollback(null)
+      setDraftEdit(null)
+      qc.invalidateQueries({ queryKey: ['agent', id] })
+      qc.invalidateQueries({ queryKey: ['agent-versions', id] })
+      qc.invalidateQueries({ queryKey: ['agents'] })
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
 
   const a = agent.data
   const modelOpts = [
@@ -180,6 +205,9 @@ export function AgentDetailPage() {
           {a?.draft_dirty && (
             <Badge variant='destructive'>{t.draftDirty}</Badge>
           )}
+          {a?.disabled && (
+            <Badge variant='destructive'>{t.disabled}</Badge>
+          )}
           <div className='ms-auto flex flex-wrap gap-2'>
             {canEdit && (
               <Button asChild size='sm' variant='secondary'>
@@ -187,6 +215,18 @@ export function AgentDetailPage() {
                   <MessagesSquare className='size-4' />
                   {t.startDebug}
                 </Link>
+              </Button>
+            )}
+            {canManage && (
+              <Button
+                size='sm'
+                variant='outline'
+                onClick={() =>
+                  a?.disabled ? setDisabled.mutate(false) : setConfirmDisable(true)
+                }
+                disabled={setDisabled.isPending}
+              >
+                {a?.disabled ? t.enable : t.disable}
               </Button>
             )}
             {canManage && (
@@ -363,7 +403,7 @@ export function AgentDetailPage() {
                         <TableCell>
                           {new Date(v.created_at).toLocaleString()}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className='space-x-2'>
                           <Button
                             size='sm'
                             variant='outline'
@@ -372,6 +412,16 @@ export function AgentDetailPage() {
                           >
                             {t.restore}
                           </Button>
+                          {canManage && !v.current && (
+                            <Button
+                              size='sm'
+                              variant='secondary'
+                              disabled={rollback.isPending}
+                              onClick={() => setConfirmRollback(v.version)}
+                            >
+                              {t.rollback}
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -479,6 +529,27 @@ export function AgentDetailPage() {
         destructive
         handleConfirm={() => remove.mutate()}
         isLoading={remove.isPending}
+      />
+      <ConfirmDialog
+        open={confirmDisable}
+        onOpenChange={setConfirmDisable}
+        title={t.disable}
+        desc={t.disableConfirm}
+        confirmText={t.disable}
+        destructive
+        handleConfirm={() => setDisabled.mutate(true)}
+        isLoading={setDisabled.isPending}
+      />
+      <ConfirmDialog
+        open={confirmRollback != null}
+        onOpenChange={(o) => !o && setConfirmRollback(null)}
+        title={t.rollback}
+        desc={t.rollbackConfirm}
+        confirmText={t.rollback}
+        handleConfirm={() =>
+          confirmRollback != null && rollback.mutate(confirmRollback)
+        }
+        isLoading={rollback.isPending}
       />
 
       {runDetail && (

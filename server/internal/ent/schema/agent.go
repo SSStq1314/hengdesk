@@ -10,7 +10,7 @@ import (
 
 // Agent 智能体（M1 第六块，FR-20）。本表保存「草稿」配置；每次发布在 agent_versions 写一份不可变快照，
 // 员工对话只使用最新发布版本（published_version）。访问控制全部走 acl 表（resource_type=agent）：
-// 未发布时只有拥有 edit 的人可见（§9.5）。删除为软删除，保留版本与运行记录供审计追溯。
+// 未发布时只有拥有 edit 的人可见（§9.5）。删除为软删除，保留版本与运行记录供审计追溯。停用（disabled）可逆，用于出问题时快速止损（D-45）。
 type Agent struct{ ent.Schema }
 
 func (Agent) Mixin() []ent.Mixin { return []ent.Mixin{TimeMixin{}} }
@@ -33,6 +33,8 @@ func (Agent) Fields() []ent.Field {
 		// draft_dirty 草稿相对最新发布版本有未发布的改动（界面提示「有未发布的修改」）。
 		field.Bool("draft_dirty").Default(true),
 		field.Int("created_by"),
+		// disabled 停用开关（D-45 第 8 条）：可逆，广场不可见，已有会话只读；与软删除区分。
+		field.Bool("disabled").Default(false),
 		field.Time("deleted_at").Optional().Nillable(),
 	}
 }

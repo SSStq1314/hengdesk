@@ -46,6 +46,8 @@ type Agent struct {
 	DraftDirty bool `json:"draft_dirty,omitempty"`
 	// CreatedBy holds the value of the "created_by" field.
 	CreatedBy int `json:"created_by,omitempty"`
+	// Disabled holds the value of the "disabled" field.
+	Disabled bool `json:"disabled,omitempty"`
 	// DeletedAt holds the value of the "deleted_at" field.
 	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
 	selectValues sql.SelectValues
@@ -58,7 +60,7 @@ func (*Agent) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case agent.FieldKBIds, agent.FieldToolIds:
 			values[i] = new([]byte)
-		case agent.FieldDraftDirty:
+		case agent.FieldDraftDirty, agent.FieldDisabled:
 			values[i] = new(sql.NullBool)
 		case agent.FieldID, agent.FieldOrgID, agent.FieldModelID, agent.FieldMaxSteps, agent.FieldPublishedVersion, agent.FieldCreatedBy:
 			values[i] = new(sql.NullInt64)
@@ -176,6 +178,12 @@ func (_m *Agent) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CreatedBy = int(value.Int64)
 			}
+		case agent.FieldDisabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field disabled", values[i])
+			} else if value.Valid {
+				_m.Disabled = value.Bool
+			}
 		case agent.FieldDeletedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field deleted_at", values[i])
@@ -262,6 +270,9 @@ func (_m *Agent) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("created_by=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CreatedBy))
+	builder.WriteString(", ")
+	builder.WriteString("disabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Disabled))
 	builder.WriteString(", ")
 	if v := _m.DeletedAt; v != nil {
 		builder.WriteString("deleted_at=")

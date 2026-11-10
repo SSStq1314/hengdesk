@@ -125,6 +125,10 @@ func init() {
 	agentDescDraftDirty := agentFields[10].Descriptor()
 	// agent.DefaultDraftDirty holds the default value on creation for the draft_dirty field.
 	agent.DefaultDraftDirty = agentDescDraftDirty.Default.(bool)
+	// agentDescDisabled is the schema descriptor for disabled field.
+	agentDescDisabled := agentFields[12].Descriptor()
+	// agent.DefaultDisabled holds the default value on creation for the disabled field.
+	agent.DefaultDisabled = agentDescDisabled.Default.(bool)
 	agentrunFields := schema.AgentRun{}.Fields()
 	_ = agentrunFields
 	// agentrunDescAgentVersion is the schema descriptor for agent_version field.

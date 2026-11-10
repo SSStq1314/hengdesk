@@ -72,6 +72,9 @@ export function AgentAdminPage() {
                 {a.draft_dirty && (
                   <Badge variant='destructive'>{t.draftDirty}</Badge>
                 )}
+                {a.disabled && (
+                  <Badge variant='destructive'>{t.disabled}</Badge>
+                )}
                 {a.perms
                   .filter((p) => p === 'edit' || p === 'manage')
                   .map((p) => (
