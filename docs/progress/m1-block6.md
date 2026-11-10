@@ -22,8 +22,8 @@
 | PR1 | 本计划文档；`agents` / `agent_versions` 表迁移；智能体管理 API（CRUD、绑定校验、发布与版本、恢复草稿、ACL 授权与共享范围、广场列表）；审计 fail-closed；越权 404 / 未登录 401 | FR-20、AC-03 | 已合并 |
 | PR2 | 运行时：会话绑定智能体（发布版 / 调试草稿）、系统提示词与开场白、权限交集与静默剔除、可配置步数、`agent_runs` 运行记录、审计带智能体信息 | FR-20、FR-21、AC-06/07/08 | 已合并 |
 | PR3 | 运行记录查询与详情 API（trace_id 关联审计回放）；按智能体预算（`usage_records.agent_id`、预算维度 agent） | FR-13、FR-28、AC-11 | 已合并 |
-| PR4 | Web：智能体管理（列表 / 编辑 + 调试 / 权限 / 发布与版本 / 运行记录）、智能体广场、对话页智能体入口 | §9.5 / §10 页面、演示剧本第 7、8、11 步 | 进行中（本 PR） |
-| PR5 | 第六块完成报告 | — | 待开始 |
+| PR4 | Web：智能体管理（列表 / 编辑 + 调试 / 权限 / 发布与版本 / 运行记录）、智能体广场、对话页智能体入口 | §9.5 / §10 页面、演示剧本第 7、8、11 步 | 已合并 |
+| PR5 | 第六块完成报告 | — | 本 PR |
 
 ## 待确认（先按以下默认值实现，不阻塞开发）
 
@@ -41,5 +41,52 @@
 - PR #53（feat/m1-b6-pr1，squash `871b32e`）：智能体定义、版本发布与 ACL 管理 API；迁移 `20261125000000_m1_agent_pr1.sql`；广场/管理列表、发布与版本恢复、部门共享范围；审计 fail-closed、越权 404。
 - PR #55（feat/m1-b6-pr2，squash `d4a7752`）：会话绑定智能体/调试、系统提示词、权限交集静默剔除、可配置步数、agent_runs、审计带 agent；顺带修复 govulncheck 无上游修复豁免与预算 UTC 窗口。
 - PR #56（feat/m1-b6-pr3，squash `7d9ebf6`）：运行记录查询与详情；usage_records.agent_id；预算维度 agent。
-- PR4（进行中）：Web 智能体广场 / 管理 / 详情（配置·权限·版本·运行记录）、对话页智能体入口与开场白、预算选智能体。
+- PR #57（feat/m1-b6-pr4，squash `e5b39ee`）：Web 智能体广场 / 管理 / 详情、对话页智能体入口与开场白、预算选智能体。
 
+## 第六块完成报告（PR5）
+
+### PR 与合并提交
+
+| PR | 内容 | squash 提交 |
+|---|---|---|
+| #53 | PR1：计划、`agents` / `agent_versions`、管理 API（CRUD / 发布 / 版本 / ACL / 广场） | `871b32e` |
+| #55 | PR2：会话绑定智能体 / 调试、系统提示词、权限交集静默剔除、可配置步数、`agent_runs`、审计带 agent；govulncheck 无修复豁免与预算 UTC 窗口 | `d4a7752` |
+| #56 | PR3：运行记录查询与详情；`usage_records.agent_id`；预算维度 `agent` | `7d9ebf6` |
+| #57 | PR4：Web 智能体广场 / 管理 / 详情、对话页智能体入口、预算选智能体 | `e5b39ee` |
+| PR5 | 本完成报告 | 见本 PR 合并提交 |
+
+写这份报告时，main 为 `e5b39ee`（其后若有并行合入以当时 tip 为准；D-44 #54 已合入 `8a178a2`，无新增迁移冲突）。
+
+### 对应需求
+
+| 需求 | 状态 |
+|---|---|
+| FR-20 智能体 CRUD、发布与可见范围 | 已完成（#53、#57）；未发布仅 edit 可见；越权 404 |
+| FR-21 工具调用循环、可配置步数 | 已完成（#55）；步数 1–10 默认 5；高风险工具永不自动（复用第五块 / D-44） |
+| FR-13 按智能体预算 | 已完成（#56、#57）；`usage_records.agent_id`，预算 scope=`agent` |
+| AC-03 部门可见隔离 | 已完成（#53）；广场/详情按 ACL，越权 404 |
+| AC-06/07/08/11 经智能体的工具审批与 trace | 已完成（#55、#56）；复用第五块审批循环；`agent_runs.trace_id` 可回放 |
+| 调用者权限 ∩ 智能体授权 | 已完成（#55）；不可用资源静默剔除，调试会话提示 |
+| 越权 404 / 未登录 401 / 审计 fail-closed | 各管理与运行接口有测试 |
+
+### 测试情况
+
+- 每个 PR 都是 GitHub Actions 全绿后才 squash 合并：Go lint + test（-race）、PostgreSQL 17 + pgvector 集成、govulncheck、许可证扫描 + SBOM、Web lint + typecheck + build + 文案集中检查、compose 冒烟（SeaweedFS / MinIO / HTTPS）。
+- 第六块新增 / 扩展测试：`internal/api` 中的智能体 CRUD / ACL / 发布、运行时绑定与权限交集、`agent_runs` 列表与详情 ACL、预算 scope=agent。
+- CI 只用 mock 模型上游与本地假 MCP server，不读取任何真实密钥。前端页面只有 lint / typecheck / build，没有端到端测试。
+- 本地 Go 须 1.26.x（`GOTOOLCHAIN=go1.26.10`），避免 ent 生成引入 `jsontext` 导致 CI 编不过。
+
+### 演示方式
+
+1. 启动环境（`cd deploy && docker compose up -d`）。演示模型可用 `cd server && go run ./cmd/mockupstream`；若测工具循环另起 `go run ./cmd/mockmcp` 并加入出站白名单。
+2. 有 `agent.create` 的管理员打开「智能体管理」（`/admin/agents`）：创建智能体，填写系统提示词 / 开场白，绑定本人可用的模型、知识库（≤5）、工具（≤20），保存草稿。
+3. 「权限」Tab 授权财务部 use；「发布」后，财务部成员在「智能体广场」（`/agents`）可见，市场部列表不可见、详情 404（AC-03）。
+4. 财务部成员点「开始对话」进入 `/chat?agent=…`，看到开场白；提问后走知识库检索 + 工具循环（高风险工具进审批中心，复用第五块）。
+5. 管理员在智能体详情「运行记录」查看步数 / token / 被剔除资源，复制 `trace_id` 到「审计日志」回放。
+6. 「预算与配额」新建 scope=智能体 的预算，智能体会话的 chat / embedding 计入该智能体。
+
+### 迁移
+
+- `20261125000000_m1_agent_pr1.sql`：agents / agent_versions
+- `20261126000000_m1_agent_pr2.sql`：agent_runs、conversations.agent_*
+- `20261127000000_m1_agent_pr3.sql`：usage_records.agent_id
