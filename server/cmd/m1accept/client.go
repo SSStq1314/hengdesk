@@ -149,18 +149,34 @@ func (c *Client) json(method, path string, body any, want int, dest any) (http.H
 	return h, nil
 }
 
-func (c *Client) getID(method, path string, body any, want int) (int, error) {
-	var out struct {
-		ID int `json:"id"`
+func extractID(raw []byte) int {
+	var top map[string]any
+	if json.Unmarshal(raw, &top) != nil {
+		return 0
 	}
-	_, err := c.json(method, path, body, want, &out)
+	if id := asInt(top["id"]); id != 0 {
+		return id
+	}
+	for _, k := range []string{"file", "item", "data", "conversation", "model", "provider", "budget", "kb", "agent"} {
+		if nested, ok := top[k].(map[string]any); ok {
+			if id := asInt(nested["id"]); id != 0 {
+				return id
+			}
+		}
+	}
+	return 0
+}
+
+func (c *Client) getID(method, path string, body any, want int) (int, error) {
+	b, _, err := c.do(method, path, body, want)
 	if err != nil {
 		return 0, err
 	}
-	if out.ID == 0 {
-		return 0, fmt.Errorf("%s %s 响应没有 id", method, path)
+	id := extractID(b)
+	if id == 0 {
+		return 0, fmt.Errorf("%s %s 响应没有 id：%s", method, path, trimBody(string(b)))
 	}
-	return out.ID, nil
+	return id, nil
 }
 
 func (c *Client) upload(path, filename string, content []byte, want int) ([]byte, error) {

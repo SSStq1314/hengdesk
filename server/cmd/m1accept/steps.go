@@ -558,14 +558,11 @@ func (s *script) step5() error {
 		if err != nil {
 			return fmt.Errorf("上传 %s：%w", f.name, err)
 		}
-		var v struct {
-			ID int `json:"id"`
-		}
-		_ = json.Unmarshal(raw, &v)
-		if v.ID == 0 {
+		id := extractID(raw)
+		if id == 0 {
 			return fmt.Errorf("上传 %s 无 id：%s", f.name, trimBody(string(raw)))
 		}
-		*f.ptr = v.ID
+		*f.ptr = id
 	}
 	// 高管文件自定义 ACL：仅财务经理
 	if _, _, err := s.admin.do(http.MethodPut, fmt.Sprintf("/api/v1/kbs/%d/files/%d/acl-mode", s.kbID, s.fileExec),
