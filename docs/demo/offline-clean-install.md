@@ -23,7 +23,12 @@
 4. **15 步 job 用的是验收包**（含 `hengdesk/mocks`）。AC-01 / D-46 要求的「正式包」安装记录仍要用默认包单独做一次。
 5. CI 的「断网」是安装与脚本运行阶段的代理黑洞、`--pull never` 和（15 步 job 中的）iptables，不是整机拔网线；跑 job 之前的打包步骤是有网的。
 
-因此：CI 绿只能证明「在 Runner 上按同样脚本能离线 load 并启动」，**不能替代**验收时在干净断网机上的正式包安装记录。
+D-50（2026-11-11）把「全新 GitHub 托管 x86 VM」定为可以关闭 D-46 第 8 条的实测环境，但只证明该云 VM，不证明物理机、客户现场或其他架构。已通过的一次运行是 [43088030693](https://github.com/SSStq1314/hengdesk/actions/runs/43088030693)（提交 `c397f8d8d7e696296b15e74ba3132603e898d89f`），证据包 SHA256 `422b79adcca8a4d1dc7f951856b02dbe76898de701fb776318db9b4de7de7d2c`。容器 IPv6 没有进入 `HD_DOCK6`，内核直接返回不可达。取证脚本是 `tests/acceptance/ci/d50-offline-install.sh`。它和下面两件旧记录不是同一件事：
+
+- 「断网安装冒烟」用的是 CI 临时 `docker save` 目录。
+- 「断网 15 步验收」用的是带 mocks 的验收包。
+
+D-50 要求默认正式包、隔离之后才 load 产品镜像、清洁基线、宿主 netns 与容器的 IPv4/IPv6/DNS 失败探针，以及重启后的数据持久性。控制通道只留 runner uid 在 init 网络命名空间里的 GitHub 连接；安装进程和产品容器不能借用。证据在该 workflow 的 artifact `d50-offline-evidence`。job 未成功之前，本项是未验证，不能写成通过。
 
 ## 验收时请补做的人工步骤
 

@@ -31,8 +31,9 @@ echo "$VERSION" > "$STAGE/VERSION"
 
 # 构建应用镜像
 echo "==> build hengdesk/server:$VERSION / hengdesk/web:$VERSION"
-docker build -t "hengdesk/server:$VERSION" "$ROOT/server"
-docker build -t "hengdesk/web:$VERSION" "$ROOT/web"
+# 关闭 buildx 默认 attestation。带 provenance 的索引镜像在 Docker 28 上 docker save 会直接退出 1，且不一定把原因打到日志。
+docker build --provenance=false --sbom=false -t "hengdesk/server:$VERSION" "$ROOT/server"
+docker build --provenance=false --sbom=false -t "hengdesk/web:$VERSION" "$ROOT/web"
 
 # 依赖镜像（与 docker-compose.yml 钉死版本一致）
 DEPS=(
@@ -51,9 +52,33 @@ for img in "${DEPS[@]}"; do
 done
 
 echo "==> docker save"
-docker save -o "$STAGE/images/hengdesk-server.tar" "hengdesk/server:$VERSION"
-docker save -o "$STAGE/images/hengdesk-web.tar" "hengdesk/web:$VERSION"
-docker save -o "$STAGE/images/deps.tar" "${DEPS[@]}"
+save_one() {
+  local out="$1"; shift
+  echo "save $* -> $out"
+  # -o 必须在镜像名前面。写在后面时，多镜像保存会把 -o 当成镜像名，tar 落到被重定向的日志里，随后 test -s 无提示失败。
+  if ! docker save -o "$out" "$@" >"$out.log" 2>&1; then
+    echo "docker save 失败：$*" >&2
+    if [ -f "$out.log" ] && [ "$(stat -c%s "$out.log")" -lt 20000 ]; then cat "$out.log" >&2; fi
+    df -h >&2 || true
+    docker images >&2 || true
+    exit 1
+  fi
+  rm -f "$out.log"
+  if [ ! -s "$out" ]; then
+    echo "docker save 产出为空：$*" >&2
+    ls -lh "$(dirname "$out")" >&2 || true
+    exit 1
+  fi
+  ls -lh "$out"
+}
+save_one "$STAGE/images/hengdesk-server.tar" "hengdesk/server:$VERSION"
+save_one "$STAGE/images/hengdesk-web.tar" "hengdesk/web:$VERSION"
+# 依赖镜像分开保存。install.sh 会 load images/*.tar，不要求打成一个包。
+i=0
+for img in "${DEPS[@]}"; do
+  i=$((i + 1))
+  save_one "$STAGE/images/dep-${i}.tar" "$img"
+done
 
 if [ "$WITH_ACCEPTANCE" = 1 ]; then
   echo "==> build hengdesk/mocks:$VERSION（验收 / 演示依赖，不进入默认正式包）"
@@ -102,7 +127,12 @@ if [ "$WITH_ACCEPTANCE" = 1 ]; then
 ACC
 fi
 
-TAR="$OUT/hengdesk-offline-$VERSION-amd64$([ "$WITH_ACCEPTANCE" = 1 ] && echo -acceptance).tar.gz"
+# 不能写成 $( [ cond ] && echo ...)。set -e 时条件为假会使命令替换返回非 0，脚本在默认正式包这条路径上直接退出。
+suffix=""
+if [ "$WITH_ACCEPTANCE" = 1 ]; then
+  suffix="-acceptance"
+fi
+TAR="$OUT/hengdesk-offline-$VERSION-amd64${suffix}.tar.gz"
 mkdir -p "$OUT"
 tar -C "$(dirname "$STAGE")" -czf "$TAR" "$(basename "$STAGE")"
 rm -rf "$STAGE"
