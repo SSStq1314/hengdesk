@@ -55,19 +55,30 @@ echo "==> docker save"
 save_one() {
   local out="$1"; shift
   echo "save $* -> $out"
-  if ! docker save "$@" -o "$out" >"$out.log" 2>&1; then
+  # -o 必须在镜像名前面。写在后面时，多镜像保存会把 -o 当成镜像名，tar 落到被重定向的日志里，随后 test -s 无提示失败。
+  if ! docker save -o "$out" "$@" >"$out.log" 2>&1; then
     echo "docker save 失败：$*" >&2
-    cat "$out.log" >&2 || true
+    if [ -f "$out.log" ] && [ "$(stat -c%s "$out.log")" -lt 20000 ]; then cat "$out.log" >&2; fi
     df -h >&2 || true
     docker images >&2 || true
     exit 1
   fi
   rm -f "$out.log"
-  test -s "$out"
+  if [ ! -s "$out" ]; then
+    echo "docker save 产出为空：$*" >&2
+    ls -lh "$(dirname "$out")" >&2 || true
+    exit 1
+  fi
+  ls -lh "$out"
 }
 save_one "$STAGE/images/hengdesk-server.tar" "hengdesk/server:$VERSION"
 save_one "$STAGE/images/hengdesk-web.tar" "hengdesk/web:$VERSION"
-save_one "$STAGE/images/deps.tar" "${DEPS[@]}"
+# 依赖镜像分开保存。install.sh 会 load images/*.tar，不要求打成一个包。
+i=0
+for img in "${DEPS[@]}"; do
+  i=$((i + 1))
+  save_one "$STAGE/images/dep-${i}.tar" "$img"
+done
 
 if [ "$WITH_ACCEPTANCE" = 1 ]; then
   echo "==> build hengdesk/mocks:$VERSION（验收 / 演示依赖，不进入默认正式包）"
