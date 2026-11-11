@@ -140,7 +140,7 @@ curl -N -b c.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
 ## 契约测试与录制（D-35）
 
 - 回放带在 `server/internal/gateway/testdata/`：`deepseek_cassette.json`（真实录制）、`dashscope_cassette.json`、`vllm_cassette.json`、`anthropic_cassette.json`。
-  后三者由 `tests/spikes/model-compat/make-doc-cassettes.py` **按各厂商公开文档构造**，文件头 `_note` 标注「文档构造，待真实录制替换」。
+  `dashscope_cassette.json` 按 D-49 只收录通义官方文档示例（每条有来源 URL、获取时间和非语义变换），**不是真实调用**。vLLM / Anthropic 仍由 `tests/spikes/model-compat/make-doc-cassettes.py` 构造，文件头标明「非真实录制、非通义实测」；该脚本不得覆盖 dashscope 回放带。
 - 测试（`contract_vendors_test.go`）覆盖：非流式 / 流式、思考字段开关、错误（无效 Key、无效模型、超长上下文、Anthropic overloaded）、超时；CI 离线运行。
 - 拿到凭据后在**本机**真实录制（不要在 CI 运行，不要使用 `DEEPSEEK_API_KEY`）：
 

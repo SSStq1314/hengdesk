@@ -190,7 +190,7 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 | AC-11 | **通过** |
 | AC-12 | **通过**（#68；fix-verify 300 条完整；CI 676 条校验通过） |
 | AC-13 | **通过**（#66，D-46 断言随 15 步通过） |
-| AC-14 | **部分**：mock「测试」通过；通义真实冒烟已按 D-49 移出 M1；契约测试在 CI 中运行，但 dashscope 回放带尚未按 D-49 换源；vLLM CPU / Ollama 未在本环境实跑 |
+| AC-14 | **部分**：mock「测试」通过；通义真实冒烟已按 D-49 移出 M1。dashscope 回放带已换成官方文档示例（见文末「2026-11-11 收尾」），不宣称真实调用。vLLM CPU 实跑与 Ollama 仍未在本环境完成 |
 | AC-15 | **通过** |
 | AC-16 | **通过** |
 | AC-17 | **通过** |
@@ -198,7 +198,7 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 | D-46 卸载 / 导出权限 | **通过** |
 | D-48 | **通过**（#72 文档；#69 与 fix-verify 均在新库上校验） |
 | D-47 | **通过**（#68，200 并发写入失败 0、全链校验通过） |
-| D-49 | **部分 / 待补**：文档与 POC 手册已落地（#72）；回放带未换源；vLLM CPU 待实跑 |
+| D-49 | **部分**：官方文档示例回放带与来源契约测试已落地（见文末）。vLLM CPU 真实协议冒烟仍待实跑。通义真实调用不在本项，客户现场见 POC 手册 |
 
 逐项依据与对应 PR 见上方对照表。
 
@@ -213,9 +213,24 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 ### 仍需人工补做的项
 
 1. **正式离线包在干净、断网机器上完整安装并归档记录**（AC-01 / D-46 第 8 条）。本执行环境无 Docker、也不是全新服务器；CI 覆盖了打包流程与断网 15 步，但不能替代该人工记录。
-2. **按 D-49 替换 dashscope 回放带**：现有 `server/internal/gateway/testdata/dashscope_cassette.json` 仍标注「按公开文档构造，非真实录制」。须改为通义官方文档示例或 vLLM CPU 真实录制，并标明来源，**不得编造响应**。此项在本块未另开 PR。
+2. **按 D-49 替换 dashscope 回放带**：已在 2026-11-11 收尾中改为通义官方文档示例（见文末）。vLLM / Anthropic 构造回放带仍不是通义证据。
 3. **vLLM CPU 真实协议冒烟实跑**：脚本与记录模板已合入，待有 Docker 的机器跑完后写入 `docs/demo/vllm-cpu-smoke.md`。
 4. **Ollama**：本执行环境未拉起、未验证。
 5. **客户现场用客户自己的密钥做一次通义真实冒烟**：POC 交付手册项，不是仓库离线 CI 门禁。
 6. **Keycloak 演示 IdP**：验收默认 mock OIDC；若产品要求 Keycloak，列为可选手动步骤或 P1 演示附加包。
 7. **DeepSeek 本机可选联调**：密钥只许出现在环境变量 `DEEPSEEK_API_KEY`，不得写入仓库、CI、`.env` 或日志，只记录通过与否。本块 CI 未跑真实 DeepSeek。
+
+## 2026-11-11 收尾（相对 #74 报告）
+
+完成报告撰写时点名的 main 是 `bf4c9ec`，这个提交就是 #75，SQLite 用量窗口修复已经在里面。当前 main `3d05dbd` 相对 `bf4c9ec` 新增的是 #74（完成报告）和 #76（PG 上海下午窗口），不是又包含一次 #75。#76 不改变本表里除时区回归以外的验收结论。
+
+本段只记录通义回放带来源。vLLM CPU 实跑和 D-50 正式包断网安装不在这一变更里。
+
+| 项 | 状态 |
+|---|---|
+| 当前 main（本变更之前） | `3d05dbd`。无未合并 PR |
+| D-49 通义回放带 | **官方文档示例已替换编造样本**。来源页：`https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope` 与 `https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions`，获取时间 `2026-11-11T15:48:00Z`。每条 `provenance` 写了章节和非语义变换（SSE 封装、页面已省略的中间 chunk 不补造、正文省略号原样保留、401 取自同一页状态码说明）。`_claim` 为 `official_documentation_example_not_a_live_call`。**不是通义真实调用，也不是 vLLM 实测** |
+| 契约测试 | `TestDashScopeCassetteProvenance` 核对来源与官方原文片段；`TestVendorContract*` 用这些响应走现有 dashscope 兼容层（`enable_thinking`、流式 usage、思考字段、401→`upstream_auth_failed`）。没有官方 JSON 的错误体（无效模型、超长上下文）不编造，因此通义不再测这两条 |
+| vLLM / Anthropic 回放带 | 仍是历史构造样本，文件头仍写「非真实录制」。不拿来充当通义通过 |
+| AC-14 | 仍是 **部分**。mock「测试」与通义文档契约已覆盖；vLLM CPU 真实协议冒烟未实跑 |
+| AC-01 / D-46 安装记录 | 仍未按 D-50 关闭。含 mocks 的 15 步 CI 不是正式包干净安装 |

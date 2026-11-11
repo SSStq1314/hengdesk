@@ -2,7 +2,7 @@ module github.com/SSStq1314/hengdesk/server
 
 go 1.26.4
 
-toolchain go1.26.10
+toolchain go1.26.11
 
 require (
 	ariga.io/atlas v1.3.0

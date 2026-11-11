@@ -95,7 +95,7 @@ M1 端到端演示剧本 15 步全部通过。
 
 ## 真实上游（D-49）
 
-- **通义真实冒烟已从 M1 验收项中移除**。M1 用按通义官方接口文档编写的契约测试，以及录制回放（样本只能来自 vLLM CPU 小模型的真实录制，或通义官方文档示例，并标明来源，不允许编造响应）。现有 `server/internal/gateway/testdata/dashscope_cassette.json` 仍为「按公开文档构造」，须在 M1 验收前按上述来源替换。
+- **通义真实冒烟已从 M1 验收项中移除**。M1 用按通义官方接口文档编写的契约测试，以及录制回放（样本只能来自 vLLM CPU 小模型的真实录制，或通义官方文档示例，并标明来源，不允许编造响应）。`server/internal/gateway/testdata/dashscope_cassette.json` 已换成通义官方文档示例，并逐条标明来源 URL、获取时间和必要的非语义变换。这些示例不是真实调用。vLLM 回放带仍不是通义实测。
 - **vLLM CPU 真实协议冒烟仍在 M1 验收范围内**，见 `docs/demo/vllm-cpu-smoke.md`（需出网拉镜像与权重，不进断网 CI）。
 - 在客户现场用客户自己的密钥做一次通义真实冒烟，是 POC 交付步骤，见 `docs/demo/poc-delivery.md`。不要把客户密钥带离现场或写入仓库。
 

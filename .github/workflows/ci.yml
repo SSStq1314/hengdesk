@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
+        with: {go-version: '1.26.11', cache-dependency-path: server/go.sum}
       - uses: golangci/golangci-lint-action@v8
         with: {version: latest, working-directory: server}
       - run: go vet ./...
@@ -49,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
+        with: {go-version: '1.26.11', cache-dependency-path: server/go.sum}
       - working-directory: server
         run: CGO_ENABLED=0 go build -o /tmp/hengdesk ./cmd/hengdesk
       - name: 迁移目录与 ent schema 一致（Atlas 版本化迁移）
@@ -114,7 +114,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
+        with: {go-version: '1.26.11', cache-dependency-path: server/go.sum}
       - run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
       - name: 扫描并按可达性判定
         run: |
@@ -139,7 +139,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
+        with: {go-version: '1.26.11', cache-dependency-path: server/go.sum}
       - run: go test -race -count=1 -run TestValkeyAsynqCompat -v ./internal/queue/
 
   compose:
@@ -152,7 +152,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
+        with: {go-version: '1.26.11', cache-dependency-path: server/go.sum}
       - name: install.sh 非交互生成 .env
         working-directory: deploy
         run: |
@@ -347,7 +347,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: '1.26.10', cache-dependency-path: server/go.sum}
+        with: {go-version: '1.26.11', cache-dependency-path: server/go.sum}
       - name: Go 依赖许可（拒绝 AGPL/GPL/LGPL 等 forbidden/restricted 类）
         working-directory: server
         run: |

@@ -18,15 +18,32 @@ import (
 	"github.com/SSStq1314/hengdesk/server/internal/gateway"
 )
 
+type cassetteProvenance struct {
+	Kind            string   `json:"kind"`
+	Claim           string   `json:"claim"`
+	Completeness    string   `json:"completeness"`
+	SourceURL       string   `json:"source_url"`
+	RetrievedAt     string   `json:"retrieved_at"`
+	Section         string   `json:"section"`
+	Transformations []string `json:"transformations"`
+}
+
+type cassetteExercise struct {
+	Thinking string `json:"thinking"`
+	Stream   bool   `json:"stream"`
+}
+
 type cassette struct {
-	SourceCase   string            `json:"source_case"`
-	Status       int               `json:"status"`
-	RequestBody  map[string]any    `json:"request_body"`
-	Body         json.RawMessage   `json:"body"`
-	Chunks       []json.RawMessage `json:"chunks"`
-	DoneMarker   bool              `json:"done_marker"`
-	Usage        map[string]any    `json:"usage"`
-	FinishReason string            `json:"finish_reason"`
+	SourceCase   string             `json:"source_case"`
+	Status       int                `json:"status"`
+	RequestBody  map[string]any     `json:"request_body"`
+	Body         json.RawMessage    `json:"body"`
+	Chunks       []json.RawMessage  `json:"chunks"`
+	DoneMarker   bool               `json:"done_marker"`
+	Usage        map[string]any     `json:"usage"`
+	FinishReason string             `json:"finish_reason"`
+	Provenance   cassetteProvenance `json:"provenance"`
+	Exercise     cassetteExercise   `json:"exercise"`
 }
 
 func loadCassettes(t *testing.T) map[string]cassette {

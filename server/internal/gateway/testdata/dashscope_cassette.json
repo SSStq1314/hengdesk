@@ -1,308 +1,449 @@
 {
-  "_note": "文档构造，待真实录制替换",
-  "_source": "按公开文档构造，非真实录制",
+  "_note": "通义（阿里云百炼 / DashScope OpenAI 兼容）官方接口文档示例。不是真实调用，也不是 vLLM 实测。英文页带省略号的思考示例和被页面声明省略了中间 chunk 的流式示例都不是完整实录，测试不得把它们补全后再当成官方全文。不得把本文件说成通义线上服务已通过。",
+  "_claim": "official_documentation_example_not_a_live_call",
+  "_vendor": "dashscope",
+  "retrieved_at": "2026-11-11T15:48:00Z",
+  "sources": [
+    {
+      "url": "https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope",
+      "retrieved_at": "2026-11-11T15:48:00Z",
+      "what": "非流式调用示例、流式调用示例（SDK 打印的 JSON 行）、异常响应示例、状态码说明中的 401"
+    },
+    {
+      "url": "https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions",
+      "retrieved_at": "2026-11-11T15:48:00Z",
+      "what": "非流式 Text input（含 reasoning_content）与 curl 流式 chunk（页面已省略中间 chunk）"
+    }
+  ],
   "cases": {
-    "chat-thinking": {
-      "source_case": "dashscope-compatible-mode-docs#chat-thinking",
-      "status": 200,
-      "request_body": {
-        "model": "qwen-plus",
-        "messages": [
-          {
-            "role": "user",
-            "content": "用一句话介绍你自己。"
-          }
-        ],
-        "enable_thinking": true
-      },
-      "body": {
-        "id": "chatcmpl-doc-1",
-        "object": "chat.completion",
-        "created": 1793600000,
-        "model": "qwen-plus",
-        "choices": [
-          {
-            "index": 0,
-            "finish_reason": "stop",
-            "message": {
-              "role": "assistant",
-              "content": "我是一个 AI 助手。",
-              "reasoning_content": "用户要一句话自我介绍。"
-            }
-          }
-        ],
-        "usage": {
-          "prompt_tokens": 14,
-          "completion_tokens": 30,
-          "total_tokens": 44,
-          "prompt_tokens_details": {
-            "cached_tokens": 0
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 12
-          }
-        }
-      }
-    },
     "chat-no-thinking": {
-      "source_case": "dashscope-compatible-mode-docs#chat-no-thinking",
-      "status": 200,
-      "request_body": {
-        "model": "qwen-plus",
+      "source_case": "https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope#非流式调用示例",
+      "provenance": {
+        "kind": "official_doc_example",
+        "claim": "not_a_live_call",
+        "source_url": "https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope",
+        "retrieved_at": "2026-11-11T15:48:00Z",
+        "section": "使用方式 / 非流式调用示例 / 运行代码可以获得以下结果",
+        "transformations": [
+          "JSON 解析后按稳定缩进写回，与原文语义等价，未增删字段。",
+          "exercise 只描述兼容层本次应发出的思考开关和是否流式，用来驱动现有网关测试。它不是官方请求原文。这些官方示例请求都没有带 enable_thinking。"
+        ]
+      },
+      "exercise": {
+        "thinking": "off",
+        "stream": false
+      },
+      "documented_request": {
+        "model": "qwen3.8-max",
         "messages": [
           {
+            "role": "system",
+            "content": "You are a helpful assistant."
+          },
+          {
             "role": "user",
-            "content": "用一句话介绍你自己。"
+            "content": "你是谁？"
           }
-        ],
-        "enable_thinking": false
+        ]
       },
+      "status": 200,
       "body": {
-        "id": "chatcmpl-doc-2",
-        "object": "chat.completion",
-        "created": 1793600000,
-        "model": "qwen-plus",
+        "id": "chatcmpl-xxx",
         "choices": [
           {
-            "index": 0,
             "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
             "message": {
+              "content": "我是来自阿里云的超大规模预训练模型，我叫千问。",
               "role": "assistant",
-              "content": "我是一个 AI 助手。"
+              "function_call": null,
+              "tool_calls": null
             }
           }
         ],
+        "created": 1716430652,
+        "model": "qwen3.8-max",
+        "object": "chat.completion",
+        "system_fingerprint": null,
         "usage": {
-          "prompt_tokens": 14,
-          "completion_tokens": 30,
-          "total_tokens": 44,
-          "prompt_tokens_details": {
-            "cached_tokens": 0
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 12
-          }
+          "completion_tokens": 18,
+          "prompt_tokens": 22,
+          "total_tokens": 40
         }
       }
     },
-    "stream-thinking": {
-      "source_case": "dashscope-compatible-mode-docs#stream-thinking",
+    "chat-thinking": {
+      "source_case": "https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions#text-input",
+      "provenance": {
+        "kind": "official_doc_example",
+        "claim": "not_a_live_call",
+        "completeness": "publisher_truncated_not_a_full_transcript",
+        "source_url": "https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions",
+        "retrieved_at": "2026-11-11T15:48:00Z",
+        "section": "Chat response object (non-streaming output) / Text input",
+        "transformations": [
+          "JSON 解析后按稳定缩进写回，与原文语义等价，未增删字段。",
+          "官方页面用省略号截断 reasoning_content 与 content，原样保留，没有补全文。",
+          "exercise 只描述兼容层本次应发出的思考开关和是否流式，用来驱动现有网关测试。它不是官方请求原文。这些官方示例请求都没有带 enable_thinking。",
+          "同页 Asynchronous invocation 的示例请求是 model=qwen3.8-max、user 内容 Who are you?，未带 enable_thinking。本用例不把该请求改写成带 enable_thinking 的官方请求。"
+        ]
+      },
+      "exercise": {
+        "thinking": "on",
+        "stream": false
+      },
       "status": 200,
-      "request_body": {
-        "model": "qwen-plus",
-        "stream": true,
-        "messages": [
+      "body": {
+        "id": "chatcmpl-8f472937-8de2-9e74-9803-21b7a0b141c5",
+        "object": "chat.completion",
+        "created": 1794384901,
+        "model": "qwen3.8-max",
+        "choices": [
           {
-            "role": "user",
-            "content": "用一句话介绍你自己。"
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "reasoning_content": "We need to answer user \"Who are you?\" in English. Need produce final answer. Need likely introduce a…",
+              "content": "I’m Qwen (Tongyi Qianwen), a large language model developed by Alibaba Group’s Tongyi Lab. I can hel…"
+            },
+            "finish_reason": "stop",
+            "logprobs": null
           }
         ],
-        "enable_thinking": true
-      },
-      "chunks": [
-        {
-          "id": "chatcmpl-doc-1",
-          "object": "chat.completion.chunk",
-          "created": 1793600000,
-          "model": "qwen-plus",
-          "choices": [
-            {
-              "index": 0,
-              "delta": {
-                "role": "assistant",
-                "content": ""
-              },
-              "finish_reason": null
-            }
-          ]
-        },
-        {
-          "id": "chatcmpl-doc-1",
-          "object": "chat.completion.chunk",
-          "created": 1793600000,
-          "model": "qwen-plus",
-          "choices": [
-            {
-              "index": 0,
-              "delta": {
-                "reasoning_content": "用户要"
-              },
-              "finish_reason": null
-            }
-          ]
-        },
-        {
-          "id": "chatcmpl-doc-1",
-          "object": "chat.completion.chunk",
-          "created": 1793600000,
-          "model": "qwen-plus",
-          "choices": [
-            {
-              "index": 0,
-              "delta": {
-                "reasoning_content": "一句话自我介绍。"
-              },
-              "finish_reason": null
-            }
-          ]
-        },
-        {
-          "id": "chatcmpl-doc-1",
-          "object": "chat.completion.chunk",
-          "created": 1793600000,
-          "model": "qwen-plus",
-          "choices": [
-            {
-              "index": 0,
-              "delta": {
-                "content": "我是一个"
-              },
-              "finish_reason": null
-            }
-          ]
-        },
-        {
-          "id": "chatcmpl-doc-1",
-          "object": "chat.completion.chunk",
-          "created": 1793600000,
-          "model": "qwen-plus",
-          "choices": [
-            {
-              "index": 0,
-              "delta": {
-                "content": " AI 助手。"
-              },
-              "finish_reason": null
-            }
-          ]
-        },
-        {
-          "id": "chatcmpl-doc-1",
-          "object": "chat.completion.chunk",
-          "created": 1793600000,
-          "model": "qwen-plus",
-          "choices": [
-            {
-              "index": 0,
-              "delta": {},
-              "finish_reason": "stop"
-            }
-          ]
-        },
-        {
-          "id": "chatcmpl-doc-1",
-          "object": "chat.completion.chunk",
-          "created": 1793600000,
-          "model": "qwen-plus",
-          "choices": [],
-          "usage": {
-            "prompt_tokens": 14,
-            "completion_tokens": 30,
-            "total_tokens": 44,
-            "prompt_tokens_details": {
-              "cached_tokens": 0
-            },
-            "completion_tokens_details": {
-              "reasoning_tokens": 12
-            }
+        "usage": {
+          "prompt_tokens": 63,
+          "total_tokens": 208,
+          "completion_tokens": 145,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "text_tokens": 63
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 98,
+            "text_tokens": 145
           }
         }
-      ],
-      "done_marker": true,
-      "finish_reason": "stop",
-      "usage": {
-        "total_tokens": 44
       }
     },
     "stream-no-thinking": {
-      "source_case": "dashscope-compatible-mode-docs#stream-no-thinking",
-      "status": 200,
-      "request_body": {
-        "model": "qwen-plus",
-        "stream": true,
+      "source_case": "https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope#流式调用示例",
+      "provenance": {
+        "kind": "official_doc_example",
+        "claim": "not_a_live_call",
+        "source_url": "https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope",
+        "retrieved_at": "2026-11-11T15:48:00Z",
+        "section": "使用方式 / 流式调用示例 / 运行代码可以获得以下结果",
+        "transformations": [
+          "JSON 解析后按稳定缩进写回，与原文语义等价，未增删字段。",
+          "回放测试把每条 JSON 放进 SSE data 帧。这是测试传输封装，字段未改。",
+          "SDK 示例打印的是 model_dump_json 行，没有 data: 前缀，也没有 [DONE]。同页 curl 流式示例以 data: [DONE] 结束。done_marker 只补这个协议结束标记，chunk JSON 未改。",
+          "exercise 只描述兼容层本次应发出的思考开关和是否流式，用来驱动现有网关测试。它不是官方请求原文。这些官方示例请求都没有带 enable_thinking。"
+        ]
+      },
+      "exercise": {
+        "thinking": "off",
+        "stream": true
+      },
+      "documented_request": {
+        "model": "qwen3.8-max",
         "messages": [
           {
+            "role": "system",
+            "content": "You are a helpful assistant."
+          },
+          {
             "role": "user",
-            "content": "用一句话介绍你自己。"
+            "content": "你是谁？"
           }
         ],
-        "enable_thinking": false
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
       },
+      "status": 200,
       "chunks": [
         {
-          "id": "chatcmpl-doc-1",
-          "object": "chat.completion.chunk",
-          "created": 1793600000,
-          "model": "qwen-plus",
+          "id": "chatcmpl-xxx",
           "choices": [
             {
-              "index": 0,
               "delta": {
+                "content": "",
+                "function_call": null,
                 "role": "assistant",
-                "content": ""
+                "tool_calls": null
+              },
+              "finish_reason": null,
+              "index": 0,
+              "logprobs": null
+            }
+          ],
+          "created": 1719286190,
+          "model": "qwen3.8-max",
+          "object": "chat.completion.chunk",
+          "system_fingerprint": null,
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-xxx",
+          "choices": [
+            {
+              "delta": {
+                "content": "我是",
+                "function_call": null,
+                "role": null,
+                "tool_calls": null
+              },
+              "finish_reason": null,
+              "index": 0,
+              "logprobs": null
+            }
+          ],
+          "created": 1719286190,
+          "model": "qwen3.8-max",
+          "object": "chat.completion.chunk",
+          "system_fingerprint": null,
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-xxx",
+          "choices": [
+            {
+              "delta": {
+                "content": "来自",
+                "function_call": null,
+                "role": null,
+                "tool_calls": null
+              },
+              "finish_reason": null,
+              "index": 0,
+              "logprobs": null
+            }
+          ],
+          "created": 1719286190,
+          "model": "qwen3.8-max",
+          "object": "chat.completion.chunk",
+          "system_fingerprint": null,
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-xxx",
+          "choices": [
+            {
+              "delta": {
+                "content": "阿里",
+                "function_call": null,
+                "role": null,
+                "tool_calls": null
+              },
+              "finish_reason": null,
+              "index": 0,
+              "logprobs": null
+            }
+          ],
+          "created": 1719286190,
+          "model": "qwen3.8-max",
+          "object": "chat.completion.chunk",
+          "system_fingerprint": null,
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-xxx",
+          "choices": [
+            {
+              "delta": {
+                "content": "云的大规模语言模型",
+                "function_call": null,
+                "role": null,
+                "tool_calls": null
+              },
+              "finish_reason": null,
+              "index": 0,
+              "logprobs": null
+            }
+          ],
+          "created": 1719286190,
+          "model": "qwen3.8-max",
+          "object": "chat.completion.chunk",
+          "system_fingerprint": null,
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-xxx",
+          "choices": [
+            {
+              "delta": {
+                "content": "，我叫千问。",
+                "function_call": null,
+                "role": null,
+                "tool_calls": null
+              },
+              "finish_reason": null,
+              "index": 0,
+              "logprobs": null
+            }
+          ],
+          "created": 1719286190,
+          "model": "qwen3.8-max",
+          "object": "chat.completion.chunk",
+          "system_fingerprint": null,
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-xxx",
+          "choices": [
+            {
+              "delta": {
+                "content": "",
+                "function_call": null,
+                "role": null,
+                "tool_calls": null
+              },
+              "finish_reason": "stop",
+              "index": 0,
+              "logprobs": null
+            }
+          ],
+          "created": 1719286190,
+          "model": "qwen3.8-max",
+          "object": "chat.completion.chunk",
+          "system_fingerprint": null,
+          "usage": null
+        },
+        {
+          "id": "chatcmpl-xxx",
+          "choices": [],
+          "created": 1719286190,
+          "model": "qwen3.8-max",
+          "object": "chat.completion.chunk",
+          "system_fingerprint": null,
+          "usage": {
+            "completion_tokens": 16,
+            "prompt_tokens": 22,
+            "total_tokens": 38
+          }
+        }
+      ],
+      "done_marker": true,
+      "finish_reason": "stop",
+      "usage": {
+        "total_tokens": 38
+      }
+    },
+    "stream-thinking": {
+      "source_case": "https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions#streaming-curl",
+      "provenance": {
+        "kind": "official_doc_example",
+        "claim": "not_a_live_call",
+        "completeness": "publisher_truncated_not_a_full_transcript",
+        "source_url": "https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions",
+        "retrieved_at": "2026-11-11T15:48:00Z",
+        "section": "Chat response chunk object (streaming output) / curl",
+        "transformations": [
+          "JSON 解析后按稳定缩进写回，与原文语义等价，未增删字段。",
+          "回放测试把每条 JSON 放进 SSE data 帧。这是测试传输封装，字段未改。",
+          "官方页面写明 Repeated intermediate chunks are omitted below。只保留页面印出的事件，没有补造被省略的中间 chunk。",
+          "页面原文含 data: 前缀和 data: [DONE]。入库时去掉前缀，done_marker 对应 [DONE]。",
+          "exercise 只描述兼容层本次应发出的思考开关和是否流式，用来驱动现有网关测试。它不是官方请求原文。这些官方示例请求都没有带 enable_thinking。"
+        ]
+      },
+      "exercise": {
+        "thinking": "on",
+        "stream": true
+      },
+      "status": 200,
+      "chunks": [
+        {
+          "model": "qwen3.8-max",
+          "id": "chatcmpl-7fd87e06-84bb-904e-8c17-169a22bc04ed",
+          "created": 1794384902,
+          "object": "chat.completion.chunk",
+          "usage": null,
+          "choices": [
+            {
+              "logprobs": null,
+              "index": 0,
+              "delta": {
+                "reasoning_content": "",
+                "content": "",
+                "role": "assistant"
               },
               "finish_reason": null
             }
           ]
         },
         {
-          "id": "chatcmpl-doc-1",
+          "id": "chatcmpl-7fd87e06-84bb-904e-8c17-169a22bc04ed",
           "object": "chat.completion.chunk",
-          "created": 1793600000,
-          "model": "qwen-plus",
+          "created": 1794384902,
+          "model": "qwen3.8-max",
           "choices": [
             {
               "index": 0,
               "delta": {
-                "content": "我是一个"
+                "content": "",
+                "reasoning_content": "We"
               },
+              "logprobs": null,
               "finish_reason": null
             }
-          ]
+          ],
+          "usage": null
         },
         {
-          "id": "chatcmpl-doc-1",
+          "id": "chatcmpl-7fd87e06-84bb-904e-8c17-169a22bc04ed",
           "object": "chat.completion.chunk",
-          "created": 1793600000,
-          "model": "qwen-plus",
+          "created": 1794384903,
+          "model": "qwen3.8-max",
           "choices": [
             {
               "index": 0,
               "delta": {
-                "content": " AI 助手。"
+                "content": "I’m Qwen",
+                "reasoning_content": ""
               },
+              "logprobs": null,
               "finish_reason": null
             }
-          ]
+          ],
+          "usage": null
         },
         {
-          "id": "chatcmpl-doc-1",
+          "id": "chatcmpl-7fd87e06-84bb-904e-8c17-169a22bc04ed",
           "object": "chat.completion.chunk",
-          "created": 1793600000,
-          "model": "qwen-plus",
+          "created": 1794384904,
+          "model": "qwen3.8-max",
           "choices": [
             {
               "index": 0,
-              "delta": {},
-              "finish_reason": "stop"
+              "delta": {
+                "content": "",
+                "reasoning_content": ""
+              },
+              "finish_reason": "stop",
+              "logprobs": null
             }
-          ]
+          ],
+          "usage": null
         },
         {
-          "id": "chatcmpl-doc-1",
+          "id": "chatcmpl-7fd87e06-84bb-904e-8c17-169a22bc04ed",
           "object": "chat.completion.chunk",
-          "created": 1793600000,
-          "model": "qwen-plus",
+          "created": 1794384904,
+          "model": "qwen3.8-max",
           "choices": [],
           "usage": {
-            "prompt_tokens": 14,
-            "completion_tokens": 30,
-            "total_tokens": 44,
+            "prompt_tokens": 63,
+            "total_tokens": 171,
+            "completion_tokens": 108,
             "prompt_tokens_details": {
-              "cached_tokens": 0
+              "cached_tokens": 0,
+              "text_tokens": 63
             },
             "completion_tokens_details": {
-              "reasoning_tokens": 12
+              "reasoning_tokens": 59,
+              "text_tokens": 108
             }
           }
         }
@@ -310,46 +451,34 @@
       "done_marker": true,
       "finish_reason": "stop",
       "usage": {
-        "total_tokens": 44
+        "total_tokens": 171
       }
     },
     "err-invalid-key": {
-      "source_case": "dashscope-compatible-mode-docs#err-invalid-key",
+      "source_case": "https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope#异常响应示例",
+      "provenance": {
+        "kind": "official_doc_example",
+        "claim": "not_a_live_call",
+        "source_url": "https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope",
+        "retrieved_at": "2026-11-11T15:48:00Z",
+        "section": "异常响应示例；HTTP 状态见同一页状态码说明 401",
+        "transformations": [
+          "JSON 解析后按稳定缩进写回，与原文语义等价，未增删字段。",
+          "错误 JSON 正文原样。HTTP 401 取自同一页状态码说明「401 - Invalid API-key provided」。示例 JSON 本身没有状态码。"
+        ]
+      },
+      "exercise": {
+        "thinking": "off",
+        "stream": false
+      },
       "status": 401,
       "body": {
         "error": {
-          "code": "invalid_api_key",
-          "param": null,
+          "message": "Invalid API-key provided.",
           "type": "invalid_request_error",
-          "message": "Incorrect API key provided. "
-        },
-        "request_id": "doc-req-1"
-      }
-    },
-    "err-invalid-model": {
-      "source_case": "dashscope-compatible-mode-docs#err-invalid-model",
-      "status": 404,
-      "body": {
-        "error": {
-          "code": "model_not_found",
           "param": null,
-          "type": "invalid_request_error",
-          "message": "The model `qwen-nope` does not exist or you do not have access to it."
-        },
-        "request_id": "doc-req-2"
-      }
-    },
-    "err-context-too-long": {
-      "source_case": "dashscope-compatible-mode-docs#err-context-too-long",
-      "status": 400,
-      "body": {
-        "error": {
-          "code": "invalid_parameter_error",
-          "param": null,
-          "type": "invalid_request_error",
-          "message": "Range of input length should be [1, 129024]"
-        },
-        "request_id": "doc-req-3"
+          "code": "invalid_api_key"
+        }
       }
     }
   }
