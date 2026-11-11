@@ -360,10 +360,16 @@ probe_container() {
     nsenter -t "$pid" -n ip -6 route replace default via "$gw" dev eth0 || true
     if [ -n "$mac" ]; then
       nsenter -t "$pid" -n ip -6 neigh replace "$gw" lladdr "$mac" dev eth0 nud permanent || true
+      nsenter -t "$pid" -n ip -6 neigh replace 2606:4700:4700::1111 lladdr "$mac" dev eth0 nud permanent || true
+      nsenter -t "$pid" -n ip -6 route replace 2606:4700:4700::1111/128 dev eth0 || true
     fi
+    {
+      echo "bridge=$br mac=${mac:-missing} gw=$gw"
+      nsenter -t "$pid" -n ip -6 neigh show || true
+    } >> "$out.route6"
   fi
   nsenter -t "$pid" -n ip route > "$out.route4" 2>&1 || true
-  nsenter -t "$pid" -n ip -6 route > "$out.route6" 2>&1 || true
+  nsenter -t "$pid" -n ip -6 route >> "$out.route6" 2>&1 || true
   if ! nsenter -t "$pid" -n python3 - "$gh_ip" > "$out" << 'PY'
 import socket, sys
 gh = sys.argv[1]
