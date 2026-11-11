@@ -23,10 +23,10 @@ GitHub Actions 工作流「vLLM CPU 协议冒烟」（`.github/workflows/vllm-cp
 ## 实跑记录
 
 - 2026-11-09：共享开发机没有 Docker，未实跑。
-- `66f57ed` 上的 [run 43053476770](https://github.com/SSStq1314/hengdesk/actions/runs/43053476770) 曾跑通，但那不是本分支最终 head。最终 head 必须以**该 head 自己的**「vLLM CPU 协议冒烟」workflow 为准，不能用上一提交代替。
-- 本提交的证据是同一次 workflow 上传的 artifact `vllm-cpu-smoke-evidence`（含 `archive.sha256`）。这是 GitHub 托管 x86 云 VM 上的 vLLM CPU 协议冒烟，不是通义实测，也不是物理机或客户现场。镜像为 `vllm/vllm-openai-cpu`，模型优先 `Qwen/Qwen2.5-0.5B-Instruct`，`--dtype float32`。不用 Ollama。
+- `66f57ed` 上的 [run 43053476770](https://github.com/SSStq1314/hengdesk/actions/runs/43053476770) 是更早一次通过。#78 合入前 head `b0b6a940b7ba33825882305a027efb8e84d03243` 的 [run 43110669860](https://github.com/SSStq1314/hengdesk/actions/runs/43110669860) 也已 `result=pass`，证据包 SHA256 `760565b577470c5b4733a69a62fae85d02976808e9056f89cc1fb952c7913c2e`。
+- 最终代码树是 main `1ae07162dd209bce1c794347fc3e0ef92da381c7`（与 `9c109cc3d3940956fff8a4bba86c001d0d0e1f57` 同树）。该树上的运行是 [43114580548](https://github.com/SSStq1314/hengdesk/actions/runs/43114580548)，`result=pass`，`finished_utc=2026-11-11T22:51:00Z`。证据包 SHA256 `9d4ba3fdbc22e14f2414c116d298209f47f3578aa4588788cb22b85499197c31`。镜像 `vllm/vllm-openai-cpu:latest-x86_64`，模型 `Qwen/Qwen2.5-0.5B-Instruct`，`--dtype float32`。非流式 `usage.total_tokens=38`（prompt 36 / completion 2）。这是 GitHub 托管 x86 云 VM 上的 vLLM CPU 协议冒烟。Ollama 未使用。通义真实调用不在这次运行里。
 
-下面这张表只属于上一提交 `66f57ed`，**不是**最终 head 的验收证据。
+下面这张表只属于更早的提交 `66f57ed`。最终 head 的验收证据是上一段的 run 43114580548。
 
 | 项 | 值 |
 |---|---|

@@ -23,12 +23,12 @@
 4. **15 步 job 用的是验收包**（含 `hengdesk/mocks`）。AC-01 / D-46 要求的「正式包」安装记录仍要用默认包单独做一次。
 5. CI 的「断网」是安装与脚本运行阶段的代理黑洞、`--pull never` 和（15 步 job 中的）iptables，不是整机拔网线；跑 job 之前的打包步骤是有网的。
 
-D-50（2026-11-11）把「全新 GitHub 托管 x86 VM」定为可以关闭 D-46 第 8 条的实测环境，但只证明该云 VM，不证明物理机、客户现场或其他架构。已通过的一次运行是 [43088030693](https://github.com/SSStq1314/hengdesk/actions/runs/43088030693)（提交 `c397f8d8d7e696296b15e74ba3132603e898d89f`），证据包 SHA256 `422b79adcca8a4d1dc7f951856b02dbe76898de701fb776318db9b4de7de7d2c`。容器 IPv6 没有进入 `HD_DOCK6`，内核直接返回不可达。取证脚本是 `tests/acceptance/ci/d50-offline-install.sh`。它和下面两件旧记录不是同一件事：
+D-50（2026-11-11）把「全新 GitHub 托管 x86 VM」定为可以关闭 D-46 第 8 条的实测环境。记录范围是该云 VM。物理机、客户现场和其他架构不在这次记录里。最终代码树（main `1ae07162dd209bce1c794347fc3e0ef92da381c7`，与 PR head `9c109cc3d3940956fff8a4bba86c001d0d0e1f57` 同树）上的运行是 [43114580527](https://github.com/SSStq1314/hengdesk/actions/runs/43114580527)，`result=pass`。证据包 SHA256 `99416482f7a334d2b2cadc61d6a6359c3cbb5b5db10426b3037f93cd09f54a3e`。正式包 SHA256 `b6bee720e327ca840def8d021ea431c19a8fb1aec98f4ac891464146aff14c3b`。容器 IPv6 被内核报 `Network is unreachable`，`HD_DOCK6` 探测前后都是 0，没有报文计数。变基前的运行 [43088030693](https://github.com/SSStq1314/hengdesk/actions/runs/43088030693) 是更早一次通过，证据包 SHA256 `422b79adcca8a4d1dc7f951856b02dbe76898de701fb776318db9b4de7de7d2c`，不作为最终 head 的证据。取证脚本是 `tests/acceptance/ci/d50-offline-install.sh`。它和下面两件旧记录不是同一件事：
 
 - 「断网安装冒烟」用的是 CI 临时 `docker save` 目录。
 - 「断网 15 步验收」用的是带 mocks 的验收包。
 
-D-50 要求默认正式包、隔离之后才 load 产品镜像、清洁基线、宿主 netns 与容器的 IPv4/IPv6/DNS 失败探针，以及重启后的数据持久性。控制通道只留 runner uid 在 init 网络命名空间里的 GitHub 连接；安装进程和产品容器不能借用。证据在该 workflow 的 artifact `d50-offline-evidence`。job 未成功之前，本项是未验证，不能写成通过。
+D-50 要求默认正式包、隔离之后才 load 产品镜像、清洁基线、宿主 netns 与容器的 IPv4/IPv6/DNS 失败探针，以及重启后的数据持久性。控制通道只留 runner cgroup 在 init 网络命名空间里的 GitHub 连接；安装进程和产品容器不能借用。证据在该 workflow 的 artifact `d50-offline-evidence`。上面的最终运行已 `result=pass`。资源不足或 job 失败的另一次运行仍记为未验证。
 
 ## 验收时请补做的人工步骤
 
@@ -40,4 +40,4 @@ D-50 要求默认正式包、隔离之后才 load 产品镜像、清洁基线、
 4. 把记录追加到本文件或作为附件归档到验收材料，注明操作人。
 5. （可选）再在同机或另一台断网机上解压验收包，跑 `tests/acceptance/run.sh --compose --offline`，把 15 步通过与否一并记下。
 
-在上述记录完成之前，AC-01 / D-46 安装项在对照表中保持「未覆盖 / 须补做」。
+M1 对照表里，AC-01 / D-46 安装项对这次 GitHub 托管 x86 云 VM 记为通过。上面的人工步骤留给以后若要在物理机或客户现场另做记录时使用。容器 IPv6 在最终证据里是内核不可达，`HD_DOCK6` 没有计数。
