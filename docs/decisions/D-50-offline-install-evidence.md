@@ -16,7 +16,8 @@
 - **准备阶段（有网）**：GitHub 托管 `ubuntu-24.04` 上已有的 Docker / Compose，加上 `pack-offline.sh` 打出的**默认正式包**（无 `--with-acceptance`，包内无 `hengdesk/mocks`）。
 - **清洁基线**：删掉容器、卷、镜像、构建缓存和 Hugging Face 缓存，并在启用 IPv6 后再次清空。基线清单里不得再有产品或依赖镜像。产品镜像只在隔离之后 `docker load` 包内 tar。
 - **受测边界**：安装进程在网络命名空间 `hd-sut`。该命名空间的 IPv4/IPv6 默认路由指向 veth，宿主转发链对这条 veth 全部拒绝。容器公网 IPv4/IPv6 走 `DOCKER-USER` 拒绝。dockerd 所在 uid 的新公网连接拒绝。除 runner uid 以外，发往公网解析器的 53 端口拒绝，避免 daemon 或 resolved 代解析。
-- **控制通道（保留，且安装进程与产品用不上）**：init 网络命名空间里 **runner uid** 到 GitHub 的 443 和该 uid 的 DNS。用来维持 Actions 心跳，并在拆除隔离后上传 artifact。证据里记录一条当时的公网 443 对端地址；`hd-sut` 和容器对该地址以及 `1.1.1.1` / `8.8.8.8` / `2606:4700:4700::1111` 的 TCP 必须失败，DNS 查询也必须失败。探针计数在安装、验收窗口之外单独增加；这两个窗口内拒绝计数不得增加。
+- **控制通道（保留，且安装进程与产品用不上）**：只放行 **runner 作业所在 cgroup** 的新建公网连接，以及任何进程都碰不到的、属于 runner 自己 socket 的已建立连接。安装脚本在开跑前被挪进 `hd-sut` cgroup，安装子进程继承这个 cgroup。安装命令经 `capsh` 去掉 `CAP_SYS_ADMIN` 等，自身 `nsenter` 回 init 网络命名空间必须失败。即便测试进程带着能力 `nsenter` 出去，或改成 runner uid，或用 `--network host` 起容器，新建的 IPv4、IPv6 和 DNS 仍被 `HD_OUT` 拒绝。`hd-sut` 网络命名空间和普通容器还要各自打到转发链上的失败探针。探针计数与安装、验收窗口分开；后两个窗口内拒绝计数不得增加。
+- **镜像**：清洁基线要求镜像、卷、容器都是 0。隔离后只 `docker load` 正式包里的 tar，日志必须有 `Loaded image`，且不能出现 pull。
 - **验收**：新库 healthz、未登录 401、登录、写入部门标记、重启后标记仍在，并查询 `users` 行数。不要求云模型。含 mocks 的 15 步 CI 不是本项。
 - **结论范围**：只覆盖这一台云上 x86 VM。不写成物理机或客户现场通过。job 失败或资源不足就是未验证。
 

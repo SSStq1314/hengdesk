@@ -34,10 +34,10 @@ snapshot_counters() {
   local dest="$1"
   {
     echo "# $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    for c in HD_VETH4 HD_DOCK4 HD_ROOT HD_DNS; do
+    for c in HD_VETH4 HD_DOCK4 HD_ROOT HD_DNS HD_OUT4; do
       echo "iptables $c $(reject_pkts iptables "$c")"
     done
-    for c in HD_VETH6 HD_DOCK6; do
+    for c in HD_VETH6 HD_DOCK6 HD_OUT6; do
       echo "ip6tables $c $(reject_pkts ip6tables "$c")"
     done
   } > "$dest"
@@ -64,8 +64,10 @@ iptables HD_VETH4
 iptables HD_DOCK4
 iptables HD_ROOT
 iptables HD_DNS
+iptables HD_OUT4
 ip6tables HD_VETH6
 ip6tables HD_DOCK6
+ip6tables HD_OUT6
 KEYS
 }
 
@@ -235,6 +237,41 @@ setup_filters() {
   iptables -C OUTPUT -p udp --dport 53 -j HD_DNS 2>/dev/null || iptables -I OUTPUT 1 -p udp --dport 53 -j HD_DNS
   iptables -C OUTPUT -p tcp --dport 53 -j HD_DNS 2>/dev/null || iptables -I OUTPUT 1 -p tcp --dport 53 -j HD_DNS
 
+  # 新的公网 OUTPUT 只放行 runner 控制通道所在 cgroup。
+  # 安装进程被挪到 hd-sut cgroup：就算 nsenter 回 init 网络命名空间，或 setuid 成 runner，也不能新建公网连接。
+  # 已建立连接按五元组匹配，别的进程没有 runner 的 socket，不能借那条 TCP。
+  local cg="${RUNNER_CGROUP:-}"
+  if [ -z "$cg" ]; then
+    echo "未设置 RUNNER_CGROUP" >&2
+    return 1
+  fi
+  iptables -N HD_OUT4 2>/dev/null || iptables -F HD_OUT4
+  iptables -A HD_OUT4 -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+  iptables -A HD_OUT4 -o lo -j RETURN
+  iptables -A HD_OUT4 -d 10.0.0.0/8 -j RETURN
+  iptables -A HD_OUT4 -d 172.16.0.0/12 -j RETURN
+  iptables -A HD_OUT4 -d 192.168.0.0/16 -j RETURN
+  iptables -A HD_OUT4 -d 127.0.0.0/8 -j RETURN
+  iptables -A HD_OUT4 -d 169.254.0.0/16 -j RETURN
+  if ! iptables -A HD_OUT4 -m cgroup --path "$cg" -j RETURN; then
+    echo "iptables 不支持 cgroup --path，不能证明提权后的安装进程用不上控制通道" >&2
+    return 1
+  fi
+  iptables -A HD_OUT4 -j LOG --log-prefix "HD_OUT4 " --log-level 4
+  iptables -A HD_OUT4 -j REJECT
+  iptables -C OUTPUT -j HD_OUT4 2>/dev/null || iptables -I OUTPUT 1 -j HD_OUT4
+
+  ip6tables -N HD_OUT6 2>/dev/null || ip6tables -F HD_OUT6
+  ip6tables -A HD_OUT6 -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+  ip6tables -A HD_OUT6 -o lo -j RETURN
+  ip6tables -A HD_OUT6 -d fc00::/7 -j RETURN
+  ip6tables -A HD_OUT6 -d fe80::/10 -j RETURN
+  ip6tables -A HD_OUT6 -d ::1/128 -j RETURN
+  ip6tables -A HD_OUT6 -m cgroup --path "$cg" -j RETURN
+  ip6tables -A HD_OUT6 -j LOG --log-prefix "HD_OUT6 " --log-level 4
+  ip6tables -A HD_OUT6 -j REJECT
+  ip6tables -C OUTPUT -j HD_OUT6 2>/dev/null || ip6tables -I OUTPUT 1 -j HD_OUT6
+
   echo "RUNNER_UID=$runner_uid" >> "$STATE"
   echo "DOCKERD_UID=$dockerd_uid" >> "$STATE"
   echo "FILTERS=1" >> "$STATE"
@@ -346,8 +383,68 @@ save_rules() {
   } > "$EVID/routes-and-control-channel.txt" 2>/dev/null || true
 }
 
+move_sut_cgroup() {
+  local parent cg
+  parent=$(ps -o ppid= -p $$ | tr -d ' ')
+  cg=$(awk -F: '$1==0 {print $3; exit}' "/proc/${parent}/cgroup")
+  if [ -z "$cg" ] || [ "$cg" = "/" ]; then
+    echo "无法定位 runner 控制通道 cgroup（parent=$parent）" | tee -a "$EVID/violations.txt"
+    return 1
+  fi
+  printf '%s\n' "$cg" > "$EVID/runner-cgroup.txt"
+  mkdir -p /sys/fs/cgroup/hd-sut
+  if ! echo $$ > /sys/fs/cgroup/hd-sut/cgroup.procs; then
+    echo "无法把安装脚本挪进 hd-sut cgroup" | tee -a "$EVID/violations.txt"
+    return 1
+  fi
+  RUNNER_CGROUP="$cg"
+  echo "script_pid=$$ runner_cgroup=$cg sut_cgroup=/hd-sut" | tee "$EVID/cgroup-move.txt"
+}
+
+probe_escaped() {
+  local label="$1" dest="$2"
+  # 调用方已经在 hd-sut cgroup。nsenter 只换网络命名空间，不换 cgroup。
+  if ! nsenter -t 1 -n python3 - "$label" > "$dest" << 'PY'
+import os, socket, sys
+label = sys.argv[1]
+print("label", label)
+print("uid", os.getuid())
+fail = 0
+def tcp(addr, port, family=socket.AF_INET):
+    global fail
+    s = socket.socket(family, socket.SOCK_STREAM)
+    s.settimeout(3)
+    try:
+        s.connect((addr, port))
+    except Exception as e:
+        print(f"FAIL tcp {addr}:{port} {type(e).__name__}: {e}")
+        return
+    print(f"UNEXPECTED_SUCCESS tcp {addr}:{port}")
+    fail = 1
+tcp("1.1.1.1", 443)
+tcp("2606:4700:4700::1111", 443, socket.AF_INET6)
+try:
+    socket.getaddrinfo("example.com", 443)
+    print("UNEXPECTED_SUCCESS dns example.com")
+    fail = 1
+except Exception as e:
+    print(f"FAIL dns example.com {type(e).__name__}: {e}")
+sys.exit(fail)
+PY
+  then
+    echo "逃出 netns 后仍能访问公网：$label" | tee -a "$EVID/violations.txt"
+    return 1
+  fi
+}
+
 teardown() {
   need_root
+  iptables -D OUTPUT -j HD_OUT4 2>/dev/null || true
+  ip6tables -D OUTPUT -j HD_OUT6 2>/dev/null || true
+  iptables -F HD_OUT4 2>/dev/null || true
+  iptables -X HD_OUT4 2>/dev/null || true
+  ip6tables -F HD_OUT6 2>/dev/null || true
+  ip6tables -X HD_OUT6 2>/dev/null || true
   iptables -D OUTPUT -p udp --dport 53 -j HD_DNS 2>/dev/null || true
   iptables -D OUTPUT -p tcp --dport 53 -j HD_DNS 2>/dev/null || true
   if [ -f "$STATE" ]; then
@@ -432,6 +529,18 @@ run_all() {
   clean_runtime
   record_docker baseline
   assert_clean_baseline
+  {
+    echo "images=$(docker images -q | wc -l)"
+    echo "volumes=$(docker volume ls -q | wc -l)"
+    echo "containers=$(docker ps -aq | wc -l)"
+    docker images -q
+    docker volume ls -q
+    docker ps -aq
+  } > "$EVID/baseline-empty.txt"
+  if [ "$(docker images -q | wc -l)" != 0 ] || [ "$(docker volume ls -q | wc -l)" != 0 ] || [ "$(docker ps -aq | wc -l)" != 0 ]; then
+    echo "清洁基线仍有镜像、卷或容器" | tee -a "$EVID/violations.txt"
+    exit 1
+  fi
 
   local runner_uid="${SUDO_UID:-}"
   if [ -z "$runner_uid" ] || [ "$runner_uid" = 0 ]; then
@@ -450,6 +559,7 @@ run_all() {
     exit 1
   fi
 
+  move_sut_cgroup
   setup_netns
   setup_filters "$runner_uid" "$dockerd_uid"
   save_rules
@@ -468,6 +578,39 @@ run_all() {
   snapshot_counters "$EVID/counters-after-netns-probe.txt"
   assert_increase "$EVID/counters-before-netns-probe.txt" "$EVID/counters-after-netns-probe.txt" "iptables HD_VETH4"
   assert_increase "$EVID/counters-before-netns-probe.txt" "$EVID/counters-after-netns-probe.txt" "ip6tables HD_VETH6"
+  # 即使提权回到 init 网络命名空间，hd-sut cgroup 也不能借用控制通道。
+  snapshot_counters "$EVID/counters-before-escape.txt"
+  probe_escaped root "$EVID/probe-escape-root.txt"
+  sudo -u "${SUDO_USER:-runner}" nsenter -t 1 -n python3 - runner > "$EVID/probe-escape-runner-user.txt" << 'PY' || true
+import os, socket, sys
+print("uid", os.getuid())
+fail = 0
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.settimeout(3)
+try:
+    s.connect(("1.1.1.1", 443))
+    print("UNEXPECTED_SUCCESS tcp 1.1.1.1:443")
+    fail = 1
+except Exception as e:
+    print(f"FAIL tcp 1.1.1.1:443 {type(e).__name__}: {e}")
+try:
+    socket.getaddrinfo("example.com", 443)
+    print("UNEXPECTED_SUCCESS dns")
+    fail = 1
+except Exception as e:
+    print(f"FAIL dns {type(e).__name__}: {e}")
+sys.exit(fail)
+PY
+  if grep -q UNEXPECTED_SUCCESS "$EVID/probe-escape-runner-user.txt"; then
+    echo "runner uid 在安装 cgroup 里仍能出网" | tee -a "$EVID/violations.txt"
+    exit 1
+  fi
+  if ! grep -E 'FAIL tcp|not permitted|Operation not permitted' "$EVID/probe-escape-runner-user.txt"; then
+    echo "runner uid 逃逸探针没有留下失败记录" | tee -a "$EVID/violations.txt"
+    exit 1
+  fi
+  snapshot_counters "$EVID/counters-after-escape.txt"
+  assert_increase "$EVID/counters-before-escape.txt" "$EVID/counters-after-escape.txt" "iptables HD_OUT4"
 
   log "隔离已生效。开始从正式包 load 并安装。"
   snapshot_counters "$EVID/counters-before-install.txt"
@@ -488,9 +631,21 @@ run_all() {
   fi
   (
     cd "$pkg/deploy"
-    ip netns exec hd-sut env \
-      HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= http_proxy= https_proxy= all_proxy= \
-      bash -c "unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; ./install.sh --non-interactive --ack-master-key --offline --version '$ver' --storage seaweedfs --admin-password \"\$D50_ADMIN_PASSWORD\" --force --up"
+    if ! command -v capsh >/dev/null; then
+      echo "缺少 capsh，无法去掉安装进程的 CAP_SYS_ADMIN" | tee -a "$EVID/violations.txt"
+      exit 1
+    fi
+    ip netns exec hd-sut capsh --keep=1 \
+      --drop=cap_sys_admin,cap_sys_ptrace,cap_net_admin,cap_sys_module,cap_bpf -- \
+      -c "unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+        {
+          echo cgroup=\$(cat /proc/self/cgroup)
+          echo netns=\$(readlink /proc/self/ns/net)
+          grep -E '^Cap(Eff|Bnd):' /proc/self/status
+          if nsenter -t 1 -n true; then echo ESCAPE=allowed; exit 1; fi
+          echo ESCAPE=denied
+        } > \"$EVID/install-identity.txt\"
+        ./install.sh --non-interactive --ack-master-key --offline --version '$ver' --storage seaweedfs --admin-password \"\$D50_ADMIN_PASSWORD\" --force --up"
   ) > "$EVID/install.log" 2>&1 || {
     echo "install.sh 失败，见 install.log" | tee -a "$EVID/violations.txt"
     exit 1
@@ -515,6 +670,19 @@ run_all() {
     echo "加载了 mocks 镜像" | tee -a "$EVID/violations.txt"
     exit 1
   fi
+  grep -E 'Loaded image' "$EVID/install.log" > "$EVID/loaded-images.txt" || true
+  if ! grep -q 'Loaded image' "$EVID/loaded-images.txt"; then
+    echo "安装日志没有 docker load 的 Loaded image 记录" | tee -a "$EVID/violations.txt"
+    exit 1
+  fi
+  if grep -E 'docker pull|Pulling from|Downloaded newer image' "$EVID/install.log"; then
+    echo "隔离后的安装进程出现了镜像拉取" | tee -a "$EVID/violations.txt"
+    exit 1
+  fi
+  if ! grep -q 'ESCAPE=denied' "$EVID/install-identity.txt"; then
+    echo "安装进程仍能 nsenter 回 init 网络命名空间" | tee -a "$EVID/violations.txt"
+    exit 1
+  fi
   snapshot_counters "$EVID/counters-after-install.txt"
   assert_no_increase "$EVID/counters-before-install.txt" "$EVID/counters-after-install.txt" "安装"
 
@@ -532,6 +700,18 @@ run_all() {
     exit 1
   }
   probe_container "hengdesk/web:$ver" d50probe "${gh_ip:-}" "$EVID/probe-container-ipv6net.txt" d50-probe-v6 || exit 1
+  # 宿主网络栈上的容器（--network host）也不在 runner cgroup，公网 IPv4/IPv6/DNS 必须失败。
+  docker rm -f d50-probe-host >/dev/null 2>&1 || true
+  docker run --rm --network host --entrypoint /bin/sh "hengdesk/web:$ver" -c '
+    set +e
+    wget -T 3 -O /dev/null http://1.1.1.1/; echo ipv4:$?
+    wget -T 3 -O /dev/null "http://[2606:4700:4700::1111]/"; echo ipv6:$?
+    wget -T 3 -O /dev/null http://example.com/; echo dns:$?
+  ' > "$EVID/probe-hostnet.txt" 2>&1 || true
+  if grep -E '^(ipv4|ipv6|dns):0$' "$EVID/probe-hostnet.txt"; then
+    echo "host 网络容器探针成功出网" | tee -a "$EVID/violations.txt"
+    exit 1
+  fi
   snapshot_counters "$EVID/counters-after-container-probe.txt"
   assert_increase "$EVID/counters-before-container-probe.txt" "$EVID/counters-after-container-probe.txt" "iptables HD_DOCK4"
   assert_increase "$EVID/counters-before-container-probe.txt" "$EVID/counters-after-container-probe.txt" "ip6tables HD_DOCK6"
@@ -552,6 +732,14 @@ run_all() {
     echo "数据库查询输出含管理员口令" | tee -a "$EVID/violations.txt"
     exit 1
   fi
+  (
+    cd "$pkg/deploy"
+    docker compose exec -T postgres sh -c 'psql "postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@127.0.0.1/$POSTGRES_DB" -tAc "select name from departments where name = '\''d50-marker'\''"'
+  ) > "$EVID/db-marker.txt" 2>&1 || { echo "无法查询标记部门" | tee -a "$EVID/violations.txt"; exit 1; }
+  if ! grep -qx 'd50-marker' "$EVID/db-marker.txt"; then
+    echo "重启后数据库里没有标记部门" | tee -a "$EVID/violations.txt"
+    exit 1
+  fi
   snapshot_counters "$EVID/counters-after-persist.txt"
   assert_no_increase "$EVID/counters-before-persist.txt" "$EVID/counters-after-persist.txt" "验收与重启"
 
@@ -568,8 +756,8 @@ run_all() {
     echo "not_customer_site=true"
     echo "package_sha256=$(cut -d' ' -f1 "$EVID/package.sha256")"
     echo "version=$ver"
-    echo "control_channel=init_netns runner_uid=$runner_uid tcp/443 and DNS only"
-    echo "sut=netns hd-sut + docker forward + dockerd uid $dockerd_uid new public flows rejected"
+    echo "control_channel=runner cgroup $(cat "$EVID/runner-cgroup.txt") established sockets plus new flows from that cgroup only"
+    echo "sut=cgroup hd-sut + netns hd-sut + caps dropped + docker forward + host-net containers rejected by HD_OUT"
   } | tee "$EVID/result.txt"
   chmod -R a+rX "$EVID" || true
   log "D-50 云 VM 证据收集完成。拆除隔离后再由控制通道上传。"

@@ -31,8 +31,9 @@ echo "$VERSION" > "$STAGE/VERSION"
 
 # 构建应用镜像
 echo "==> build hengdesk/server:$VERSION / hengdesk/web:$VERSION"
-docker build -t "hengdesk/server:$VERSION" "$ROOT/server"
-docker build -t "hengdesk/web:$VERSION" "$ROOT/web"
+# 关闭 buildx 默认 attestation。带 provenance 的索引镜像在 Docker 28 上 docker save 会直接退出 1，且不一定把原因打到日志。
+docker build --provenance=false --sbom=false -t "hengdesk/server:$VERSION" "$ROOT/server"
+docker build --provenance=false --sbom=false -t "hengdesk/web:$VERSION" "$ROOT/web"
 
 # 依赖镜像（与 docker-compose.yml 钉死版本一致）
 DEPS=(
@@ -51,9 +52,22 @@ for img in "${DEPS[@]}"; do
 done
 
 echo "==> docker save"
-docker save -o "$STAGE/images/hengdesk-server.tar" "hengdesk/server:$VERSION"
-docker save -o "$STAGE/images/hengdesk-web.tar" "hengdesk/web:$VERSION"
-docker save -o "$STAGE/images/deps.tar" "${DEPS[@]}"
+save_one() {
+  local out="$1"; shift
+  echo "save $* -> $out"
+  if ! docker save "$@" -o "$out" >"$out.log" 2>&1; then
+    echo "docker save 失败：$*" >&2
+    cat "$out.log" >&2 || true
+    df -h >&2 || true
+    docker images >&2 || true
+    exit 1
+  fi
+  rm -f "$out.log"
+  test -s "$out"
+}
+save_one "$STAGE/images/hengdesk-server.tar" "hengdesk/server:$VERSION"
+save_one "$STAGE/images/hengdesk-web.tar" "hengdesk/web:$VERSION"
+save_one "$STAGE/images/deps.tar" "${DEPS[@]}"
 
 if [ "$WITH_ACCEPTANCE" = 1 ]; then
   echo "==> build hengdesk/mocks:$VERSION（验收 / 演示依赖，不进入默认正式包）"

@@ -18,6 +18,8 @@ jobs:
         run: |
           set -euo pipefail
           uname -m | grep -qx x86_64
+          sudo apt-get update -y
+          sudo apt-get install -y libcap2-bin
           VER="d50-${GITHUB_SHA::12}"
           ./deploy/pack-offline.sh --version "$VER" --out /tmp/hd-d50
           test -f "/tmp/hd-d50/hengdesk-offline-${VER}-amd64.tar.gz"
