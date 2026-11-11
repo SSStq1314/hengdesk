@@ -26,8 +26,8 @@ need_root() {
 }
 
 reject_pkts() {
-  local bin="$1" chain="$2"
-  "$bin" -L "$chain" -v -n -x 2>/dev/null | awk '$3=="REJECT"{s+=$1} END{print s+0}'
+  local bin="$1" chain="$2" table="${3:-filter}"
+  "$bin" -t "$table" -L "$chain" -v -n -x 2>/dev/null | awk '$3=="REJECT" || $3=="DROP"{s+=$1} END{print s+0}'
 }
 
 snapshot_counters() {
@@ -40,6 +40,7 @@ snapshot_counters() {
     for c in HD_VETH6 HD_DOCK6 HD_OUT6; do
       echo "ip6tables $c $(reject_pkts ip6tables "$c")"
     done
+    echo "ip6tables-raw HD_V6RAW $(reject_pkts ip6tables HD_V6RAW raw)"
   } > "$dest"
 }
 
@@ -68,6 +69,7 @@ iptables HD_OUT4
 ip6tables HD_VETH6
 ip6tables HD_DOCK6
 ip6tables HD_OUT6
+ip6tables-raw HD_V6RAW
 KEYS
 }
 
@@ -179,6 +181,13 @@ setup_netns() {
   host_mac=$(cat /sys/class/net/veth-hd-host/address)
   ip netns exec hd-sut ip -6 neigh add fd00:50::1 lladdr "$host_mac" dev veth-hd-ns nud permanent
   ip netns exec hd-sut ip -6 route add default via fd00:50::1
+  # 从 veth 进来的非邻居发现 IPv6 在 PREROUTING 丢掉并计数。
+  # 只靠 filter FORWARD 时，报文可能在更早的钩子被丢掉，计数保持 0。
+  ip6tables -t raw -N HD_V6RAW 2>/dev/null || ip6tables -t raw -F HD_V6RAW
+  ip6tables -t raw -A HD_V6RAW -j LOG --log-prefix "HD_V6RAW " --log-level 4
+  ip6tables -t raw -A HD_V6RAW -j DROP
+  ip6tables -t raw -C PREROUTING -i veth-hd-host ! -p ipv6-icmp -j HD_V6RAW 2>/dev/null || \
+    ip6tables -t raw -I PREROUTING 1 -i veth-hd-host ! -p ipv6-icmp -j HD_V6RAW
   sysctl -w net.ipv4.ip_forward=1 >/dev/null
   # 只允许该 veth 访问宿主上已发布的 8080，其余输入拒绝，避免把宿主当代理。
   iptables -I INPUT 1 -i veth-hd-host -j REJECT
@@ -471,6 +480,9 @@ teardown() {
   ip6tables -D FORWARD -i veth-hd-host -j HD_VETH6 2>/dev/null || true
   iptables -D INPUT -i veth-hd-host -p tcp --dport 8080 -j ACCEPT 2>/dev/null || true
   iptables -D INPUT -i veth-hd-host -j REJECT 2>/dev/null || true
+  ip6tables -t raw -D PREROUTING -i veth-hd-host ! -p ipv6-icmp -j HD_V6RAW 2>/dev/null || true
+  ip6tables -t raw -F HD_V6RAW 2>/dev/null || true
+  ip6tables -t raw -X HD_V6RAW 2>/dev/null || true
   ip6tables -D INPUT -i veth-hd-host -p icmpv6 -j ACCEPT 2>/dev/null || true
   ip6tables -D INPUT -i veth-hd-host -j REJECT 2>/dev/null || true
   for c in HD_VETH4 HD_DOCK4 HD_ROOT HD_DNS; do iptables -F "$c" 2>/dev/null || true; iptables -X "$c" 2>/dev/null || true; done
@@ -597,7 +609,7 @@ run_all() {
   fi
   snapshot_counters "$EVID/counters-after-netns-probe.txt"
   assert_increase "$EVID/counters-before-netns-probe.txt" "$EVID/counters-after-netns-probe.txt" "iptables HD_VETH4"
-  assert_increase "$EVID/counters-before-netns-probe.txt" "$EVID/counters-after-netns-probe.txt" "ip6tables HD_VETH6"
+  assert_increase "$EVID/counters-before-netns-probe.txt" "$EVID/counters-after-netns-probe.txt" "ip6tables-raw HD_V6RAW"
   # 即使提权回到 init 网络命名空间，hd-sut cgroup 也不能借用控制通道。
   snapshot_counters "$EVID/counters-before-escape.txt"
   probe_escaped root "$EVID/probe-escape-root.txt"
