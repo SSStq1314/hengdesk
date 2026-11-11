@@ -353,7 +353,14 @@ probe_container() {
   pid=$(docker inspect -f '{{.State.Pid}}' "$name")
   gw=$(docker network inspect "$net" -f '{{range .IPAM.Config}}{{.Gateway}}{{"\n"}}{{end}}' | grep ':' | head -1 || true)
   if [ -n "$gw" ]; then
-    nsenter -t "$pid" -n ip -6 route replace default via "$gw" || true
+    local nid br mac
+    nid=$(docker network inspect "$net" -f '{{.Id}}')
+    br="br-${nid:0:12}"
+    mac=$(cat "/sys/class/net/$br/address" 2>/dev/null || true)
+    nsenter -t "$pid" -n ip -6 route replace default via "$gw" dev eth0 || true
+    if [ -n "$mac" ]; then
+      nsenter -t "$pid" -n ip -6 neigh replace "$gw" lladdr "$mac" dev eth0 nud permanent || true
+    fi
   fi
   nsenter -t "$pid" -n ip route > "$out.route4" 2>&1 || true
   nsenter -t "$pid" -n ip -6 route > "$out.route6" 2>&1 || true
