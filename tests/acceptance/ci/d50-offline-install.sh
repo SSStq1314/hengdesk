@@ -358,14 +358,15 @@ probe_container() {
   gw=$(nsenter -t "$pid" -n ip -6 route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="via"){print $(i+1); exit}}')
   {
     echo "bridge=$br mac=${mac:-missing} gw=${gw:-missing}"
-    nsenter -t "$pid" -n ip -6 neigh show || true
   } >> "$out.route6"
   if [ -n "$mac" ]; then
-    nsenter -t "$pid" -n ip -6 neigh replace 2606:4700:4700::1111 lladdr "$mac" dev eth0 nud permanent || true
-    nsenter -t "$pid" -n ip -6 route replace 2606:4700:4700::1111/128 dev eth0 || true
+    nsenter -t "$pid" -n ip -6 route replace 2606:4700:4700::1111/128 dev eth0 >> "$out.route6" 2>&1 || true
+    nsenter -t "$pid" -n ip -6 neigh replace 2606:4700:4700::1111 lladdr "$mac" dev eth0 nud permanent >> "$out.route6" 2>&1 || true
     if [ -n "$gw" ]; then
-      nsenter -t "$pid" -n ip -6 neigh replace "$gw" lladdr "$mac" dev eth0 nud permanent || true
+      nsenter -t "$pid" -n ip -6 neigh replace "$gw" lladdr "$mac" dev eth0 nud permanent >> "$out.route6" 2>&1 || true
     fi
+    echo "## neigh" >> "$out.route6"
+    nsenter -t "$pid" -n ip -6 neigh show >> "$out.route6" 2>&1 || true
   fi
   nsenter -t "$pid" -n ip route > "$out.route4" 2>&1 || true
   nsenter -t "$pid" -n ip -6 route >> "$out.route6" 2>&1 || true
