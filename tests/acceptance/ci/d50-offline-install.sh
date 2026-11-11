@@ -613,7 +613,7 @@ run_all() {
   # 即使提权回到 init 网络命名空间，hd-sut cgroup 也不能借用控制通道。
   snapshot_counters "$EVID/counters-before-escape.txt"
   probe_escaped root "$EVID/probe-escape-root.txt"
-  sudo -u "${SUDO_USER:-runner}" nsenter -t 1 -n python3 - runner > "$EVID/probe-escape-runner-user.txt" << 'PY' || true
+  sudo -u "${SUDO_USER:-runner}" /usr/bin/nsenter -t 1 -n /usr/bin/python3 - runner > "$EVID/probe-escape-runner-user.txt" 2>&1 << 'PY' || true
 import os, socket, sys
 print("uid", os.getuid())
 fail = 0
