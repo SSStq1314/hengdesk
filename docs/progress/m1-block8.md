@@ -236,4 +236,6 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 
 D-50 允许用全新 GitHub 托管 x86 VM 关闭 D-46 第 8 条，但只证明该云 VM。工作流「D-50 正式包断网安装」在准备阶段只构建**无 mock 默认正式包**，隔离之后才 `docker load`。安装进程在 `hd-sut`，容器转发和 dockerd 新公网连接被拒绝。控制通道若保留，必须证明安装进程和产品用不上。验收包含新库 healthz、未登录 401、部门标记、重启后标记仍在。
 
-job 成功且 artifact `d50-offline-evidence` 里的 `result.txt` 为 `pass` 之前，AC-01 / D-46 安装记录保持**未验证**。成功也只记「该次托管 x86 VM」，不记物理机或客户现场。资源不足导致的失败同样是未验证。含 mocks 的 15 步 CI 仍然不是本项。通义回放不得写成通义真实服务通过。
+变基前，提交 `c397f8d8d7e696296b15e74ba3132603e898d89f` 的运行 [43088030693](https://github.com/SSStq1314/hengdesk/actions/runs/43088030693) 曾 `result.txt=pass`。那次证据包 SHA256 `422b79adcca8a4d1dc7f951856b02dbe76898de701fb776318db9b4de7de7d2c`。清洁基线镜像、卷、容器都是 0。加载记录只有包内镜像，没有 mocks。新库 `users=1`，重启后部门 `d50-marker` 仍在。未登录返回 401。容器 IPv6 被内核返回 `Network is unreachable`，没有报文进入 `HD_DOCK6`。这次变基后的 head 必须用自己的 workflow 再出 `result=pass`，上面的哈希不是变基后的证据。
+
+控制通道是 runner cgroup `/system.slice/hosted-compute-agent.service`。安装进程在 cgroup `/hd-sut` 和网络命名空间 `hd-sut`，`CAP_SYS_ADMIN` 已从 bounding set 去掉。含 mocks 的 15 步 CI 仍然不是本项。通义回放不得写成通义真实服务通过。成功也只记该次托管 x86 VM，不记物理机或客户现场。
