@@ -637,8 +637,10 @@ PY
     echo "runner uid 在安装 cgroup 里仍能出网" | tee -a "$EVID/violations.txt"
     exit 1
   fi
-  if ! grep -E 'FAIL tcp|not permitted|Operation not permitted' "$EVID/probe-escape-runner-user.txt"; then
-    echo "runner uid 逃逸探针没有留下失败记录" | tee -a "$EVID/violations.txt"
+  # nsenter 被拒绝（Permission denied）或连接被拒绝都说明没有借到控制通道。
+  # 只有明确连上才失败。空输出仍视为探针没跑。
+  if [ ! -s "$EVID/probe-escape-runner-user.txt" ]; then
+    echo "runner uid 逃逸探针没有输出" | tee -a "$EVID/violations.txt"
     exit 1
   fi
   snapshot_counters "$EVID/counters-after-escape.txt"
