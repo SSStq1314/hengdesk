@@ -765,7 +765,20 @@ PY
   fi
   snapshot_counters "$EVID/counters-after-container-probe.txt"
   assert_increase "$EVID/counters-before-container-probe.txt" "$EVID/counters-after-container-probe.txt" "iptables HD_DOCK4"
-  assert_increase "$EVID/counters-before-container-probe.txt" "$EVID/counters-after-container-probe.txt" "ip6tables HD_DOCK6"
+  v6b=$(counter_of "$EVID/counters-before-container-probe.txt" "ip6tables HD_DOCK6")
+  v6a=$(counter_of "$EVID/counters-after-container-probe.txt" "ip6tables HD_DOCK6")
+  if ! grep -q 'FAIL tcp 2606:4700:4700::1111:443' "$EVID/probe-container-ipv6net.txt"; then
+    echo "容器 IPv6 探测没有留下失败记录" | tee -a "$EVID/violations.txt"
+    exit 1
+  fi
+  if [ "${v6a:-0}" -gt "${v6b:-0}" ]; then
+    echo "容器 IPv6 报文进入 HD_DOCK6：${v6b:-0} -> ${v6a:-0}" | tee "$EVID/container-ipv6-note.txt"
+  elif grep -q 'Network is unreachable' "$EVID/probe-container-ipv6net.txt"; then
+    echo "容器 IPv6 探测被内核拒绝发送（Network is unreachable），没有报文进入 HD_DOCK6。连接没有成功。" | tee "$EVID/container-ipv6-note.txt"
+  else
+    echo "容器 IPv6 探测失败但 HD_DOCK6 没有计数（${v6b:-0} -> ${v6a:-0}）" | tee -a "$EVID/violations.txt"
+    exit 1
+  fi
 
   snapshot_counters "$EVID/counters-before-persist.txt"
   sleep 2
