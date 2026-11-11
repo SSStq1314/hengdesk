@@ -174,7 +174,10 @@ setup_netns() {
   ip netns exec hd-sut ip -6 addr add fd00:50::2/64 dev veth-hd-ns
   # 默认路由让探针报文真正进入宿主转发链，再由下面的 REJECT 丢掉。
   # all.forwarding 不会回头打开已经存在的网卡，所以必须单独打开 veth。
+  # 永久邻居避免 IPv6 网关因邻居发现失败变成 Network is unreachable，报文根本不进 FORWARD。
   ip netns exec hd-sut ip route add default via 169.254.250.1
+  host_mac=$(cat /sys/class/net/veth-hd-host/address)
+  ip netns exec hd-sut ip -6 neigh add fd00:50::1 lladdr "$host_mac" dev veth-hd-ns nud permanent
   ip netns exec hd-sut ip -6 route add default via fd00:50::1
   sysctl -w net.ipv4.ip_forward=1 >/dev/null
   # 只允许该 veth 访问宿主上已发布的 8080，其余输入拒绝，避免把宿主当代理。
