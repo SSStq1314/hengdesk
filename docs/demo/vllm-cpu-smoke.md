@@ -23,4 +23,21 @@ GitHub Actions 工作流「vLLM CPU 协议冒烟」（`.github/workflows/vllm-cp
 ## 实跑记录
 
 - 2026-11-09：共享开发机没有 Docker，未实跑。
-- 2026-11-11：改为上述 GitHub 托管 x86 runner。具体镜像摘要、模型、通过与否和证据哈希以本 PR 的 Actions 运行和 artifact 为准，在运行完成前不记为通过。这不是通义实测。
+- 2026-11-11 15:57–16:01 UTC：GitHub 托管 `ubuntu-24.04` x86_64 云 VM 实跑通过。这是 vLLM CPU 协议冒烟，**不是通义实测**，也不是物理机或客户现场。
+
+| 项 | 值 |
+|---|---|
+| 提交 | `66f57ed2cd996b3e709678abe16fa28adda2871d` |
+| 运行 | https://github.com/SSStq1314/hengdesk/actions/runs/43053476770 |
+| 主机 | `runnervm7aw5e`，内核 `7.0.0-1017-azure`，Hypervisor Microsoft，AMD EPYC 7763（虚拟机内 4 vCPU），内存 15 GiB，根盘 145G |
+| Docker | Engine 28.0.4 |
+| 镜像 | `vllm/vllm-openai-cpu:latest-x86_64` |
+| 镜像摘要 | `sha256:4154467a886f8b7ffa9dbab32f873f5ca4528409d042a6ec866e8888223263d3`（约 5.2 GiB，创建时间 2026-11-01） |
+| 模型 | `Qwen/Qwen2.5-0.5B-Instruct`（未改用更小模型，也未使用 Ollama） |
+| 参数 | `--dtype float32 --max-model-len 512 --max-num-seqs 1 --enforce-eager` |
+| 非流式 | HTTP 200，`object=chat.completion`，`finish_reason=stop`，`usage.total_tokens=38`（prompt 36 / completion 2） |
+| 流式 | HTTP 200，含 `data:`、`[DONE]`、增量 content，以及 `include_usage` 带来的 usage |
+| 证据包 SHA256 | `0492aa95905e3348135feeec6dcdfedbb4c5a9735f9c6eb99b11d9df4991df66`（`vllm-cpu-smoke-evidence.tar.gz`） |
+| artifact zip SHA256 | `a0743ea2fafedbc30d593fc3a36951ec9a67320cf9b401d9fb25ff8b6d810219` |
+
+原始 `/v1/models`、非流式 JSON、流式 SSE 和脱敏容器日志在该 run 的 artifact `vllm-cpu-smoke-evidence` 里，不写入本仓库。没有使用真实 API 密钥。
