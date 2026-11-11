@@ -722,11 +722,13 @@ PY
   snapshot_counters "$EVID/counters-after-install.txt"
   record_blocks "$EVID/counters-before-install.txt" "$EVID/counters-after-install.txt" "安装"
 
-  local base=http://169.254.250.1:8080
+  # 验收进程留在 hd-sut cgroup（不能用 runner 控制通道），通过宿主回环上的发布端口访问产品。
+  # veth 地址上的 8080 会被本机拒绝，不作为健康检查入口。
+  local base=http://127.0.0.1:8080
   local accept="${GITHUB_WORKSPACE:-/workspace}/tests/acceptance/offline-formal-accept.sh"
   [ -f "$accept" ] || { echo "找不到离线验收脚本 $accept" | tee -a "$EVID/violations.txt"; exit 1; }
   chmod +x "$accept"
-  ip netns exec hd-sut env D50_ADMIN_PASSWORD="$pw" "$accept" init --base-url "$base" \
+  env D50_ADMIN_PASSWORD="$pw" "$accept" init --base-url "$base" \
     > "$EVID/accept-init.log" 2>&1 || { echo "离线验收 init 失败" | tee -a "$EVID/violations.txt"; exit 1; }
 
   snapshot_counters "$EVID/counters-before-container-probe.txt"
@@ -758,7 +760,7 @@ PY
     cd "$pkg/deploy"
     docker compose restart
   ) > "$EVID/restart.log" 2>&1
-  ip netns exec hd-sut env D50_ADMIN_PASSWORD="$pw" "$accept" persist --base-url "$base" \
+  env D50_ADMIN_PASSWORD="$pw" "$accept" persist --base-url "$base" \
     > "$EVID/accept-persist.log" 2>&1 || { echo "重启持久性失败" | tee -a "$EVID/violations.txt"; exit 1; }
   (
     cd "$pkg/deploy"
