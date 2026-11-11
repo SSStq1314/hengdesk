@@ -25,6 +25,6 @@
 | D-46 | 统计 / AIGC / 离线包：查看他人明细记审计、日界按系统时区、导出审计含筛选与行数、标识文案校验、导出 front matter、卸载确认与保留 secrets；P1/开放项不进 M1 | [D-46-stats-aigc-offline.md](D-46-stats-aigc-offline.md) |
 | D-47 | 通义冒烟挂起至 M2 W1，改用 vLLM CPU 小模型协议冒烟；审计链多进程写入误拒为 M1 阻塞（#68 已合入） | 见产品库 `decisions.md` D-47；工程修复 #68 |
 | D-48 | 旧审计链不迁移，演示/测试库清空重建；正式包基于 `bf4d437`+；验收用新库；哈希规范化不得静默改变，改动须带版本号 | 见产品库 `decisions.md` D-48；`docs/dev/audit.md`、`docs/release/m1.md` |
-| D-49 | 通义真实冒烟移出 M1，改官方文档契约测试 + 标明来源的录制回放（禁止编造）；vLLM CPU 真实冒烟保留；POC 现场用客户密钥做通义冒烟。其余外部依赖（hengdesk-pro、License 私钥、规模测试机器、企业微信、LDAP/AD 容器）见产品库全文 | 见产品库 `decisions.md` D-49；`docs/demo/m1-acceptance.md`、`docs/demo/poc-delivery.md`、`docs/release/m1.md` |
+| D-49 | 通义真实冒烟移出 M1，改官方文档契约测试 + 标明来源的录制回放（禁止编造）；vLLM CPU 真实冒烟保留；POC 现场用客户密钥做通义冒烟。其余外部依赖（hengdesk-pro、License 私钥、规模测试机器、企业微信、LDAP/AD 容器）见产品库全文 | 见产品库 `decisions.md` D-49。通义回放带已换成官方示例（`dashscope_cassette.json`），不宣称真实调用。vLLM CPU 实跑与 D-50 断网安装另见后续 PR |
 
 > D-27（ACL 检索分档策略与性能基线）由产品经理维护，不在此复制。

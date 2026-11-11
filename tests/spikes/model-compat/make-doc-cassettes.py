@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""按各厂商公开文档构造契约测试回放带（D-35）。
+"""按各厂商公开文档构造 vLLM / Anthropic 契约测试回放带（D-35）。
 
-这些回放带 **不是** 真实录制：字段形状取自公开文档的示例，内容为构造值。
-拿到凭据后用 server/cmd/cassette-record 真实录制替换（见 docs/ops/model-gateway.md）。
+这些回放带 **不是** 真实录制，也不是通义实测。字段形状参考公开文档，正文是构造值。
+dashscope_cassette.json 已按 D-49 改为通义官方文档示例，本脚本不得覆盖它。
 运行：python3 make-doc-cassettes.py  （输出到 server/internal/gateway/testdata/）
 """
 import json, os
@@ -133,9 +133,16 @@ def anthropic():
     return cases
 
 
-for vendor, fn in (("dashscope", dashscope), ("vllm", vllm), ("anthropic", anthropic)):
-    data = {"_note": NOTE, "_source": "按公开文档构造，非真实录制", "cases": fn()}
+for vendor, fn in (("vllm", vllm), ("anthropic", anthropic)):
+    data = {
+        "_note": NOTE,
+        "_source": "按公开文档构造，非真实录制",
+        "_claim": "constructed_not_a_live_call_not_tongyi",
+        "cases": fn(),
+    }
     with open(os.path.join(OUT, vendor + "_cassette.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
         f.write("\n")
     print("wrote", vendor)
+dash = os.path.join(OUT, "dashscope_cassette.json")
+print("skipped dashscope (D-49 official examples only):", dash)
