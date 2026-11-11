@@ -48,7 +48,7 @@ jobs:
           mkdir -p /tmp/d50-evidence
           tar -C /tmp -czf /tmp/d50-evidence.tar.gz d50-evidence
           sha256sum /tmp/d50-evidence.tar.gz | tee /tmp/d50-archive.sha256
-          cp /tmp/d50-archive.sha256 /tmp/d50-evidence/archive.sha256
+          cp /tmp/d50-archive.sha256 /tmp/d50-evidence/archive.sha256 || true
           chmod -R a+rX /tmp/d50-evidence /tmp/d50-evidence.tar.gz /tmp/d50-archive.sha256 || true
           echo "证据边界：GitHub 托管 ubuntu-24.04 x86_64 VM。不是物理机，也不是客户现场。"
       - uses: actions/upload-artifact@v4

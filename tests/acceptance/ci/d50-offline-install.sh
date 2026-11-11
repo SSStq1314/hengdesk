@@ -161,17 +161,22 @@ setup_netns() {
   ip link add veth-hd-host type veth peer name veth-hd-ns
   ip link set veth-hd-ns netns hd-sut
   ip addr add 169.254.250.1/30 dev veth-hd-host
+  sysctl -w net.ipv6.conf.all.forwarding=1 >/dev/null
+  sysctl -w net.ipv6.conf.default.forwarding=1 >/dev/null
   ip link set veth-hd-host up
+  sysctl -w net.ipv6.conf.veth-hd-host.forwarding=1 >/dev/null
+  sysctl -w net.ipv6.conf.veth-hd-host.accept_dad=0 >/dev/null
   ip -6 addr add fd00:50::1/64 dev veth-hd-host
   ip netns exec hd-sut ip addr add 169.254.250.2/30 dev veth-hd-ns
   ip netns exec hd-sut ip link set veth-hd-ns up
   ip netns exec hd-sut ip link set lo up
+  ip netns exec hd-sut sysctl -w net.ipv6.conf.veth-hd-ns.accept_dad=0 >/dev/null
   ip netns exec hd-sut ip -6 addr add fd00:50::2/64 dev veth-hd-ns
   # 默认路由让探针报文真正进入宿主转发链，再由下面的 REJECT 丢掉。
+  # all.forwarding 不会回头打开已经存在的网卡，所以必须单独打开 veth。
   ip netns exec hd-sut ip route add default via 169.254.250.1
   ip netns exec hd-sut ip -6 route add default via fd00:50::1
   sysctl -w net.ipv4.ip_forward=1 >/dev/null
-  sysctl -w net.ipv6.conf.all.forwarding=1 >/dev/null
   # 只允许该 veth 访问宿主上已发布的 8080，其余输入拒绝，避免把宿主当代理。
   iptables -I INPUT 1 -i veth-hd-host -j REJECT
   iptables -I INPUT 1 -i veth-hd-host -p tcp --dport 8080 -j ACCEPT
@@ -491,6 +496,7 @@ run_all() {
   [ -n "$evid" ] || evid=/tmp/d50-evidence
   EVID="$evid"
   mkdir -p "$EVID"
+  chmod 777 "$EVID"
   : > "$EVID/violations.txt"
   rm -f "$STATE"
   umask 022
@@ -563,7 +569,14 @@ run_all() {
   setup_netns
   setup_filters "$runner_uid" "$dockerd_uid"
   save_rules
-  ip netns exec hd-sut ip route > "$EVID/netns-route.txt"
+  {
+    echo "## v4"
+    ip netns exec hd-sut ip route
+    echo "## v6"
+    ip netns exec hd-sut ip -6 route
+    echo "## veth forwarding"
+    sysctl net.ipv6.conf.veth-hd-host.forwarding
+  } > "$EVID/netns-route.txt"
   ip netns identify $$ > "$EVID/installer-netns-before.txt" || true
 
   local gh_ip
