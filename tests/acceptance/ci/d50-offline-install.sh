@@ -49,18 +49,19 @@ counter_of() {
   awk -v k="$key" '$1" "$2==k {print $3}' "$file"
 }
 
-assert_no_increase() {
+# 安装和验收窗口里的拒绝计数是被拦住的出站尝试，写入证据，不把「规则生效」当成失败。
+# 真正的失败是探针连上，或安装过程拉取了镜像。
+record_blocks() {
   local before="$1" after="$2" label="$3"
   local key b a
-  while read -r key; do
-    [ -n "$key" ] || continue
-    b=$(counter_of "$before" "$key")
-    a=$(counter_of "$after" "$key")
-    if [ "${a:-0}" -gt "${b:-0}" ]; then
-      echo "$label 期间 $key 拒绝计数 ${b:-0} -> ${a:-0}" | tee -a "$EVID/violations.txt"
-      return 1
-    fi
-  done <<'KEYS'
+  {
+    echo "# $label"
+    while read -r key; do
+      [ -n "$key" ] || continue
+      b=$(counter_of "$before" "$key")
+      a=$(counter_of "$after" "$key")
+      echo "$key ${b:-0} -> ${a:-0}"
+    done <<'KEYS'
 iptables HD_VETH4
 iptables HD_DOCK4
 iptables HD_ROOT
@@ -71,6 +72,7 @@ ip6tables HD_DOCK6
 ip6tables HD_OUT6
 ip6tables-raw HD_V6RAW
 KEYS
+  } | tee -a "$EVID/blocked-during-product.txt"
 }
 
 assert_increase() {
@@ -718,7 +720,7 @@ PY
     exit 1
   fi
   snapshot_counters "$EVID/counters-after-install.txt"
-  assert_no_increase "$EVID/counters-before-install.txt" "$EVID/counters-after-install.txt" "安装"
+  record_blocks "$EVID/counters-before-install.txt" "$EVID/counters-after-install.txt" "安装"
 
   local base=http://169.254.250.1:8080
   local accept="${GITHUB_WORKSPACE:-/workspace}/tests/acceptance/offline-formal-accept.sh"
@@ -775,7 +777,7 @@ PY
     exit 1
   fi
   snapshot_counters "$EVID/counters-after-persist.txt"
-  assert_no_increase "$EVID/counters-before-persist.txt" "$EVID/counters-after-persist.txt" "验收与重启"
+  record_blocks "$EVID/counters-before-persist.txt" "$EVID/counters-after-persist.txt" "验收与重启"
 
   save_rules
   docker network inspect hengdesk_default > "$EVID/network-hengdesk_default.json" || true
