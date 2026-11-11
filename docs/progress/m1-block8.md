@@ -222,15 +222,18 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 
 ## 2026-11-11 收尾（相对 #74 报告）
 
-完成报告撰写时点名的 main 是 `bf4c9ec`，这个提交就是 #75，SQLite 用量窗口修复已经在里面。当前 main `3d05dbd` 相对 `bf4c9ec` 新增的是 #74（完成报告）和 #76（PG 上海下午窗口），不是又包含一次 #75。#76 不改变本表里除时区回归以外的验收结论。
-
-本段只记录通义回放带来源。vLLM CPU 实跑和 D-50 正式包断网安装不在这一变更里。
+完成报告撰写时点名的 main 是 `bf4c9ec`，这个提交就是 #75，SQLite 用量窗口修复已经在里面。当时的 main `3d05dbd` 相对 `bf4c9ec` 新增的是 #74（完成报告）和 #76（PG 上海下午窗口），不是又包含一次 #75。#76 不改变本表里除时区回归以外的验收结论。
 
 | 项 | 状态 |
 |---|---|
-| 当前 main（本变更之前） | `3d05dbd`。无未合并 PR |
-| D-49 通义回放带 | **官方文档示例已替换编造样本**。来源页：`https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope` 与 `https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions`，获取时间 `2026-11-11T15:48:00Z`。每条 `provenance` 写了章节和非语义变换（SSE 封装、页面已省略的中间 chunk 不补造、正文省略号原样保留、401 取自同一页状态码说明）。`_claim` 为 `official_documentation_example_not_a_live_call`。**不是通义真实调用，也不是 vLLM 实测** |
-| 契约测试 | `TestDashScopeCassetteProvenance` 核对来源与官方原文片段；`TestVendorContract*` 用这些响应走现有 dashscope 兼容层（`enable_thinking`、流式 usage、思考字段、401→`upstream_auth_failed`）。没有官方 JSON 的错误体（无效模型、超长上下文）不编造，因此通义不再测这两条 |
-| vLLM / Anthropic 回放带 | 仍是历史构造样本，文件头仍写「非真实录制」。不拿来充当通义通过 |
-| AC-14 | 仍是 **部分**。mock「测试」与通义文档契约已覆盖；vLLM CPU 真实协议冒烟未实跑 |
-| AC-01 / D-46 安装记录 | 仍未按 D-50 关闭。含 mocks 的 15 步 CI 不是正式包干净安装 |
+| D-49 通义回放带 | **官方文档示例已替换编造样本**。来源页：`https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope` 与 `https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions`，获取时间 `2026-11-11T15:48:00Z`。每条 `provenance` 写了章节和非语义变换（SSE 封装、页面已省略的中间 chunk 不补造、正文省略号原样保留、401 取自同一页状态码说明）。`_claim` 为 `official_documentation_example_not_a_live_call`。**不是通义真实调用，也不是 vLLM 实测**。英文页带省略号的示例不是完整实录 |
+| 契约测试 | `TestDashScopeCassetteProvenance` 核对来源与官方原文片段；`TestVendorContract*` 用这些响应走现有 dashscope 兼容层。没有官方 JSON 的错误体不编造 |
+| vLLM / Anthropic 回放带 | 仍是历史构造样本，不拿来充当通义通过 |
+| AC-14 | 仍是 **部分**，直到 vLLM CPU 真实协议冒烟在最终 head 上通过 |
+| AC-01 / D-46 安装记录 | D-50 工作流在 `result.txt=pass` 之前保持未验证。含 mocks 的 15 步 CI 不是正式包干净安装 |
+
+## 2026-11-11 D-50 取证（相对 #74 报告）
+
+D-50 允许用全新 GitHub 托管 x86 VM 关闭 D-46 第 8 条，但只证明该云 VM。工作流「D-50 正式包断网安装」在准备阶段只构建**无 mock 默认正式包**，隔离之后才 `docker load`。安装进程在 `hd-sut`，容器转发和 dockerd 新公网连接被拒绝。控制通道若保留，必须证明安装进程和产品用不上。验收包含新库 healthz、未登录 401、部门标记、重启后标记仍在。
+
+job 成功且 artifact `d50-offline-evidence` 里的 `result.txt` 为 `pass` 之前，AC-01 / D-46 安装记录保持**未验证**。成功也只记「该次托管 x86 VM」，不记物理机或客户现场。资源不足导致的失败同样是未验证。含 mocks 的 15 步 CI 仍然不是本项。通义回放不得写成通义真实服务通过。

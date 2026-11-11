@@ -1,0 +1,60 @@
+name: D-50 正式包断网安装
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  d50:
+    name: 正式包隔离安装（D-50）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      # 与现有 CI 相同的一次性口令，不是用户密钥。
+      D50_ADMIN_PASSWORD: ci-only-password-123
+    steps:
+      - uses: actions/checkout@v4
+      - name: 准备阶段（有网，只构建默认正式包）
+        run: |
+          set -euo pipefail
+          uname -m | grep -qx x86_64
+          VER="d50-${GITHUB_SHA::12}"
+          ./deploy/pack-offline.sh --version "$VER" --out /tmp/hd-d50
+          test -f "/tmp/hd-d50/hengdesk-offline-${VER}-amd64.tar.gz"
+          test ! -e /tmp/hd-d50/hengdesk-offline-${VER}-amd64-acceptance.tar.gz
+          if tar -tzf "/tmp/hd-d50/hengdesk-offline-${VER}-amd64.tar.gz" | grep -q hengdesk-mocks; then
+            echo "默认正式包不应包含 mocks 镜像" >&2
+            exit 1
+          fi
+          sha256sum "/tmp/hd-d50/hengdesk-offline-${VER}-amd64.tar.gz"
+          echo "准备阶段结束。隔离与安装由下一步执行，且不得再构建或拉取。"
+      - name: 隔离后加载正式包并验收
+        run: |
+          set -euo pipefail
+          chmod +x tests/acceptance/ci/d50-offline-install.sh tests/acceptance/offline-formal-accept.sh
+          VER="d50-${GITHUB_SHA::12}"
+          sudo -E -n tests/acceptance/ci/d50-offline-install.sh run \
+            --tar "/tmp/hd-d50/hengdesk-offline-${VER}-amd64.tar.gz" \
+            --evidence /tmp/d50-evidence
+      - name: 结束隔离（便于控制端上传）
+        if: always()
+        run: sudo -n tests/acceptance/ci/d50-offline-install.sh teardown || true
+      - name: 证据包哈希
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/d50-evidence
+          tar -C /tmp -czf /tmp/d50-evidence.tar.gz d50-evidence
+          sha256sum /tmp/d50-evidence.tar.gz | tee /tmp/d50-archive.sha256
+          cp /tmp/d50-archive.sha256 /tmp/d50-evidence/archive.sha256
+          chmod -R a+rX /tmp/d50-evidence /tmp/d50-evidence.tar.gz /tmp/d50-archive.sha256 || true
+          echo "证据边界：GitHub 托管 ubuntu-24.04 x86_64 VM。不是物理机，也不是客户现场。"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: d50-offline-evidence
+          path: |
+            /tmp/d50-evidence
+            /tmp/d50-evidence.tar.gz
+            /tmp/d50-archive.sha256
+          if-no-files-found: warn
