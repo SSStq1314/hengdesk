@@ -127,7 +127,12 @@ if [ "$WITH_ACCEPTANCE" = 1 ]; then
 ACC
 fi
 
-TAR="$OUT/hengdesk-offline-$VERSION-amd64$([ "$WITH_ACCEPTANCE" = 1 ] && echo -acceptance).tar.gz"
+# 不能写成 $( [ cond ] && echo ...)。set -e 时条件为假会使命令替换返回非 0，脚本在默认正式包这条路径上直接退出。
+suffix=""
+if [ "$WITH_ACCEPTANCE" = 1 ]; then
+  suffix="-acceptance"
+fi
+TAR="$OUT/hengdesk-offline-$VERSION-amd64${suffix}.tar.gz"
 mkdir -p "$OUT"
 tar -C "$(dirname "$STAGE")" -czf "$TAR" "$(basename "$STAGE")"
 rm -rf "$STAGE"
