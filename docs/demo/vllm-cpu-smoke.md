@@ -23,11 +23,14 @@ GitHub Actions 工作流「vLLM CPU 协议冒烟」（`.github/workflows/vllm-cp
 ## 实跑记录
 
 - 2026-11-09：共享开发机没有 Docker，未实跑。
-- 2026-11-11 15:57–16:01 UTC：GitHub 托管 `ubuntu-24.04` x86_64 云 VM 实跑通过。这是 vLLM CPU 协议冒烟，**不是通义实测**，也不是物理机或客户现场。
+- `66f57ed` 上的 [run 43053476770](https://github.com/SSStq1314/hengdesk/actions/runs/43053476770) 曾跑通，但那不是本分支最终 head。最终 head 必须以**该 head 自己的**「vLLM CPU 协议冒烟」workflow 为准，不能用上一提交代替。
+- 本提交的证据是同一次 workflow 上传的 artifact `vllm-cpu-smoke-evidence`（含 `archive.sha256`）。这是 GitHub 托管 x86 云 VM 上的 vLLM CPU 协议冒烟，不是通义实测，也不是物理机或客户现场。镜像为 `vllm/vllm-openai-cpu`，模型优先 `Qwen/Qwen2.5-0.5B-Instruct`，`--dtype float32`。不用 Ollama。
+
+下面这张表只属于上一提交 `66f57ed`，**不是**最终 head 的验收证据。
 
 | 项 | 值 |
 |---|---|
-| 提交 | `66f57ed2cd996b3e709678abe16fa28adda2871d` |
+| 提交 | `66f57ed2cd996b3e709678abe16fa28adda2871d`（先前一次，不是最终 head） |
 | 运行 | https://github.com/SSStq1314/hengdesk/actions/runs/43053476770 |
 | 主机 | `runnervm7aw5e`，内核 `7.0.0-1017-azure`，Hypervisor Microsoft，AMD EPYC 7763（虚拟机内 4 vCPU），内存 15 GiB，根盘 145G |
 | Docker | Engine 28.0.4 |
