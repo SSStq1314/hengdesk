@@ -1,0 +1,48 @@
+name: vLLM CPU 协议冒烟
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  vllm-cpu-smoke:
+    name: vLLM CPU 小模型协议冒烟
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: 确认托管 x86 runner
+        run: |
+          set -euo pipefail
+          uname -m | grep -qx x86_64
+          docker version
+          echo "本 job 使用 GitHub 托管 ubuntu-24.04 x86_64，不是物理机，也不是客户现场。"
+      - name: 实跑 vLLM CPU 协议冒烟
+        run: |
+          set -euo pipefail
+          chmod +x tests/acceptance/vllm-cpu-smoke.sh
+          VLLM_EVIDENCE_DIR=/tmp/vllm-cpu-smoke-evidence ./tests/acceptance/vllm-cpu-smoke.sh
+      - name: 归档并计算哈希
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/vllm-cpu-smoke-evidence
+          {
+            echo "git_sha=${GITHUB_SHA}"
+            echo "runner=${RUNNER_NAME:-}"
+            echo "os=${RUNNER_OS:-} ${RUNNER_ARCH:-}"
+            date -u +%Y-%m-%dT%H:%M:%SZ
+          } > /tmp/vllm-cpu-smoke-evidence/ci-context.txt
+          tar -C /tmp -czf /tmp/vllm-cpu-smoke-evidence.tar.gz vllm-cpu-smoke-evidence
+          sha256sum /tmp/vllm-cpu-smoke-evidence.tar.gz | tee /tmp/vllm-cpu-smoke-evidence/archive.sha256
+          cp /tmp/vllm-cpu-smoke-evidence/archive.sha256 /tmp/vllm-cpu-smoke-archive.sha256
+          echo "证据包 SHA256 见上。原始响应在 artifact 内。这不是通义实测。"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vllm-cpu-smoke-evidence
+          path: |
+            /tmp/vllm-cpu-smoke-evidence
+            /tmp/vllm-cpu-smoke-evidence.tar.gz
+            /tmp/vllm-cpu-smoke-archive.sha256
+          if-no-files-found: warn
