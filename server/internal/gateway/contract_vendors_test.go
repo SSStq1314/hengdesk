@@ -367,6 +367,20 @@ func TestDashScopeCassetteProvenance(t *testing.T) {
 	if f.Cases["stream-thinking"].Usage["total_tokens"].(float64) != 171 {
 		t.Fatal("stream-thinking usage 不是官方示例的 171")
 	}
+	// 英文文档用省略号截断正文，并写明中间流式 chunk 已省略。这两条不是完整实录。
+	// 测试锁定省略号和页面上印出的 chunk 数，补写成全文或补造中间 chunk 都会失败。
+	think := f.Cases["chat-thinking"]
+	if think.Provenance.Completeness != "publisher_truncated_not_a_full_transcript" || !bytes.Contains(think.Body, []byte("…")) {
+		t.Fatal("非流式思考示例必须保留官方省略号，不能补成我们写的全文")
+	}
+	st := f.Cases["stream-thinking"]
+	if st.Provenance.Completeness != "publisher_truncated_not_a_full_transcript" || len(st.Chunks) != 5 {
+		t.Fatalf("流式思考示例必须保持页面印出的 5 个 chunk，实际 %d", len(st.Chunks))
+	}
+	joined := strings.Join(st.Provenance.Transformations, "\n")
+	if !strings.Contains(joined, "没有补造被省略的中间 chunk") {
+		t.Fatal("流式思考示例必须写明没有补造被省略的中间 chunk")
+	}
 	raw, _ := json.Marshal(f.Cases["chat-no-thinking"].Body)
 	if !bytes.Contains(raw, []byte(`"total_tokens":40`)) && !bytes.Contains(raw, []byte(`"total_tokens": 40`)) {
 		t.Fatalf("非流式官方 usage 丢失：%s", raw)

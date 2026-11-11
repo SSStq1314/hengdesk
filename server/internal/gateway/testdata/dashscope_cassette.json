@@ -1,5 +1,5 @@
 {
-  "_note": "通义（阿里云百炼 / DashScope OpenAI 兼容）官方接口文档示例。不是真实调用，也不是 vLLM 实测。不得把本文件说成通义线上服务已通过。",
+  "_note": "通义（阿里云百炼 / DashScope OpenAI 兼容）官方接口文档示例。不是真实调用，也不是 vLLM 实测。英文页带省略号的思考示例和被页面声明省略了中间 chunk 的流式示例都不是完整实录，测试不得把它们补全后再当成官方全文。不得把本文件说成通义线上服务已通过。",
   "_claim": "official_documentation_example_not_a_live_call",
   "_vendor": "dashscope",
   "retrieved_at": "2026-11-11T15:48:00Z",
@@ -78,6 +78,7 @@
       "provenance": {
         "kind": "official_doc_example",
         "claim": "not_a_live_call",
+        "completeness": "publisher_truncated_not_a_full_transcript",
         "source_url": "https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions",
         "retrieved_at": "2026-11-11T15:48:00Z",
         "section": "Chat response object (non-streaming output) / Text input",
@@ -335,6 +336,7 @@
       "provenance": {
         "kind": "official_doc_example",
         "claim": "not_a_live_call",
+        "completeness": "publisher_truncated_not_a_full_transcript",
         "source_url": "https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions",
         "retrieved_at": "2026-11-11T15:48:00Z",
         "section": "Chat response chunk object (streaming output) / curl",

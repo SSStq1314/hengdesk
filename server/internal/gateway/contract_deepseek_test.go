@@ -21,6 +21,7 @@ import (
 type cassetteProvenance struct {
 	Kind            string   `json:"kind"`
 	Claim           string   `json:"claim"`
+	Completeness    string   `json:"completeness"`
 	SourceURL       string   `json:"source_url"`
 	RetrievedAt     string   `json:"retrieved_at"`
 	Section         string   `json:"section"`
