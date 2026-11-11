@@ -52,7 +52,7 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 
 | AC | 含义 | 对应实现 PR（main） | 已有自动化测试 / 脚本 | 当前状态 | 本块计划 |
 |---|---|---|---|---|---|
-| AC-01 | 离线安装，出站为 0 | #62 | CI job「断网安装冒烟（AC-01）」；`deploy/pack-offline.sh` / `install.sh --offline` | **部分**：CI「断网安装冒烟」与「断网 15 步验收」均通过（#69 run [42774002679](https://github.com/SSStq1314/hengdesk/actions/runs/42774002679)、#72 run [42776879051](https://github.com/SSStq1314/hengdesk/actions/runs/42776879051)；断网探测通过，mark 之后无 `HD_EGRESS`）。正式离线包在干净断网机上的安装记录仍待人工补做（与 D-46 安装记录为同一项） | 15 步脚本第 1 步；PR3 CI 在断网环境跑完整剧本；PR4 在 `docs/demo/` 写清与真正干净机器的差异，并把该安装记录列为 M1 验收人工步骤（与真机演示未覆盖项合并，不另开一条） |
+| AC-01 | 离线安装，出站为 0 | #62；D-50 为 #79 | CI job「断网安装冒烟（AC-01）」；`deploy/pack-offline.sh` / `install.sh --offline`；D-50 工作流「正式包隔离安装（D-50）」 | **通过（仅 GitHub 托管 ubuntu-24.04 x86_64 云 VM）**：#69 / #72 的断网 CI 仍只覆盖临时 `docker save` 与含 mocks 的 15 步。D-50 在 #79 合入的代码树上 `result=pass`（run [43114580527](https://github.com/SSStq1314/hengdesk/actions/runs/43114580527)，证据包 SHA256 `99416482f7a334d2b2cadc61d6a6359c3cbb5b5db10426b3037f93cd09f54a3e`）。物理机和客户现场不在这次记录里。容器 IPv6 被内核报 `Network is unreachable`，`HD_DOCK6` 没有计数 | 15 步脚本第 1 步；PR3 CI 在断网环境跑完整剧本；PR4 在 `docs/demo/` 写清与真正干净机器的差异。D-50 关闭的是该云 VM 上的正式包记录 |
 | AC-02 | SSO 首次登录自动建号、归入部门、记审计 | #12 及后续 OIDC（`oidc_test.go` / `oidc_d34_test.go`） | `TestOIDCAutoCreateAndLinkBySub`、`TestOIDCDeptMappingByPath` / `ByCode` | **通过**：脚本第 2 步用 mock OIDC 完成首次登录建号、归入部门、记审计，已随断网 15 步 CI 通过。Keycloak 仍为可选手动步骤；OIDC 仅能通过 `HENGDESK_OIDC_*` 启用 | 脚本第 2 步：mock OIDC + 部门/人员 CSV；断言建号、部门、审计。Keycloak 见待确认 |
 | AC-03 | 未授权智能体列表不可见、详情 404 | #53、#55、#60 | `TestAgentCRUDPublishVisibility`、`TestAgentDeptScope`、`TestD45RuntimeIntersection` | **通过**：脚本第 11 步；fix-verify 复跑中员工 B 仍为 404 | 脚本第 11 步（市场部 B） |
 | AC-04 | 文件级 RAG：无权限者检索/上下文/引用都不含该文件 | #37–#45 | `TestKBRetrieveACL`、`TestChatKBCitations`、`kb/recall` 越权为 0 | **通过**：脚本第 8 步（A 问差旅，不含高管文件）；CI 与界面复跑均通过 | 脚本第 8 步（A 问差旅，不含高管文件） |
@@ -65,16 +65,16 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 | AC-11 | 审计员按 trace 回放完整链路 | #36 等 | `TestAuditTraceReplay`、`TestAuditDeniedLoginAndQuery` | **通过**：脚本第 14 步按 trace 回放；CI 与界面复跑均通过 | 脚本第 14 步（D 回放 A 的 8–13 步） |
 | AC-12 | 审计不可改删（含超管）；失败尝试本身入审计；哈希链可校验 | #8–#11；#68（D5 / D-47）；CI 审计表 append-only | `TestHashChainVerifyAndTamper`、`TestPGTwoProcessConcurrentChainWrite`、CI「审计表 append-only」；应用无删除/修改审计 API | **通过**：D5 / D-47 已随 #68（`bf4d437`）修复。`TestPGTwoProcessConcurrentChainWrite`：两进程合计 200 并发、2000 条写入失败 0、全链校验通过。fix-verify（main `50797cb`）界面「链完整，已校验 300 条」。#69 断网 15 步 `GET /audit-logs/verify` 通过，overview=summary=records=676；超管删除被拒（404 或 405）。须按 D-48 在新初始化库上验收，正式包基于 `bf4d437`+ | 脚本第 14 步：回放、改配置 404、超管删除被拒，并调用 `GET /audit-logs/verify`（D5 修复前应失败，不放宽）。D5 由 `/workspace/hengdesk-audit` 修；本块不改审计写入代码。D-47 并发标准不变 |
 | AC-13 | 查看/复制/导出/API 均带显式或元数据标识 | #61、#63、#66 | `TestAIGCSettingsAndExport`、`TestDefaultsValidateSave`、`TestAppendSuffixAndMeta` | **通过**：D-46（#66）已进 main；脚本第 8 步与收尾断言 Markdown front matter、非法文案 400、导出属主；CI 打印「D-46 文案校验与导出属主断言通过」 | 脚本第 8 步与 D-46 断言：后缀、`X-HengDesk-AIGC`、JSON 元数据、**md front matter**；空文案或不含「人工智能生成 / AI 生成」保存失败 |
-| AC-14 | 本地 OpenAI 兼容端点 + 国产 API，「测试」可流式对话并记 usage | #25、#26、#30 | `TestModelTestConnection`、`TestChatNonStreamSSEAndACL`（mock）；`TestVendorContract*`（dashscope / vLLM 回放带） | **部分**：脚本第 3 步对 mockupstream「测试」已随断网 15 步通过。通义真实冒烟已按 D-49 移出 M1；契约测试在 CI 中运行，但 dashscope 回放带仍为「按公开文档构造，非真实录制」，尚未按 D-49 换源（未编造替换）。vLLM CPU 真实协议冒烟脚本已就绪，本执行环境无 Docker，未实跑。Ollama 未验证。DeepSeek 仅本机可选 | 脚本第 3 步对 mockupstream 点「测试」。通义改走契约测试 + 标明来源的回放（待补，见 D-49 行）。vLLM CPU 真实冒烟保留：`tests/acceptance/vllm-cpu-smoke.sh`，有 Docker 的机器实跑后补记 `docs/demo/vllm-cpu-smoke.md`。客户现场通义冒烟见 `docs/demo/poc-delivery.md` |
+| AC-14 | 本地 OpenAI 兼容端点 + 国产 API，「测试」可流式对话并记 usage | #25、#26、#30；vLLM 实跑 #78 | `TestModelTestConnection`、`TestChatNonStreamSSEAndACL`（mock）；`TestVendorContract*`；`tests/acceptance/vllm-cpu-smoke.sh` | **通过（M1 边界内）**：mock「测试」随断网 15 步通过。通义真实冒烟按 D-49 移出 M1。dashscope 回放带是官方文档示例，省略号示例是截断文档。vLLM CPU 协议冒烟在 #79 合入的同一棵树上 `result=pass`（run [43114580548](https://github.com/SSStq1314/hengdesk/actions/runs/43114580548)，证据包 SHA256 `9d4ba3fdbc22e14f2414c116d298209f47f3578aa4588788cb22b85499197c31`）。Ollama 未验证。DeepSeek 仅本机可选 | 脚本第 3 步对 mockupstream 点「测试」。通义走官方文档契约与标明来源的回放。客户现场通义冒烟见 `docs/demo/poc-delivery.md` |
 | AC-15 | 任何角色查看配置或 API 都看不到密钥明文 | #25 | `TestModelAdminCRUDAndKeyNeverReturned`、`TestChatUpstream401Redacted` | **通过**：脚本第 3 步创建供应商后 GET 响应无明文 key，断网 15 步 CI 通过 | 脚本第 3 步：创建供应商后 GET 响应无明文 key |
 | AC-16 | 看板与 `usage_record` 汇总 token 一致，估算单独标注 | #59、#63 | `TestStatsOverviewScopeExport`、`TestRebuildHours`、`TestSummaryByAgent` | **通过**：脚本第 15 步；fix-verify 复跑记录财务部用量对账 tokens=7090 / calls=18 一致 | 脚本第 15 步：财务部看板 vs 明细汇总 |
 | AC-17 | 发布构建许可证扫描不含白名单之外许可 | CI `license scan + SBOM` | 该 job 本身 | **通过**：本块与修复 PR（含 #69、#72）的 license scan + SBOM 均绿，未新增例外 | 本块 PR 继续走该门禁；不新增例外 |
-| D-46 安装记录（与 AC-01 同一缺口） | 正式离线包在干净断网机上完整安装并留记录 | #62 提供打包/安装；记录尚未有 | CI 仅有临时 `docker save` 冒烟，不是正式包在干净机上的安装记录 | **未覆盖 / M1 验收前必须补做** | 与真机演示「本机无 Docker，AC-01 未演示」合并为同一验收项，不分开跟踪。PR3 在 CI 断网环境尽量用正式打包流程跑 15 步；PR4 写明本执行环境（无 Docker、非全新服务器）与真正干净断网机的差异，并把「验收时在干净断网机上用正式离线包完整安装并归档记录」列为人工步骤 |
+| D-46 安装记录（与 AC-01 同一缺口） | 正式离线包在干净断网机上完整安装并留记录 | #62 提供打包/安装；记录为 #79 / D-50 | 工作流「正式包隔离安装（D-50）」；`tests/acceptance/ci/d50-offline-install.sh` | **通过（仅该云 VM）**：默认正式包在隔离后的 GitHub 托管 x86 VM 上安装，`result=pass`。含 mocks 的 15 步 CI 仍是另一项。物理机和客户现场不在这次记录里。容器 IPv6 没有进入 `HD_DOCK6` | D-50 关闭 D-46 第 8 条在该云 VM 上的门槛，不另加物理机 |
 | D-46 卸载 | `--volumes` 须交互确认（非交互加 `--yes`），并提示先备份；`secrets/` 保留 | #62 已有 `-y` / `--volumes`；备份提示与文案可能未齐 | 脚本层手工/本块补测 | **通过**：验收脚本收尾对 `uninstall.sh` 断言（无 `--yes` 时 `--volumes` 拒绝；有确认则删卷、保留 secrets），随断网 15 步 CI 通过 | 验收脚本在收尾对 `uninstall.sh` 做断言（无 `--yes` 时 `--volumes` 拒绝；有确认则删卷、保留 secrets） |
 | D-46 导出权限 | 只能导出自己的会话 | #61 `conv_export` 已走 `own()` | 会话属主测试有，导出越权需在脚本中显式断言 | **通过**：脚本断言 B 导出 A 的会话返回 404，随断网 15 步 CI 通过（「D-46 文案校验与导出属主断言通过」） | 脚本：B 导出 A 的会话返回 404 |
 | D-48 审计链基线 | 旧哈希不迁移；正式包须基于 `bf4d437`+ 构建；验收在新初始化的库上做；入链规范化不得静默改变，改动须带哈希版本号并按版本校验或迁移 | #68 / `bf4d437` 为方案版本 1 基线 | 文档：`docs/dev/audit.md`、`docs/release/m1.md`、演示手册（#72） | **通过（文档 + 新库验收）**：#72 已写清构建基线与清空重建。#69 断网 15 步与 fix-verify 均在新初始化库上校验通过。本块不改哈希算法、不做旧链迁移 | 手册与发布说明写明构建基线与清空重建；本块不改哈希算法、不做旧链迁移 |
 | D-47 审计并发 | server+worker 并发写审计不得误拒；全链可校验 | #68 / `bf4d437` | `TestPGTwoProcessConcurrentChainWrite`（两进程合计 200 并发、2000 条，失败 0、全链校验通过） | **通过**：修复已合入 #68。15 步与界面复跑哈希链均通过。本块未改审计写入代码 |
-| D-49 通义替代验收 | 通义真实冒烟移出 M1；改为按官方文档做契约测试，并用录制回放测兼容层。回放样本只能来自 vLLM CPU 真实录制或通义官方文档示例，须标明来源，禁止编造。vLLM CPU 真实协议冒烟保留。POC 交付手册须含：在客户现场用客户自己的密钥做一次通义真实冒烟 | #30 已有 `TestVendorContract*` 与 `testdata/dashscope_cassette.json`；文档 #72 | 契约测试框架已在 CI 中运行；回放带 `_source` 现为「按公开文档构造，非真实录制」 | **部分 / M1 验收前待补**：#72 已把 D-49 写入验收清单、发布说明与 `docs/demo/poc-delivery.md`。回放带尚未按官方文档示例或 vLLM 真实录制换源（未编造替换）。vLLM CPU 冒烟待有 Docker 的机器实跑 | 文档见本表、`docs/demo/m1-acceptance.md`、`docs/demo/poc-delivery.md`、`docs/release/m1.md`。替换回放带如工作量在半天内另开 PR，否则保持本待补项 |
+| D-49 通义替代验收 | 通义真实冒烟移出 M1；改为按官方文档做契约测试，并用录制回放测兼容层。回放样本只能来自 vLLM CPU 真实录制或通义官方文档示例，须标明来源，禁止编造。vLLM CPU 真实协议冒烟保留。POC 交付手册须含：在客户现场用客户自己的密钥做一次通义真实冒烟 | #77 回放带；#78 vLLM 实跑 | `TestDashScopeCassetteProvenance`、`TestVendorContract*`、vLLM CPU 冒烟 workflow | **通过（文档示例 + vLLM CPU 协议冒烟）**：回放带来自通义官方文档，获取时间 `2026-11-11T15:48:00Z`，`_claim` 为 `official_documentation_example_not_a_live_call`。英文页带省略号的示例是截断文档。vLLM / Anthropic 构造回放带仍是构造样本。vLLM CPU 协议冒烟已在最终代码树上通过。客户现场通义真实调用见 POC 手册 | 文档见本表、`docs/demo/m1-acceptance.md`、`docs/demo/poc-delivery.md`、`docs/release/m1.md` |
 
 ## PR 拆分
 
@@ -117,7 +117,8 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 撰写完成报告时，下列原阻塞项的关闭情况如下。原条目保留作过程记录。
 
 - **已关闭**：D-47 / D5（#68）；D1、D2、D6（#70，fix-verify 复跑确认）；D3、D4（#71）；D3 连接复用缺 IP 的遗留（#73）；D-46 增量断言（#66，随 #69 脚本通过）。
-- **仍待人工补做**：AC-01 / D-46 正式包干净断网安装记录；D-49 dashscope 回放带换源；vLLM CPU 真实协议冒烟实跑。
+- **已在 2026-11-11 收尾关闭（边界见文末）**：D-49 dashscope 回放带换为官方文档示例（#77）；vLLM CPU 协议冒烟（#78）；AC-01 / D-46 正式包安装记录按 D-50 只覆盖 GitHub 托管 x86 云 VM（#79）。容器 IPv6 是内核不可达，`HD_DOCK6` 没有计数。
+- **仍未验证**：Ollama；客户现场通义真实冒烟（POC，不挡住 M1）；DeepSeek 本机可选联调。
 
 
 - **D-47 审计链多进程写入误拒**（M1 退出阻塞）：修复已合入 #68（`bf4d437`）。验收标准：server+worker 200 并发写入失败 0、全链校验通过（该并发测试在审计工作区，本 job 跑 `GET /audit-logs/verify`）。
@@ -159,7 +160,10 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 | #69 | PR3：断网环境跑完整 15 步验收（CI iptables + 探测后 mark） | `8268127` | 2026-11-09 23:38 |
 | #72 | PR4：演示手册、干净安装记录差异、D-48 / D-49、POC 交付手册 | `dec4e1e` | 2026-11-09 23:58 |
 | #75 | 修复 SQLite 预算用量窗口在 TZ=Asia/Shanghai 且当地 ≥ 16:00 时漏计（#55 同类，非 Redis） | `bf4c9ec` | 2026-11-10 01:13 |
-| 本 PR | 第八块完成报告（更新对照表最终状态） | 见本 PR 合并提交 | — |
+| #74 | 第八块完成报告（更新对照表最终状态） | `604f015` | 2026-11-10 |
+| #77 | D-49：通义回放带改为官方文档示例 | `2833c3b` | 2026-11-11 |
+| #78 | vLLM CPU 协议冒烟（托管 x86 runner） | `5bd4c9d` | 2026-11-11 |
+| #79 | D-50：默认正式包隔离安装 | `1ae0716` | 2026-11-11 |
 
 以上均在 CI 全绿后 squash 合入，未强合。#72 在 #69 进 main 之后 rebase 再合。
 
@@ -177,7 +181,7 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 
 | 项 | 最终状态 |
 |---|---|
-| AC-01 | **部分**：断网 CI 安装冒烟与完整 15 步均通过，mark 后出站为 0。正式离线包在干净断网机上的安装记录仍待人工补做 |
+| AC-01 | **通过（仅 GitHub 托管 ubuntu-24.04 x86_64 云 VM）**：D-50 `result=pass`。断网 15 步仍是含 mocks 的另一项。物理机和客户现场不在这次记录里。容器 IPv6 内核报不可达，`HD_DOCK6` 没有计数 |
 | AC-02 | **通过**（mock OIDC；Keycloak 为可选手动步骤） |
 | AC-03 | **通过** |
 | AC-04 | **通过** |
@@ -190,15 +194,15 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 | AC-11 | **通过** |
 | AC-12 | **通过**（#68；fix-verify 300 条完整；CI 676 条校验通过） |
 | AC-13 | **通过**（#66，D-46 断言随 15 步通过） |
-| AC-14 | **部分**：mock「测试」通过；通义真实冒烟已按 D-49 移出 M1。dashscope 回放带已换成官方文档示例（见文末「2026-11-11 收尾」），不宣称真实调用。vLLM CPU 实跑与 Ollama 仍未在本环境完成 |
+| AC-14 | **通过（M1 边界内）**：mock「测试」通过。通义真实冒烟按 D-49 移出 M1。dashscope 回放带是官方文档示例。vLLM CPU 协议冒烟在最终代码树上 `result=pass`。Ollama 未验证 |
 | AC-15 | **通过** |
 | AC-16 | **通过** |
 | AC-17 | **通过** |
-| D-46 安装记录 | **未覆盖 / 待人工**（与 AC-01 同一缺口） |
+| D-46 安装记录 | **通过（仅该云 VM，D-50）**。物理机和客户现场不在这次记录里 |
 | D-46 卸载 / 导出权限 | **通过** |
 | D-48 | **通过**（#72 文档；#69 与 fix-verify 均在新库上校验） |
 | D-47 | **通过**（#68，200 并发写入失败 0、全链校验通过） |
-| D-49 | **部分**：官方文档示例回放带与来源契约测试已落地（见文末）。vLLM CPU 真实协议冒烟仍待实跑。通义真实调用不在本项，客户现场见 POC 手册 |
+| D-49 | **通过（文档示例 + vLLM CPU 协议冒烟）**：官方文档示例回放带与来源契约测试已落地。vLLM CPU 协议冒烟已在最终代码树上通过。通义真实调用在客户现场，见 POC 手册 |
 
 逐项依据与对应 PR 见上方对照表。
 
@@ -210,15 +214,20 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 4. **正式包干净安装**：用默认包（不含 mocks）在干净、断网机器上 `install.sh --offline --up`，按手册归档记录。与真正干净机器的差异已写在演示手册中。
 5. **客户现场通义冒烟**：见 `docs/demo/poc-delivery.md`，使用客户自己的密钥，不把密钥带离现场或写入仓库。
 
-### 仍需人工补做的项
+### 2026-11-11 已关闭与仍开放的项
 
-1. **正式离线包在干净、断网机器上完整安装并归档记录**（AC-01 / D-46 第 8 条）。本执行环境无 Docker、也不是全新服务器；CI 覆盖了打包流程与断网 15 步，但不能替代该人工记录。
-2. **按 D-49 替换 dashscope 回放带**：已在 2026-11-11 收尾中改为通义官方文档示例（见文末）。vLLM / Anthropic 构造回放带仍不是通义证据。
-3. **vLLM CPU 真实协议冒烟实跑**：脚本与记录模板已合入，待有 Docker 的机器跑完后写入 `docs/demo/vllm-cpu-smoke.md`。
-4. **Ollama**：本执行环境未拉起、未验证。
-5. **客户现场用客户自己的密钥做一次通义真实冒烟**：POC 交付手册项，不是仓库离线 CI 门禁。
-6. **Keycloak 演示 IdP**：验收默认 mock OIDC；若产品要求 Keycloak，列为可选手动步骤或 P1 演示附加包。
-7. **DeepSeek 本机可选联调**：密钥只许出现在环境变量 `DEEPSEEK_API_KEY`，不得写入仓库、CI、`.env` 或日志，只记录通过与否。本块 CI 未跑真实 DeepSeek。
+已关闭，证据在文末：
+
+1. **正式离线包干净安装**按 D-50 在 GitHub 托管 ubuntu-24.04 x86_64 云 VM 上 `result=pass`。这次记录覆盖该云 VM。物理机和客户现场要另做记录。容器 IPv6 是内核不可达，`HD_DOCK6` 没有计数。
+2. **dashscope 回放带**已换成通义官方文档示例（#77）。vLLM / Anthropic 构造回放带仍是构造样本。
+3. **vLLM CPU 协议冒烟**已在最终代码树上通过（#78 合入，并在 #79 的同一棵树上再跑了一次）。
+
+仍开放：
+
+1. **Ollama**：本执行环境未拉起、未验证。
+2. **客户现场用客户自己的密钥做一次通义真实冒烟**：POC 交付手册项，不挡住本仓库 M1 离线门禁。
+3. **Keycloak 演示 IdP**：验收默认 mock OIDC；若产品要求 Keycloak，列为可选手动步骤或 P1 演示附加包。
+4. **DeepSeek 本机可选联调**：密钥只许出现在环境变量 `DEEPSEEK_API_KEY`，不得写入仓库、CI、`.env` 或日志，只记录通过与否。本块 CI 未跑真实 DeepSeek。
 
 ## 2026-11-11 收尾（相对 #74 报告）
 
@@ -229,13 +238,39 @@ CI 只用 mock 上游，不读取 `DEEPSEEK_API_KEY`，不把密钥写入仓库�
 | D-49 通义回放带 | **官方文档示例已替换编造样本**。来源页：`https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope` 与 `https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions`，获取时间 `2026-11-11T15:48:00Z`。每条 `provenance` 写了章节和非语义变换（SSE 封装、页面已省略的中间 chunk 不补造、正文省略号原样保留、401 取自同一页状态码说明）。`_claim` 为 `official_documentation_example_not_a_live_call`。**不是通义真实调用，也不是 vLLM 实测**。英文页带省略号的示例不是完整实录 |
 | 契约测试 | `TestDashScopeCassetteProvenance` 核对来源与官方原文片段；`TestVendorContract*` 用这些响应走现有 dashscope 兼容层。没有官方 JSON 的错误体不编造 |
 | vLLM / Anthropic 回放带 | 仍是历史构造样本，不拿来充当通义通过 |
-| AC-14 | 仍是 **部分**，直到 vLLM CPU 真实协议冒烟在最终 head 上通过 |
-| AC-01 / D-46 安装记录 | D-50 工作流在 `result.txt=pass` 之前保持未验证。含 mocks 的 15 步 CI 不是正式包干净安装 |
+| AC-14 | **通过（M1 边界内）**。vLLM CPU 协议冒烟在最终代码树上 `result=pass`。Ollama 仍未验证。通义真实调用不在 M1 |
+| AC-01 / D-46 安装记录 | **通过（仅 GitHub 托管 ubuntu-24.04 x86_64 云 VM）**。证据是下方最终 head 的 D-50 运行。含 mocks 的 15 步 CI 仍是另一项 |
 
 ## 2026-11-11 D-50 取证（相对 #74 报告）
 
 D-50 允许用全新 GitHub 托管 x86 VM 关闭 D-46 第 8 条，但只证明该云 VM。工作流「D-50 正式包断网安装」在准备阶段只构建**无 mock 默认正式包**，隔离之后才 `docker load`。安装进程在 `hd-sut`，容器转发和 dockerd 新公网连接被拒绝。控制通道若保留，必须证明安装进程和产品用不上。验收包含新库 healthz、未登录 401、部门标记、重启后标记仍在。
 
-变基前，提交 `c397f8d8d7e696296b15e74ba3132603e898d89f` 的运行 [43088030693](https://github.com/SSStq1314/hengdesk/actions/runs/43088030693) 曾 `result.txt=pass`。那次证据包 SHA256 `422b79adcca8a4d1dc7f951856b02dbe76898de701fb776318db9b4de7de7d2c`。清洁基线镜像、卷、容器都是 0。加载记录只有包内镜像，没有 mocks。新库 `users=1`，重启后部门 `d50-marker` 仍在。未登录返回 401。容器 IPv6 被内核返回 `Network is unreachable`，没有报文进入 `HD_DOCK6`。这次变基后的 head 必须用自己的 workflow 再出 `result=pass`，上面的哈希不是变基后的证据。
+变基前，提交 `c397f8d8d7e696296b15e74ba3132603e898d89f` 的运行 [43088030693](https://github.com/SSStq1314/hengdesk/actions/runs/43088030693) 曾 `result.txt=pass`，证据包 SHA256 `422b79adcca8a4d1dc7f951856b02dbe76898de701fb776318db9b4de7de7d2c`。那是变基前的记录。最终证据是下一节里 #79 合入树上的运行。
 
-控制通道是 runner cgroup `/system.slice/hosted-compute-agent.service`。安装进程在 cgroup `/hd-sut` 和网络命名空间 `hd-sut`，`CAP_SYS_ADMIN` 已从 bounding set 去掉。含 mocks 的 15 步 CI 仍然不是本项。通义回放不得写成通义真实服务通过。成功也只记该次托管 x86 VM，不记物理机或客户现场。
+控制通道是 runner cgroup `/system.slice/hosted-compute-agent.service`。安装进程在 cgroup `/hd-sut` 和网络命名空间 `hd-sut`，`CAP_SYS_ADMIN` 已从 bounding set 去掉。含 mocks 的 15 步 CI 仍然不是本项。通义回放是官方文档示例。成功只记该次托管 x86 VM。物理机和客户现场不在这次记录里。
+
+## 2026-11-11 最终 head
+
+#77、#78、#79 都在各自变基后的 head 上 CI 全绿后 squash 合入。合入后的 main 是 `1ae07162dd209bce1c794347fc3e0ef92da381c7`。它的树与 #79 的 PR head `9c109cc3d3940956fff8a4bba86c001d0d0e1f57`、以及该 PR 的 Actions 合并提交 `95c86d2e3dc093c0c6b94b1c20b381947513bab8` 相同（树 `5e91e901eb343b6474032ec3080035ce5e74c8f1`）。下面的 vLLM 与 D-50 证据都来自这次 PR 检查，跑的就是这棵树。
+
+| 合入 | squash 提交 | 说明 |
+|---|---|---|
+| #77 | `2833c3b014cd5a734782badc9b1b48eb8deb1ef5` | 通义回放带改为官方文档示例 |
+| #78 | `5bd4c9d59af3cef997d20584298d6f1f7448f8ce` | vLLM CPU 协议冒烟。合入前 head `b0b6a940b7ba33825882305a027efb8e84d03243` 的运行 [43110669860](https://github.com/SSStq1314/hengdesk/actions/runs/43110669860) 已 `result=pass`，该次证据包 SHA256 `760565b577470c5b4733a69a62fae85d02976808e9056f89cc1fb952c7913c2e`。最终树上又跑了一次，以下表为准 |
+| #79 | `1ae07162dd209bce1c794347fc3e0ef92da381c7` | D-50 默认正式包隔离安装 |
+
+### vLLM（最终代码树）
+
+运行 [43114580548](https://github.com/SSStq1314/hengdesk/actions/runs/43114580548)，`result=pass`，`finished_utc=2026-11-11T22:51:00Z`。证据包 `vllm-cpu-smoke-evidence.tar.gz` 的 SHA256 是 `9d4ba3fdbc22e14f2414c116d298209f47f3578aa4588788cb22b85499197c31`。
+
+镜像 `vllm/vllm-openai-cpu:latest-x86_64`，摘要 `sha256:4154467a886f8b7ffa9dbab32f873f5ca4528409d042a6ec866e8888223263d3`。模型 `Qwen/Qwen2.5-0.5B-Instruct`。非流式 HTTP 200，`finish_reason=stop`，`usage.total_tokens=38`（prompt 36 / completion 2），正文长度 2。这是 vLLM CPU 协议冒烟。Ollama 未使用。通义真实调用不在这次运行里。
+
+同一次 PR 的完整 CI 是 [43114580722](https://github.com/SSStq1314/hengdesk/actions/runs/43114580722)，与 D-50 工作流一起在 head `9c109cc` 上成功。
+
+### D-50（最终代码树）
+
+运行 [43114580527](https://github.com/SSStq1314/hengdesk/actions/runs/43114580527)，`result.txt` 为 `result=pass`。`scope=github_hosted_ubuntu_24_04_x86_64_vm`，`not_physical=true`，`not_customer_site=true`。证据包 `d50-evidence.tar.gz` 的 SHA256 是 `99416482f7a334d2b2cadc61d6a6359c3cbb5b5db10426b3037f93cd09f54a3e`。正式包 SHA256 是 `b6bee720e327ca840def8d021ea431c19a8fb1aec98f4ac891464146aff14c3b`（`hengdesk-offline-d50-95c86d2e3dc0-amd64.tar.gz`，版本号取自该次 Actions 合并提交）。
+
+清洁基线 `images=0`、`volumes=0`、`containers=0`。加载记录只有包内五张镜像：`pgvector/pgvector:0.8.7-pg17`、`valkey/valkey:8.1.11-alpine`、`chrislusf/seaweedfs:4.52`、`hengdesk/server:d50-95c86d2e3dc0`、`hengdesk/web:d50-95c86d2e3dc0`。新库 `users=1`，重启后部门名 `d50-marker` 仍在。安装身份 `cgroup=0::/hd-sut`，`ESCAPE=denied`。`violations.txt` 为空。
+
+容器 IPv4 探测失败，`HD_DOCK4` 从 0 增到 4。容器 IPv6 探测被内核拒绝发送，记录是 `OSError: [Errno 101] Network is unreachable`。`HD_DOCK6` 在探测前是 0，探测后仍是 0，没有报文计数。`container-ipv6-note.txt` 写明：连接没有成功，没有报文进入 `HD_DOCK6`。这次通过不把该 IPv6 探测记成过滤器命中。
