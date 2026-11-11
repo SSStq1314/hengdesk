@@ -180,7 +180,10 @@ setup_netns() {
   # 只允许该 veth 访问宿主上已发布的 8080，其余输入拒绝，避免把宿主当代理。
   iptables -I INPUT 1 -i veth-hd-host -j REJECT
   iptables -I INPUT 1 -i veth-hd-host -p tcp --dport 8080 -j ACCEPT
+  # IPv6 邻居发现是发给宿主的 ICMPv6。先整段 REJECT 会让网关不可达，
+  # TCP 探测超时且不会进入 FORWARD，HD_VETH6 计数保持 0。
   ip6tables -I INPUT 1 -i veth-hd-host -j REJECT || true
+  ip6tables -I INPUT 1 -i veth-hd-host -p icmpv6 -j ACCEPT || true
   echo "NETNS=1" >> "$STATE"
 }
 
@@ -465,6 +468,7 @@ teardown() {
   ip6tables -D FORWARD -i veth-hd-host -j HD_VETH6 2>/dev/null || true
   iptables -D INPUT -i veth-hd-host -p tcp --dport 8080 -j ACCEPT 2>/dev/null || true
   iptables -D INPUT -i veth-hd-host -j REJECT 2>/dev/null || true
+  ip6tables -D INPUT -i veth-hd-host -p icmpv6 -j ACCEPT 2>/dev/null || true
   ip6tables -D INPUT -i veth-hd-host -j REJECT 2>/dev/null || true
   for c in HD_VETH4 HD_DOCK4 HD_ROOT HD_DNS; do iptables -F "$c" 2>/dev/null || true; iptables -X "$c" 2>/dev/null || true; done
   for c in HD_VETH6 HD_DOCK6; do ip6tables -F "$c" 2>/dev/null || true; ip6tables -X "$c" 2>/dev/null || true; done
