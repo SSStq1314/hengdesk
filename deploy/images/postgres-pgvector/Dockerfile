@@ -20,19 +20,30 @@ RUN echo "${GOSU_SHA256}  /tmp/gosu.tar.gz" | sha256sum -c - \
 FROM ${POSTGRES_IMAGE} AS ext
 ARG PGVECTOR_VERSION=0.8.7
 ARG PGVECTOR_SHA256=cac0b10c360f05b2d521200105ba3697e773d4cd3731f5a915a7e37ebe0bea85
-# 官方 PG17 Alpine 用 clang-21 生成扩展 bitcode。只补这个编译器，不重编 PostgreSQL。
-RUN apk add --no-cache --virtual .build build-base clang21
+# 官方 PG17 Alpine 的 pgxs 用 clang-21 出 bitcode，再用 /usr/lib/llvm21/bin/llvm-lto 做索引。
+# 只补这两个构建包，不重编 PostgreSQL。版本钉在这次基础镜像仓库里实际解析到的修订。
+ARG BUILD_BASE_VERSION=0.5-r4
+ARG CLANG21_VERSION=21.1.8-r3
+ARG LLVM21_VERSION=21.1.8-r1
+RUN apk add --no-cache --virtual .build \
+      "build-base=${BUILD_BASE_VERSION}" \
+      "clang21=${CLANG21_VERSION}" \
+      "llvm21=${LLVM21_VERSION}" \
+ && test -x /usr/lib/llvm21/bin/llvm-lto
 WORKDIR /src
 ADD https://github.com/pgvector/pgvector/archive/refs/tags/v${PGVECTOR_VERSION}.tar.gz /tmp/pgvector.tar.gz
 RUN echo "${PGVECTOR_SHA256}  /tmp/pgvector.tar.gz" | sha256sum -c - \
  && tar -xzf /tmp/pgvector.tar.gz -C /src --strip-components=1 \
  && make OPTFLAGS="" \
  && make install \
- && mkdir -p /out/lib /out/ext \
+ && mkdir -p /out/lib /out/ext /out/bitcode \
  && cp /usr/local/lib/postgresql/vector.so /out/lib/vector.so \
  && cp /usr/local/share/postgresql/extension/vector.control /out/ext/ \
  && cp /usr/local/share/postgresql/extension/vector--*.sql /out/ext/ \
+ && cp -a /usr/local/lib/postgresql/bitcode/vector /out/bitcode/vector \
+ && cp -a /usr/local/lib/postgresql/bitcode/vector.index.bc /out/bitcode/vector.index.bc \
  && cp LICENSE /out/pgvector-LICENSE \
+ && apk info -v build-base clang21 llvm21 > /out/pgvector-build-packages.txt \
  && apk del .build
 
 FROM ${POSTGRES_IMAGE}
@@ -51,9 +62,14 @@ COPY --from=gosu /out/gosu /usr/local/bin/gosu
 COPY --from=gosu /out/gosu-LICENSE /usr/local/share/hengdesk/licenses/gosu-LICENSE
 COPY --from=ext /out/lib/vector.so /usr/local/lib/postgresql/vector.so
 COPY --from=ext /out/ext/ /usr/local/share/postgresql/extension/
+COPY --from=ext /out/bitcode/ /usr/local/lib/postgresql/bitcode/
 COPY --from=ext /out/pgvector-LICENSE /usr/local/share/hengdesk/licenses/pgvector-LICENSE
+COPY --from=ext /out/pgvector-build-packages.txt /usr/local/share/hengdesk/pgvector-build-packages.txt
 RUN chmod 755 /usr/local/bin/gosu \
  && test -s /usr/local/lib/postgresql/vector.so \
+ && test -s /usr/local/lib/postgresql/bitcode/vector.index.bc \
  && test -s /usr/local/share/postgresql/extension/vector.control \
  && test -s /usr/local/share/hengdesk/licenses/gosu-LICENSE \
- && test -s /usr/local/share/hengdesk/licenses/pgvector-LICENSE
+ && test -s /usr/local/share/hengdesk/licenses/pgvector-LICENSE \
+ && grep -q 'clang21-21.1.8-r3' /usr/local/share/hengdesk/pgvector-build-packages.txt \
+ && grep -q 'llvm21-21.1.8-r1' /usr/local/share/hengdesk/pgvector-build-packages.txt

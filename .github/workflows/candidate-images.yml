@@ -27,6 +27,7 @@ jobs:
           bash deploy/images/postgres-pgvector/verify.sh hengdesk/postgres:candidate
           docker create --name hd-gosu-extract hengdesk/postgres:candidate >/dev/null
           docker cp hd-gosu-extract:/usr/local/bin/gosu /tmp/gosu-from-image
+          docker cp hd-gosu-extract:/usr/local/share/hengdesk/pgvector-build-packages.txt /tmp/pgvector-build-packages.txt
           docker rm hd-gosu-extract >/dev/null
           docker run --rm -v /tmp/gosu-from-image:/gosu:ro \
             golang:1.26.11-alpine@sha256:f496f8c537ed506626ee1a6913afb32c45068a48697163c088f604cc775a0c38 \
@@ -41,6 +42,7 @@ jobs:
           docker pull valkey/valkey:8.1.11-alpine
           docker pull chrislusf/seaweedfs:4.54
           docker run --rm --entrypoint apk hengdesk/web:candidate info -v > /tmp/web-apk-info.txt
+          docker run --rm --entrypoint apk hengdesk/web:candidate policy nginx > /tmp/web-nginx-policy.txt
       - name: 记录 digest 并严格扫描
         if: always()
         run: |
@@ -49,7 +51,7 @@ jobs:
           export PATH="/tmp/hd-scanners:$PATH"
           : > /tmp/candidate-reports/errors.txt
           note_error() { printf 'SCAN_ERROR %s\n' "$*" | tee -a /tmp/candidate-reports/errors.txt; }
-          cp /tmp/gosu-buildinfo.txt /tmp/web-apk-info.txt /tmp/candidate-reports/ || note_error "copy build records"
+          cp /tmp/gosu-buildinfo.txt /tmp/pgvector-build-packages.txt /tmp/web-apk-info.txt /tmp/web-nginx-policy.txt /tmp/candidate-reports/ || note_error "copy build records"
           images=(
             hengdesk/postgres:candidate
             hengdesk/server:candidate

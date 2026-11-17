@@ -4,7 +4,7 @@
 # HENGDESK_HTTPS_PORT：跳转目标端口，默认 443（443 时不写端口）。
 set -e
 if [ -s /etc/hengdesk/tls/tls.crt ] && [ -s /etc/hengdesk/tls/tls.key ]; then
-  conf=/etc/nginx/conf.d/default.conf
+  conf=/etc/nginx/http.d/default.conf
   cp /etc/nginx/hengdesk/https.conf "$conf"
   port="${HENGDESK_HTTPS_PORT:-443}"
   case "$port" in ''|*[!0-9]*) echo "hengdesk: HENGDESK_HTTPS_PORT 无效：$port" >&2; exit 1 ;; esac
@@ -16,6 +16,6 @@ if [ -s /etc/hengdesk/tls/tls.crt ] && [ -s /etc/hengdesk/tls/tls.key ]; then
     echo "hengdesk: 已检测到证书，启用 HTTPS 443；HTTP 跳转到端口 $port"
   fi
 else
-  cp /etc/nginx/hengdesk/http.conf /etc/nginx/conf.d/default.conf
+  cp /etc/nginx/hengdesk/http.conf /etc/nginx/http.d/default.conf
   echo "hengdesk: 未检测到证书，仅 HTTP"
 fi
