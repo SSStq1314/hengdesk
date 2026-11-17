@@ -7,6 +7,8 @@ COPY . .
 RUN pnpm build
 
 FROM nginx:1.28-alpine
+# 留在 nginx 1.28 与该标签自带的 Alpine 分支上，装入已发布的修复修订。不改大版本。
+RUN apk upgrade --no-cache
 COPY nginx/http.conf nginx/https.conf nginx/proxy.inc /etc/nginx/hengdesk/
 COPY nginx/40-hengdesk-tls.sh /docker-entrypoint.d/
 COPY nginx/http.conf /etc/nginx/conf.d/default.conf

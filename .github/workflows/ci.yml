@@ -536,14 +536,28 @@ jobs:
         run: python3 .github/scripts/trivy-image-gate.py --self-test
       - name: 构建并扫描正式离线交付镜像
         run: |
-          set -euo pipefail
-          docker build --provenance=false --sbom=false -t hengdesk/server:scan server
-          docker build --provenance=false --sbom=false -t hengdesk/web:scan web
-          docker pull pgvector/pgvector:0.8.7-pg17
-          docker pull valkey/valkey:8.1.11-alpine
-          docker pull chrislusf/seaweedfs:4.52
+          set -u
           mkdir -p /tmp/trivy-reports
           export PATH="/tmp/hd-scanners:$PATH"
+          : > /tmp/trivy-reports/errors.txt
+          note_error() { printf 'SCAN_ERROR %s\n' "$*" | tee -a /tmp/trivy-reports/errors.txt; }
+
+          if ! docker build --provenance=false --sbom=false -t hengdesk/server:scan server; then
+            note_error "build hengdesk/server:scan"
+          fi
+          if ! docker build --provenance=false --sbom=false -t hengdesk/web:scan web; then
+            note_error "build hengdesk/web:scan"
+          fi
+          if ! docker pull pgvector/pgvector:0.8.7-pg17; then
+            note_error "pull pgvector/pgvector:0.8.7-pg17"
+          fi
+          if ! docker pull valkey/valkey:8.1.11-alpine; then
+            note_error "pull valkey/valkey:8.1.11-alpine"
+          fi
+          if ! docker pull chrislusf/seaweedfs:4.52; then
+            note_error "pull chrislusf/seaweedfs:4.52"
+          fi
+
           images=(
             hengdesk/server:scan
             hengdesk/web:scan
@@ -553,11 +567,24 @@ jobs:
           )
           for img in "${images[@]}"; do
             safe=$(printf '%s' "$img" | tr '/:' '__')
-            trivy image --quiet --scanners vuln --severity HIGH,CRITICAL \
+            if ! docker image inspect "$img" >/dev/null 2>&1; then
+              note_error "missing $img"
+              continue
+            fi
+            if ! trivy image --quiet --scanners vuln --severity HIGH,CRITICAL \
               --format json --exit-code 0 --timeout 15m \
-              --output "/tmp/trivy-reports/${safe}.json" "$img"
-            python3 .github/scripts/trivy-image-gate.py "/tmp/trivy-reports/${safe}.json"
+              --output "/tmp/trivy-reports/${safe}.json" "$img"; then
+              note_error "trivy $img"
+              continue
+            fi
+            # 单张报告的退出码先记下，不中断后续镜像。
+            python3 .github/scripts/trivy-image-gate.py "/tmp/trivy-reports/${safe}.json" || note_error "gate $img"
           done
+          trivy version -f json > /tmp/trivy-reports/trivy-version.json || note_error "trivy version"
+          python3 .github/scripts/trivy-image-gate.py --write-index /tmp/trivy-reports "${images[@]}" || note_error "image index"
+          # 全部报告收集完后再统一失败。聚合失败或扫描错误都不能被吞掉。
+          python3 .github/scripts/trivy-image-gate.py --aggregate /tmp/trivy-reports
+          exit $?
       - uses: actions/upload-artifact@v4
         if: always()
         with:

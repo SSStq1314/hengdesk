@@ -87,6 +87,89 @@ def run_file(path):
     return code
 
 
+def write_index(directory, images):
+    """把每张镜像的 id、repo digest，以及 Trivy 与漏洞库版本写入 images.json。"""
+    root = Path(directory)
+    meta = []
+    for image in images:
+        proc = subprocess.run(["docker", "image", "inspect", image], capture_output=True, text=True)
+        item = {"image": image, "present": proc.returncode == 0}
+        if proc.returncode == 0:
+            try:
+                info = json.loads(proc.stdout)[0]
+            except json.JSONDecodeError:
+                item["inspect_error"] = True
+            else:
+                item["id"] = info.get("Id")
+                item["repo_digests"] = info.get("RepoDigests") or []
+        meta.append(item)
+    version = {}
+    version_path = root / "trivy-version.json"
+    if version_path.is_file():
+        try:
+            version = json.loads(version_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            version = {"parse_error": True}
+    (root / "images.json").write_text(
+        json.dumps({"images": meta, "trivy": version}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    print(f"已写入 {root / 'images.json'}，镜像 {len(meta)} 张")
+    return 0
+
+
+def aggregate(directory):
+    """读取目录里每张镜像的报告。任一阻断、解析失败或扫描错误都记下来，最后统一返回失败。"""
+    root = Path(directory)
+    if not root.is_dir():
+        print(f"报告目录不存在：{directory}", file=sys.stderr)
+        return 1
+    reports = sorted(p for p in root.glob("*.json") if p.name != "trivy-version.json" and p.name != "images.json")
+    errors = root / "errors.txt"
+    lines = []
+    failed = False
+    if not reports and not errors.exists():
+        print("没有镜像报告，拒绝放行", file=sys.stderr)
+        return 1
+    for path in reports:
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            failed = True
+            lines.append(f"SCAN_ERROR {path.name} 报告无法解析: {exc}")
+            continue
+        code, found = evaluate(doc)
+        archive_unfixed(path, found)
+        lines.extend(found)
+        if code:
+            failed = True
+    if errors.exists():
+        err_text = errors.read_text(encoding="utf-8").strip()
+        if err_text:
+            failed = True
+            lines.extend(err_text.splitlines())
+    summary = root / "summary.txt"
+    block_n = sum(1 for line in lines if line.startswith("BLOCK "))
+    unfixed_n = sum(1 for line in lines if line.startswith("UNFIXED "))
+    error_n = sum(1 for line in lines if line.startswith("SCAN_ERROR"))
+    header = [
+        f"BLOCK {block_n}",
+        f"UNFIXED {unfixed_n}",
+        f"SCAN_ERROR {error_n}",
+        "UNFIXED 是没有修复版本的 HIGH/CRITICAL，不是无高危，也不是豁免。",
+    ]
+    body = "\n".join(header + lines) + "\n"
+    summary.write_text(body, encoding="utf-8")
+    print(body, end="")
+    if failed or block_n or error_n:
+        print("Trivy 聚合结果：失败。已收集全部镜像的报告后再返回。")
+        return 1
+    print("Trivy 聚合结果：没有已有修复版本的 HIGH/CRITICAL，也没有扫描错误。")
+    if unfixed_n:
+        print(f"另有 {unfixed_n} 个 UNFIXED，已写入 summary.txt。这不是无高危。")
+    return 0
+
+
 def self_test():
     script = str(Path(__file__).resolve())
     cases = {
@@ -159,15 +242,37 @@ def self_test():
                 if "CVE-2099-99992" not in archived or "不是无高危" not in archived:
                     print("自测失败：未修复漏洞没有归档", file=sys.stderr)
                     return 1
-    print("Trivy 门禁自测通过：虚构高危会失败，干净报告和未修复报告按规则处理")
+        batch = Path(tmp) / "batch"
+        batch.mkdir()
+        (batch / "a-block.json").write_text((Path(tmp) / "block.json").read_text(encoding="utf-8"), encoding="utf-8")
+        (batch / "b-clean.json").write_text((Path(tmp) / "clean.json").read_text(encoding="utf-8"), encoding="utf-8")
+        (batch / "c-unfixed.json").write_text((Path(tmp) / "unfixed.json").read_text(encoding="utf-8"), encoding="utf-8")
+        (batch / "d-invalid.json").write_text("this-is-not-json", encoding="utf-8")
+        (batch / "errors.txt").write_text("SCAN_ERROR hd-fixture-missing 镜像不存在\n", encoding="utf-8")
+        proc = subprocess.run([sys.executable, script, "--aggregate", str(batch)], capture_output=True, text=True)
+        if proc.returncode == 0:
+            print("自测失败：聚合了阻断和扫描错误却返回成功", file=sys.stderr)
+            return 1
+        for needle in ("CVE-2099-99991", "CVE-2099-99992", "SCAN_ERROR", "hd-fixture-missing", "不是无高危"):
+            if needle not in proc.stdout and needle not in (batch / "summary.txt").read_text(encoding="utf-8"):
+                print(f"自测失败：聚合结果缺少 {needle}", file=sys.stderr)
+                return 1
+        if "CVE-2099-99992" not in proc.stdout:
+            print("自测失败：第一张阻断后没有继续收集 UNFIXED", file=sys.stderr)
+            return 1
+    print("Trivy 门禁自测通过：单报告失败关闭，聚合时阻断后仍收集其余报告")
     return 0
 
 
 def main(argv):
     if len(argv) == 2 and argv[1] == "--self-test":
         return self_test()
+    if len(argv) == 3 and argv[1] == "--aggregate":
+        return aggregate(argv[2])
+    if len(argv) >= 3 and argv[1] == "--write-index":
+        return write_index(argv[2], argv[3:])
     if len(argv) != 2:
-        print("用法：trivy-image-gate.py REPORT.json | --self-test", file=sys.stderr)
+        print("用法：trivy-image-gate.py REPORT.json | --aggregate DIR | --write-index DIR IMAGE... | --self-test", file=sys.stderr)
         return 2
     return run_file(argv[1])
 
