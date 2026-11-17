@@ -3,7 +3,7 @@
 # 准备阶段只允许宿主依赖（Docker / Compose）和已经打好的正式包。
 # 产品、数据库、缓存、对象存储镜像必须在隔离后由包内 tar load。
 #
-# 控制通道：init 网络命名空间中的 runner uid 仍可访问 GitHub（心跳与结束后的 artifact 上传）。
+# 控制通道：init 网络命名空间中 runner 作业所在 cgroup 仍可访问 GitHub（心跳与结束后的 artifact 上传）。
 # 安装进程在 netns hd-sut，容器转发与 dockerd 的新公网连接被拒绝。安装进程和产品容器不能借用该通道。
 # 这只证明本次 GitHub 托管 x86 VM，不证明物理机或客户现场。
 #
@@ -37,7 +37,7 @@ snapshot_counters() {
     for c in HD_VETH4 HD_DOCK4 HD_ROOT HD_DNS HD_OUT4; do
       echo "iptables $c $(reject_pkts iptables "$c")"
     done
-    for c in HD_VETH6 HD_DOCK6 HD_OUT6; do
+    for c in HD_VETH6 HD_DOCK6 HD_DNS6 HD_OUT6; do
       echo "ip6tables $c $(reject_pkts ip6tables "$c")"
     done
     echo "ip6tables-raw HD_V6RAW $(reject_pkts ip6tables HD_V6RAW raw)"
@@ -69,6 +69,7 @@ iptables HD_DNS
 iptables HD_OUT4
 ip6tables HD_VETH6
 ip6tables HD_DOCK6
+ip6tables HD_DNS6
 ip6tables HD_OUT6
 ip6tables-raw HD_V6RAW
 KEYS
@@ -247,18 +248,6 @@ setup_filters() {
   iptables -C OUTPUT -m owner --uid-owner "$dockerd_uid" -j HD_ROOT 2>/dev/null || \
     iptables -I OUTPUT 1 -m owner --uid-owner "$dockerd_uid" -j HD_ROOT
 
-  # 公网 DNS 只留给 runner uid。堵住 dockerd / resolved 代解析。
-  iptables -N HD_DNS 2>/dev/null || iptables -F HD_DNS
-  iptables -A HD_DNS -m owner --uid-owner "$runner_uid" -j RETURN
-  iptables -A HD_DNS -d 10.0.0.0/8 -j RETURN
-  iptables -A HD_DNS -d 172.16.0.0/12 -j RETURN
-  iptables -A HD_DNS -d 192.168.0.0/16 -j RETURN
-  iptables -A HD_DNS -d 127.0.0.0/8 -j RETURN
-  iptables -A HD_DNS -j LOG --log-prefix "HD_DNS " --log-level 4
-  iptables -A HD_DNS -j REJECT
-  iptables -C OUTPUT -p udp --dport 53 -j HD_DNS 2>/dev/null || iptables -I OUTPUT 1 -p udp --dport 53 -j HD_DNS
-  iptables -C OUTPUT -p tcp --dport 53 -j HD_DNS 2>/dev/null || iptables -I OUTPUT 1 -p tcp --dport 53 -j HD_DNS
-
   # 新的公网 OUTPUT 只放行 runner 控制通道所在 cgroup。
   # 安装进程被挪到 hd-sut cgroup：就算 nsenter 回 init 网络命名空间，或 setuid 成 runner，也不能新建公网连接。
   # 已建立连接按五元组匹配，别的进程没有 runner 的 socket，不能借那条 TCP。
@@ -293,6 +282,33 @@ setup_filters() {
   ip6tables -A HD_OUT6 -j LOG --log-prefix "HD_OUT6 " --log-level 4
   ip6tables -A HD_OUT6 -j REJECT
   ip6tables -C OUTPUT -j HD_OUT6 2>/dev/null || ip6tables -I OUTPUT 1 -j HD_OUT6
+
+  # 53 端口只放行 runner 控制通道 cgroup。
+  # 2026-11-17 的托管 runner 上，getaddrinfo 走 127.0.0.53（systemd-resolved）。
+  # 旧规则对 127.0.0.0/8 一律 RETURN，root 在 hd-sut cgroup 里 nsenter 回 init netns 后仍能解析 example.com。
+  # 缓存命中也算解析成功，所以回环存根解析器不再对其他 cgroup 放行。
+  # 按 uid 放行也不够：安装进程可以 setuid 成 runner，但仍在 hd-sut cgroup。
+  iptables -N HD_DNS 2>/dev/null || iptables -F HD_DNS
+  if ! iptables -A HD_DNS -m cgroup --path "$cg" -j RETURN; then
+    echo "iptables 不支持 cgroup --path，不能把 DNS 控制通道限定在 runner cgroup" >&2
+    return 1
+  fi
+  iptables -A HD_DNS -d 10.0.0.0/8 -j RETURN
+  iptables -A HD_DNS -d 172.16.0.0/12 -j RETURN
+  iptables -A HD_DNS -d 192.168.0.0/16 -j RETURN
+  iptables -A HD_DNS -j LOG --log-prefix "HD_DNS " --log-level 4
+  iptables -A HD_DNS -j REJECT
+  iptables -C OUTPUT -p udp --dport 53 -j HD_DNS 2>/dev/null || iptables -I OUTPUT 1 -p udp --dport 53 -j HD_DNS
+  iptables -C OUTPUT -p tcp --dport 53 -j HD_DNS 2>/dev/null || iptables -I OUTPUT 1 -p tcp --dport 53 -j HD_DNS
+
+  ip6tables -N HD_DNS6 2>/dev/null || ip6tables -F HD_DNS6
+  ip6tables -A HD_DNS6 -m cgroup --path "$cg" -j RETURN
+  ip6tables -A HD_DNS6 -d fc00::/7 -j RETURN
+  ip6tables -A HD_DNS6 -d fe80::/10 -j RETURN
+  ip6tables -A HD_DNS6 -j LOG --log-prefix "HD_DNS6 " --log-level 4
+  ip6tables -A HD_DNS6 -j REJECT
+  ip6tables -C OUTPUT -p udp --dport 53 -j HD_DNS6 2>/dev/null || ip6tables -I OUTPUT 1 -p udp --dport 53 -j HD_DNS6
+  ip6tables -C OUTPUT -p tcp --dport 53 -j HD_DNS6 2>/dev/null || ip6tables -I OUTPUT 1 -p tcp --dport 53 -j HD_DNS6
 
   echo "RUNNER_UID=$runner_uid" >> "$STATE"
   echo "DOCKERD_UID=$dockerd_uid" >> "$STATE"
@@ -482,6 +498,8 @@ teardown() {
   ip6tables -X HD_OUT6 2>/dev/null || true
   iptables -D OUTPUT -p udp --dport 53 -j HD_DNS 2>/dev/null || true
   iptables -D OUTPUT -p tcp --dport 53 -j HD_DNS 2>/dev/null || true
+  ip6tables -D OUTPUT -p udp --dport 53 -j HD_DNS6 2>/dev/null || true
+  ip6tables -D OUTPUT -p tcp --dport 53 -j HD_DNS6 2>/dev/null || true
   if [ -f "$STATE" ]; then
     # shellcheck disable=SC1090
     . "$STATE"
@@ -501,7 +519,7 @@ teardown() {
   ip6tables -D INPUT -i veth-hd-host -p icmpv6 -j ACCEPT 2>/dev/null || true
   ip6tables -D INPUT -i veth-hd-host -j REJECT 2>/dev/null || true
   for c in HD_VETH4 HD_DOCK4 HD_ROOT HD_DNS; do iptables -F "$c" 2>/dev/null || true; iptables -X "$c" 2>/dev/null || true; done
-  for c in HD_VETH6 HD_DOCK6; do ip6tables -F "$c" 2>/dev/null || true; ip6tables -X "$c" 2>/dev/null || true; done
+  for c in HD_VETH6 HD_DOCK6 HD_DNS6; do ip6tables -F "$c" 2>/dev/null || true; ip6tables -X "$c" 2>/dev/null || true; done
   ip netns del hd-sut 2>/dev/null || true
   ip link del veth-hd-host 2>/dev/null || true
   if [ -f /etc/docker/daemon.json.d50-bak ]; then
@@ -660,6 +678,7 @@ PY
   fi
   snapshot_counters "$EVID/counters-after-escape.txt"
   assert_increase "$EVID/counters-before-escape.txt" "$EVID/counters-after-escape.txt" "iptables HD_OUT4"
+  assert_increase "$EVID/counters-before-escape.txt" "$EVID/counters-after-escape.txt" "iptables HD_DNS"
 
   log "隔离已生效。开始从正式包 load 并安装。"
   snapshot_counters "$EVID/counters-before-install.txt"
