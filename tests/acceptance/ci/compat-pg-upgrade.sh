@@ -97,8 +97,10 @@ echo "==> 在新库上备份并恢复"
 
 echo "==> SIGTERM 交给正在运行的 postgres"
 cid=$(docker compose -f "$new_deploy/docker-compose.yml" ps -q postgres)
+# unless-stopped 会在进程退出后立刻拉起同一容器，docker wait 就永远不返回。
+docker update --restart=no "$cid" >/dev/null
 docker kill --signal=TERM "$cid" >/dev/null
-code=$(docker wait "$cid")
+code=$(timeout 30 docker wait "$cid")
 logs=$(docker logs "$cid" 2>&1 || true)
 printf '%s\n' "$logs" | grep -E -q 'fast shutdown|shutting down'
 [ "$code" = 0 ]
