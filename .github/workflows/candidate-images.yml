@@ -38,9 +38,9 @@ jobs:
         run: |
           set -euo pipefail
           docker build --provenance=false --sbom=false -t hengdesk/server:candidate server
-          docker build --provenance=false --sbom=false -t hengdesk/web:candidate web
           docker pull valkey/valkey:8.1.11-alpine
           docker pull chrislusf/seaweedfs:4.54
+          docker build --provenance=false --sbom=false -t hengdesk/web:candidate web
           docker run --rm --entrypoint apk hengdesk/web:candidate info -v > /tmp/web-apk-info.txt
           docker run --rm --entrypoint apk hengdesk/web:candidate policy nginx > /tmp/web-nginx-policy.txt
       - name: 记录 digest 并严格扫描
@@ -51,7 +51,9 @@ jobs:
           export PATH="/tmp/hd-scanners:$PATH"
           : > /tmp/candidate-reports/errors.txt
           note_error() { printf 'SCAN_ERROR %s\n' "$*" | tee -a /tmp/candidate-reports/errors.txt; }
-          cp /tmp/gosu-buildinfo.txt /tmp/pgvector-build-packages.txt /tmp/web-apk-info.txt /tmp/web-nginx-policy.txt /tmp/candidate-reports/ || note_error "copy build records"
+          for record in /tmp/gosu-buildinfo.txt /tmp/pgvector-build-packages.txt /tmp/web-apk-info.txt /tmp/web-nginx-policy.txt; do
+            cp "$record" /tmp/candidate-reports/ || note_error "copy $(basename "$record")"
+          done
           images=(
             hengdesk/postgres:candidate
             hengdesk/server:candidate

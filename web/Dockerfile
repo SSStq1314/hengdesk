@@ -37,5 +37,4 @@ COPY nginx/http.conf nginx/https.conf nginx/proxy.inc /etc/nginx/hengdesk/
 COPY nginx/40-hengdesk-tls.sh /docker-entrypoint.d/
 COPY nginx/http.conf /etc/nginx/http.d/default.conf
 COPY --from=build /src/dist /usr/share/nginx/html
-RUN nginx -t
 EXPOSE 80 443

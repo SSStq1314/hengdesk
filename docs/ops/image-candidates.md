@@ -44,6 +44,8 @@ bash deploy/images/postgres-pgvector/verify.sh hengdesk/postgres:candidate
 
 2026-11-17 19:32（Asia/Shanghai）的作业 `44074473122`（提交 `ae8eb99`，Trivy 0.76.2，漏洞库版本 2，库更新于 2026-11-17 14:59 Asia/Shanghai）没有通过。Postgres 镜像没建出来：`make install` 要 `/usr/lib/llvm21/bin/llvm-lto`，当时只装了 clang21。Web 产物 `sha256:0108b7ad3841959e76e54ff5c5d6053606cb5cd9f54ea59c4030abc8e9321c0e` 仍是 nginx `1.28.3-r1`，5 个 HIGH 都有修复版本（最高修到 `1.28.3-r6`）。同一次里下面三张没有 HIGH/CRITICAL：server `sha256:b55968c6273d0234e9bdfab264d2a2dd4835127fe7879406f1b23fffa3527bca`，Valkey `sha256:2602ace2be6569bc2bbb06f873776516ab9089821525be34f4305c67eb9db02a`，SeaweedFS 4.54 `sha256:4b42c212543a0acd4c0e675215ecdcaf62a186ef98def76c7e12701871222d15`。这三张为零不表示五张都过了，也不表示可以发布。
 
+2026-11-17 19:58 的作业 `44078398949`（提交 `c0d3a81`）仍然没有通过。llvm-lto 已经跑完，pgvector 装上了，最后一步对 `apk info -v` 的文本格式核对失败，镜像没留下。Web 已经装上 Alpine 的 nginx `1.28.3-r7`，构建期的 `nginx -t` 因为 `proxy_pass` 里的主机名 `server` 在构建环境里不存在而失败。这不是漏洞扫描结果。
+
 ```bash
 gh workflow run candidate-images.yml --ref <分支>
 ```

@@ -43,7 +43,18 @@ RUN echo "${PGVECTOR_SHA256}  /tmp/pgvector.tar.gz" | sha256sum -c - \
  && cp -a /usr/local/lib/postgresql/bitcode/vector /out/bitcode/vector \
  && cp -a /usr/local/lib/postgresql/bitcode/vector.index.bc /out/bitcode/vector.index.bc \
  && cp LICENSE /out/pgvector-LICENSE \
- && apk info -v build-base clang21 llvm21 > /out/pgvector-build-packages.txt \
+ && awk ' \
+  /^P:/ { name = substr($0, 3) } \
+  /^V:/ { \
+    if (name == "build-base" || name == "clang21" || name == "llvm21") \
+      print name "-" substr($0, 3) \
+  } \
+' /lib/apk/db/installed | tee /out/pgvector-build-packages.txt \
+ && grep -qx 'build-base-0.5-r4' /out/pgvector-build-packages.txt \
+ && grep -qx 'clang21-21.1.8-r3' /out/pgvector-build-packages.txt \
+ && grep -qx 'llvm21-21.1.8-r1' /out/pgvector-build-packages.txt \
+ && ls -l /usr/local/lib/postgresql/bitcode/vector.index.bc \
+ && test -s /usr/local/lib/postgresql/bitcode/vector.index.bc \
  && apk del .build
 
 FROM ${POSTGRES_IMAGE}
@@ -71,5 +82,7 @@ RUN chmod 755 /usr/local/bin/gosu \
  && test -s /usr/local/share/postgresql/extension/vector.control \
  && test -s /usr/local/share/hengdesk/licenses/gosu-LICENSE \
  && test -s /usr/local/share/hengdesk/licenses/pgvector-LICENSE \
- && grep -q 'clang21-21.1.8-r3' /usr/local/share/hengdesk/pgvector-build-packages.txt \
- && grep -q 'llvm21-21.1.8-r1' /usr/local/share/hengdesk/pgvector-build-packages.txt
+ && echo '--- pgvector build packages ---' \
+ && cat /usr/local/share/hengdesk/pgvector-build-packages.txt \
+ && grep -qx 'clang21-21.1.8-r3' /usr/local/share/hengdesk/pgvector-build-packages.txt \
+ && grep -qx 'llvm21-21.1.8-r1' /usr/local/share/hengdesk/pgvector-build-packages.txt
