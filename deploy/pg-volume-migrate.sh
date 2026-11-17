@@ -87,13 +87,16 @@ docker run -d --name "$name" \
   -v "$BK":/backups \
   "$OLD_IMAGE" >/dev/null
 ready=0
-for _ in $(seq 1 60); do
-  if docker exec "$name" pg_isready -U "$U" >/dev/null 2>&1; then ready=1; break; fi
+deadline=$((SECONDS + 120))
+while [ "$SECONDS" -lt "$deadline" ]; do
+  if timeout 10 docker exec "$name" pg_isready -U "$U" >/dev/null 2>&1; then ready=1; break; fi
   sleep 2
 done
-[ "$ready" = 1 ] || { say "旧库未就绪"; docker logs "$name" >&2 || true; exit 1; }
-docker exec "$name" pg_dump -U "$U" -d "$D" -Fc -f "/backups/$DUMP_NAME"
-docker exec "$name" pg_restore --list "/backups/$DUMP_NAME" >/dev/null
+[ "$ready" = 1 ] || { say "旧库在 120s 内未就绪"; docker logs "$name" >&2 || true; exit 1; }
+timeout 180 docker exec "$name" pg_dump -U "$U" -d "$D" -Fc -f "/backups/$DUMP_NAME" \
+  || { say "pg_dump 超过 180s 或失败"; docker logs "$name" >&2 || true; exit 1; }
+timeout 60 docker exec "$name" pg_restore --list "/backups/$DUMP_NAME" >/dev/null \
+  || { say "导出的 dump 无法列出"; exit 1; }
 say "已导出 /backups/$DUMP_NAME"
 cleanup
 trap - EXIT

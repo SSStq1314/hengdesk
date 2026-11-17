@@ -42,12 +42,13 @@ if [ "$pg_state" = need-restore ]; then
   echo "==> 新镜像初始化空数据目录，再导入逻辑备份"
   docker compose up -d postgres
   ready=0
-  for _ in $(seq 1 60); do
-    if docker compose exec -T postgres pg_isready -U "$U" >/dev/null 2>&1; then ready=1; break; fi
+  deadline=$((SECONDS + 120))
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    if timeout 10 docker compose exec -T postgres pg_isready -U "$U" >/dev/null 2>&1; then ready=1; break; fi
     sleep 2
   done
-  [ "$ready" = 1 ] || { echo "新库未就绪，保留的 Debian 目录仍在 hengdesk_pgdata_debian_kept" >&2; exit 1; }
-  if ! docker compose exec -T postgres pg_restore -U "$U" -d "$D" --no-owner --exit-on-error /backups/hengdesk-pre-alpine-pgdata.dump; then
+  [ "$ready" = 1 ] || { echo "新库在 120s 内未就绪，保留的 Debian 目录仍在 hengdesk_pgdata_debian_kept" >&2; docker compose logs --no-color --tail 80 postgres >&2 || true; exit 1; }
+  if ! timeout 180 docker compose exec -T postgres pg_restore -U "$U" -d "$D" --no-owner --exit-on-error /backups/hengdesk-pre-alpine-pgdata.dump; then
     echo "导入失败。把保留的 Debian 数据目录拷回，不在 Alpine 上启动它。" >&2
     ./pg-volume-migrate.sh --rollback
     exit 1
@@ -63,7 +64,7 @@ if docker compose config --services | grep -qx minio; then
   docker compose up -d minio
 fi
 echo "==> 执行迁移（有待执行迁移时先自动备份）"
-if ! docker compose run --rm migrate; then
+if ! timeout 300 docker compose run --rm migrate; then
   echo "升级失败：若为备份失败，数据库未做任何改动。可执行 docker compose up -d 继续使用当前版本。" >&2
   exit 1
 fi

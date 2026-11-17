@@ -9,7 +9,7 @@ jobs:
   pg-upgrade:
     name: 旧包升级、失败回退与新库检查
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,19 +26,24 @@ jobs:
           PATH="/tmp/hd-scanners:$PATH" HENGDESK_STRICT_SCAN=1 \
             ./deploy/pack-offline.sh --version compat-new --out /tmp/new-pack
           sha256sum /tmp/old-pack/*.tar.gz /tmp/new-pack/*.tar.gz | tee /tmp/compat-packs.sha256
-      - name: 升级、失败演练、备份恢复、信号
+      - name: 升级、失败演练、备份恢复、S3、信号
         run: bash tests/acceptance/ci/compat-pg-upgrade.sh
-      - name: SeaweedFS 4.54 的 S3 兼容
-        working-directory: server
+      - name: 失败或取消时归档现场
+        if: always()
         run: |
-          set -a; . /tmp/compat-new/*/deploy/.env; set +a
-          export HENGDESK_S3_ENDPOINT=http://localhost:8333
-          HENGDESK_S3_IT=1 go test -count=1 -run TestS3Integration -v ./internal/objstore/
-      - name: 失败时输出日志
-        if: failure()
-        run: |
-          docker ps -a || true
-          docker compose -f /tmp/compat-new/*/deploy/docker-compose.yml logs --no-color --tail 200 || true
+          set +e
+          mkdir -p /tmp/compat-evidence
+          {
+            echo "job_conclusion_step=archive"
+            docker ps -a --no-trunc
+            docker compose -f /tmp/compat-new/*/deploy/docker-compose.yml ps -a
+            docker compose -f /tmp/compat-new/*/deploy/docker-compose.yml logs --no-color --tail 200
+          } >> /tmp/compat-evidence/runner-archive.txt 2>&1
+          cid=$(docker compose -f /tmp/compat-new/*/deploy/docker-compose.yml ps -q postgres 2>/dev/null || true)
+          if [ -n "$cid" ]; then
+            docker update --restart=unless-stopped "$cid" >> /tmp/compat-evidence/runner-archive.txt 2>&1
+          fi
+          docker compose -f /tmp/compat-new/*/deploy/docker-compose.yml down >> /tmp/compat-evidence/runner-archive.txt 2>&1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
