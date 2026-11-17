@@ -182,37 +182,142 @@ do_s3() {
   )
 }
 
-do_signal() {
-  local cid policy code
+activity_dump() {
+  local dest="$1"
+  timeout 20 docker compose -f "$new_deploy/docker-compose.yml" exec -T postgres \
+    psql -U hengdesk -d hengdesk -v ON_ERROR_STOP=1 -c \
+    "SELECT pid, usename, application_name, client_addr::text, state, backend_type, wait_event_type, left(query, 160) AS query
+     FROM pg_stat_activity
+     WHERE pid <> pg_backend_pid()
+     ORDER BY backend_type, application_name, pid;" > "$dest"
+}
+
+stop_timeout_of() {
+  local raw="$1"
+  case "$raw" in
+    ''|*[!0-9]*) echo "StopTimeout 不是整数：$raw" >&2; return 1 ;;
+  esac
+  echo "$raw"
+}
+
+# 隔离容器：没有健康检查、没有应用连接。用镜像自己的 StopSignal 停，等价于 docker stop。
+# 这只证明入口和 gosu 把停机信号交给了 postgres。它不是正式 compose 的 stop 路径。
+do_isolated_stop() {
+  local name="hd-sig-iso-$$"
+  local img="hengdesk/postgres:compat-new"
+  docker rm -f "$name" >/dev/null 2>&1 || true
+  docker run -d --name "$name" --restart=no \
+    -e POSTGRES_PASSWORD=ci-only-password-123 -e POSTGRES_USER=hengdesk -e POSTGRES_DB=hengdesk \
+    "$img" >/dev/null
+  wait_until 120 "隔离库就绪" timeout 10 docker exec "$name" pg_isready -U hengdesk
+  local stop_signal grace
+  stop_signal=$(docker inspect -f '{{.Config.StopSignal}}' "$name")
+  grace=$(stop_timeout_of "$(docker inspect -f '{{.Config.StopTimeout}}' "$name")")
+  echo "isolated_stopsignal=$stop_signal stop_timeout=${grace}s"
+  [ -n "$stop_signal" ]
+  timeout $((grace + 20)) docker stop -t "$grace" "$name" >/dev/null
+  local code
+  code=$(docker inspect -f '{{.State.ExitCode}}' "$name")
+  echo "isolated_exit=$code"
+  docker logs "$name" > "$EVID/isolated-signal-logs.txt" 2>&1 || true
+  grep -E -q 'received (smart|fast) shutdown request' "$EVID/isolated-signal-logs.txt"
+  grep -E -q 'database system is shut down' "$EVID/isolated-signal-logs.txt"
+  [ "$code" = 0 ]
+  docker rm -f "$name" >/dev/null
+}
+
+# 单独容器上观察 SIGTERM（smart shutdown），不改正式 compose 的 healthcheck 或 restart。
+# 先占住一个会话，再发 SIGTERM，然后立刻尝试新连接。新连接应被拒绝；占住的会话结束后进程以 0 退出。
+do_smart_probe() {
+  local name="hd-smart-$$"
+  docker rm -f "$name" >/dev/null 2>&1 || true
+  docker run -d --name "$name" --restart=no \
+    -e POSTGRES_PASSWORD=ci-only-password-123 -e POSTGRES_USER=hengdesk -e POSTGRES_DB=hengdesk \
+    hengdesk/postgres:compat-new >/dev/null
+  wait_until 120 "smart 探针库就绪" timeout 10 docker exec "$name" pg_isready -U hengdesk
+  timeout 5 docker exec -d "$name" psql -U hengdesk -d hengdesk -c "SELECT pg_sleep(15)"
+  sleep 1
+  timeout 15 docker exec "$name" psql -U hengdesk -d hengdesk -tAc \
+    "SELECT pid, state, left(query, 80) FROM pg_stat_activity WHERE query LIKE '%pg_sleep%'" \
+    | tee "$EVID/smart-holder.txt"
+  grep -q pg_sleep "$EVID/smart-holder.txt"
+  docker kill --signal=TERM "$name" >/dev/null
+  set +e
+  local newc nrc
+  newc=$(timeout 10 docker exec "$name" psql -U hengdesk -d hengdesk -tAc 'SELECT 1' 2>&1)
+  nrc=$?
+  set -e
+  {
+    echo "new_connection_rc=$nrc"
+    echo "$newc"
+  } | tee "$EVID/smart-new-connection.txt"
+  echo "$newc" | grep -E -q 'shutting down|the database system is shutting down|terminating connection'
+  local code
+  code=$(timeout 40 docker wait "$name")
+  echo "smart_probe_exit=$code"
+  docker logs "$name" > "$EVID/smart-probe-logs.txt" 2>&1 || true
+  grep -q 'received smart shutdown request' "$EVID/smart-probe-logs.txt"
+  grep -q 'database system is shut down' "$EVID/smart-probe-logs.txt"
+  [ "$code" = 0 ]
+  docker rm -f "$name" >/dev/null
+}
+
+# 正式 compose：不改 healthcheck，不改 restart。停机信号和宽限以容器实际配置为准。
+do_compose_stop() {
+  local cid stop_signal grace code
   cid=$(docker compose -f "$new_deploy/docker-compose.yml" ps -q postgres)
   [ -n "$cid" ]
-  echo "$cid" > "$EVID/signal-cid"
-  policy=$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$cid")
-  echo "restart_before=$policy"
-  [ "$policy" = unless-stopped ]
-  docker update --restart=no "$cid" >/dev/null
-  echo "restart_during_test=no"
-  # SIGTERM 是 smart shutdown。健康检查每 3 秒连一次，会让它一直等下去。
-  # 只在这个容器上暂停健康检查，不改 compose 文件。
-  docker update --health-interval=0s "$cid" >/dev/null
-  echo "healthcheck_during_test=disabled"
-  docker kill --signal=TERM "$cid" >/dev/null
-  code=$(timeout 30 docker wait "$cid")
-  echo "wait_exit=$code"
-  timeout 20 docker logs "$cid" > "$EVID/signal-logs.txt" 2>&1 || true
-  grep -E -q 'received (smart|fast) shutdown request' "$EVID/signal-logs.txt"
-  grep -E -q 'shutting down' "$EVID/signal-logs.txt"
+  stop_signal=$(docker inspect -f '{{.Config.StopSignal}}' "$cid")
+  grace=$(stop_timeout_of "$(docker inspect -f '{{.Config.StopTimeout}}' "$cid")")
+  local restart health
+  restart=$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$cid")
+  health=$(docker inspect -f '{{.Config.Healthcheck.Interval}}' "$cid")
+  {
+    echo "compose_stopsignal=$stop_signal"
+    echo "compose_stop_timeout_seconds=$grace"
+    echo "restart_before=$restart"
+    echo "healthcheck_interval_ns=$health"
+    echo "compose_file_restart=$(grep -n 'restart:' "$new_deploy/docker-compose.yml" | head -5)"
+  } | tee "$EVID/stop-config.txt"
+  [ "$restart" = unless-stopped ]
+  [ "$grace" -ge 1 ]
+  activity_dump "$EVID/pg-stat-activity-before-stop.txt"
+  echo "----- 停机前会话（本查询自身已排除） -----"
+  cat "$EVID/pg-stat-activity-before-stop.txt"
+  # 不使用 docker kill --signal=TERM。那会绕过镜像 StopSignal。
+  # SIGTERM 在 Postgres 上是 smart shutdown；compose stop 发送的是上面记录的 StopSignal。
+  if ! timeout $((grace + 15)) docker compose -f "$new_deploy/docker-compose.yml" stop -t "$grace" postgres; then
+    echo "compose stop 超过 $((grace + 15))s" >&2
+    return 1
+  fi
+  code=$(docker inspect -f '{{.State.ExitCode}}' "$cid")
+  echo "compose_stop_exit=$code"
+  docker logs --tail 80 "$cid" > "$EVID/compose-stop-logs.txt" 2>&1 || true
+  grep -E -q 'received (smart|fast|immediate) shutdown request' "$EVID/compose-stop-logs.txt"
+  grep -E -q 'database system is shut down' "$EVID/compose-stop-logs.txt"
+  if [ "$code" = 137 ]; then
+    echo "postgres 以 SIGKILL 结束，不能算优雅停止。停机前会话见 pg-stat-activity-before-stop.txt" >&2
+    return 1
+  fi
   [ "$code" = 0 ]
-  rm -f "$EVID/signal-cid"
-  # 按 compose 文件重建，恢复 unless-stopped 和原来的健康检查。
-  docker compose -f "$new_deploy/docker-compose.yml" up -d --force-recreate --no-deps postgres
-  local now after
+  docker compose -f "$new_deploy/docker-compose.yml" up -d --no-deps postgres
+  wait_until 120 "停机后 postgres 恢复" timeout 10 docker compose -f "$new_deploy/docker-compose.yml" exec -T postgres pg_isready -U hengdesk
+  local now after health2 uid ver got
   now=$(docker compose -f "$new_deploy/docker-compose.yml" ps -q postgres)
   after=$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$now")
-  echo "restart_after=$after"
+  health2=$(docker inspect -f '{{.Config.Healthcheck.Interval}}' "$now")
+  echo "restart_after=$after healthcheck_interval_ns_after=$health2"
   [ "$after" = unless-stopped ]
-  grep -q 'restart: unless-stopped' "$new_deploy/docker-compose.yml"
-  echo "signal_forward_exit=0"
+  [ "$health2" = "$health" ]
+  uid=$(timeout 20 docker compose -f "$new_deploy/docker-compose.yml" exec -T postgres gosu postgres id -u | tr -d '\r')
+  ver=$(timeout 20 docker compose -f "$new_deploy/docker-compose.yml" exec -T postgres psql -U hengdesk -d hengdesk -tAc \
+    "SELECT extversion FROM pg_extension WHERE extname='vector'" | tr -d '[:space:]')
+  got=$(timeout 20 docker compose -f "$new_deploy/docker-compose.yml" exec -T postgres psql -U hengdesk -d hengdesk -tAc \
+    "SELECT id FROM compat_marker" | tr -d '[:space:]')
+  echo "uid=$uid vector=$ver marker=$got"
+  [ "$uid" != 0 ] && [ -n "$uid" ]
+  [ "$ver" = 0.8.7 ]
+  [ "$got" = 7 ]
 }
 
 phase install-old install_old
@@ -220,7 +325,9 @@ phase fail-drill fail_drill
 phase upgrade do_upgrade
 phase restore do_restore
 phase s3 do_s3
-phase signal do_signal
+phase isolated-stop do_isolated_stop
+phase smart-probe do_smart_probe
+phase compose-stop do_compose_stop
 
 if [ "$failed" -ne 0 ]; then
   echo "兼容回归有失败段，见 $EVID" | tee "$EVID/result.txt" >&2
