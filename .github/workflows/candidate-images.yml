@@ -33,6 +33,7 @@ jobs:
             go version -m /gosu | tee /tmp/gosu-buildinfo.txt
           grep -q 'go1.26.11' /tmp/gosu-buildinfo.txt
       - name: 构建 server 与 web，拉取其余候选
+        if: always()
         run: |
           set -euo pipefail
           docker build --provenance=false --sbom=false -t hengdesk/server:candidate server
@@ -41,6 +42,7 @@ jobs:
           docker pull chrislusf/seaweedfs:4.54
           docker run --rm --entrypoint apk hengdesk/web:candidate info -v > /tmp/web-apk-info.txt
       - name: 记录 digest 并严格扫描
+        if: always()
         run: |
           set -u
           mkdir -p /tmp/candidate-reports

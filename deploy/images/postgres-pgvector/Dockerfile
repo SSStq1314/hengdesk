@@ -20,7 +20,8 @@ RUN echo "${GOSU_SHA256}  /tmp/gosu.tar.gz" | sha256sum -c - \
 FROM ${POSTGRES_IMAGE} AS ext
 ARG PGVECTOR_VERSION=0.8.7
 ARG PGVECTOR_SHA256=cac0b10c360f05b2d521200105ba3697e773d4cd3731f5a915a7e37ebe0bea85
-RUN apk add --no-cache --virtual .build build-base
+# 官方 PG17 Alpine 用 clang-21 生成扩展 bitcode。只补这个编译器，不重编 PostgreSQL。
+RUN apk add --no-cache --virtual .build build-base clang21
 WORKDIR /src
 ADD https://github.com/pgvector/pgvector/archive/refs/tags/v${PGVECTOR_VERSION}.tar.gz /tmp/pgvector.tar.gz
 RUN echo "${PGVECTOR_SHA256}  /tmp/pgvector.tar.gz" | sha256sum -c - \
