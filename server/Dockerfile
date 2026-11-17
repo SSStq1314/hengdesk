@@ -1,7 +1,8 @@
 FROM golang:1.26.11-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+# 模块代理偶发 INTERNAL_ERROR。失败再取一次，避免整次打包扫描被这一下打断。
+RUN go mod download || go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/hengdesk ./cmd/hengdesk
 

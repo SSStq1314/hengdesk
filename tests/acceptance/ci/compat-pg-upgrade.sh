@@ -194,10 +194,21 @@ activity_dump() {
 
 stop_timeout_of() {
   local raw="$1"
+  echo "stop_timeout_raw=$raw" >&2
   case "$raw" in
-    ''|*[!0-9]*) echo "StopTimeout 不是整数：$raw" >&2; return 1 ;;
+    ''|'<nil>'|'<no value>')
+      echo "stop_timeout_source=unset-docker-default-10s" >&2
+      echo 10
+      ;;
+    *[!0-9]*)
+      echo "StopTimeout 不是整数：$raw" >&2
+      return 1
+      ;;
+    *)
+      echo "stop_timeout_source=inspect" >&2
+      echo "$raw"
+      ;;
   esac
-  echo "$raw"
 }
 
 # 隔离容器：没有健康检查、没有应用连接。用镜像自己的 StopSignal 停，等价于 docker stop。
@@ -212,8 +223,9 @@ do_isolated_stop() {
   wait_until 120 "隔离库就绪" timeout 10 docker exec "$name" pg_isready -U hengdesk
   local stop_signal grace
   stop_signal=$(docker inspect -f '{{.Config.StopSignal}}' "$name")
+  echo "isolated_stopsignal=$stop_signal"
   grace=$(stop_timeout_of "$(docker inspect -f '{{.Config.StopTimeout}}' "$name")")
-  echo "isolated_stopsignal=$stop_signal stop_timeout=${grace}s"
+  echo "isolated_stop_timeout=${grace}s"
   [ -n "$stop_signal" ]
   timeout $((grace + 20)) docker stop -t "$grace" "$name" >/dev/null
   local code
@@ -268,6 +280,7 @@ do_compose_stop() {
   cid=$(docker compose -f "$new_deploy/docker-compose.yml" ps -q postgres)
   [ -n "$cid" ]
   stop_signal=$(docker inspect -f '{{.Config.StopSignal}}' "$cid")
+  echo "compose_stopsignal=$stop_signal"
   grace=$(stop_timeout_of "$(docker inspect -f '{{.Config.StopTimeout}}' "$cid")")
   local restart health
   restart=$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$cid")
