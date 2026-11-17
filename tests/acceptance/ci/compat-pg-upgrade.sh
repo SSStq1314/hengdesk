@@ -192,19 +192,26 @@ do_signal() {
   [ "$policy" = unless-stopped ]
   docker update --restart=no "$cid" >/dev/null
   echo "restart_during_test=no"
+  # SIGTERM 是 smart shutdown。健康检查每 3 秒连一次，会让它一直等下去。
+  # 只在这个容器上暂停健康检查，不改 compose 文件。
+  docker update --health-interval=0s "$cid" >/dev/null
+  echo "healthcheck_during_test=disabled"
   docker kill --signal=TERM "$cid" >/dev/null
   code=$(timeout 30 docker wait "$cid")
   echo "wait_exit=$code"
   timeout 20 docker logs "$cid" > "$EVID/signal-logs.txt" 2>&1 || true
-  grep -E -q 'fast shutdown|shutting down' "$EVID/signal-logs.txt"
+  grep -E -q 'received (smart|fast) shutdown request' "$EVID/signal-logs.txt"
+  grep -E -q 'shutting down' "$EVID/signal-logs.txt"
   [ "$code" = 0 ]
-  restore_restart "$cid"
   rm -f "$EVID/signal-cid"
+  # 按 compose 文件重建，恢复 unless-stopped 和原来的健康检查。
+  docker compose -f "$new_deploy/docker-compose.yml" up -d --force-recreate --no-deps postgres
   local now after
   now=$(docker compose -f "$new_deploy/docker-compose.yml" ps -q postgres)
   after=$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$now")
   echo "restart_after=$after"
   [ "$after" = unless-stopped ]
+  grep -q 'restart: unless-stopped' "$new_deploy/docker-compose.yml"
   echo "signal_forward_exit=0"
 }
 
