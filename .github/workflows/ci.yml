@@ -511,3 +511,85 @@ jobs:
           cd /tmp/hd-acc-extract/*/deploy 2>/dev/null || cd deploy
           docker compose -f docker-compose.yml -f docker-compose.acceptance.yml ps -a || true
           docker compose -f docker-compose.yml -f docker-compose.acceptance.yml logs --no-color --tail 300 || true
+
+  # O-E2：正式离线包里的交付镜像（pack-offline.sh 的 server、web 与三张依赖镜像，不含 mocks）。
+  # govulncheck 仍负责 Go 可达漏洞；本作业不替代它，也不读取 DEEPSEEK / License 私钥。
+  image-secret-scan:
+    name: 镜像漏洞 + 秘密扫描（O-E2）
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # 指纹含引入提交。浅克隆会把同一行记到另一个提交上，精确指纹对不上，门禁会失败。
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 下载或校验失败必须阻断
+        run: bash .github/scripts/install-pinned-scanners.sh --self-test
+      - name: 安装固定版本的 gitleaks 与 trivy
+        run: bash .github/scripts/install-pinned-scanners.sh /tmp/hd-scanners
+      - name: 秘密扫描门禁（虚构样本必须失败，仓库必须通过）
+        env:
+          GITLEAKS_BIN: /tmp/hd-scanners/gitleaks
+          GITLEAKS_REPORT: /tmp/gitleaks-report.json
+        run: bash .github/scripts/gitleaks-gate.sh
+      - name: Trivy 门禁自测
+        run: python3 .github/scripts/trivy-image-gate.py --self-test
+      - name: 构建并扫描正式离线交付镜像
+        run: |
+          set -u
+          mkdir -p /tmp/trivy-reports
+          export PATH="/tmp/hd-scanners:$PATH"
+          : > /tmp/trivy-reports/errors.txt
+          note_error() { printf 'SCAN_ERROR %s\n' "$*" | tee -a /tmp/trivy-reports/errors.txt; }
+
+          if ! docker build --provenance=false --sbom=false -t hengdesk/server:scan server; then
+            note_error "build hengdesk/server:scan"
+          fi
+          if ! docker build --provenance=false --sbom=false -t hengdesk/web:scan web; then
+            note_error "build hengdesk/web:scan"
+          fi
+          if ! docker pull pgvector/pgvector:0.8.7-pg17; then
+            note_error "pull pgvector/pgvector:0.8.7-pg17"
+          fi
+          if ! docker pull valkey/valkey:8.1.11-alpine; then
+            note_error "pull valkey/valkey:8.1.11-alpine"
+          fi
+          if ! docker pull chrislusf/seaweedfs:4.52; then
+            note_error "pull chrislusf/seaweedfs:4.52"
+          fi
+
+          images=(
+            hengdesk/server:scan
+            hengdesk/web:scan
+            pgvector/pgvector:0.8.7-pg17
+            valkey/valkey:8.1.11-alpine
+            chrislusf/seaweedfs:4.52
+          )
+          for img in "${images[@]}"; do
+            safe=$(printf '%s' "$img" | tr '/:' '__')
+            if ! docker image inspect "$img" >/dev/null 2>&1; then
+              note_error "missing $img"
+              continue
+            fi
+            if ! trivy image --quiet --scanners vuln --severity HIGH,CRITICAL \
+              --format json --exit-code 0 --timeout 15m \
+              --output "/tmp/trivy-reports/${safe}.json" "$img"; then
+              note_error "trivy $img"
+              continue
+            fi
+            # 单张报告的退出码先记下，不中断后续镜像。
+            python3 .github/scripts/trivy-image-gate.py "/tmp/trivy-reports/${safe}.json" || note_error "gate $img"
+          done
+          trivy version -f json > /tmp/trivy-reports/trivy-version.json || note_error "trivy version"
+          python3 .github/scripts/trivy-image-gate.py --write-index /tmp/trivy-reports "${images[@]}" || note_error "image index"
+          # 全部报告收集完后再统一失败。聚合失败或扫描错误都不能被吞掉。
+          python3 .github/scripts/trivy-image-gate.py --aggregate /tmp/trivy-reports
+          exit $?
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: image-secret-scan
+          path: |
+            /tmp/gitleaks-report.json
+            /tmp/trivy-reports
+          if-no-files-found: warn
