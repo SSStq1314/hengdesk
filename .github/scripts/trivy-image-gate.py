@@ -118,8 +118,11 @@ def write_index(directory, images):
     return 0
 
 
-def aggregate(directory):
-    """读取目录里每张镜像的报告。任一阻断、解析失败或扫描错误都记下来，最后统一返回失败。"""
+def aggregate(directory, strict=False):
+    """读取目录里每张镜像的报告。任一阻断、解析失败或扫描错误都记下来，最后统一返回失败。
+
+    strict=True 时，没有修复版本的 HIGH/CRITICAL 也失败。这不是豁免，也不能标成通过。
+    """
     root = Path(directory)
     if not root.is_dir():
         print(f"报告目录不存在：{directory}", file=sys.stderr)
@@ -161,12 +164,16 @@ def aggregate(directory):
     body = "\n".join(header + lines) + "\n"
     summary.write_text(body, encoding="utf-8")
     print(body, end="")
+    if strict and unfixed_n:
+        failed = True
+        print(f"严格模式：{unfixed_n} 个没有修复版本的 HIGH/CRITICAL 不能标为通过，也没有风险接受。")
     if failed or block_n or error_n:
         print("Trivy 聚合结果：失败。已收集全部镜像的报告后再返回。")
         return 1
-    print("Trivy 聚合结果：没有已有修复版本的 HIGH/CRITICAL，也没有扫描错误。")
     if unfixed_n:
-        print(f"另有 {unfixed_n} 个 UNFIXED，已写入 summary.txt。这不是无高危。")
+        print(f"Trivy 聚合结果：没有已有修复版本的阻断项。另有 {unfixed_n} 个 UNFIXED，不能标为最终包安全通过。")
+        return 0
+    print("Trivy 聚合结果：没有 HIGH/CRITICAL，也没有扫描错误。")
     return 0
 
 
@@ -260,15 +267,24 @@ def self_test():
         if "CVE-2099-99992" not in proc.stdout:
             print("自测失败：第一张阻断后没有继续收集 UNFIXED", file=sys.stderr)
             return 1
-    print("Trivy 门禁自测通过：单报告失败关闭，聚合时阻断后仍收集其余报告")
+        only = Path(tmp) / "unfixed-only"
+        only.mkdir()
+        (only / "c-unfixed.json").write_text((Path(tmp) / "unfixed.json").read_text(encoding="utf-8"), encoding="utf-8")
+        loose = subprocess.run([sys.executable, script, "--aggregate", str(only)], capture_output=True, text=True)
+        tight = subprocess.run([sys.executable, script, "--strict-aggregate", str(only)], capture_output=True, text=True)
+        if loose.returncode != 0 or tight.returncode == 0 or "不能标为通过" not in tight.stdout:
+            print("自测失败：严格模式没有阻断无修复高危", file=sys.stderr)
+            print(loose.returncode, tight.returncode, tight.stdout, file=sys.stderr)
+            return 1
+    print("Trivy 门禁自测通过：单报告失败关闭，聚合时阻断后仍收集其余报告，严格模式不放行 UNFIXED")
     return 0
 
 
 def main(argv):
     if len(argv) == 2 and argv[1] == "--self-test":
         return self_test()
-    if len(argv) == 3 and argv[1] == "--aggregate":
-        return aggregate(argv[2])
+    if len(argv) == 3 and argv[1] in ("--aggregate", "--strict-aggregate"):
+        return aggregate(argv[2], strict=argv[1] == "--strict-aggregate")
     if len(argv) >= 3 and argv[1] == "--write-index":
         return write_index(argv[2], argv[3:])
     if len(argv) != 2:

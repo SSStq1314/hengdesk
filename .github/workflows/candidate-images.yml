@@ -1,0 +1,81 @@
+# 只在手动触发时构建并扫描候选镜像。不跑 D-50、vLLM 或 15 步。
+# 五张镜像的 HIGH/CRITICAL（含没有修复版本的）必须都是 0，作业才成功。
+# 成功也不等于发布授权。备份恢复、升级回退、S3 和 D-50 不在本作业里。
+name: 候选镜像构建扫描
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scan:
+    name: 构建并严格扫描五张候选镜像
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: 安装固定版本的 trivy
+        run: bash .github/scripts/install-pinned-scanners.sh /tmp/hd-scanners
+      - name: 门禁自测
+        run: python3 .github/scripts/trivy-image-gate.py --self-test
+      - name: 构建自有 postgres 镜像并验证 gosu
+        run: |
+          set -euo pipefail
+          docker build --provenance=false --sbom=false \
+            -t hengdesk/postgres:candidate \
+            deploy/images/postgres-pgvector
+          bash deploy/images/postgres-pgvector/verify.sh hengdesk/postgres:candidate
+          docker create --name hd-gosu-extract hengdesk/postgres:candidate >/dev/null
+          docker cp hd-gosu-extract:/usr/local/bin/gosu /tmp/gosu-from-image
+          docker rm hd-gosu-extract >/dev/null
+          docker run --rm -v /tmp/gosu-from-image:/gosu:ro \
+            golang:1.26.11-alpine@sha256:f496f8c537ed506626ee1a6913afb32c45068a48697163c088f604cc775a0c38 \
+            go version -m /gosu | tee /tmp/gosu-buildinfo.txt
+          grep -q 'go1.26.11' /tmp/gosu-buildinfo.txt
+      - name: 构建 server 与 web，拉取其余候选
+        run: |
+          set -euo pipefail
+          docker build --provenance=false --sbom=false -t hengdesk/server:candidate server
+          docker build --provenance=false --sbom=false -t hengdesk/web:candidate web
+          docker pull valkey/valkey:8.1.11-alpine
+          docker pull chrislusf/seaweedfs:4.54
+          docker run --rm --entrypoint apk hengdesk/web:candidate info -v > /tmp/web-apk-info.txt
+      - name: 记录 digest 并严格扫描
+        run: |
+          set -u
+          mkdir -p /tmp/candidate-reports
+          export PATH="/tmp/hd-scanners:$PATH"
+          : > /tmp/candidate-reports/errors.txt
+          note_error() { printf 'SCAN_ERROR %s\n' "$*" | tee -a /tmp/candidate-reports/errors.txt; }
+          cp /tmp/gosu-buildinfo.txt /tmp/web-apk-info.txt /tmp/candidate-reports/ || note_error "copy build records"
+          images=(
+            hengdesk/postgres:candidate
+            hengdesk/server:candidate
+            hengdesk/web:candidate
+            valkey/valkey:8.1.11-alpine
+            chrislusf/seaweedfs:4.54
+          )
+          for img in "${images[@]}"; do
+            safe=$(printf '%s' "$img" | tr '/:' '__')
+            if ! docker image inspect "$img" >/dev/null 2>&1; then
+              note_error "missing $img"
+              continue
+            fi
+            if ! trivy image --quiet --scanners vuln --severity HIGH,CRITICAL \
+              --format json --exit-code 0 --timeout 15m \
+              --output "/tmp/candidate-reports/${safe}.json" "$img"; then
+              note_error "trivy $img"
+              continue
+            fi
+            python3 .github/scripts/trivy-image-gate.py "/tmp/candidate-reports/${safe}.json" || note_error "gate $img"
+          done
+          trivy image --format spdx-json --output /tmp/candidate-reports/hengdesk-postgres.spdx.json hengdesk/postgres:candidate || note_error "sbom postgres"
+          trivy version -f json > /tmp/candidate-reports/trivy-version.json || note_error "trivy version"
+          python3 .github/scripts/trivy-image-gate.py --write-index /tmp/candidate-reports "${images[@]}" || note_error "image index"
+          python3 .github/scripts/trivy-image-gate.py --strict-aggregate /tmp/candidate-reports
+          exit $?
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: candidate-image-evidence
+          path: /tmp/candidate-reports
+          if-no-files-found: warn
