@@ -519,7 +519,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      # 指纹含引入提交。浅克隆会把同一行记到另一个提交上，精确指纹对不上，门禁会失败。
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: 下载或校验失败必须阻断
         run: bash .github/scripts/install-pinned-scanners.sh --self-test
       - name: 安装固定版本的 gitleaks 与 trivy
