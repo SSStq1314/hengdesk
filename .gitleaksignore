@@ -1,0 +1,6 @@
+# 精确指纹：commit:file:rule-id:start-line
+# 只忽略引入提交里的这一条 generic-api-key。同一文件的其他规则、其他行，以及之后新增的泄漏仍会失败。
+# 这不是漏洞豁免，也没有复查期限。
+2f29966877b668e37da354f7b7a4c790978a6703:server/internal/api/masterkey_test.go:generic-api-key:15
+fd2bf391dfd091942937fb0dc9db0892f3313166:server/internal/gateway/gateway_test.go:generic-api-key:15
+02b18f84a5494faf6b89dbbf6442f4a3aa39cd75:server/internal/store/migrations/atlas.sum:generic-api-key:5

@@ -50,19 +50,40 @@ def evaluate(doc):
     return 0, unfixed
 
 
+def archive_unfixed(path, lines):
+    unfixed = [line for line in lines if line.startswith("UNFIXED ")]
+    dest = Path(str(path) + ".unfixed.txt")
+    if unfixed:
+        text = (
+            "这些是报告里没有修复版本的 HIGH/CRITICAL。这不是无高危，也不是豁免。\n"
+            + "\n".join(unfixed)
+            + "\n"
+        )
+    else:
+        text = "本报告没有未修复的 HIGH/CRITICAL。这不表示镜像没有其他级别的漏洞。\n"
+    dest.write_text(text, encoding="utf-8")
+
+
 def run_file(path):
     try:
-        doc = json.loads(Path(path).read_text(encoding="utf-8"))
+        raw = Path(path).read_text(encoding="utf-8")
+        doc = json.loads(raw)
     except (OSError, json.JSONDecodeError) as exc:
         print(f"无法读取 Trivy 报告 {path}: {exc}", file=sys.stderr)
         return 1
     code, lines = evaluate(doc)
+    archive_unfixed(path, lines)
     for line in lines:
         print(line)
+    unfixed_n = sum(1 for line in lines if line.startswith("UNFIXED "))
     if code:
         print(f"Trivy 门禁阻断：{sum(1 for line in lines if line.startswith('BLOCK '))} 个已有修复版本的高危或严重漏洞")
+        if unfixed_n:
+            print(f"同时完整记录 {unfixed_n} 个没有修复版本的 HIGH/CRITICAL。这不是无高危，也不是豁免。")
+    elif unfixed_n:
+        print(f"Trivy 门禁未因已有修复版本而阻断。另有 {unfixed_n} 个没有修复版本的 HIGH/CRITICAL，已完整写入 UNFIXED。这不是无高危，也不是豁免。")
     else:
-        print(f"Trivy 门禁通过：无已有修复版本的高危或严重漏洞，未修复 {sum(1 for line in lines if line.startswith('UNFIXED '))} 个")
+        print("Trivy 门禁通过：报告里没有 HIGH/CRITICAL。这不表示镜像没有其他级别的漏洞。")
     return code
 
 
@@ -103,23 +124,41 @@ def self_test():
             ]
         },
         "broken.json": {},
+        "invalid.json": "this-is-not-json",
+        "empty.json": "",
     }
-    expect = {"block.json": 1, "clean.json": 0, "unfixed.json": 0, "broken.json": 1}
+    expect = {
+        "block.json": 1,
+        "clean.json": 0,
+        "unfixed.json": 0,
+        "broken.json": 1,
+        "invalid.json": 1,
+        "empty.json": 1,
+    }
     with tempfile.TemporaryDirectory() as tmp:
         for name, doc in cases.items():
             path = Path(tmp) / name
-            path.write_text(json.dumps(doc), encoding="utf-8")
+            if isinstance(doc, str):
+                path.write_text(doc, encoding="utf-8")
+            else:
+                path.write_text(json.dumps(doc), encoding="utf-8")
             proc = subprocess.run([sys.executable, script, str(path)], capture_output=True, text=True)
             if proc.returncode != expect[name]:
                 print(f"自测失败 {name}: 期望 {expect[name]} 实际 {proc.returncode}", file=sys.stderr)
                 print(proc.stdout, file=sys.stderr)
+                print(proc.stderr, file=sys.stderr)
                 return 1
             if name == "block.json" and "CVE-2099-99991" not in proc.stdout:
                 print("自测失败：阻断输出没有包含虚构漏洞编号", file=sys.stderr)
                 return 1
-            if name == "unfixed.json" and "UNFIXED" not in proc.stdout:
-                print("自测失败：未修复漏洞没有被标明", file=sys.stderr)
-                return 1
+            if name == "unfixed.json":
+                if "UNFIXED" not in proc.stdout or "不是无高危" not in proc.stdout:
+                    print("自测失败：未修复漏洞没有被完整标明为仍是高危", file=sys.stderr)
+                    return 1
+                archived = Path(str(path) + ".unfixed.txt").read_text(encoding="utf-8")
+                if "CVE-2099-99992" not in archived or "不是无高危" not in archived:
+                    print("自测失败：未修复漏洞没有归档", file=sys.stderr)
+                    return 1
     print("Trivy 门禁自测通过：虚构高危会失败，干净报告和未修复报告按规则处理")
     return 0
 

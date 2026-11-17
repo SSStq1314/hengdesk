@@ -3,17 +3,4 @@ title = "hengdesk"
 [extend]
 useDefault = true
 
-# 这些路径里的命中是测试夹具或 Atlas 校验和，不是凭据。
-# 不按漏洞豁免处理，也没有复查期限。真实密钥仍然会在其他路径被阻断。
-[[allowlists]]
-description = "单元测试里的虚构指纹和测试用上游密钥"
-paths = [
-  '''server/internal/api/masterkey_test\.go''',
-  '''server/internal/gateway/gateway_test\.go''',
-]
-
-[[allowlists]]
-description = "Atlas 迁移校验和"
-paths = [
-  '''server/internal/store/migrations/atlas\.sum''',
-]
+# 不在这里按路径放行。历史误报的精确指纹在 .gitleaksignore，只对应引入提交上的那一条规则。

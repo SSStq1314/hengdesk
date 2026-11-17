@@ -520,6 +520,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: 下载或校验失败必须阻断
+        run: bash .github/scripts/install-pinned-scanners.sh --self-test
       - name: 安装固定版本的 gitleaks 与 trivy
         run: bash .github/scripts/install-pinned-scanners.sh /tmp/hd-scanners
       - name: 秘密扫描门禁（虚构样本必须失败，仓库必须通过）
