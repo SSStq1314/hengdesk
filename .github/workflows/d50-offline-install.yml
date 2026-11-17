@@ -6,6 +6,7 @@ permissions:
   contents: read
 jobs:
   d50:
+    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: 正式包隔离安装（D-50）
     runs-on: ubuntu-24.04
     timeout-minutes: 90

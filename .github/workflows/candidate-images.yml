@@ -3,6 +3,7 @@
 # 成功也不等于发布授权。备份恢复、升级回退、S3 和 D-50 不在本作业里。
 name: 候选镜像构建扫描
 on:
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read

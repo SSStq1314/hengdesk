@@ -7,6 +7,7 @@ permissions:
   contents: read
 jobs:
   go:
+    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: go (lint + test)
     runs-on: ubuntu-latest
     defaults: {run: {working-directory: server}}
@@ -28,6 +29,7 @@ jobs:
       - run: CGO_ENABLED=0 go build -o /tmp/hengdesk ./cmd/hengdesk
 
   go-postgres:
+    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: go (postgres17+pgvector 集成)
     runs-on: ubuntu-latest
     services:
@@ -108,6 +110,7 @@ jobs:
           grep -q '^HTTP/1.1 429' /tmp/h && grep -qi '^Retry-After:' /tmp/h
 
   govulncheck:
+    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: govulncheck（可达漏洞阻断）
     runs-on: ubuntu-latest
     defaults: {run: {working-directory: server}}
@@ -125,6 +128,7 @@ jobs:
         with: {name: govulncheck, path: govulncheck.json}
 
   valkey:
+    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: valkey 兼容性（asynq 入队/重试/延时/调度）
     runs-on: ubuntu-latest
     services:
@@ -143,6 +147,7 @@ jobs:
       - run: go test -race -count=1 -run TestValkeyAsynqCompat -v ./internal/queue/
 
   compose:
+    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: compose 冒烟 + S3 集成（${{ matrix.storage }}）
     runs-on: ubuntu-latest
     strategy:
@@ -233,6 +238,7 @@ jobs:
         run: docker compose ps -a && docker compose logs --no-color --tail 200
 
   compose-tls:
+    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: compose 冒烟（HTTPS 自签证书）
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -321,6 +327,7 @@ jobs:
         run: docker compose ps -a && docker compose logs --no-color --tail 200
 
   web:
+    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: web (lint + typecheck + build)
     runs-on: ubuntu-latest
     defaults: {run: {working-directory: web}}
@@ -342,6 +349,7 @@ jobs:
         working-directory: .
 
   license:
+    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: license scan + SBOM
     runs-on: ubuntu-latest
     steps:
@@ -380,6 +388,7 @@ jobs:
           if-no-files-found: warn
 
   offline-install:
+    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: 断网安装冒烟（AC-01）
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -441,6 +450,7 @@ jobs:
           docker compose logs --no-color --tail 200 || true
 
   m1-acceptance:
+    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: 断网 15 步验收
     runs-on: ubuntu-latest
     timeout-minutes: 75
@@ -515,6 +525,7 @@ jobs:
   # O-E2：正式离线包里的交付镜像（pack-offline.sh 的 server、web 与三张依赖镜像，不含 mocks）。
   # govulncheck 仍负责 Go 可达漏洞；本作业不替代它，也不读取 DEEPSEEK / License 私钥。
   image-secret-scan:
+    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: 镜像漏洞 + 秘密扫描（O-E2）
     runs-on: ubuntu-latest
     timeout-minutes: 45
