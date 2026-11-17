@@ -54,6 +54,14 @@ if [ "$pg_state" = need-restore ]; then
   fi
   docker compose exec -T postgres rm -f /backups/hengdesk-pg-migrate-pending
 fi
+echo "==> 启动数据库、缓存和对象存储，迁移要连它们"
+docker compose up -d postgres valkey
+if docker compose config --services | grep -qx seaweedfs; then
+  docker compose up -d seaweedfs
+fi
+if docker compose config --services | grep -qx minio; then
+  docker compose up -d minio
+fi
 echo "==> 执行迁移（有待执行迁移时先自动备份）"
 if ! docker compose run --rm migrate; then
   echo "升级失败：若为备份失败，数据库未做任何改动。可执行 docker compose up -d 继续使用当前版本。" >&2

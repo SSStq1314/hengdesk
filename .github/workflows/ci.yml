@@ -281,7 +281,9 @@ jobs:
           grep -q '^HENGDESK_COOKIE_SECURE=true' .env
       - name: docker compose up
         working-directory: deploy
-        run: docker compose up -d --build
+        run: |
+          docker compose up -d --build
+          ./check-web-nginx.sh
       - name: HTTPS 登录、Secure cookie、80/8080 跳转、后台识别 HTTPS
         run: |
           for i in $(seq 1 90); do curl -fsS --cacert /tmp/ci.crt https://localhost/healthz && break; sleep 2; done
