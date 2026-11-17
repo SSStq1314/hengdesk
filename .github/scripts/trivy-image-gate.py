@@ -127,7 +127,12 @@ def aggregate(directory, strict=False):
     if not root.is_dir():
         print(f"报告目录不存在：{directory}", file=sys.stderr)
         return 1
-    reports = sorted(p for p in root.glob("*.json") if p.name != "trivy-version.json" and p.name != "images.json")
+    # SPDX SBOM 不是漏洞报告，没有 Results。把它算进门禁会把已经扫干净的作业打成失败。
+    reports = sorted(
+        p
+        for p in root.glob("*.json")
+        if p.name not in {"trivy-version.json", "images.json"} and not p.name.endswith(".spdx.json")
+    )
     errors = root / "errors.txt"
     lines = []
     failed = False
@@ -275,6 +280,22 @@ def self_test():
         if loose.returncode != 0 or tight.returncode == 0 or "不能标为通过" not in tight.stdout:
             print("自测失败：严格模式没有阻断无修复高危", file=sys.stderr)
             print(loose.returncode, tight.returncode, tight.stdout, file=sys.stderr)
+            return 1
+        with_sbom = Path(tmp) / "with-sbom"
+        with_sbom.mkdir()
+        (with_sbom / "clean.json").write_text((Path(tmp) / "clean.json").read_text(encoding="utf-8"), encoding="utf-8")
+        (with_sbom / "hengdesk-postgres.spdx.json").write_text(
+            json.dumps({"spdxVersion": "SPDX-2.3", "name": "hengdesk/postgres:candidate", "packages": []}),
+            encoding="utf-8",
+        )
+        sbom_proc = subprocess.run(
+            [sys.executable, script, "--strict-aggregate", str(with_sbom)],
+            capture_output=True,
+            text=True,
+        )
+        if sbom_proc.returncode != 0 or "报告缺少 Results" in sbom_proc.stdout:
+            print("自测失败：SPDX SBOM 被当成漏洞报告", file=sys.stderr)
+            print(sbom_proc.returncode, sbom_proc.stdout, sbom_proc.stderr, file=sys.stderr)
             return 1
     print("Trivy 门禁自测通过：单报告失败关闭，聚合时阻断后仍收集其余报告，严格模式不放行 UNFIXED")
     return 0

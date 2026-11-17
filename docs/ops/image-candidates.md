@@ -10,7 +10,7 @@
 |---|---|---|---|
 | PostgreSQL 17 + pgvector 0.8.7 | `pgvector/pgvector:0.8.7-pg17` | 自有镜像 `hengdesk/postgres` | 官方 bookworm / trixie / `postgres:17-alpine` 都不能让 HIGH/CRITICAL 为 0。阻塞来自 `usr/local/bin/gosu` 的 Go 1.24.6，bookworm 另有一批 Debian 无修复高危 |
 | SeaweedFS | `chrislusf/seaweedfs:4.52` | 官方 `4.54` | 候选扫描 HIGH/CRITICAL 为 0。许可证仍是 Apache-2.0。S3、升级和 D-50 还没跑 |
-| Web | `nginx:1.28-alpine` 加构建 | 卸掉 nginx.org 钉死的 `nginx=1.28.3-r1`，改用 Alpine 3.23 的 `nginx>=1.28.3-r6` | 2026-11-17 19:32（Asia/Shanghai）那次产物仍是 r1。`apk upgrade` 升了 curl、libxml2，但没动 world 里的 nginx.org 钉。还没重扫 |
+| Web | `nginx:1.28-alpine` 加构建 | Alpine 3.23 的 nginx `1.28.3-r7`，来自 `dl-cdn.alpinelinux.org` | 2026-11-17 20:04 的产物已是 r7。漏洞报告里没有 HIGH/CRITICAL。作业本身仍因 SBOM 被误判而失败 |
 | Valkey | `valkey/valkey:8.1.11-alpine` | 不变 | 候选扫描没有 HIGH/CRITICAL |
 | server | 本仓库 `server/Dockerfile` | 同一 Dockerfile，含 go-jose v4.1.9 | 上一轮 CI 产物没有 HIGH/CRITICAL。以本次候选作业的 digest 为准 |
 
@@ -45,6 +45,18 @@ bash deploy/images/postgres-pgvector/verify.sh hengdesk/postgres:candidate
 2026-11-17 19:32（Asia/Shanghai）的作业 `44074473122`（提交 `ae8eb99`，Trivy 0.76.2，漏洞库版本 2，库更新于 2026-11-17 14:59 Asia/Shanghai）没有通过。Postgres 镜像没建出来：`make install` 要 `/usr/lib/llvm21/bin/llvm-lto`，当时只装了 clang21。Web 产物 `sha256:0108b7ad3841959e76e54ff5c5d6053606cb5cd9f54ea59c4030abc8e9321c0e` 仍是 nginx `1.28.3-r1`，5 个 HIGH 都有修复版本（最高修到 `1.28.3-r6`）。同一次里下面三张没有 HIGH/CRITICAL：server `sha256:b55968c6273d0234e9bdfab264d2a2dd4835127fe7879406f1b23fffa3527bca`，Valkey `sha256:2602ace2be6569bc2bbb06f873776516ab9089821525be34f4305c67eb9db02a`，SeaweedFS 4.54 `sha256:4b42c212543a0acd4c0e675215ecdcaf62a186ef98def76c7e12701871222d15`。这三张为零不表示五张都过了，也不表示可以发布。
 
 2026-11-17 19:58 的作业 `44078398949`（提交 `c0d3a81`）仍然没有通过。llvm-lto 已经跑完，pgvector 装上了，最后一步对 `apk info -v` 的文本格式核对失败，镜像没留下。Web 已经装上 Alpine 的 nginx `1.28.3-r7`，构建期的 `nginx -t` 因为 `proxy_pass` 里的主机名 `server` 在构建环境里不存在而失败。这不是漏洞扫描结果。
+
+2026-11-17 20:04（Asia/Shanghai）的作业 `44079201899`（提交 `e00389f`，Trivy 0.76.2，漏洞库版本 2，库更新于 2026-11-17 14:59，本次下载于 20:04）把五张镜像都扫完了。每份漏洞报告的 HIGH/CRITICAL 都是 0，gosu 的 `go version -m` 是 `go1.26.11`，构建包是 `build-base-0.5-r4`、`clang21-21.1.8-r3`、`llvm21-21.1.8-r1`，nginx 是 `1.28.3-r7`。构建并验证 gosu 的那一步通过了。作业最后仍失败：聚合把 `hengdesk-postgres.spdx.json` 当成漏洞报告，它没有 `Results`。Trivy 的 SBOM 名字是 `hengdesk/postgres:candidate`，能看到 `/usr/local/bin/gosu`，许可证是 `NOASSERTION`，没有 `vector.so`。这次的镜像 ID：
+
+| 镜像 | CI 上的镜像 ID |
+|---|---|
+| `hengdesk/postgres:candidate` | `sha256:51370afe1f89642ac54c5f1749a34f8bf51ea416b4ced0bbd7235be077387198` |
+| `hengdesk/server:candidate` | `sha256:3f0075f2e05e2de3a167ce3b694ffab845e40c52826cfac078cb4fca24f4a1ae` |
+| `hengdesk/web:candidate` | `sha256:b9cfa4845a13453a67892b15bbfddd1734f69b7c1d877469793cf939b7f589a0` |
+| `valkey/valkey:8.1.11-alpine` | `sha256:2602ace2be6569bc2bbb06f873776516ab9089821525be34f4305c67eb9db02a` |
+| `chrislusf/seaweedfs:4.54` | `sha256:4b42c212543a0acd4c0e675215ecdcaf62a186ef98def76c7e12701871222d15` |
+
+前三张是构建机上的本地镜像 ID，没有推到仓库。Valkey 和 SeaweedFS 是拉取后的镜像 ID。这五份报告为零还不等于作业通过，也不等于可以跑备份恢复或 D-50。SeaweedFS 的兼容回归仍未做。
 
 ```bash
 gh workflow run candidate-images.yml --ref <分支>

@@ -17,7 +17,9 @@ jobs:
       - name: 安装固定版本的 trivy
         run: bash .github/scripts/install-pinned-scanners.sh /tmp/hd-scanners
       - name: 门禁自测
-        run: python3 .github/scripts/trivy-image-gate.py --self-test
+        run: |
+          python3 .github/scripts/trivy-image-gate.py --self-test
+          python3 .github/scripts/annotate-postgres-sbom.py --self-test
       - name: 构建自有 postgres 镜像并验证 gosu
         run: |
           set -euo pipefail
@@ -76,6 +78,7 @@ jobs:
             python3 .github/scripts/trivy-image-gate.py "/tmp/candidate-reports/${safe}.json" || note_error "gate $img"
           done
           trivy image --format spdx-json --output /tmp/candidate-reports/hengdesk-postgres.spdx.json hengdesk/postgres:candidate || note_error "sbom postgres"
+          python3 .github/scripts/annotate-postgres-sbom.py /tmp/candidate-reports/hengdesk-postgres.spdx.json || note_error "annotate sbom"
           trivy version -f json > /tmp/candidate-reports/trivy-version.json || note_error "trivy version"
           python3 .github/scripts/trivy-image-gate.py --write-index /tmp/candidate-reports "${images[@]}" || note_error "image index"
           python3 .github/scripts/trivy-image-gate.py --strict-aggregate /tmp/candidate-reports
