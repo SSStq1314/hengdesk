@@ -29,7 +29,7 @@
 
 ## A. 正式包干净安装（AC-01 / D-46）
 
-这是 M1 验收必须留下记录的一项。真机界面演示曾因执行环境没有 Docker，改成二进制部署，**没有覆盖本项**；请在干净、断网的 x86 机器上重做并归档（见 `docs/demo/offline-clean-install.md`）。
+这是 M1 验收必须留下记录的一项。真机界面演示曾因执行环境没有 Docker，改成二进制部署，没有覆盖本项。D-50 已在 GitHub 托管 ubuntu-24.04 x86_64 云 VM 上用默认正式包留下 `result=pass`（见 `docs/demo/offline-clean-install.md` 与 `docs/progress/m1-block8.md`）。该记录覆盖这台云 VM。物理机和客户现场不在其中。容器 IPv6 在该证据里是内核不可达，`HD_DOCK6` 没有计数。下面仍是在目标机上安装的步骤。
 
 ```bash
 tar -xzf hengdesk-offline-<版本>-amd64.tar.gz
