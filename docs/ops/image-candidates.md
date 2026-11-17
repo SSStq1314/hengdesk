@@ -2,17 +2,17 @@
 
 这是候选构建记录，不是安全通过，也不是发布授权。`deploy/docker-compose.yml` 和 `deploy/pack-offline.sh` 仍使用原来的官方标签。#82 不因本文件合并。
 
-五张镜像的 HIGH/CRITICAL（包括没有修复版本的）在同一次 Trivy 扫描里都是 0 之前，不跑备份恢复、旧包升级、失败回退、S3 兼容或 D-50。没有无修复高危的风险接受，也不设全面忽略。
+作业 `44080277690` 里五张镜像的 HIGH/CRITICAL（包括没有修复版本的）都是 0。这仍不是发布授权。`deploy/docker-compose.yml` 和离线包清单还没改，所以备份恢复、旧包升级、失败回退、S3 兼容和 D-50 还没跑。没有无修复高危的风险接受，也不设全面忽略。
 
 ## 当前钉住的上游
 
 | 用途 | 现用标签 | 候选 | 状态 |
 |---|---|---|---|
-| PostgreSQL 17 + pgvector 0.8.7 | `pgvector/pgvector:0.8.7-pg17` | 自有镜像 `hengdesk/postgres` | 官方 bookworm / trixie / `postgres:17-alpine` 都不能让 HIGH/CRITICAL 为 0。阻塞来自 `usr/local/bin/gosu` 的 Go 1.24.6，bookworm 另有一批 Debian 无修复高危 |
-| SeaweedFS | `chrislusf/seaweedfs:4.52` | 官方 `4.54` | 候选扫描 HIGH/CRITICAL 为 0。许可证仍是 Apache-2.0。S3、升级和 D-50 还没跑 |
-| Web | `nginx:1.28-alpine` 加构建 | Alpine 3.23 的 nginx `1.28.3-r7`，来自 `dl-cdn.alpinelinux.org` | 2026-11-17 20:04 的产物已是 r7。漏洞报告里没有 HIGH/CRITICAL。作业本身仍因 SBOM 被误判而失败 |
-| Valkey | `valkey/valkey:8.1.11-alpine` | 不变 | 候选扫描没有 HIGH/CRITICAL |
-| server | 本仓库 `server/Dockerfile` | 同一 Dockerfile，含 go-jose v4.1.9 | 上一轮 CI 产物没有 HIGH/CRITICAL。以本次候选作业的 digest 为准 |
+| PostgreSQL 17 + pgvector 0.8.7 | `pgvector/pgvector:0.8.7-pg17` | 自有镜像 `hengdesk/postgres` | 作业 `44080277690` 的漏洞报告没有 HIGH/CRITICAL。gosu 降权、数据目录权限、vector 0.8.7 和 SIGTERM 已在同一步通过 |
+| SeaweedFS | `chrislusf/seaweedfs:4.52` | 官方 `4.54` | 同一次扫描没有 HIGH/CRITICAL。许可证仍是 Apache-2.0。S3、升级和 D-50 还没跑 |
+| Web | `nginx:1.28-alpine` 加构建 | Alpine 3.23 的 nginx `1.28.3-r7`，来自 `dl-cdn.alpinelinux.org` | 同一次扫描没有 HIGH/CRITICAL |
+| Valkey | `valkey/valkey:8.1.11-alpine` | 不变 | 同一次扫描没有 HIGH/CRITICAL |
+| server | 本仓库 `server/Dockerfile` | 同一 Dockerfile，含 go-jose v4.1.9 | 同一次扫描没有 HIGH/CRITICAL |
 
 ## 自有 Postgres 镜像
 
@@ -56,7 +56,19 @@ bash deploy/images/postgres-pgvector/verify.sh hengdesk/postgres:candidate
 | `valkey/valkey:8.1.11-alpine` | `sha256:2602ace2be6569bc2bbb06f873776516ab9089821525be34f4305c67eb9db02a` |
 | `chrislusf/seaweedfs:4.54` | `sha256:4b42c212543a0acd4c0e675215ecdcaf62a186ef98def76c7e12701871222d15` |
 
-前三张是构建机上的本地镜像 ID，没有推到仓库。Valkey 和 SeaweedFS 是拉取后的镜像 ID。这五份报告为零还不等于作业通过，也不等于可以跑备份恢复或 D-50。SeaweedFS 的兼容回归仍未做。
+前三张是构建机上的本地镜像 ID，没有推到仓库。Valkey 和 SeaweedFS 是拉取后的镜像 ID。那次作业失败只是因为 SPDX 被当成漏洞报告。
+
+2026-11-17 20:10（Asia/Shanghai）的作业 `44080277690`（提交 `e08473e`，Trivy 0.76.2，漏洞库版本 2，库更新于 2026-11-17 14:59，本次下载于 20:10）严格聚合通过：`BLOCK 0`、`UNFIXED 0`、`SCAN_ERROR 0`。同一条日志里 gosu 验证是 `postgres uid=70`、`PGDATA owner=postgres mode=700`、`signal_forward_exit=0`、`verify_ok`，并且 `go version -m` 为 `go1.26.11`。构建包仍是 `build-base-0.5-r4`、`clang21-21.1.8-r3`、`llvm21-21.1.8-r1`。nginx 仍是 `1.28.3-r7`。SBOM 名字是 `hengdesk/postgres:candidate`；`/usr/local/bin/gosu` 和 `github.com/tianon/gosu` 记为 Apache-2.0，`usr/local/lib/postgresql/vector.so` 记为 0.8.7、PostgreSQL。这两条许可证来自镜像内的许可证文件，不是 Trivy 从包库推断的。这次的镜像 ID：
+
+| 镜像 | CI 上的镜像 ID |
+|---|---|
+| `hengdesk/postgres:candidate` | `sha256:954f19adbc921556e971ec658e78bee167b96a9dcd942c90594c806ba6ff7f5a` |
+| `hengdesk/server:candidate` | `sha256:4c9915eb16b758454104fd2d8cbab9a7df939c3cf73759d94a48a14000920721` |
+| `hengdesk/web:candidate` | `sha256:e04208c5aff6dc940f7802349a4c5ffbc808be654b39046a7b32247dabcf8067` |
+| `valkey/valkey:8.1.11-alpine` | `sha256:2602ace2be6569bc2bbb06f873776516ab9089821525be34f4305c67eb9db02a` |
+| `chrislusf/seaweedfs:4.54` | `sha256:4b42c212543a0acd4c0e675215ecdcaf62a186ef98def76c7e12701871222d15` |
+
+这条分支上的完整 CI、D-50 和 vLLM 仍是跳过。SeaweedFS 的兼容回归仍未做。镜像没有推到仓库。这不是发布授权。
 
 ```bash
 gh workflow run candidate-images.yml --ref <分支>
@@ -69,5 +81,5 @@ gh workflow run candidate-images.yml --ref <分支>
 ## 后续补丁
 
 1. 更换基础 digest、gosu 标签或 pgvector 标签时，同时更换校验和，并重新跑本作业。
-2. 五张候选的 HIGH/CRITICAL 都是 0 之后，才把标签写入 compose 和 `pack-offline.sh`，然后跑备份恢复、旧包升级、失败回退、S3 和 D-50。
-3. 扫描没有全部为 0 时，保持 #82 不合并，按 CVE、路径和修复版本报告，不新增豁免。
+2. 作业 `44080277690` 已经是 0。标签仍不写入 compose 和 `pack-offline.sh`。备份恢复、旧包升级、失败回退、S3 和 D-50 等审阅之后再跑。
+3. #82 先不合并。这次候选作业通过不是发布授权，也不新增豁免。
