@@ -20,15 +20,17 @@ jobs:
           uname -m | grep -qx x86_64
           sudo apt-get update -y
           sudo apt-get install -y libcap2-bin
+          bash .github/scripts/install-pinned-scanners.sh /tmp/hd-scanners
           VER="d50-${GITHUB_SHA::12}"
-          ./deploy/pack-offline.sh --version "$VER" --out /tmp/hd-d50
+          PATH="/tmp/hd-scanners:$PATH" HENGDESK_STRICT_SCAN=1 \
+            ./deploy/pack-offline.sh --version "$VER" --out /tmp/hd-d50
           test -f "/tmp/hd-d50/hengdesk-offline-${VER}-amd64.tar.gz"
           test ! -e /tmp/hd-d50/hengdesk-offline-${VER}-amd64-acceptance.tar.gz
           if tar -tzf "/tmp/hd-d50/hengdesk-offline-${VER}-amd64.tar.gz" | grep -q hengdesk-mocks; then
             echo "默认正式包不应包含 mocks 镜像" >&2
             exit 1
           fi
-          sha256sum "/tmp/hd-d50/hengdesk-offline-${VER}-amd64.tar.gz"
+          sha256sum "/tmp/hd-d50/hengdesk-offline-${VER}-amd64.tar.gz" | tee /tmp/hd-d50/package.sha256
           echo "准备阶段结束。隔离与安装由下一步执行，且不得再构建或拉取。"
       - name: 隔离后加载正式包并验收
         run: |
@@ -59,4 +61,6 @@ jobs:
             /tmp/d50-evidence
             /tmp/d50-evidence.tar.gz
             /tmp/d50-archive.sha256
+            /tmp/hd-d50/package.sha256
+            /tmp/hd-d50/image-scan-*
           if-no-files-found: warn

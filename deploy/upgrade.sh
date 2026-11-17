@@ -29,11 +29,42 @@ if [ -r secrets/master.key ]; then
   fi
   unset K
 fi
-if [ "${1:-}" = "--build" ]; then docker compose build migrate; fi
-echo "==> 停止 server / worker（停写，保证备份一致）"
-docker compose stop server worker
+if [ "${1:-}" = "--build" ]; then docker compose build migrate postgres; fi
+echo "==> 停止 server / worker / web（停写，保证备份一致）"
+docker compose stop server worker web postgres || true
+echo "==> 检查 PostgreSQL 数据目录是否来自旧的 Debian 镜像"
+# 日志在标准错误。标准输出只有 ok 或 need-restore。失败演练会以 86 退出，不在这里吞掉。
+pg_state=$(./pg-volume-migrate.sh)
+echo "==> PostgreSQL 数据目录：$pg_state"
+if [ "$pg_state" = need-restore ]; then
+  set -a; . ./.env; set +a
+  U="${POSTGRES_USER:-hengdesk}"; D="${POSTGRES_DB:-hengdesk}"
+  echo "==> 新镜像初始化空数据目录，再导入逻辑备份"
+  docker compose up -d postgres
+  ready=0
+  deadline=$((SECONDS + 120))
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    if timeout 10 docker compose exec -T postgres pg_isready -U "$U" >/dev/null 2>&1; then ready=1; break; fi
+    sleep 2
+  done
+  [ "$ready" = 1 ] || { echo "新库在 120s 内未就绪，保留的 Debian 目录仍在 hengdesk_pgdata_debian_kept" >&2; docker compose logs --no-color --tail 80 postgres >&2 || true; exit 1; }
+  if ! timeout 180 docker compose exec -T postgres pg_restore -U "$U" -d "$D" --no-owner --exit-on-error /backups/hengdesk-pre-alpine-pgdata.dump; then
+    echo "导入失败。把保留的 Debian 数据目录拷回，不在 Alpine 上启动它。" >&2
+    ./pg-volume-migrate.sh --rollback
+    exit 1
+  fi
+  docker compose exec -T postgres rm -f /backups/hengdesk-pg-migrate-pending
+fi
+echo "==> 启动数据库、缓存和对象存储，迁移要连它们"
+docker compose up -d postgres valkey
+if docker compose config --services | grep -qx seaweedfs; then
+  docker compose up -d seaweedfs
+fi
+if docker compose config --services | grep -qx minio; then
+  docker compose up -d minio
+fi
 echo "==> 执行迁移（有待执行迁移时先自动备份）"
-if ! docker compose run --rm migrate; then
+if ! timeout 300 docker compose run --rm migrate; then
   echo "升级失败：若为备份失败，数据库未做任何改动。可执行 docker compose up -d 继续使用当前版本。" >&2
   exit 1
 fi

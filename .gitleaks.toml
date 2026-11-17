@@ -1,0 +1,6 @@
+title = "hengdesk"
+
+[extend]
+useDefault = true
+
+# 不在这里按路径放行。历史误报的精确指纹在 .gitleaksignore，只对应引入提交上的那一条规则。
