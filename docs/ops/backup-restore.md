@@ -11,6 +11,17 @@
 - M0 预览版（由 ent 自动建表、没有迁移记录）的库不支持原地升级。migrate 会报错退出，需要备份后重新安装。
 - 数据库版本比程序新时（即降级运行），以及已执行的迁移文件内容被改动时，migrate 都会拒绝执行。
 
+## 从 Debian pgvector 换到自有 Alpine 镜像
+
+`pgvector/pgvector:0.8.7-pg17` 的数据目录由 Debian glibc 初始化。`hengdesk/postgres` 是 Alpine。两套 libc 和 locale 不能共用同一个数据目录，升级脚本发现没有 `hengdesk-image` 标记时：
+
+1. 只用旧镜像把库 `pg_dump -Fc` 到 `/backups/hengdesk-pre-alpine-pgdata.dump`。
+2. 把原目录复制到卷 `hengdesk_pgdata_debian_kept`。
+3. 清空原卷，让新镜像在空目录上初始化，再 `pg_restore`。
+4. 导入失败时，把保留的旧目录拷回。不要用 `hengdesk/postgres` 打开这份旧目录。
+
+回退是这份 dump 的 `pg_restore`，或者在导入完成前使用保留的旧目录和旧镜像。没有向下的 schema migration。`HENGDESK_PG_MIGRATE_FAIL=after-dump` 会在清空目录之前停下，用来演练失败。
+
 ## 升级
 ```bash
 cd deploy

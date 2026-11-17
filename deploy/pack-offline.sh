@@ -29,17 +29,18 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE/deploy" "$STAGE/images"
 echo "$VERSION" > "$STAGE/VERSION"
 
-# 构建应用镜像
-echo "==> build hengdesk/server:$VERSION / hengdesk/web:$VERSION"
+# 构建应用镜像。postgres 与 server、web 一样在本机打出，不拉取 pgvector/pgvector。
+echo "==> build hengdesk/postgres:$VERSION / hengdesk/server:$VERSION / hengdesk/web:$VERSION"
 # 关闭 buildx 默认 attestation。带 provenance 的索引镜像在 Docker 28 上 docker save 会直接退出 1，且不一定把原因打到日志。
+docker build --provenance=false --sbom=false -t "hengdesk/postgres:$VERSION" "$ROOT/deploy/images/postgres-pgvector"
 docker build --provenance=false --sbom=false -t "hengdesk/server:$VERSION" "$ROOT/server"
 docker build --provenance=false --sbom=false -t "hengdesk/web:$VERSION" "$ROOT/web"
+bash "$ROOT/deploy/images/postgres-pgvector/verify.sh" "hengdesk/postgres:$VERSION"
 
 # 依赖镜像（与 docker-compose.yml 钉死版本一致）
 DEPS=(
-  "pgvector/pgvector:0.8.7-pg17"
   "valkey/valkey:8.1.11-alpine"
-  "chrislusf/seaweedfs:4.52"
+  "chrislusf/seaweedfs:4.54"
 )
 if [ "$WITH_MINIO" = 1 ]; then
   # Chainguard MinIO（可选，AGPL，见 D-28）
@@ -50,6 +51,35 @@ echo "==> pull 依赖镜像"
 for img in "${DEPS[@]}"; do
   docker pull "$img"
 done
+
+PACK_IMAGES=(
+  "hengdesk/postgres:$VERSION"
+  "hengdesk/server:$VERSION"
+  "hengdesk/web:$VERSION"
+  "${DEPS[@]}"
+)
+# 严格扫描只覆盖正式交付的五张。可选的 MinIO 不在这五张里。
+SCAN_IMAGES=(
+  "hengdesk/postgres:$VERSION"
+  "hengdesk/server:$VERSION"
+  "hengdesk/web:$VERSION"
+  "valkey/valkey:8.1.11-alpine"
+  "chrislusf/seaweedfs:4.54"
+)
+mkdir -p "$STAGE/image-scan" "$OUT"
+{
+  echo "# 这些 ID 是即将 docker save 的本地镜像，不是另一次构建。"
+  for img in "${PACK_IMAGES[@]}"; do
+    id=$(docker image inspect --format '{{.Id}}' "$img")
+    printf '%s %s\n' "$img" "$id"
+  done
+} | tee "$STAGE/image-scan/ids.txt"
+if [ "${HENGDESK_STRICT_SCAN:-}" = 1 ]; then
+  echo "==> 严格扫描即将打入离线包的镜像"
+  bash "$ROOT/.github/scripts/scan-built-images.sh" "$STAGE/image-scan" "${SCAN_IMAGES[@]}"
+  rm -rf "$OUT/image-scan-$VERSION"
+  cp -a "$STAGE/image-scan" "$OUT/image-scan-$VERSION"
+fi
 
 echo "==> docker save"
 save_one() {
@@ -71,6 +101,7 @@ save_one() {
   fi
   ls -lh "$out"
 }
+save_one "$STAGE/images/hengdesk-postgres.tar" "hengdesk/postgres:$VERSION"
 save_one "$STAGE/images/hengdesk-server.tar" "hengdesk/server:$VERSION"
 save_one "$STAGE/images/hengdesk-web.tar" "hengdesk/web:$VERSION"
 # 依赖镜像分开保存。install.sh 会 load images/*.tar，不要求打成一个包。

@@ -46,7 +46,9 @@ x-hengdesk-env: &hd-env
 
 services:
   postgres:
-    image: pgvector/pgvector:0.8.7-pg17
+    # 自有镜像。离线包由 pack-offline.sh 构建后 load，不拉取 pgvector/pgvector。
+    build: {context: ./images/postgres-pgvector}
+    image: hengdesk/postgres:${HENGDESK_VERSION:-dev}
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-hengdesk}
@@ -71,7 +73,7 @@ services:
       retries: 40
 
   seaweedfs:
-    image: chrislusf/seaweedfs:4.52
+    image: chrislusf/seaweedfs:4.54
     restart: unless-stopped
     environment:
       S3_AK: ${HENGDESK_S3_ACCESS_KEY}

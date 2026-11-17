@@ -2,7 +2,7 @@
 
 这是候选构建记录，不是安全通过，也不是发布授权。`deploy/docker-compose.yml` 和 `deploy/pack-offline.sh` 仍使用原来的官方标签。#82 不因本文件合并。
 
-作业 `44080277690` 里五张镜像的 HIGH/CRITICAL（包括没有修复版本的）都是 0。这仍不是发布授权。`deploy/docker-compose.yml` 和离线包清单还没改，所以备份恢复、旧包升级、失败回退、S3 兼容和 D-50 还没跑。没有无修复高危的风险接受，也不设全面忽略。
+作业 `44080277690` 里五张候选镜像的 HIGH/CRITICAL 都是 0。那次 ID 不能用来代表后来重新构建的离线包。正式包由 `pack-offline.sh` 在保存前对即将 `docker save` 的标签再扫一遍，结果写在包内 `image-scan/`。这仍不是发布授权，也不是用户验收。没有无修复高危的风险接受，也不设全面忽略。
 
 ## 当前钉住的上游
 
@@ -76,10 +76,10 @@ gh workflow run candidate-images.yml --ref <分支>
 
 ## 回退
 
-默认 compose 和离线包清单还没改。回退就是继续使用 `pgvector/pgvector:0.8.7-pg17` 和 `chrislusf/seaweedfs:4.52`。不要把候选标签写进已发布的离线包。
+compose 和 `pack-offline.sh` 现在构建 `hengdesk/postgres:<版本>`，拉取 `chrislusf/seaweedfs:4.54`，web 仍由本仓库 Dockerfile 构建。回退应用包是改回 `pgvector/pgvector:0.8.7-pg17` 与 `chrislusf/seaweedfs:4.52`，数据库用升级前的 dump 恢复。不要把 Alpine 初始化的数据目录挂回 Debian 镜像，也不要反过来。
 
 ## 后续补丁
 
 1. 更换基础 digest、gosu 标签或 pgvector 标签时，同时更换校验和，并重新跑本作业。
-2. 作业 `44080277690` 已经是 0。标签仍不写入 compose 和 `pack-offline.sh`。备份恢复、旧包升级、失败回退、S3 和 D-50 等审阅之后再跑。
-3. #82 先不合并。这次候选作业通过不是发布授权，也不新增豁免。
+2. 更换 SeaweedFS 小版本时同时改 compose 和 `pack-offline.sh`，并在同一次打包里重新扫描。
+3. #82 与 #83 都先不合并。候选扫描通过不是发布授权，也不新增豁免。

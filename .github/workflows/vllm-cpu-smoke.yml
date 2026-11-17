@@ -6,7 +6,6 @@ permissions:
   contents: read
 jobs:
   vllm-cpu-smoke:
-    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: vLLM CPU 小模型协议冒烟
     runs-on: ubuntu-24.04
     timeout-minutes: 120

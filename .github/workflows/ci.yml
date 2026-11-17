@@ -7,7 +7,6 @@ permissions:
   contents: read
 jobs:
   go:
-    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: go (lint + test)
     runs-on: ubuntu-latest
     defaults: {run: {working-directory: server}}
@@ -29,15 +28,9 @@ jobs:
       - run: CGO_ENABLED=0 go build -o /tmp/hengdesk ./cmd/hengdesk
 
   go-postgres:
-    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: go (postgres17+pgvector 集成)
     runs-on: ubuntu-latest
     services:
-      pg:
-        image: pgvector/pgvector:pg17
-        env: {POSTGRES_USER: hengdesk, POSTGRES_PASSWORD: hengdesk, POSTGRES_DB: hengdesk}
-        ports: ['5432:5432']
-        options: --health-cmd "pg_isready -U hengdesk" --health-interval 2s --health-retries 30
       valkey:
         image: valkey/valkey:8-alpine
         ports: ['6379:6379']
@@ -52,6 +45,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with: {go-version: '1.26.11', cache-dependency-path: server/go.sum}
+      - name: 启动本次构建的 hengdesk/postgres
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+          docker build --provenance=false --sbom=false -t hengdesk/postgres:ci-pg deploy/images/postgres-pgvector
+          docker run -d --name hd-ci-pg -p 5432:5432 \
+            -e POSTGRES_USER=hengdesk -e POSTGRES_PASSWORD=hengdesk -e POSTGRES_DB=hengdesk \
+            hengdesk/postgres:ci-pg
+          for i in $(seq 1 60); do docker exec hd-ci-pg pg_isready -U hengdesk && break; sleep 2; done
+          docker exec hd-ci-pg pg_isready -U hengdesk
       - working-directory: server
         run: CGO_ENABLED=0 go build -o /tmp/hengdesk ./cmd/hengdesk
       - name: 迁移目录与 ent schema 一致（Atlas 版本化迁移）
@@ -110,7 +114,6 @@ jobs:
           grep -q '^HTTP/1.1 429' /tmp/h && grep -qi '^Retry-After:' /tmp/h
 
   govulncheck:
-    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: govulncheck（可达漏洞阻断）
     runs-on: ubuntu-latest
     defaults: {run: {working-directory: server}}
@@ -128,7 +131,6 @@ jobs:
         with: {name: govulncheck, path: govulncheck.json}
 
   valkey:
-    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: valkey 兼容性（asynq 入队/重试/延时/调度）
     runs-on: ubuntu-latest
     services:
@@ -147,7 +149,6 @@ jobs:
       - run: go test -race -count=1 -run TestValkeyAsynqCompat -v ./internal/queue/
 
   compose:
-    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: compose 冒烟 + S3 集成（${{ matrix.storage }}）
     runs-on: ubuntu-latest
     strategy:
@@ -171,6 +172,20 @@ jobs:
         run: |
           for i in $(seq 1 90); do curl -fsS localhost:8080/healthz && break; sleep 2; done
           curl -fsS localhost:8080/healthz
+      - name: nginx 配置在 compose 网络里可解析
+        working-directory: deploy
+        run: ./check-web-nginx.sh
+      - name: 新库初始化后检查 gosu 降权、数据目录和 vector
+        working-directory: deploy
+        run: |
+          set -euo pipefail
+          uid=$(docker compose exec -T postgres gosu postgres id -u | tr -d '\r')
+          [ "$uid" != 0 ] && [ -n "$uid" ]
+          owner=$(docker compose exec -T postgres stat -c '%U' /var/lib/postgresql/data | tr -d '\r')
+          [ "$owner" = postgres ]
+          docker compose exec -T postgres test -s /var/lib/postgresql/data/hengdesk-image
+          docker compose exec -T postgres psql -U hengdesk -d hengdesk -tAc \
+            "SELECT extversion FROM pg_extension WHERE extname='vector'" | tr -d '[:space:]' | grep -qx 0.8.7
       - name: 首页 200 + 登录成功
         run: |
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/)" = 200
@@ -238,7 +253,6 @@ jobs:
         run: docker compose ps -a && docker compose logs --no-color --tail 200
 
   compose-tls:
-    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: compose 冒烟（HTTPS 自签证书）
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -327,7 +341,6 @@ jobs:
         run: docker compose ps -a && docker compose logs --no-color --tail 200
 
   web:
-    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: web (lint + typecheck + build)
     runs-on: ubuntu-latest
     defaults: {run: {working-directory: web}}
@@ -349,7 +362,6 @@ jobs:
         working-directory: .
 
   license:
-    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: license scan + SBOM
     runs-on: ubuntu-latest
     steps:
@@ -388,7 +400,6 @@ jobs:
           if-no-files-found: warn
 
   offline-install:
-    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: 断网安装冒烟（AC-01）
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -409,22 +420,28 @@ jobs:
           docker tag "hengdesk/server:dev" "hengdesk/server:$VERSION"
           docker tag "hengdesk/web:dev" "hengdesk/web:$VERSION"
           # 依赖镜像未必因 compose build 拉取，显式 pull 后再 save
-          docker pull pgvector/pgvector:0.8.7-pg17
+          docker tag "hengdesk/postgres:dev" "hengdesk/postgres:$VERSION"
           docker pull valkey/valkey:8.1.11-alpine
-          docker pull chrislusf/seaweedfs:4.52
+          docker pull chrislusf/seaweedfs:4.54
+          bash ../.github/scripts/install-pinned-scanners.sh /tmp/hd-scanners
+          PATH="/tmp/hd-scanners:$PATH" bash ../.github/scripts/scan-built-images.sh /tmp/hd-off-scan \
+            "hengdesk/postgres:$VERSION" "hengdesk/server:$VERSION" "hengdesk/web:$VERSION" \
+            valkey/valkey:8.1.11-alpine chrislusf/seaweedfs:4.54
           mkdir -p /tmp/hd-off/images /tmp/hd-off/deploy
           echo "$VERSION" > /tmp/hd-off/VERSION
+          docker save -o /tmp/hd-off/images/hengdesk-postgres.tar "hengdesk/postgres:$VERSION"
           docker save -o /tmp/hd-off/images/hengdesk-server.tar "hengdesk/server:$VERSION"
           docker save -o /tmp/hd-off/images/hengdesk-web.tar "hengdesk/web:$VERSION"
           docker save -o /tmp/hd-off/images/deps.tar \
-            pgvector/pgvector:0.8.7-pg17 valkey/valkey:8.1.11-alpine chrislusf/seaweedfs:4.52
+            valkey/valkey:8.1.11-alpine chrislusf/seaweedfs:4.54
           # 干净部署目录（不含旧 .env / volumes）
           cp -a . /tmp/hd-off/deploy/
           rm -f /tmp/hd-off/deploy/.env
           docker compose down --volumes --remove-orphans || true
           # 删除本地镜像，强迫只能从 tar load（模拟离线机）
-          docker rmi "hengdesk/server:$VERSION" "hengdesk/web:$VERSION" "hengdesk/server:dev" "hengdesk/web:dev" \
-            pgvector/pgvector:0.8.7-pg17 valkey/valkey:8.1.11-alpine chrislusf/seaweedfs:4.52 || true
+          docker rmi "hengdesk/postgres:$VERSION" "hengdesk/server:$VERSION" "hengdesk/web:$VERSION" \
+            "hengdesk/postgres:dev" "hengdesk/server:dev" "hengdesk/web:dev" \
+            valkey/valkey:8.1.11-alpine chrislusf/seaweedfs:4.54 || true
       - name: 断网环境 load + install（代理黑洞 + --pull never）
         run: |
           set -euo pipefail
@@ -439,6 +456,7 @@ jobs:
             --storage seaweedfs --admin-password ci-only-password-123 --force --up
           for i in $(seq 1 90); do curl --noproxy '*' -fsS localhost:8080/healthz && break; sleep 2; done
           curl --noproxy '*' -fsS localhost:8080/healthz
+          ./check-web-nginx.sh
           curl --noproxy '*' -fsS -H 'Content-Type: application/json' \
             -d '{"email":"admin@hengdesk.local","password":"ci-only-password-123"}' localhost:8080/api/v1/auth/login >/dev/null
           ./uninstall.sh -y
@@ -450,7 +468,6 @@ jobs:
           docker compose logs --no-color --tail 200 || true
 
   m1-acceptance:
-    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: 断网 15 步验收
     runs-on: ubuntu-latest
     timeout-minutes: 75
@@ -465,13 +482,15 @@ jobs:
       - name: 构建验收离线包（有网）
         run: |
           set -euo pipefail
-          ./deploy/pack-offline.sh --version ci-accept --out /tmp/hd-acc --with-acceptance
+          bash .github/scripts/install-pinned-scanners.sh /tmp/hd-scanners
+          PATH="/tmp/hd-scanners:$PATH" HENGDESK_STRICT_SCAN=1 \
+            ./deploy/pack-offline.sh --version ci-accept --out /tmp/hd-acc --with-acceptance
           docker compose -f deploy/docker-compose.yml down --volumes --remove-orphans || true
           # 删除本地镜像，强迫只能从 tar load（模拟离线机）
           docker rmi \
-            hengdesk/server:ci-accept hengdesk/web:ci-accept hengdesk/mocks:ci-accept \
-            hengdesk/server:dev hengdesk/web:dev \
-            pgvector/pgvector:0.8.7-pg17 valkey/valkey:8.1.11-alpine chrislusf/seaweedfs:4.52 \
+            hengdesk/postgres:ci-accept hengdesk/server:ci-accept hengdesk/web:ci-accept hengdesk/mocks:ci-accept \
+            hengdesk/postgres:dev hengdesk/server:dev hengdesk/web:dev \
+            valkey/valkey:8.1.11-alpine chrislusf/seaweedfs:4.54 \
             || true
       - name: 断网安装并跑完整 15 步（代理黑洞 + --pull never + 出站拦截）
         run: |
@@ -522,10 +541,10 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.acceptance.yml ps -a || true
           docker compose -f docker-compose.yml -f docker-compose.acceptance.yml logs --no-color --tail 300 || true
 
-  # O-E2：正式离线包里的交付镜像（pack-offline.sh 的 server、web 与三张依赖镜像，不含 mocks）。
+  # O-E2：正式离线包里的五张交付镜像。这一步自己构建并严格扫描，ID 只代表这一次构建。
+  # 装进 D-50 包里的是另一次构建，扫描结果写在那个包的 image-scan 里，不能互相顶替。
   # govulncheck 仍负责 Go 可达漏洞；本作业不替代它，也不读取 DEEPSEEK / License 私钥。
   image-secret-scan:
-    if: github.head_ref != 'cursor/m2-image-candidate-cbc5'
     name: 镜像漏洞 + 秘密扫描（O-E2）
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -553,48 +572,24 @@ jobs:
           : > /tmp/trivy-reports/errors.txt
           note_error() { printf 'SCAN_ERROR %s\n' "$*" | tee -a /tmp/trivy-reports/errors.txt; }
 
+          if ! docker build --provenance=false --sbom=false -t hengdesk/postgres:scan deploy/images/postgres-pgvector; then
+            note_error "build hengdesk/postgres:scan"
+          fi
           if ! docker build --provenance=false --sbom=false -t hengdesk/server:scan server; then
             note_error "build hengdesk/server:scan"
           fi
           if ! docker build --provenance=false --sbom=false -t hengdesk/web:scan web; then
             note_error "build hengdesk/web:scan"
           fi
-          if ! docker pull pgvector/pgvector:0.8.7-pg17; then
-            note_error "pull pgvector/pgvector:0.8.7-pg17"
-          fi
           if ! docker pull valkey/valkey:8.1.11-alpine; then
             note_error "pull valkey/valkey:8.1.11-alpine"
           fi
-          if ! docker pull chrislusf/seaweedfs:4.52; then
-            note_error "pull chrislusf/seaweedfs:4.52"
+          if ! docker pull chrislusf/seaweedfs:4.54; then
+            note_error "pull chrislusf/seaweedfs:4.54"
           fi
-
-          images=(
-            hengdesk/server:scan
-            hengdesk/web:scan
-            pgvector/pgvector:0.8.7-pg17
-            valkey/valkey:8.1.11-alpine
-            chrislusf/seaweedfs:4.52
-          )
-          for img in "${images[@]}"; do
-            safe=$(printf '%s' "$img" | tr '/:' '__')
-            if ! docker image inspect "$img" >/dev/null 2>&1; then
-              note_error "missing $img"
-              continue
-            fi
-            if ! trivy image --quiet --scanners vuln --severity HIGH,CRITICAL \
-              --format json --exit-code 0 --timeout 15m \
-              --output "/tmp/trivy-reports/${safe}.json" "$img"; then
-              note_error "trivy $img"
-              continue
-            fi
-            # 单张报告的退出码先记下，不中断后续镜像。
-            python3 .github/scripts/trivy-image-gate.py "/tmp/trivy-reports/${safe}.json" || note_error "gate $img"
-          done
-          trivy version -f json > /tmp/trivy-reports/trivy-version.json || note_error "trivy version"
-          python3 .github/scripts/trivy-image-gate.py --write-index /tmp/trivy-reports "${images[@]}" || note_error "image index"
-          # 全部报告收集完后再统一失败。聚合失败或扫描错误都不能被吞掉。
-          python3 .github/scripts/trivy-image-gate.py --aggregate /tmp/trivy-reports
+          bash .github/scripts/scan-built-images.sh /tmp/trivy-reports \
+            hengdesk/postgres:scan hengdesk/server:scan hengdesk/web:scan \
+            valkey/valkey:8.1.11-alpine chrislusf/seaweedfs:4.54
           exit $?
       - uses: actions/upload-artifact@v4
         if: always()

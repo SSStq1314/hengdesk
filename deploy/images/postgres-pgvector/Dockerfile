@@ -76,7 +76,8 @@ COPY --from=ext /out/ext/ /usr/local/share/postgresql/extension/
 COPY --from=ext /out/bitcode/ /usr/local/lib/postgresql/bitcode/
 COPY --from=ext /out/pgvector-LICENSE /usr/local/share/hengdesk/licenses/pgvector-LICENSE
 COPY --from=ext /out/pgvector-build-packages.txt /usr/local/share/hengdesk/pgvector-build-packages.txt
-RUN chmod 755 /usr/local/bin/gosu \
+COPY 99-hengdesk-marker.sh /docker-entrypoint-initdb.d/99-hengdesk-marker.sh
+RUN chmod 755 /usr/local/bin/gosu /docker-entrypoint-initdb.d/99-hengdesk-marker.sh \
  && test -s /usr/local/lib/postgresql/vector.so \
  && test -s /usr/local/lib/postgresql/bitcode/vector.index.bc \
  && test -s /usr/local/share/postgresql/extension/vector.control \

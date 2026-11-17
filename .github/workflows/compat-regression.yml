@@ -1,0 +1,50 @@
+# 从 main 的正式离线包升级到本分支打出的包。扫描的是这次打进新包的镜像。
+name: 兼容回归
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pg-upgrade:
+    name: 旧包升级、失败回退与新库检查
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with: {go-version: '1.26.11', cache-dependency-path: server/go.sum}
+      - name: 构建 main 正式包和本分支新包
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git worktree add /tmp/hd-main origin/main
+          /tmp/hd-main/deploy/pack-offline.sh --version main-prev --out /tmp/old-pack
+          bash .github/scripts/install-pinned-scanners.sh /tmp/hd-scanners
+          PATH="/tmp/hd-scanners:$PATH" HENGDESK_STRICT_SCAN=1 \
+            ./deploy/pack-offline.sh --version compat-new --out /tmp/new-pack
+          sha256sum /tmp/old-pack/*.tar.gz /tmp/new-pack/*.tar.gz | tee /tmp/compat-packs.sha256
+      - name: 升级、失败演练、备份恢复、信号
+        run: bash tests/acceptance/ci/compat-pg-upgrade.sh
+      - name: SeaweedFS 4.54 的 S3 兼容
+        working-directory: server
+        run: |
+          set -a; . /tmp/compat-new/*/deploy/.env; set +a
+          export HENGDESK_S3_ENDPOINT=http://localhost:8333
+          HENGDESK_S3_IT=1 go test -count=1 -run TestS3Integration -v ./internal/objstore/
+      - name: 失败时输出日志
+        if: failure()
+        run: |
+          docker ps -a || true
+          docker compose -f /tmp/compat-new/*/deploy/docker-compose.yml logs --no-color --tail 200 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compat-regression
+          path: |
+            /tmp/compat-packs.sha256
+            /tmp/compat-evidence
+            /tmp/new-pack/image-scan-compat-new
+          if-no-files-found: warn
